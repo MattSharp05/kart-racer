@@ -63,3 +63,12 @@ export function forwardFromHeading(heading: number): Vec3 {
 export function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }
+
+/** Shortest signed difference between two angles, in (-π, π]. */
+export function wrapAngleDelta(delta: number): number {
+  const twoPi = Math.PI * 2;
+  let d = delta % twoPi;
+  if (d <= -Math.PI) d += twoPi;
+  if (d > Math.PI) d -= twoPi;
+  return d;
+}

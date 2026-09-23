@@ -21,6 +21,8 @@ export default tseslint.config(
   },
   {
     files: ['src/sim/**/*.ts'],
+    // Tests may time themselves (perf budgets); only runtime sim code must stay pure.
+    ignores: ['src/sim/**/*.test.ts'],
     rules: {
       'no-restricted-imports': [
         'error',

@@ -5,7 +5,7 @@ import { KeyboardInput } from './input/keyboard';
 import { ChaseCamera } from './render/camera';
 import { KartRenderer } from './render/karts';
 import { createScene } from './render/scene';
-import { createTrackView } from './render/trackView';
+import { createTrackView, overviewCamera } from './render/trackView';
 import { scenarios } from './scenarios';
 import { createSimState } from './sim/state';
 import { getTrack } from './sim/track';
@@ -23,14 +23,12 @@ if (!canvas) throw new Error('Missing #game canvas');
 const params = parseLaunchParams(window.location.search);
 
 /** Resolves the starting state from the URL: a named scenario, or free-drive on the test pad. */
-function initialState(): { state: SimState; scenario?: string } {
+function initialState(): { state: SimState; scenario?: string; view?: 'chase' | 'overview' } {
   if (params.scenario) {
     const scenario = scenarios.get(params.scenario);
     if (scenario) {
-      return {
-        state: scenario.setup(params.seed ?? scenario.defaultSeed).state,
-        scenario: scenario.name,
-      };
+      const setup = scenario.setup(params.seed ?? scenario.defaultSeed);
+      return { state: setup.state, scenario: scenario.name, view: setup.view ?? 'chase' };
     }
     showErrorBanner(
       `Unknown scenario "${params.scenario}". Valid scenarios:`,
@@ -51,7 +49,9 @@ const game = new Game(launch.state, () => {
 });
 if (params.paused) game.pause();
 
-createTrackView(scene, getTrack(launch.state.trackId));
+const track = getTrack(launch.state.trackId);
+createTrackView(scene, track);
+const overview = launch.view === 'overview' ? overviewCamera(camera, track) : false;
 const karts = new KartRenderer(scene);
 const chaseCamera = new ChaseCamera(camera);
 
@@ -59,7 +59,7 @@ function render(frameSeconds: number, snapCamera = false): void {
   karts.sync(game.previousState, game.state, game.alpha, [playerInput]);
   const player = karts.player;
   const kart = game.state.karts[0];
-  if (player && kart) {
+  if (player && kart && !overview) {
     const speedRatio = Math.abs(kart.speed) / tuning.topSpeed[game.state.engineClass];
     chaseCamera.update(player, speedRatio, frameSeconds, 0, snapCamera);
   }

@@ -1,11 +1,16 @@
 import * as THREE from 'three';
-import type { TrackDef } from '../sim/track';
+import { trackGeometry, type TrackDef } from '../sim/track';
+import { createSplineTrackMesh } from './trackMesh';
 
 const WALL_HEIGHT = 1.2;
 const WALL_THICKNESS = 1;
 
-/** Builds the visuals for a track. For now only the flat walled test pad (MK-9 adds spline tracks). */
+/** Builds the visuals for a track: generated from spline data, or the flat walled test pad. */
 export function createTrackView(scene: THREE.Scene, track: TrackDef): void {
+  if (track.kind === 'spline') {
+    scene.add(createSplineTrackMesh(trackGeometry(track)));
+    return;
+  }
   const size = track.halfSize * 2;
 
   const ground = new THREE.Mesh(
@@ -47,4 +52,28 @@ export function createTrackView(scene: THREE.Scene, track: TrackDef): void {
     if (rotate) wall.rotation.y = Math.PI / 2;
     scene.add(wall);
   }
+}
+
+/** Points the camera straight down at the whole track (overview/debug scenarios). Returns true. */
+export function overviewCamera(camera: THREE.PerspectiveCamera, track: TrackDef): true {
+  let minX: number;
+  let maxX: number;
+  let minZ: number;
+  let maxZ: number;
+  if (track.kind === 'spline') {
+    const samples = trackGeometry(track).samples;
+    const margin = track.offroadWidth + 20;
+    minX = Math.min(...samples.map((s) => s.x)) - margin;
+    maxX = Math.max(...samples.map((s) => s.x)) + margin;
+    minZ = Math.min(...samples.map((s) => s.z)) - margin;
+    maxZ = Math.max(...samples.map((s) => s.z)) + margin;
+  } else {
+    [minX, maxX, minZ, maxZ] = [-track.halfSize, track.halfSize, -track.halfSize, track.halfSize];
+  }
+  const span = Math.max(maxX - minX, (maxZ - minZ) * camera.aspect);
+  const height = span / 2 / Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) / camera.aspect;
+  camera.position.set((minX + maxX) / 2, height, (minZ + maxZ) / 2);
+  camera.up.set(0, 0, -1);
+  camera.lookAt((minX + maxX) / 2, 0, (minZ + maxZ) / 2);
+  return true;
 }

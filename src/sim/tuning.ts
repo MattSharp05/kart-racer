@@ -31,7 +31,15 @@ export const tuning = {
   /** How fast sideways sliding is cancelled, 1/s. Higher = grippier. */
   lateralGrip: 8,
   /** Fraction of along-wall speed kept after a head-on-ish wall hit (scaled by impact angle). */
-  wallSpeedKeep: 0.6,
+  wallSpeedKeep: 0.7,
+  /** Hits more head-on than this (0 = grazing, 1 = straight in) bounce back instead of sliding. */
+  wallHeadOn: 0.8,
+  /** Bounce-back speed on a head-on hit, as a fraction of the impact speed. */
+  wallBounce: 0.2,
+  /** Top speed on grass as a fraction of road top speed. */
+  offroadSpeed: 0.55,
+  /** Extra deceleration when faster than the grass top speed, m/s². */
+  offroadDecel: 15,
   /** Collision radius of a kart for kart-vs-kart bumps (MK-8), m. */
   kartRadius: 0.9,
   /** Kart footprint used against walls, m (matches the placeholder model incl. nose and wheels). */

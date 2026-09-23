@@ -1,16 +1,23 @@
-import { add, clamp, dot, forwardFromHeading, rotateY, scale, sub, vec3, type Vec3 } from './math';
+import {
+  add,
+  clamp,
+  dot,
+  forwardFromHeading,
+  rotateY,
+  scale,
+  sub,
+  vec3,
+  wrapAngleDelta,
+  type Vec3,
+} from './math';
 import { cancelDrift, chargeDrift, driftYawRate, handleDriftButton, isDrifting } from './drift';
-import { groundHeightAt, type TrackDef } from './track';
+import { groundAt, trackGeometry, type TrackDef } from './track';
 import { tuning, type EngineClass } from './tuning';
 import type { InputFrame, KartState, SimEvent } from './types';
 
 /** Keeps an angle in (-π, π]. */
 export function wrapAngle(angle: number): number {
-  const twoPi = Math.PI * 2;
-  let a = angle % twoPi;
-  if (a <= -Math.PI) a += twoPi;
-  if (a > Math.PI) a -= twoPi;
-  return a;
+  return wrapAngleDelta(angle);
 }
 
 /** Moves `value` towards `target` by at most `maxDelta`. */
@@ -31,6 +38,7 @@ export function updateForwardSpeed(
   topSpeed: number,
   dt: number,
   rate = accelRate(),
+  overspeedDecel = tuning.coastDecel,
 ): number {
   const blend = 1 - Math.exp(-rate * dt);
   const reverseTop = topSpeed * tuning.reverseFraction;
@@ -46,8 +54,10 @@ export function updateForwardSpeed(
     if (speed < 0) return approach(speed, 0, tuning.brakeDecel * input.throttle * dt);
     const target = topSpeed * input.throttle;
     if (speed < target) return speed + (target - speed) * blend;
-    return approach(speed, target, tuning.coastDecel * dt);
+    return approach(speed, target, overspeedDecel * dt);
   }
+  // Coasting above the (grass) top speed still sheds the excess quickly.
+  if (speed > topSpeed) return approach(speed, topSpeed, overspeedDecel * dt);
   return approach(speed, 0, tuning.coastDecel * dt);
 }
 
@@ -96,8 +106,9 @@ export function updateKart(
   forward = forwardFromHeading(kart.heading);
 
   // Longitudinal speed along the new heading. Boosting raises the top speed and pulls towards it
-  // hard, even without throttle (unless braking).
+  // hard, even without throttle (unless braking), and ignores the grass penalty.
   const boosting = kart.boostTimer > 0;
+  const onGrass = kart.grounded && groundAt(track, kart.position).surface === 'offroad';
   const newSpeed = boosting
     ? updateForwardSpeed(
         forwardSpeed,
@@ -106,7 +117,16 @@ export function updateKart(
         dt,
         tuning.boostAccelRate,
       )
-    : updateForwardSpeed(forwardSpeed, input, topSpeed, dt);
+    : onGrass
+      ? updateForwardSpeed(
+          forwardSpeed,
+          input,
+          topSpeed * tuning.offroadSpeed,
+          dt,
+          accelRate(),
+          tuning.offroadDecel,
+        )
+      : updateForwardSpeed(forwardSpeed, input, topSpeed, dt);
   kart.boostTimer = Math.max(0, kart.boostTimer - dt);
 
   // Plus the remaining sideways slide, decaying with grip (low grip while drifting = outward slide).
@@ -114,10 +134,10 @@ export function updateKart(
   const slide = scale(lateral, Math.exp(-grip * dt));
   const horizontal = add(scale(forward, newSpeed), slide);
 
-  // Vertical: gravity + ground snap (flat until the track system adds height, MK-9).
+  // Vertical: gravity + snap to the ground (follows hills; off the edge there is no ground).
   let vy = kart.velocity.y - tuning.gravity * dt;
   let position = add(kart.position, scale(vec3(horizontal.x, vy, horizontal.z), dt));
-  const ground = groundHeightAt(track);
+  const ground = groundAt(track, position).height;
   kart.grounded = position.y <= ground;
   if (kart.grounded) {
     position = { ...position, y: ground };
@@ -126,7 +146,10 @@ export function updateKart(
 
   kart.velocity = vec3(horizontal.x, vy, horizontal.z);
   kart.position = position;
-  const wallImpact = collideWithArenaWalls(kart, track, events);
+  const wallImpact =
+    track.kind === 'arena'
+      ? collideWithArenaWalls(kart, track, events)
+      : collideWithTrackWalls(kart, track, events);
   if (wallImpact > tuning.driftWallCancel) cancelDrift(kart, events);
   kart.speed = dot(kart.velocity, forwardFromHeading(kart.heading));
   return kart;
@@ -147,32 +170,86 @@ export function footprintOffsets(heading: number): Vec3[] {
  * Keeps the kart's whole footprint (not just its centre) inside the arena, and slides it
  * along walls, losing speed by impact angle. Returns the hardest impact speed into a wall, m/s.
  */
-function collideWithArenaWalls(kart: KartState, track: TrackDef, events: SimEvent[]): number {
+function collideWithArenaWalls(
+  kart: KartState,
+  track: Extract<TrackDef, { kind: 'arena' }>,
+  events: SimEvent[],
+): number {
   let hardestImpact = 0;
-  const offsets = footprintOffsets(kart.heading);
   for (const axis of ['x', 'z'] as const) {
     for (const side of [1, -1] as const) {
       // How far the furthest corner on this side sticks past the wall.
+      const offsets = footprintOffsets(kart.heading);
       const reach = Math.max(...offsets.map((o) => o[axis] * side));
       const penetration = kart.position[axis] * side + reach - track.halfSize;
       if (penetration <= 0) continue;
       kart.position = { ...kart.position, [axis]: kart.position[axis] - side * penetration };
-
-      const into = kart.velocity[axis] * side;
-      if (into <= 0) continue;
-      const other = axis === 'x' ? 'z' : 'x';
-      const total = Math.hypot(kart.velocity.x, kart.velocity.z);
-      // 0 = grazing, 1 = head-on.
-      const impact = total > 0 ? into / total : 0;
-      const keep = 1 - (1 - tuning.wallSpeedKeep) * impact;
-      kart.velocity = {
-        ...kart.velocity,
-        [axis]: 0,
-        [other]: kart.velocity[other] * keep,
-      };
-      events.push({ type: 'wallHit', kartId: kart.id, strength: into });
-      hardestImpact = Math.max(hardestImpact, into);
+      const wallNormal = axis === 'x' ? { x: side, z: 0 } : { x: 0, z: side };
+      hardestImpact = Math.max(hardestImpact, bounceOffWall(kart, wallNormal, events));
     }
+  }
+  return hardestImpact;
+}
+
+/** Removes velocity into a wall (unit normal pointing into the wall) and scrubs along-wall speed by impact angle. */
+function bounceOffWall(
+  kart: KartState,
+  wallNormal: { x: number; z: number },
+  events: SimEvent[],
+): number {
+  const into = kart.velocity.x * wallNormal.x + kart.velocity.z * wallNormal.z;
+  if (into <= 0) return 0;
+  const total = Math.hypot(kart.velocity.x, kart.velocity.z);
+  const impact = total > 0 ? into / total : 0;
+  const keep = 1 - (1 - tuning.wallSpeedKeep) * impact;
+  const alongX = (kart.velocity.x - wallNormal.x * into) * keep;
+  const alongZ = (kart.velocity.z - wallNormal.z * into) * keep;
+  if (impact < tuning.wallHeadOn && Math.hypot(alongX, alongZ) > 0.5) {
+    // Glancing: turn to slide along the wall instead of grinding into it every tick.
+    const alongHeading = Math.atan2(-alongX, -alongZ);
+    const facingAlong = Math.cos(alongHeading - kart.heading) >= 0;
+    kart.heading = wrapAngle(facingAlong ? alongHeading : alongHeading + Math.PI);
+    kart.velocity = { x: alongX, y: kart.velocity.y, z: alongZ };
+  } else {
+    // Head-on: small bounce back.
+    const bounce = into * tuning.wallBounce;
+    kart.velocity = {
+      x: alongX - wallNormal.x * bounce,
+      y: kart.velocity.y,
+      z: alongZ - wallNormal.z * bounce,
+    };
+  }
+  events.push({ type: 'wallHit', kartId: kart.id, strength: into });
+  return into;
+}
+
+/**
+ * Walls of a spline track run along both outer edges (road + grass). Works in track space:
+ * the kart's footprint is measured against the wall's lateral offset at the kart's position.
+ */
+function collideWithTrackWalls(
+  kart: KartState,
+  track: Extract<TrackDef, { kind: 'spline' }>,
+  events: SimEvent[],
+): number {
+  const geometry = trackGeometry(track);
+  const projection = geometry.project(kart.position);
+  const { normal } = projection;
+  const wallOffset = geometry.wallOffset(projection.width);
+  const offsets = footprintOffsets(kart.heading);
+  let hardestImpact = 0;
+  for (const side of [1, -1] as const) {
+    if (!geometry.hasWall(projection.t, side === 1 ? 'right' : 'left')) continue;
+    const reach = Math.max(...offsets.map((o) => (o.x * normal.x + o.z * normal.z) * side));
+    const penetration = projection.lateral * side + reach - wallOffset;
+    if (penetration <= 0) continue;
+    kart.position = {
+      ...kart.position,
+      x: kart.position.x - normal.x * side * penetration,
+      z: kart.position.z - normal.z * side * penetration,
+    };
+    const impact = bounceOffWall(kart, { x: normal.x * side, z: normal.z * side }, events);
+    hardestImpact = Math.max(hardestImpact, impact);
   }
   return hardestImpact;
 }
