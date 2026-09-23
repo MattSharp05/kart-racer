@@ -27,7 +27,7 @@ _Created by MK-1/MK-3/MK-4 — keep this list current._
 - `pnpm build` / `pnpm preview`
 - `pnpm lint` · `pnpm typecheck` · `pnpm format`
 - `pnpm test` — unit (Vitest)
-- `pnpm test:e2e` — Playwright (all projects) · `pnpm test:visual` — screenshot tests (chromium, run in CI's Docker image; see README for updating baselines)
+- `pnpm test:e2e` — Playwright (all projects) · `pnpm test:visual` — screenshot tests (chromium, run in CI's Docker image) · `scripts/update-visual-baselines.sh` — regenerate baselines locally with Docker
 - `pnpm check` — everything CI runs (lint, typecheck, unit, build, e2e)
 
 ## Structure

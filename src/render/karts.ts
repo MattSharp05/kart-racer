@@ -2,8 +2,20 @@ import * as THREE from 'three';
 import { DT } from '../sim/tuning';
 import type { InputFrame, SimState } from '../sim/types';
 import { createPlaceholderKart, WHEEL_RADIUS, type KartModel } from './kartModel';
+import type { KartState } from '../sim/types';
 
 const MAX_WHEEL_TURN = 0.45;
+/** How far the body leans outward and yaws into a drift, radians. */
+const DRIFT_LEAN = 0.12;
+const DRIFT_YAW = 0.35;
+/** Spark colour per mini-turbo tier (0 = charging, not yet blue). */
+const SPARK_COLOURS = [0xfff3b0, 0x3fa9ff, 0xff9a1f, 0xb15cff] as const;
+
+/** Deterministic 0..1 noise so sparks look random but freeze exactly when the sim is paused. */
+function noise(seed: number): number {
+  const x = Math.sin(seed * 12.9898) * 43758.5453;
+  return x - Math.floor(x);
+}
 
 /** Shortest-path interpolation between two angles. */
 function lerpAngle(a: number, b: number, t: number): number {
@@ -39,8 +51,43 @@ export class KartRenderer {
       }
       const steer = inputs[i]?.steer ?? 0;
       for (const pivot of model.frontWheels) pivot.rotation.y = -steer * MAX_WHEEL_TURN;
+      this.syncEffects(model, kart, current.tick);
     });
     this.wheelTick = current.tick;
+  }
+
+  private syncEffects(model: KartModel, kart: KartState, tick: number): void {
+    const drift = kart.drift.direction;
+    // Lean outward and swing the tail out, like a drifting kart.
+    model.body.rotation.z = drift * DRIFT_LEAN;
+    model.body.rotation.y = -drift * DRIFT_YAW;
+
+    const showSparks = drift !== 0;
+    const colour = SPARK_COLOURS[kart.drift.tier];
+    model.sparks.forEach((cluster, side) => {
+      cluster.visible = showSparks;
+      if (!showSparks) return;
+      const size = kart.drift.tier === 0 ? 0.5 : 1;
+      cluster.children.forEach((spark, n) => {
+        const mesh = spark as THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>;
+        mesh.material.color.setHex(colour);
+        const r = noise(tick * 7 + n * 13 + side * 101);
+        const angle = (n / cluster.children.length) * Math.PI * 2 + r;
+        mesh.position.set(
+          Math.cos(angle) * 0.25 * size,
+          Math.abs(Math.sin(angle)) * 0.3 * size,
+          r * 0.4,
+        );
+        mesh.rotation.set(-0.6 - r * 0.6, angle * 0.3, 0);
+        mesh.scale.setScalar(size * (0.6 + r * 0.8));
+      });
+    });
+
+    model.flame.visible = kart.boostTimer > 0;
+    if (model.flame.visible) {
+      const flicker = 0.85 + noise(tick) * 0.4;
+      model.flame.scale.set(flicker, 1 + noise(tick + 1) * 0.6, flicker);
+    }
   }
 
   /** The player's kart (kart 0), for the camera. */

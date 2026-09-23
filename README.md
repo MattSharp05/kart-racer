@@ -25,4 +25,4 @@ pnpm dev                                       # http://localhost:5173 (also on 
 
 - Every PR runs GitHub Actions (checks → e2e + visual) and gets a Vercel preview URL.
 - Merging to `main` deploys to production.
-- Visual baselines: run the CI workflow manually on your branch (`gh workflow run CI --ref <branch>`), then `gh run download <run-id> -n visual-snapshots` and commit the updated `tests/visual/__screenshots__`.
+- Visual baselines: `scripts/update-visual-baselines.sh` regenerates them locally in CI's Docker image (needs Docker). Without Docker: run the CI workflow manually on your branch (`gh workflow run CI --ref <branch>`), then `gh run download <run-id> -n visual-snapshots` and commit the updated `tests/visual/__screenshots__`.

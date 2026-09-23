@@ -21,6 +21,16 @@ export const NEUTRAL_INPUT: Readonly<InputFrame> = Object.freeze({
   item: false,
 });
 
+export type DriftTier = 0 | 1 | 2 | 3;
+
+export interface DriftState {
+  /** 1 = drifting right, -1 = left, 0 = not drifting. */
+  direction: -1 | 0 | 1;
+  /** Seconds of (weighted) drift charge. */
+  charge: number;
+  tier: DriftTier;
+}
+
 export interface KartState {
   id: number;
   position: Vec3;
@@ -31,6 +41,11 @@ export interface KartState {
   /** Signed speed along the heading, m/s (negative when reversing). */
   speed: number;
   grounded: boolean;
+  drift: DriftState;
+  /** Whether the drift button was held last tick (to detect presses and releases). */
+  driftHeld: boolean;
+  /** Seconds of boost left (mini-turbo; later mushrooms, boost pads, rocket start). */
+  boostTimer: number;
 }
 
 export type RacePhase = 'free' | 'countdown' | 'racing' | 'finished';
@@ -54,7 +69,13 @@ export interface SimState {
 
 export type SimEvent =
   | { type: 'phaseChanged'; phase: RacePhase }
-  | { type: 'wallHit'; kartId: number; strength: number };
+  | { type: 'wallHit'; kartId: number; strength: number }
+  | { type: 'hop'; kartId: number }
+  | { type: 'driftStart'; kartId: number; direction: -1 | 1 }
+  | { type: 'driftTier'; kartId: number; tier: DriftTier }
+  | { type: 'driftCancel'; kartId: number }
+  | { type: 'miniTurbo'; kartId: number; tier: DriftTier }
+  | { type: 'boost'; kartId: number; seconds: number };
 
 export interface StepResult {
   state: SimState;

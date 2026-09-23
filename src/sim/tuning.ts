@@ -40,6 +40,32 @@ export const tuning = {
   kartHalfWidth: 0.86,
   /** m/s² */
   gravity: 25,
+
+  // --- Drift & boost (MK-6) ---
+  /** Upward speed of the hop when drift is pressed, m/s. */
+  hopVelocity: 4,
+  /** Drifting is only allowed above this fraction of top speed (and cancels below it). */
+  driftMinSpeed: 0.4,
+  /** |steer| needed when pressing drift to start a drift instead of a plain hop. */
+  driftSteerThreshold: 0.3,
+  /** Yaw rate while drifting with neutral steer, rad/s. */
+  driftYaw: 1.5,
+  /** Steering into the drift adds, and away from it subtracts, up to this much yaw, rad/s. */
+  driftYawRange: 0.6,
+  /** Sideways grip while drifting (lower than normal, so the kart slides outward), 1/s. */
+  driftGrip: 2.5,
+  /** Extra charge rate when steering fully into the drift (1 = double speed). */
+  driftChargeBonus: 0.5,
+  /** Seconds of charge needed for tier 1 (blue), 2 (orange), 3 (purple). */
+  driftTiers: [0.8, 1.6, 2.6] as [number, number, number],
+  /** Mini-turbo boost length for tier 1, 2, 3, s. */
+  miniTurboSeconds: [0.6, 1.0, 1.4] as [number, number, number],
+  /** Top speed multiplier while boosting. */
+  boostSpeed: 1.3,
+  /** How quickly a boost pulls speed up to the boosted top speed, 1/s. */
+  boostAccelRate: 4,
+  /** A wall hit harder than this (m/s into the wall) cancels a drift. */
+  driftWallCancel: 3,
 };
 
 export type Tuning = typeof tuning;
