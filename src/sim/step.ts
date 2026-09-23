@@ -1,5 +1,6 @@
 import { resolveKartCollisions } from './collisions';
 import { updateKart } from './kart';
+import { updateRace } from './race';
 import { getTrack } from './track';
 import { DT } from './tuning';
 import {
@@ -25,6 +26,7 @@ export function step(state: SimState, inputs: readonly InputFrame[], dt = DT): S
     updateKart(kart, inputs[kart.id] ?? NEUTRAL_INPUT, next.engineClass, track, dt, events);
   }
   resolveKartCollisions(next.karts, positionsBefore, events);
+  updateRace(next, track, events, dt);
 
   return { state: next, events };
 }

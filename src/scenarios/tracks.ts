@@ -137,4 +137,50 @@ export const trackScenarios: Scenario[] = [
       ),
     }),
   },
+  {
+    name: 'sunny-last-checkpoint',
+    group: 'Race',
+    description:
+      'Lap 1 with every checkpoint passed, 30 m before the line. Drive over it for lap 2.',
+    defaultSeed: 1,
+    setup: (seed) => {
+      const state = kartOnTrack(seed, 'sunny-circuit', sunnyT(0, -30), { speed: 20 });
+      const [kart] = state.karts;
+      if (kart) kart.race = { ...kart.race, lap: 1, nextCheckpoint: 0 };
+      return { state };
+    },
+  },
+  {
+    name: 'sunny-wrong-way',
+    group: 'Race',
+    description: 'Driving backwards down the main straight — "wrong way" shows after 1.5 s.',
+    defaultSeed: 1,
+    setup: (seed) => ({
+      state: kartOnTrack(seed, 'sunny-circuit', 0.05, { speed: 15, headingOffset: Math.PI }),
+    }),
+  },
+  {
+    name: 'sunny-positions',
+    group: 'Race',
+    description:
+      '8 parked karts spread round Sunny Circuit, different laps — for checking race order.',
+    defaultSeed: 1,
+    setup: (seed) => {
+      const spots = [0.1, 0.3, 0.5, 0.7, 0.2, 0.4, 0.6, 0.8];
+      const state = createSimState({
+        seed,
+        trackId: 'sunny-circuit',
+        karts: spots.map((t, i) => ({
+          kartType: (['maple', 'pixie', 'boulder', 'swoop'] as const)[i % 4],
+          position: sunny.pointAt(t, i % 2 ? 3 : -3),
+          heading: sunny.headingAt(t),
+        })),
+      });
+      state.karts.forEach((kart, i) => {
+        // First four on lap 2, the rest on lap 1.
+        kart.race = { ...kart.race, lap: i < 4 ? 2 : 1, nextCheckpoint: 1, lastT: spots[i] ?? 0 };
+      });
+      return { state };
+    },
+  },
 ];

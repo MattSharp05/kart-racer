@@ -48,8 +48,18 @@ export function createSimState({
         boostTimer: 0,
         airTime: 0,
         trick: 'none',
+        race: {
+          lap: 0,
+          nextCheckpoint: 0,
+          lastT: -1,
+          lapStartTick: 0,
+          lapTimes: [],
+          wrongWayTime: 0,
+          wrongWay: false,
+        },
       };
     }),
     entities: [],
+    positions: karts.map((_, id) => id),
   };
 }

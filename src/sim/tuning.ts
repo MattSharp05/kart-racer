@@ -107,6 +107,13 @@ export const tuning = {
   rampLaunch: 0.28,
   /** A grounded kart stays glued to the ground over drops up to this per tick, m. */
   groundSnap: 0.15,
+  // --- Race (MK-11) ---
+  /** A checkpoint crossing only counts if the kart is within this lap fraction of it (no teleports). */
+  checkpointWindow: 0.05,
+  /** Driving against the track faster than this (m/s)… */
+  wrongWaySpeed: 2,
+  /** …for this long (s) shows "wrong way". */
+  wrongWaySeconds: 1.5,
   /** A kart further than this past a wall line is on its far side (e.g. a shortcut), not in it, m. */
   wallMaxPenetration: 3,
 };
