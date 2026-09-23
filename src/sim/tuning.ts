@@ -32,8 +32,12 @@ export const tuning = {
   lateralGrip: 8,
   /** Fraction of along-wall speed kept after a head-on-ish wall hit (scaled by impact angle). */
   wallSpeedKeep: 0.6,
-  /** Collision radius of a kart, m. */
+  /** Collision radius of a kart for kart-vs-kart bumps (MK-8), m. */
   kartRadius: 0.9,
+  /** Kart footprint used against walls, m (matches the placeholder model incl. nose and wheels). */
+  kartFront: 1.45,
+  kartRear: 1.07,
+  kartHalfWidth: 0.86,
   /** m/s² */
   gravity: 25,
 };

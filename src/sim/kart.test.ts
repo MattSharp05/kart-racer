@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { drivingScenarios } from '../scenarios/driving';
-import { steeringStrength, wrapAngle } from './kart';
+import { footprintOffsets, steeringStrength, wrapAngle } from './kart';
 import { createSimState, type KartSpawn } from './state';
 import { step } from './step';
 import { DT, tuning, type EngineClass } from './tuning';
@@ -97,15 +97,35 @@ describe('kart physics — steering', () => {
   });
 });
 
+/** Largest distance any footprint corner reaches past the arena boundary (≤ 0 means inside). */
+function worstPenetration(state: SimState): number {
+  const kart = state.karts[0]!;
+  const corners = footprintOffsets(kart.heading).map((o) => ({
+    x: kart.position.x + o.x,
+    z: kart.position.z + o.z,
+  }));
+  return Math.max(...corners.flatMap((c) => [Math.abs(c.x), Math.abs(c.z)])) - 100;
+}
+
 describe('kart physics — walls', () => {
+  it('no footprint corner ever passes a wall, for headings every 5° (MK-29)', () => {
+    for (let degrees = 0; degrees < 360; degrees += 5) {
+      const heading = wrapAngle((degrees * Math.PI) / 180);
+      const frames = drive(kartAt({ heading, speed: 20 }), { throttle: 1 }, secondsToTicks(8));
+      for (const s of frames) expect(worstPenetration(s)).toBeLessThanOrEqual(1e-9);
+    }
+  });
+
+  it('steering along a wall never pushes a corner through it', () => {
+    const scenario = drivingScenarios.find((s) => s.name === 'test-pad-wall-angled')!;
+    const frames = drive(scenario.setup(1).state, { throttle: 1, steer: -1 }, secondsToTicks(4));
+    for (const s of frames) expect(worstPenetration(s)).toBeLessThanOrEqual(1e-9);
+  });
+
   it('stays inside the test pad when driven into a wall', () => {
     const scenario = drivingScenarios.find((s) => s.name === 'test-pad-wall')!;
     const frames = drive(scenario.setup(1).state, { throttle: 1 }, 120);
-    const limit = 100 - tuning.kartRadius;
-    for (const s of frames) {
-      expect(Math.abs(s.karts[0]!.position.z)).toBeLessThanOrEqual(limit + 1e-9);
-      expect(Math.abs(s.karts[0]!.position.x)).toBeLessThanOrEqual(limit + 1e-9);
-    }
+    for (const s of frames) expect(worstPenetration(s)).toBeLessThanOrEqual(1e-9);
   });
 
   it('a head-on hit stops forward motion into the wall', () => {

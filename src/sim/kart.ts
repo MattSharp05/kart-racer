@@ -1,4 +1,4 @@
-import { add, clamp, dot, forwardFromHeading, scale, sub, vec3 } from './math';
+import { add, clamp, dot, forwardFromHeading, rotateY, scale, sub, vec3, type Vec3 } from './math';
 import { groundHeightAt, type TrackDef } from './track';
 import { tuning, type EngineClass } from './tuning';
 import type { InputFrame, KartState, SimEvent } from './types';
@@ -103,27 +103,44 @@ export function updateKart(
   return kart;
 }
 
-/** Keeps the kart inside the arena and slides it along walls, losing speed by impact angle. */
-function collideWithArenaWalls(kart: KartState, track: TrackDef, events: SimEvent[]): void {
-  const limit = track.halfSize - tuning.kartRadius;
-  for (const axis of ['x', 'z'] as const) {
-    const pos = kart.position[axis];
-    if (Math.abs(pos) <= limit) continue;
-    const outward = Math.sign(pos);
-    kart.position = { ...kart.position, [axis]: outward * limit };
-    const into = kart.velocity[axis] * outward;
-    if (into <= 0) continue;
+/** The kart's four footprint corners as offsets from its centre, in world orientation (XZ). */
+export function footprintOffsets(heading: number): Vec3[] {
+  const { kartFront, kartRear, kartHalfWidth } = tuning;
+  return [
+    vec3(-kartHalfWidth, 0, -kartFront),
+    vec3(kartHalfWidth, 0, -kartFront),
+    vec3(-kartHalfWidth, 0, kartRear),
+    vec3(kartHalfWidth, 0, kartRear),
+  ].map((corner) => rotateY(corner, heading));
+}
 
-    const other = axis === 'x' ? 'z' : 'x';
-    const total = Math.hypot(kart.velocity.x, kart.velocity.z);
-    // 0 = grazing, 1 = head-on.
-    const impact = total > 0 ? into / total : 0;
-    const keep = 1 - (1 - tuning.wallSpeedKeep) * impact;
-    kart.velocity = {
-      ...kart.velocity,
-      [axis]: 0,
-      [other]: kart.velocity[other] * keep,
-    };
-    events.push({ type: 'wallHit', kartId: kart.id, strength: into });
+/**
+ * Keeps the kart's whole footprint (not just its centre) inside the arena, and slides it
+ * along walls, losing speed by impact angle.
+ */
+function collideWithArenaWalls(kart: KartState, track: TrackDef, events: SimEvent[]): void {
+  const offsets = footprintOffsets(kart.heading);
+  for (const axis of ['x', 'z'] as const) {
+    for (const side of [1, -1] as const) {
+      // How far the furthest corner on this side sticks past the wall.
+      const reach = Math.max(...offsets.map((o) => o[axis] * side));
+      const penetration = kart.position[axis] * side + reach - track.halfSize;
+      if (penetration <= 0) continue;
+      kart.position = { ...kart.position, [axis]: kart.position[axis] - side * penetration };
+
+      const into = kart.velocity[axis] * side;
+      if (into <= 0) continue;
+      const other = axis === 'x' ? 'z' : 'x';
+      const total = Math.hypot(kart.velocity.x, kart.velocity.z);
+      // 0 = grazing, 1 = head-on.
+      const impact = total > 0 ? into / total : 0;
+      const keep = 1 - (1 - tuning.wallSpeedKeep) * impact;
+      kart.velocity = {
+        ...kart.velocity,
+        [axis]: 0,
+        [other]: kart.velocity[other] * keep,
+      };
+      events.push({ type: 'wallHit', kartId: kart.id, strength: into });
+    }
   }
 }

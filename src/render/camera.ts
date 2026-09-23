@@ -22,10 +22,13 @@ export class ChaseCamera {
     camera.fov = BASE_FOV;
   }
 
-  /** `speedRatio` = |speed| / top speed, 0..1+. `dt` = real frame time, seconds. */
-  update(kart: THREE.Object3D, speedRatio: number, dt: number, groundY = 0): void {
+  /**
+   * `speedRatio` = |speed| / top speed, 0..1+. `dt` = real frame time, seconds.
+   * `snap` jumps straight to the resting position (after tests/QA fast-forward the sim).
+   */
+  update(kart: THREE.Object3D, speedRatio: number, dt: number, groundY = 0, snap = false): void {
     const kartHeading = kart.rotation.y;
-    if (this.heading === undefined) {
+    if (this.heading === undefined || snap) {
       this.heading = kartHeading;
       this.place(kart, kartHeading, 1);
       return;

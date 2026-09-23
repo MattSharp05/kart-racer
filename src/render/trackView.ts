@@ -29,12 +29,18 @@ export function createTrackView(scene: THREE.Scene, track: TrackDef): void {
   scene.add(centreLine);
 
   const wallMaterial = new THREE.MeshLambertMaterial({ color: 0xf4a261 });
-  const wallGeometry = new THREE.BoxGeometry(size + WALL_THICKNESS, WALL_HEIGHT, WALL_THICKNESS);
+  const wallGeometry = new THREE.BoxGeometry(
+    size + WALL_THICKNESS * 2,
+    WALL_HEIGHT,
+    WALL_THICKNESS,
+  );
+  // Inner face of each wall sits exactly on the collision boundary (±halfSize).
+  const wallCentre = track.halfSize + WALL_THICKNESS / 2;
   for (const [x, z, rotate] of [
-    [0, -track.halfSize, false],
-    [0, track.halfSize, false],
-    [-track.halfSize, 0, true],
-    [track.halfSize, 0, true],
+    [0, -wallCentre, false],
+    [0, wallCentre, false],
+    [-wallCentre, 0, true],
+    [wallCentre, 0, true],
   ] as const) {
     const wall = new THREE.Mesh(wallGeometry, wallMaterial);
     wall.position.set(x, WALL_HEIGHT / 2, z);

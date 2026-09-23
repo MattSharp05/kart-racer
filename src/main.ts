@@ -55,18 +55,18 @@ createTrackView(scene, getTrack(launch.state.trackId));
 const karts = new KartRenderer(scene);
 const chaseCamera = new ChaseCamera(camera);
 
-function render(frameSeconds: number): void {
+function render(frameSeconds: number, snapCamera = false): void {
   karts.sync(game.previousState, game.state, game.alpha, [playerInput]);
   const player = karts.player;
   const kart = game.state.karts[0];
   if (player && kart) {
     const speedRatio = Math.abs(kart.speed) / tuning.topSpeed[game.state.engineClass];
-    chaseCamera.update(player, speedRatio, frameSeconds);
+    chaseCamera.update(player, speedRatio, frameSeconds, 0, snapCamera);
   }
   renderer.render(scene, camera);
 }
 
-installTestApi(game, () => render(0), launch.scenario);
+installTestApi(game, () => render(0, true), launch.scenario);
 
 if (params.tune) {
   void import('./dev/tuningPanel').then(({ openTuningPanel }) => openTuningPanel());
