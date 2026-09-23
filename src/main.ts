@@ -3,6 +3,7 @@ import { parseLaunchParams } from './game/launchParams';
 import { installTestApi } from './game/testApi';
 import { PlayerInput } from './input/playerInput';
 import { ChaseCamera, LineupCamera } from './render/camera';
+import { ItemBoxRenderer } from './render/itemBoxes';
 import { KartRenderer } from './render/karts';
 import { createScene } from './render/scene';
 import { createTrackView, overviewCamera } from './render/trackView';
@@ -12,7 +13,7 @@ import { sunnyStart } from './scenarios/tracks';
 import { isKartId, KART_IDS } from './sim/data/karts';
 import { getTrack } from './sim/track';
 import { tuning } from './sim/tuning';
-import { NEUTRAL_INPUT, type InputFrame, type SimState } from './sim/types';
+import { NEUTRAL_INPUT, type InputFrame, type ItemId, type SimState } from './sim/types';
 import { showErrorBanner } from './ui/errorBanner';
 import { RaceOverlay } from './ui/raceOverlay';
 import { browserStore, recordBests } from './game/storage';
@@ -47,6 +48,12 @@ function initialState(): { state: SimState; scenario?: string; view?: ScenarioVi
 const { renderer, scene, camera } = createScene(canvas);
 
 const launch = initialState();
+if (params.item) {
+  const player = launch.state.karts[0];
+  const valid = ['mushroom', 'banana', 'green', 'red', 'star', 'lightning'];
+  if (player && valid.includes(params.item)) player.item.held = params.item as ItemId;
+  else showErrorBanner(`Unknown item "${params.item}". Valid items:`, valid);
+}
 if (params.kart) {
   const player = launch.state.karts[0];
   if (player && isKartId(params.kart)) player.kartType = params.kart;
@@ -67,6 +74,7 @@ const overview = launch.view === 'overview' ? overviewCamera(camera, track) : fa
 const lineup = launch.view === 'lineup' ? new LineupCamera(camera) : undefined;
 const karts = new KartRenderer(scene);
 const chaseCamera = new ChaseCamera(camera);
+const itemBoxes = new ItemBoxRenderer(scene);
 const raceOverlay = new RaceOverlay();
 const store = browserStore();
 game.onEvents((events, state) => {
@@ -94,6 +102,7 @@ game.onEvents((events, state) => {
 /** Updates karts and camera for this frame, then draws (unless `draw` is false). */
 function render(frameSeconds: number, snapCamera = false, draw = true): void {
   karts.sync(game.previousState, game.state, game.alpha, [playerInput]);
+  itemBoxes.sync(game.state, game.state.tick / 60);
   const player = karts.player;
   const kart = game.state.karts[0];
   if (lineup) {

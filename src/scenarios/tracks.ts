@@ -204,4 +204,28 @@ export const trackScenarios: Scenario[] = [
       return { state };
     },
   },
+  {
+    name: 'item-box-ahead',
+    group: 'Items',
+    description:
+      'On the main straight, 40 m before the first row of item boxes. Drive through one.',
+    defaultSeed: 1,
+    setup: (seed) => {
+      const row = sunnyCircuit.itemBoxRows?.[0]?.t ?? 0.08;
+      return { state: kartOnTrack(seed, 'sunny-circuit', sunnyT(row, -40), { speed: 20 }) };
+    },
+  },
+  {
+    name: 'item-roulette',
+    group: 'Items',
+    description:
+      'Item roulette mid-spin (use with &paused=1 to see it; unpaused it lands in 0.7 s).',
+    defaultSeed: 1,
+    setup: (seed) => {
+      const state = sunnyStart(seed);
+      const [kart] = state.karts;
+      if (kart) kart.item.roulette = 0.7;
+      return { state };
+    },
+  },
 ];
