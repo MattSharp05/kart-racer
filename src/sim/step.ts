@@ -30,7 +30,8 @@ export function step(state: SimState, inputs: readonly InputFrame[], dt = DT): S
   const positionsBefore = new Map(next.karts.map((kart) => [kart.id, kart.position]));
   for (const kart of next.karts) {
     if (isRespawning(kart)) continue;
-    updateKart(kart, resolved[kart.id] ?? NEUTRAL_INPUT, next.engineClass, track, dt, events);
+    const input = kart.spinTimer > 0 ? NEUTRAL_INPUT : (resolved[kart.id] ?? NEUTRAL_INPUT);
+    updateKart(kart, input, next.engineClass, track, dt, events);
   }
   // Karts being carried by the pickup drone don't collide.
   resolveKartCollisions(

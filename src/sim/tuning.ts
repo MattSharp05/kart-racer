@@ -126,6 +126,19 @@ export const tuning = {
   itemBoxRespawnSeconds: 2,
   rouletteSeconds: 1.5,
   mushroomSeconds: 1.5,
+  // --- Hits & bananas (MK-17) ---
+  spinSeconds: 1,
+  /** Speed kept when hit (fraction). */
+  hitSpeedFactor: 0.3,
+  /** Invulnerability after a spin-out ends, s. */
+  hitInvulnerableSeconds: 1,
+  bananaDropDistance: 2,
+  bananaThrowDistance: 20,
+  bananaFlightSeconds: 0.5,
+  /** Kart centre within this of a banana = hit, m. */
+  bananaRadius: 1.3,
+  bananaOwnerImmuneSeconds: 0.5,
+  maxBananas: 20,
   // --- AI (MK-14) ---
   ai: {
     /** Look-ahead along the racing line = base + speed × this, m. */

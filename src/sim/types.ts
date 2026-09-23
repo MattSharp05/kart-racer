@@ -114,6 +114,8 @@ export interface KartState {
   outTime: number;
   /** Seconds until the respawn button works again. */
   respawnCooldown: number;
+  /** Seconds left of a spin-out after being hit (MK-17): no control until 0. */
+  spinTimer: number;
   /** Present on computer-controlled karts (MK-14). */
   ai?: AiState;
 }
@@ -132,8 +134,25 @@ export interface ItemBoxEntity {
   respawnTimer: number;
 }
 
-/** Things in the world other than karts. Items add their own kinds (bananas, shells…). */
-export type Entity = ItemBoxEntity;
+/** A banana on (or flying to) the track (MK-17). */
+export interface BananaEntity {
+  id: number;
+  kind: 'banana';
+  position: Vec3;
+  /** Where a thrown banana left from (for drawing its arc). */
+  from: Vec3;
+  /** Seconds left in the air when thrown; it can't be hit until it lands. */
+  flightTimer: number;
+  ownerId: number;
+  /** Seconds the owner is still immune to it. */
+  ownerImmune: number;
+}
+
+/** Things in the world other than karts. Items add their own kinds (shells…). */
+export type Entity = ItemBoxEntity | BananaEntity;
+
+/** What hit a kart. */
+export type HitKind = 'banana';
 
 /** A kart's item slot. */
 export interface KartItem {
@@ -172,6 +191,7 @@ export type SimEvent =
   | { type: 'itemBoxHit'; kartId: number; boxId: number }
   | { type: 'itemGranted'; kartId: number; item: ItemId }
   | { type: 'itemUsed'; kartId: number; item: ItemId }
+  | { type: 'kartHit'; kartId: number; by: number; kind: HitKind }
   | { type: 'wallHit'; kartId: number; strength: number }
   | { type: 'bump'; a: number; b: number; strength: number }
   | { type: 'hop'; kartId: number }

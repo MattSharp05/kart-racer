@@ -71,6 +71,7 @@ export function createSimState({
         lastSafeT: -1,
         outTime: 0,
         respawnCooldown: 0,
+        spinTimer: 0,
       };
     }),
     entities: itemBoxesFor(trackId),
