@@ -1,4 +1,4 @@
-import type { InputFrame, SimEvent, SimState } from '../sim/types';
+import { NEUTRAL_INPUT, type InputFrame, type SimEvent, type SimState } from '../sim/types';
 import type { Game } from './game';
 
 /** `window.__game`: lets e2e tests and QA drive the sim deterministically (docs/TDD.md → Testing). */
@@ -30,10 +30,7 @@ export function installTestApi(game: Game, onStep: () => void): GameTestApi {
       return structuredClone(game.state);
     },
     setInput: (kartId, frame) =>
-      game.setInputOverride(
-        kartId,
-        frame ? { throttle: 0, brake: 0, steer: 0, drift: false, item: false, ...frame } : null,
-      ),
+      game.setInputOverride(kartId, frame ? { ...NEUTRAL_INPUT, ...frame } : null),
     events: () => game.drainEvents(),
   };
   window.__game = api;
