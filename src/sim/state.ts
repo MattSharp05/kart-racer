@@ -2,6 +2,7 @@ import type { KartId } from './data/karts';
 import { forwardFromHeading, scale, vec3 } from './math';
 import { seedRng } from './rng';
 import type { EngineClass } from './tuning';
+import { getTrack, trackGeometry } from './track';
 import { DT, tuning } from './tuning';
 import type { KartState, RacePhase, SimState } from './types';
 
@@ -64,6 +65,7 @@ export function createSimState({
           wrongWay: false,
           stallTimer: 0,
         },
+        item: { held: null, roulette: 0, buttonHeld: false },
         respawnTimer: 0,
         invulnerableTimer: 0,
         lastSafeT: -1,
@@ -71,7 +73,7 @@ export function createSimState({
         respawnCooldown: 0,
       };
     }),
-    entities: [],
+    entities: itemBoxesFor(trackId),
     positions: karts.map((_, id) => id),
     race: {
       laps,
@@ -79,4 +81,20 @@ export function createSimState({
       goTick: phase === 'countdown' ? Math.round(tuning.countdownSeconds / DT) : 0,
     },
   };
+}
+
+/** One active item box per lateral slot on each of the track's item-box rows. */
+function itemBoxesFor(trackId: string): SimState['entities'] {
+  const track = getTrack(trackId);
+  if (track.kind !== 'spline' || !track.itemBoxRows) return [];
+  const geometry = trackGeometry(track);
+  let id = 0;
+  return track.itemBoxRows.flatMap((row) =>
+    row.laterals.map((lateral) => ({
+      id: id++,
+      kind: 'itemBox' as const,
+      position: geometry.pointAt(row.t, lateral),
+      respawnTimer: 0,
+    })),
+  );
 }

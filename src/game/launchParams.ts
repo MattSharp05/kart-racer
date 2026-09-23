@@ -7,6 +7,8 @@ export interface LaunchParams {
   tune: boolean;
   /** Player kart override, e.g. `&kart=boulder`. */
   kart?: string;
+  /** Give the player an item straight away, e.g. `&item=mushroom`. */
+  item?: string;
 }
 
 const TRUE_VALUES = ['1', 'true'];
@@ -18,10 +20,12 @@ export function parseLaunchParams(search: string): LaunchParams {
   const seed = seedText !== null && seedText !== '' ? Number(seedText) : undefined;
   const flag = (name: string) => TRUE_VALUES.includes(params.get(name) ?? '');
   const kart = params.get('kart') ?? undefined;
+  const item = params.get('item') ?? undefined;
   return {
     ...(scenario ? { scenario } : {}),
     ...(seed !== undefined && Number.isFinite(seed) ? { seed } : {}),
     ...(kart ? { kart } : {}),
+    ...(item ? { item } : {}),
     paused: flag('paused'),
     tune: flag('tune'),
   };

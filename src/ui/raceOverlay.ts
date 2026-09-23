@@ -1,7 +1,17 @@
 import { KARTS } from '../sim/data/karts';
 import { positionOf } from '../sim/race';
 import { raceResults, raceTime } from '../sim/raceFlow';
-import type { SimEvent, SimState } from '../sim/types';
+import type { ItemId, SimEvent, SimState } from '../sim/types';
+
+export const ITEM_NAMES: Record<ItemId, string> = {
+  mushroom: 'Mushroom',
+  banana: 'Banana',
+  green: 'Green shell',
+  red: 'Red shell',
+  star: 'Star',
+  lightning: 'Lightning',
+};
+const ROULETTE_ORDER: ItemId[] = ['mushroom', 'banana', 'green', 'red', 'star', 'lightning'];
 
 const ORDINAL = ['th', 'st', 'nd', 'rd'];
 
@@ -26,6 +36,7 @@ export class RaceOverlay {
   private readonly timer = document.createElement('div');
   private readonly centre = document.createElement('div');
   private readonly results = document.createElement('ol');
+  private readonly item = document.createElement('div');
   private centreUntil = 0;
   private lastStatus = '';
   bestNote = '';
@@ -37,7 +48,8 @@ export class RaceOverlay {
     this.centre.className = 'race-centre';
     this.results.className = 'race-results';
     this.results.hidden = true;
-    this.root.append(this.status, this.timer, this.centre, this.results);
+    this.item.className = 'race-item';
+    this.root.append(this.status, this.timer, this.centre, this.results, this.item);
     document.body.append(this.root);
   }
 
@@ -86,8 +98,23 @@ export class RaceOverlay {
     }
     if (now > this.centreUntil) this.centre.hidden = true;
 
+    this.updateItem(state, now);
     this.results.hidden = state.phase !== 'finished';
     if (!this.results.hidden) this.renderResults(state);
+  }
+
+  /** Item slot (text until the HUD's icons in MK-24); the roulette cycles through names. */
+  private updateItem(state: SimState, now: number): void {
+    const slot = state.karts[0]?.item;
+    const text = !slot
+      ? ''
+      : slot.roulette > 0
+        ? `🎲 ${ITEM_NAMES[ROULETTE_ORDER[Math.floor(now / 90) % ROULETTE_ORDER.length] ?? 'mushroom']}`
+        : slot.held
+          ? `${ITEM_NAMES[slot.held]} — press E`
+          : '';
+    this.item.hidden = text === '';
+    if (this.item.textContent !== text) this.item.textContent = text;
   }
 
   private flash(text: string, now: number, ms: number): void {
