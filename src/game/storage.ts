@@ -94,3 +94,25 @@ export function recordBests(
   store.set(key(trackId, kartType, engineClass), JSON.stringify(bests));
   return { ...bests, newBestLap, newBestRace };
 }
+
+export interface Prefs {
+  kart?: string;
+  engineClass?: number;
+}
+
+const PREFS_KEY = 'kart-racer:prefs';
+
+/** Last kart and engine class picked in the menus. */
+export function readPrefs(store: KeyValueStore): Prefs {
+  try {
+    const raw = store.get(PREFS_KEY);
+    const parsed = raw ? (JSON.parse(raw) as Prefs) : {};
+    return typeof parsed === 'object' && parsed ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+export function writePrefs(store: KeyValueStore, prefs: Prefs): void {
+  store.set(PREFS_KEY, JSON.stringify(prefs));
+}

@@ -77,18 +77,30 @@ const LINEUP_START_ANGLE = -0.35;
 /** Slow orbit around the kart lineup (kart select preview, `kart-lineup` scenario). Frozen when paused. */
 export class LineupCamera {
   private angle = LINEUP_START_ANGLE;
+  private readonly centre = new THREE.Vector3();
+  private readonly target = new THREE.Vector3();
+  /** Radius when focused on one kart (kart select) instead of the whole lineup. */
+  private radius = LINEUP_RADIUS;
 
   constructor(private readonly camera: THREE.PerspectiveCamera) {
     this.update(0);
   }
 
+  /** Orbits around `point` (default: the origin), closer in when showing a single kart. */
+  focus(point: THREE.Vector3, single = false, snap = false): void {
+    this.target.copy(point);
+    this.radius = single ? 6 : LINEUP_RADIUS;
+    if (snap) this.centre.copy(point);
+  }
+
   update(dt: number): void {
     this.angle += LINEUP_ORBIT_SPEED * dt;
+    this.centre.lerp(this.target, 1 - Math.exp(-6 * dt));
     this.camera.position.set(
-      Math.sin(this.angle) * LINEUP_RADIUS,
-      LINEUP_HEIGHT,
-      -Math.cos(this.angle) * LINEUP_RADIUS,
+      this.centre.x + Math.sin(this.angle) * this.radius,
+      this.centre.y + LINEUP_HEIGHT * (this.radius / LINEUP_RADIUS),
+      this.centre.z - Math.cos(this.angle) * this.radius,
     );
-    this.camera.lookAt(0, 0.6, 0);
+    this.camera.lookAt(this.centre.x, this.centre.y + 0.6, this.centre.z);
   }
 }

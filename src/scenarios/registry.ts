@@ -1,6 +1,7 @@
 import type { SimState } from '../sim/types';
 
 export type ScenarioView = 'chase' | 'overview' | 'lineup';
+export type MenuScreen = 'title' | 'kartSelect' | 'ccSelect' | 'paused';
 
 export interface ScenarioSetup {
   state: SimState;
@@ -8,6 +9,8 @@ export interface ScenarioSetup {
   view?: ScenarioView;
   /** Kart the camera follows (default 0, the player). */
   follow?: number;
+  /** Open a menu screen on top of this state (MK-25). */
+  screen?: MenuScreen;
 }
 
 /** A named, deterministic starting state reachable via `/?scenario=<name>` (CLAUDE.md → Testing). */

@@ -1,6 +1,5 @@
-import { KARTS } from '../sim/data/karts';
 import { positionOf } from '../sim/race';
-import { raceResults, raceTime } from '../sim/raceFlow';
+import { raceTime } from '../sim/raceFlow';
 import type { ItemId, SimEvent, SimState } from '../sim/types';
 
 export const ITEM_NAMES: Record<ItemId, string> = {
@@ -27,15 +26,14 @@ export function formatTime(seconds: number): string {
 }
 
 /**
- * Minimal race readouts (MK-12) until the styled HUD and menus (MK-24/25): countdown, lap, position,
- * timer, wrong way, finish banner and a plain results list.
+ * Minimal race readouts (MK-12) until the styled HUD (MK-24): countdown, lap, position, timer,
+ * wrong way and the finish banner. Results are a menu screen (MK-25).
  */
 export class RaceOverlay {
   private readonly root = document.createElement('div');
   private readonly status = document.createElement('div');
   private readonly timer = document.createElement('div');
   private readonly centre = document.createElement('div');
-  private readonly results = document.createElement('ol');
   private readonly item = document.createElement('div');
   private centreUntil = 0;
   private lastStatus = '';
@@ -46,10 +44,8 @@ export class RaceOverlay {
     this.status.className = 'race-status';
     this.timer.className = 'race-timer';
     this.centre.className = 'race-centre';
-    this.results.className = 'race-results';
-    this.results.hidden = true;
     this.item.className = 'race-item';
-    this.root.append(this.status, this.timer, this.centre, this.results, this.item);
+    this.root.append(this.status, this.timer, this.centre, this.item);
     document.body.append(this.root);
   }
 
@@ -67,10 +63,10 @@ export class RaceOverlay {
     }
   }
 
-  update(state: SimState, now: number): void {
+  update(state: SimState, now: number, menuOpen = false): void {
     const kart = state.karts[0];
     const racing = state.phase !== 'free';
-    if (!kart || state.trackId === 'test-pad') {
+    if (!kart || state.trackId === 'test-pad' || menuOpen) {
       this.root.hidden = true;
       return;
     }
@@ -99,8 +95,6 @@ export class RaceOverlay {
     if (now > this.centreUntil) this.centre.hidden = true;
 
     this.updateItem(state, now);
-    this.results.hidden = state.phase !== 'finished';
-    if (!this.results.hidden) this.renderResults(state);
   }
 
   /** Item slot (text until the HUD's icons in MK-24); the roulette cycles through names. */
@@ -121,17 +115,5 @@ export class RaceOverlay {
     this.centre.textContent = text;
     this.centre.hidden = false;
     this.centreUntil = now + ms;
-  }
-
-  private renderResults(state: SimState): void {
-    const rows = raceResults(state).map((row) => {
-      const kart = state.karts[row.kartId];
-      const name = kart ? KARTS[kart.kartType].name : '?';
-      const who = row.kartId === 0 ? `${name} (you)` : name;
-      const time = row.time !== undefined ? formatTime(row.time) : '—';
-      return `<li${row.kartId === 0 ? ' class="you"' : ''}><span>${ordinal(row.position)}</span><span>${who}</span><span>${time}</span></li>`;
-    });
-    const html = rows.join('') + (this.bestNote ? `<li class="best">${this.bestNote}</li>` : '');
-    if (this.results.innerHTML !== html) this.results.innerHTML = html;
   }
 }

@@ -35,6 +35,17 @@ export class Game {
     this.previousState = initialState;
   }
 
+  /** Swaps in a new race/scene state (menus starting a race, restart, attract mode). */
+  reset(state: SimState): void {
+    this.state = state;
+    this.previousState = state;
+    this.alpha = 0;
+    this.accumulator = 0;
+    this.overrides.clear();
+    this.autopiloted.clear();
+    this.pendingEvents = [];
+  }
+
   /** Called once per animation frame with the real time elapsed. */
   frame(frameSeconds: number): void {
     if (this.paused) return;
