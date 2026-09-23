@@ -1,5 +1,4 @@
 import { expect, test } from '@playwright/test';
-import { autopilotInput } from '../../src/sim/autopilot';
 import { testOval } from '../../src/sim/data/tracks/testOval';
 import { trackGeometry } from '../../src/sim/track';
 import { getState, loadScenario, setInput, step } from './helpers';
@@ -8,15 +7,14 @@ const geometry = trackGeometry(testOval);
 
 test.describe('test oval (track system)', () => {
   test('an autopilot lap of the oval stays on the road the whole way', async ({ page }) => {
-    test.setTimeout(60_000);
     await loadScenario(page, 'oval-start', { paused: true });
+    await page.evaluate(() => window.__game!.setAutopilot(0, true));
     let state = await getState(page);
     let lastS = geometry.project(state.karts[0]!.position).s;
     let travelled = 0;
-    // Re-aim every 10 ticks, driven from Node with the same pure sim helpers.
+    // The autopilot runs inside the game; check position every 60 ticks from Node.
     while (travelled < geometry.length) {
-      await setInput(page, 0, autopilotInput(state.karts[0]!, geometry));
-      state = await step(page, 10);
+      state = await step(page, 60);
       const p = geometry.project(state.karts[0]!.position);
       expect(p.surface).toBe('road');
       let ds = p.s - lastS;

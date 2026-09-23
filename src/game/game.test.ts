@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { kartOnTrack } from '../scenarios/tracks';
 import { createSimState } from '../sim/state';
 import { DT } from '../sim/tuning';
 import { NEUTRAL_INPUT } from '../sim/types';
@@ -46,5 +47,12 @@ describe('Game', () => {
     const game = newGame();
     game.stepTicks(2);
     expect(game.previousState.tick).toBe(1);
+  });
+
+  it('the autopilot drives a kart around a spline track', () => {
+    const game = new Game(kartOnTrack(1, 'test-oval', 0.005), () => [NEUTRAL_INPUT]);
+    game.setAutopilot(0, true);
+    game.stepTicks(120);
+    expect(game.state.karts[0]!.speed).toBeGreaterThan(10);
   });
 });
