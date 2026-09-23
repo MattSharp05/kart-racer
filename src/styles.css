@@ -41,3 +41,21 @@ body {
   font: inherit;
   padding: 4px 12px;
 }
+
+.race-debug {
+  position: fixed;
+  top: max(10px, env(safe-area-inset-top));
+  left: max(10px, env(safe-area-inset-left));
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: rgb(0 0 0 / 0.55);
+  color: #fff;
+  font:
+    600 16px/1.2 system-ui,
+    sans-serif;
+  pointer-events: none;
+}
+
+.race-debug.wrong-way {
+  background: #d62828;
+}

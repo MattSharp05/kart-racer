@@ -14,6 +14,7 @@ import { getTrack } from './sim/track';
 import { tuning } from './sim/tuning';
 import { NEUTRAL_INPUT, type InputFrame, type SimState } from './sim/types';
 import { showErrorBanner } from './ui/errorBanner';
+import { RaceDebugOverlay } from './ui/raceDebug';
 
 /** Longest real frame we feed the sim, so a backgrounded tab doesn't cause a huge catch-up. */
 const MAX_FRAME_SECONDS = 0.25;
@@ -64,6 +65,7 @@ const overview = launch.view === 'overview' ? overviewCamera(camera, track) : fa
 const lineup = launch.view === 'lineup' ? new LineupCamera(camera) : undefined;
 const karts = new KartRenderer(scene);
 const chaseCamera = new ChaseCamera(camera);
+const raceOverlay = new RaceDebugOverlay();
 
 /** Updates karts and camera for this frame, then draws (unless `draw` is false). */
 function render(frameSeconds: number, snapCamera = false, draw = true): void {
@@ -76,6 +78,7 @@ function render(frameSeconds: number, snapCamera = false, draw = true): void {
     const speedRatio = Math.abs(kart.speed) / tuning.topSpeed[game.state.engineClass];
     chaseCamera.update(player, speedRatio, frameSeconds, 0, snapCamera);
   }
+  raceOverlay.update(game.state);
   if (draw) renderer.render(scene, camera);
 }
 

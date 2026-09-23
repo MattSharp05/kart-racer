@@ -32,6 +32,25 @@ export interface DriftState {
   tier: DriftTier;
 }
 
+/** Per-kart lap and checkpoint progress (MK-11). */
+export interface KartRace {
+  /** Current lap, 1-based. 0 = on the grid, not yet across the start line. */
+  lap: number;
+  /** Index into the track's checkpoints of the next one to pass (0 = the finish line). */
+  nextCheckpoint: number;
+  /** Lap fraction last tick, to detect crossings. */
+  lastT: number;
+  /** Tick the current lap started. */
+  lapStartTick: number;
+  /** Completed lap times, seconds. */
+  lapTimes: number[];
+  /** Seconds spent driving against the track direction. */
+  wrongWayTime: number;
+  wrongWay: boolean;
+  /** Tick the kart finished the race (MK-12). */
+  finishTick?: number;
+}
+
 export interface KartState {
   id: number;
   /** Which of the four karts this is (stats + model). */
@@ -53,6 +72,7 @@ export interface KartState {
   airTime: number;
   /** Ramp trick state: `ready` after launching off a ramp, `done` once drift is tapped in the air. */
   trick: 'none' | 'ready' | 'done';
+  race: KartRace;
 }
 
 export type RacePhase = 'free' | 'countdown' | 'racing' | 'finished';
@@ -72,10 +92,15 @@ export interface SimState {
   engineClass: EngineClass;
   karts: KartState[];
   entities: Entity[];
+  /** Kart ids in race order, leader first (MK-11). */
+  positions: number[];
 }
 
 export type SimEvent =
   | { type: 'phaseChanged'; phase: RacePhase }
+  | { type: 'checkpoint'; kartId: number; index: number }
+  | { type: 'lap'; kartId: number; lap: number; lapTime?: number }
+  | { type: 'positionChange'; positions: number[] }
   | { type: 'wallHit'; kartId: number; strength: number }
   | { type: 'bump'; a: number; b: number; strength: number }
   | { type: 'hop'; kartId: number }
