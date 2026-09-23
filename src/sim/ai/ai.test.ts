@@ -120,4 +120,22 @@ describe('AI racers', () => {
       expect(order.indexOf(0) + 1).toBeGreaterThanOrEqual(5);
     }
   });
+
+  it('after a respawn the AI drives off forwards (no reversing out of "stuck")', () => {
+    let s = aiOnly(3, 1);
+    for (let i = 0; i < 400; i += 1) s = step(s, [NEUTRAL_INPUT]).state; // racing
+    // Drop the AI kart off the edge, beyond the wall.
+    const ai = s.karts[1]!;
+    const t = geometry.project(ai.position).t;
+    const outside = geometry.pointAt(t, geometry.wallOffset(16) + 8);
+    ai.position = { ...outside, y: outside.y + 2 };
+    ai.grounded = false;
+    for (let i = 0; i < 60 && s.karts[1]!.respawnTimer === 0; i += 1)
+      s = step(s, [NEUTRAL_INPUT]).state;
+    expect(s.karts[1]!.respawnTimer).toBeGreaterThan(0);
+    for (let i = 0; i < 150; i += 1) s = step(s, [NEUTRAL_INPUT]).state; // carried, then released
+    expect(s.karts[1]!.ai!.recoverTime).toBe(0);
+    for (let i = 0; i < 60; i += 1) s = step(s, [NEUTRAL_INPUT]).state;
+    expect(s.karts[1]!.speed).toBeGreaterThan(3);
+  });
 });
