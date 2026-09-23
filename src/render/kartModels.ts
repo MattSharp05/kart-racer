@@ -19,6 +19,8 @@ export interface KartModel {
   flame: THREE.Mesh;
   /** Radius of the rear wheels, for roll speed. */
   wheelRadius: number;
+  /** Pickup drone shown above the kart while it's being respawned (MK-13). */
+  drone: THREE.Group;
 }
 
 export interface KartColours {
@@ -130,7 +132,9 @@ export class PrimitiveKartFactory implements KartModelFactory {
     const { wheels, frontWheels } = this.addWheels(body, shape);
     const sparks = this.addSparks(body, shape);
     const flame = this.addFlame(body, shape);
-    return { root, body, wheels, frontWheels, sparks, flame, wheelRadius: shape.rearRadius };
+    const drone = createDrone();
+    root.add(drone);
+    return { root, body, wheels, frontWheels, sparks, flame, wheelRadius: shape.rearRadius, drone };
   }
 
   private addDetails(kartId: KartId, body: THREE.Group, shape: Shape, palette: KartColours) {
@@ -229,4 +233,33 @@ export class PrimitiveKartFactory implements KartModelFactory {
     body.add(flame);
     return flame;
   }
+}
+
+/** Little quad-rotor that carries respawning karts back to the track (original design). */
+function createDrone(): THREE.Group {
+  const drone = new THREE.Group();
+  const shell = lambert(0xf1faee);
+  const accent = lambert(0x118ab2);
+  const hub = new THREE.Mesh(new THREE.SphereGeometry(0.45, 12, 8), shell);
+  drone.add(hub);
+  for (const [x, z] of [
+    [0.8, 0.8],
+    [-0.8, 0.8],
+    [0.8, -0.8],
+    [-0.8, -0.8],
+  ] as const) {
+    const arm = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.08, 1.2), accent);
+    arm.position.set(x / 2, 0, z / 2);
+    arm.lookAt(0, 0, 0);
+    const rotor = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.4, 0.04, 12), accent);
+    rotor.position.set(x, 0.1, z);
+    drone.add(arm, rotor);
+  }
+  // Cable down to the kart.
+  const cable = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 1.8, 6), lambert(0x333333));
+  cable.position.y = -0.9;
+  drone.add(cable);
+  drone.position.y = 2.6;
+  drone.visible = false;
+  return drone;
 }

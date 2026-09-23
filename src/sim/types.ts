@@ -12,6 +12,8 @@ export interface InputFrame {
   steer: number;
   drift: boolean;
   item: boolean;
+  /** Ask to be picked up and put back on the track (R key). */
+  respawn?: boolean;
 }
 
 export const NEUTRAL_INPUT: Readonly<InputFrame> = Object.freeze({
@@ -87,6 +89,16 @@ export interface KartState {
   /** Ramp trick state: `ready` after launching off a ramp, `done` once drift is tapped in the air. */
   trick: 'none' | 'ready' | 'done';
   race: KartRace;
+  /** Respawn (MK-13): seconds left of being carried back to the track (0 = not respawning). */
+  respawnTimer: number;
+  /** Seconds of invulnerability left after a respawn (blinks; items ignore the kart). */
+  invulnerableTimer: number;
+  /** Last lap fraction where the kart was safely on the ground — where it gets put back. */
+  lastSafeT: number;
+  /** Seconds spent off the track surface / off the ground edge. */
+  outTime: number;
+  /** Seconds until the respawn button works again. */
+  respawnCooldown: number;
 }
 
 export type RacePhase = 'free' | 'countdown' | 'racing' | 'finished';
@@ -121,6 +133,7 @@ export type SimEvent =
   | { type: 'rocketStart'; kartId: number }
   | { type: 'stall'; kartId: number }
   | { type: 'finish'; kartId: number; position: number; time: number }
+  | { type: 'respawn'; kartId: number }
   | { type: 'wallHit'; kartId: number; strength: number }
   | { type: 'bump'; a: number; b: number; strength: number }
   | { type: 'hop'; kartId: number }

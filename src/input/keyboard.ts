@@ -7,6 +7,7 @@ const KEYS = {
   right: ['KeyD', 'ArrowRight'],
   drift: ['Space', 'ShiftLeft', 'ShiftRight'],
   item: ['KeyE', 'ControlLeft', 'ControlRight'],
+  respawn: ['KeyR'],
 } as const;
 
 /** Keys the game handles, so the page doesn't scroll on arrows/space. */
@@ -33,6 +34,7 @@ export class KeyboardInput {
       steer: (down(KEYS.right) ? 1 : 0) - (down(KEYS.left) ? 1 : 0),
       drift: down(KEYS.drift),
       item: down(KEYS.item),
+      respawn: down(KEYS.respawn),
     };
   }
 }

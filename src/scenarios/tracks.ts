@@ -183,4 +183,25 @@ export const trackScenarios: Scenario[] = [
       return { state };
     },
   },
+  {
+    name: 'sunny-fall-off',
+    group: 'Race',
+    description:
+      'Kart airborne beyond the edge by the jump — it falls and the pickup drone puts it back.',
+    defaultSeed: 1,
+    setup: (seed) => {
+      const t = sunnyCircuit.ramps?.[0]?.to ?? 0.7;
+      const state = kartOnTrack(seed, 'sunny-circuit', t);
+      const [kart] = state.karts;
+      if (kart) {
+        // Put it 4 m up, well outside the right-hand wall, drifting further out.
+        const outside = sunny.pointAt(t, sunny.wallOffset(16) + 6);
+        kart.lastSafeT = t;
+        kart.position = { ...outside, y: outside.y + 4 };
+        kart.velocity = { x: 0, y: 0, z: 0 };
+        kart.grounded = false;
+      }
+      return { state };
+    },
+  },
 ];

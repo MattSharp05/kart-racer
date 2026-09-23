@@ -107,6 +107,19 @@ export const tuning = {
   rampLaunch: 0.28,
   /** A grounded kart stays glued to the ground over drops up to this per tick, m. */
   groundSnap: 0.15,
+  // --- Respawn (MK-13) ---
+  /** Being carried back to the track takes this long, s. */
+  respawnSeconds: 1.5,
+  /** The kart is lifted from this high above the road and lowered onto it, m. */
+  respawnLift: 4,
+  invulnerableSeconds: 1,
+  /** Falling this far below the track surface means the kart has fallen off, m. */
+  fallDepth: 5,
+  /** Off every surface (beyond the edge) this long = fallen off, s. */
+  outSeconds: 0.5,
+  respawnCooldownSeconds: 3,
+  /** Karts respawning at the same spot are spread across the road this far apart, m. */
+  respawnSpacing: 3.5,
   // --- Race (MK-11, MK-12) ---
   raceLaps: 3,
   /** 3-2-1-GO, s. */

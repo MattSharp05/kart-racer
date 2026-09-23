@@ -12,7 +12,8 @@ export function mergeInputs(...frames: InputFrame[]): InputFrame {
       steer: Math.abs(frame.steer) > Math.abs(merged.steer) ? frame.steer : merged.steer,
       drift: merged.drift || frame.drift,
       item: merged.item || frame.item,
+      respawn: (merged.respawn ?? false) || (frame.respawn ?? false),
     }),
-    { throttle: 0, brake: 0, steer: 0, drift: false, item: false },
+    { throttle: 0, brake: 0, steer: 0, drift: false, item: false, respawn: false },
   );
 }
