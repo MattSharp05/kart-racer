@@ -86,6 +86,11 @@ export class KartRenderer {
       });
     });
 
+    // Respawn: drone overhead while carried, then blink while invulnerable.
+    model.drone.visible = kart.respawnTimer > 0;
+    if (model.drone.visible) model.drone.rotation.y = tick * 0.3;
+    model.body.visible = kart.invulnerableTimer <= 0 || Math.floor(tick / 5) % 2 === 0;
+
     model.flame.visible = kart.boostTimer > 0;
     if (model.flame.visible) {
       const flicker = 0.85 + noise(tick) * 0.4;

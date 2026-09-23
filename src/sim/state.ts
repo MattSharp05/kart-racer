@@ -64,6 +64,11 @@ export function createSimState({
           wrongWay: false,
           stallTimer: 0,
         },
+        respawnTimer: 0,
+        invulnerableTimer: 0,
+        lastSafeT: -1,
+        outTime: 0,
+        respawnCooldown: 0,
       };
     }),
     entities: [],

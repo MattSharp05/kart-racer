@@ -59,3 +59,12 @@ test.describe('race flow', () => {
     await expect(page.locator('.race-results li.you')).toContainText('3rd');
   });
 });
+
+test('sunny-fall-off: the kart is picked up and put back on the road', async ({ page }) => {
+  await loadScenario(page, 'sunny-fall-off', { paused: true });
+  const state = await step(page, 180);
+  const events: SimEvent[] = await page.evaluate(() => window.__game!.events());
+  expect(events.some((e) => e.type === 'respawn')).toBe(true);
+  expect(state.karts[0]!.grounded).toBe(true);
+  expect(state.karts[0]!.respawnTimer).toBe(0);
+});

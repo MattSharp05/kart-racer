@@ -2,6 +2,7 @@ import { resolveKartCollisions } from './collisions';
 import { updateKart } from './kart';
 import { updateRace } from './race';
 import { afterRace, beforeMovement } from './raceFlow';
+import { isRespawning, updateRespawns } from './respawn';
 import { getTrack } from './track';
 import { DT } from './tuning';
 import {
@@ -27,9 +28,16 @@ export function step(state: SimState, inputs: readonly InputFrame[], dt = DT): S
 
   const positionsBefore = new Map(next.karts.map((kart) => [kart.id, kart.position]));
   for (const kart of next.karts) {
+    if (isRespawning(kart)) continue;
     updateKart(kart, resolved[kart.id] ?? NEUTRAL_INPUT, next.engineClass, track, dt, events);
   }
-  resolveKartCollisions(next.karts, positionsBefore, events);
+  // Karts being carried by the pickup drone don't collide.
+  resolveKartCollisions(
+    next.karts.filter((kart) => !isRespawning(kart)),
+    positionsBefore,
+    events,
+  );
+  updateRespawns(next, resolved, track, dt, events);
   updateRace(next, track, events, dt);
   afterRace(next, events);
 
