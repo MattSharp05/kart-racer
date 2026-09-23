@@ -21,6 +21,7 @@ import { NEUTRAL_INPUT, type InputFrame, type ItemId, type SimState } from './si
 import { showErrorBanner } from './ui/errorBanner';
 import { createPauseButton, Menus } from './ui/menus';
 import { RaceOverlay } from './ui/raceOverlay';
+import { RotatePrompt } from './ui/rotatePrompt';
 
 /** Longest real frame we feed the sim, so a backgrounded tab doesn't cause a huge catch-up. */
 const MAX_FRAME_SECONDS = 0.25;
@@ -261,6 +262,7 @@ function render(frameSeconds: number, snapCamera = false, draw = true): void {
     chaseCamera.update(followed, speedRatio, frameSeconds, 0, snapCamera);
   }
   raceOverlay.update(game.state, performance.now(), menus.current !== 'none');
+  controls.touch.setActive(menus.current === 'none' && !rotatePrompt.shown);
   if (draw) renderer.render(scene, camera);
 }
 
@@ -274,6 +276,17 @@ function markChanged(): void {
   framesSinceChange = 0;
 }
 window.addEventListener('resize', markChanged);
+
+// Phones: landscape only. Portrait shows a prompt and pauses the game until rotated back.
+const rotatePrompt = new RotatePrompt(
+  () => {
+    if (game.paused) return false;
+    game.pause();
+    return true;
+  },
+  () => game.resume(),
+);
+rotatePrompt.onChange = markChanged;
 
 installTestApi(
   game,
