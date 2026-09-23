@@ -12,6 +12,7 @@ Follows the `dev-workflow` skill (ticket-driven: Notion → branch → PR → QA
 - GitHub: MattSharp05/kart-racer
 - Preview URLs: Vercel preview per PR (link is on the PR); production: https://kart-racer-alpha.vercel.app (scenario index at `/dev`)
 - QA mode: batched (batch plan: waves 1–5 → 6–7 → 8–10 → 11–14; checkpoints MK-5, MK-10, MK-14)
+- Approval: standing (all planned tickets approved; stop only at checkpoint ⭐ waves for QA, and at blocks)
 
 ## Stack
 

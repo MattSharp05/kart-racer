@@ -1,7 +1,7 @@
 import { Game } from './game/game';
 import { parseLaunchParams } from './game/launchParams';
 import { installTestApi } from './game/testApi';
-import { KeyboardInput } from './input/keyboard';
+import { PlayerInput } from './input/playerInput';
 import { ChaseCamera, LineupCamera } from './render/camera';
 import { KartRenderer } from './render/karts';
 import { createScene } from './render/scene';
@@ -42,7 +42,7 @@ function initialState(): { state: SimState; scenario?: string; view?: ScenarioVi
 }
 
 const { renderer, scene, camera } = createScene(canvas);
-const keyboard = new KeyboardInput();
+
 const launch = initialState();
 if (params.kart) {
   const player = launch.state.karts[0];
@@ -51,8 +51,10 @@ if (params.kart) {
 }
 
 let playerInput: InputFrame = NEUTRAL_INPUT;
+// Pad Start toggles pause (the full pause menu is MK-25).
+const controls = new PlayerInput(() => (game.paused ? game.resume() : game.pause()));
 const game = new Game(launch.state, () => {
-  playerInput = keyboard.read();
+  playerInput = controls.read();
   return [playerInput];
 });
 if (params.paused) game.pause();
@@ -110,6 +112,7 @@ renderer.setAnimationLoop((time) => {
   const frameSeconds =
     lastTime === undefined ? 0 : Math.min((time - lastTime) / 1000, MAX_FRAME_SECONDS);
   lastTime = time;
+  if (game.paused) controls.pollPause();
   game.frame(frameSeconds);
   if (!game.paused) markChanged();
   if (framesSinceChange > SETTLE_FRAMES) return;
