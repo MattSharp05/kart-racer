@@ -7,18 +7,23 @@ describe('parseLaunchParams', () => {
       scenario: 'moving',
       seed: 42,
       paused: true,
+      tune: false,
     });
   });
 
   it('defaults to no scenario, no seed, not paused', () => {
-    expect(parseLaunchParams('')).toEqual({ paused: false });
+    expect(parseLaunchParams('')).toEqual({ paused: false, tune: false });
   });
 
   it('ignores a non-numeric seed', () => {
-    expect(parseLaunchParams('?seed=abc')).toEqual({ paused: false });
+    expect(parseLaunchParams('?seed=abc')).toEqual({ paused: false, tune: false });
   });
 
   it('accepts seed 0', () => {
     expect(parseLaunchParams('?seed=0').seed).toBe(0);
+  });
+
+  it('reads the tune flag', () => {
+    expect(parseLaunchParams('?tune=1').tune).toBe(true);
   });
 });

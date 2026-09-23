@@ -34,10 +34,12 @@ describe('Game', () => {
   it('clearing an override returns control to the live input', () => {
     const game = newGame();
     game.setInputOverride(0, { ...NEUTRAL_INPUT, throttle: 1 });
-    game.stepTicks(1);
+    game.stepTicks(30);
+    const withThrottle = game.state.karts[0]!.speed;
     game.setInputOverride(0, null);
     game.stepTicks(1);
-    expect(game.state.karts[0]?.speed).toBe(0);
+    // Live input is neutral, so the kart now coasts (slows) instead of accelerating.
+    expect(game.state.karts[0]!.speed).toBeLessThan(withThrottle);
   });
 
   it('keeps the previous state for interpolation', () => {

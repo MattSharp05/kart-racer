@@ -1,11 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { createSimState } from './state';
 import { step } from './step';
-import { PLACEHOLDER_SPEED } from './tuning';
 import { NEUTRAL_INPUT, type InputFrame, type SimState } from './types';
 
 function scriptedInput(tick: number): InputFrame {
-  return { ...NEUTRAL_INPUT, throttle: tick % 120 < 60 ? 1 : 0.5, steer: Math.sin(tick / 30) };
+  return {
+    ...NEUTRAL_INPUT,
+    throttle: tick % 120 < 90 ? 1 : 0,
+    brake: tick % 240 > 220 ? 1 : 0,
+    steer: Math.sin(tick / 30),
+  };
 }
 
 function run(seed: number, ticks: number): SimState {
@@ -24,7 +28,7 @@ describe('step', () => {
   it('does not mutate its input state', () => {
     const state = createSimState({ seed: 1 });
     const before = JSON.stringify(state);
-    step(state, [{ ...NEUTRAL_INPUT, throttle: 1 }]);
+    step(state, [{ ...NEUTRAL_INPUT, throttle: 1, steer: 1 }]);
     expect(JSON.stringify(state)).toBe(before);
   });
 
@@ -32,7 +36,8 @@ describe('step', () => {
     let state = createSimState({ seed: 1 });
     for (let t = 0; t < 60; t += 1) state = step(state, [{ ...NEUTRAL_INPUT, throttle: 1 }]).state;
     expect(state.tick).toBe(60);
-    expect(state.karts[0]?.position.z).toBeCloseTo(-PLACEHOLDER_SPEED, 5);
+    expect(state.karts[0]!.position.z).toBeLessThan(-5);
+    expect(state.karts[0]!.position.x).toBeCloseTo(0, 6);
   });
 
   it('treats a missing input as neutral', () => {
