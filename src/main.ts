@@ -64,7 +64,8 @@ const lineup = launch.view === 'lineup' ? new LineupCamera(camera) : undefined;
 const karts = new KartRenderer(scene);
 const chaseCamera = new ChaseCamera(camera);
 
-function render(frameSeconds: number, snapCamera = false): void {
+/** Updates karts and camera for this frame, then draws (unless `draw` is false). */
+function render(frameSeconds: number, snapCamera = false, draw = true): void {
   karts.sync(game.previousState, game.state, game.alpha, [playerInput]);
   const player = karts.player;
   const kart = game.state.karts[0];
@@ -74,12 +75,25 @@ function render(frameSeconds: number, snapCamera = false): void {
     const speedRatio = Math.abs(kart.speed) / tuning.topSpeed[game.state.engineClass];
     chaseCamera.update(player, speedRatio, frameSeconds, 0, snapCamera);
   }
-  renderer.render(scene, camera);
+  if (draw) renderer.render(scene, camera);
 }
+
+/**
+ * While paused, keep drawing only until the camera has settled, then stop: redrawing an unchanged
+ * scene every frame wastes battery (and makes software-rendered CI browsers crawl).
+ */
+const SETTLE_FRAMES = 30;
+let framesSinceChange = 0;
+const markChanged = () => (framesSinceChange = 0);
+window.addEventListener('resize', markChanged);
 
 installTestApi(
   game,
-  () => render(0, true),
+  () => {
+    // Test/QA fast-forward: snap the scene and camera now; the next animation frame draws it.
+    render(0, true, false);
+    markChanged();
+  },
   launch.scenario,
   () => ({
     calls: renderer.info.render.calls,
@@ -97,5 +111,8 @@ renderer.setAnimationLoop((time) => {
     lastTime === undefined ? 0 : Math.min((time - lastTime) / 1000, MAX_FRAME_SECONDS);
   lastTime = time;
   game.frame(frameSeconds);
+  if (!game.paused) markChanged();
+  if (framesSinceChange > SETTLE_FRAMES) return;
+  framesSinceChange += 1;
   render(frameSeconds);
 });

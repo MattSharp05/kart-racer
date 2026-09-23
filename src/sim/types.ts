@@ -77,6 +77,7 @@ export interface SimState {
 export type SimEvent =
   | { type: 'phaseChanged'; phase: RacePhase }
   | { type: 'wallHit'; kartId: number; strength: number }
+  | { type: 'bump'; a: number; b: number; strength: number }
   | { type: 'hop'; kartId: number }
   | { type: 'driftStart'; kartId: number; direction: -1 | 1 }
   | { type: 'driftTier'; kartId: number; tier: DriftTier }

@@ -51,8 +51,16 @@ export const tuning = {
   roughSpeed: 0.4,
   /** Extra deceleration when faster than the grass top speed, m/s². */
   offroadDecel: 15,
-  /** Collision radius of a kart for kart-vs-kart bumps (MK-8), m. */
-  kartRadius: 0.9,
+  /** Radius of each of a kart's two bump circles (kart-vs-kart, MK-8), m. */
+  kartRadius: 0.85,
+  /** The two bump circles sit this far in front of / behind the kart's centre, m. */
+  bumpCircleOffset: 0.55,
+  /** Kart mass for bumps = 1 + weight stat × this. */
+  bumpMassPerWeight: 0.6,
+  /** Bounciness of kart-vs-kart bumps (0 = dead stop, 1 = perfectly elastic). */
+  bumpBounce: 0.35,
+  /** A bump that changes a drifting kart's speed by more than this (m/s) cancels the drift. */
+  bumpDriftCancel: 4,
   /** Kart footprint used against walls, m (matches the placeholder model incl. nose and wheels). */
   kartFront: 1.45,
   kartRear: 1.07,
