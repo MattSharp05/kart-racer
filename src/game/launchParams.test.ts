@@ -1,0 +1,24 @@
+import { describe, expect, it } from 'vitest';
+import { parseLaunchParams } from './launchParams';
+
+describe('parseLaunchParams', () => {
+  it('reads scenario, seed and paused', () => {
+    expect(parseLaunchParams('?scenario=moving&seed=42&paused=1')).toEqual({
+      scenario: 'moving',
+      seed: 42,
+      paused: true,
+    });
+  });
+
+  it('defaults to no scenario, no seed, not paused', () => {
+    expect(parseLaunchParams('')).toEqual({ paused: false });
+  });
+
+  it('ignores a non-numeric seed', () => {
+    expect(parseLaunchParams('?seed=abc')).toEqual({ paused: false });
+  });
+
+  it('accepts seed 0', () => {
+    expect(parseLaunchParams('?seed=0').seed).toBe(0);
+  });
+});

@@ -4,6 +4,8 @@ import type { Game } from './game';
 /** `window.__game`: lets e2e tests and QA drive the sim deterministically (docs/TDD.md → Testing). */
 export interface GameTestApi {
   ready: boolean;
+  /** Scenario the game booted into, if any. */
+  scenario: string | null;
   getState(): SimState;
   pause(): void;
   resume(): void;
@@ -18,9 +20,13 @@ declare global {
   }
 }
 
-export function installTestApi(game: Game, onStep: () => void): GameTestApi {
+/** Fired on `window` once `window.__game` is usable. */
+export const GAME_READY_EVENT = 'game-ready';
+
+export function installTestApi(game: Game, onStep: () => void, scenario?: string): GameTestApi {
   const api: GameTestApi = {
     ready: true,
+    scenario: scenario ?? null,
     getState: () => structuredClone(game.state),
     pause: () => game.pause(),
     resume: () => game.resume(),
@@ -34,5 +40,6 @@ export function installTestApi(game: Game, onStep: () => void): GameTestApi {
     events: () => game.drainEvents(),
   };
   window.__game = api;
+  window.dispatchEvent(new Event(GAME_READY_EVENT));
   return api;
 }
