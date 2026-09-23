@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import type { TrackGeometry, TrackSample } from '../sim/splineTrack';
+import { inRange, type TrackGeometry, type TrackSample } from '../sim/splineTrack';
 
 const ROAD_COLOUR = new THREE.Color(0x6b6f76);
 const GRASS_COLOUR = new THREE.Color(0x6cbf52);
@@ -9,6 +9,14 @@ const WALL_A = new THREE.Color(0xf4a261);
 const WALL_B = new THREE.Color(0xe76f51);
 const LINE_DARK = new THREE.Color(0x222222);
 const LINE_LIGHT = new THREE.Color(0xffffff);
+const PAD_A = new THREE.Color(0xffb703);
+const PAD_B = new THREE.Color(0xfb8500);
+const RAMP_A = new THREE.Color(0xffd60a);
+const RAMP_B = new THREE.Color(0x1d1d1d);
+/** Deep grass on shortcuts: darker than the verges so it reads as slower. */
+const INFIELD_COLOUR = new THREE.Color(0x3f7d32);
+const PAD_STRIPE = 1.5;
+const RAMP_STRIPE = 1;
 const TERRAIN_COLOUR = 0x4f9a3d;
 
 const WALL_HEIGHT = 1.2;
@@ -18,7 +26,7 @@ const KERB_CURVATURE = 0.01;
 const KERB_STRIPE = 2;
 const WALL_STRIPE = 6;
 /** Small lifts so coplanar layers don't z-fight. */
-const LIFT = { grass: 0.0, road: 0.03, kerb: 0.05, line: 0.06 };
+const LIFT = { grass: 0.0, road: 0.03, kerb: 0.05, line: 0.06, pad: 0.06 };
 
 /** Accumulates coloured triangles into one geometry (one draw call per material). */
 class MeshBuilder {
@@ -119,6 +127,30 @@ export function createSplineTrackMesh(geometry: TrackGeometry): THREE.Group {
       }
     }
 
+    // Boost pads: orange/yellow chevron stripes; ramps: yellow/black hazard stripes.
+    const tA = a.s / geometry.length;
+    for (const zone of geometry.def.surfaceZones) {
+      if (zone.type !== 'boostPad' || !inRange(tA, zone)) continue;
+      const colour = Math.floor(a.s / PAD_STRIPE) % 2 === 0 ? PAD_A : PAD_B;
+      ground.quad(
+        offset(a, zone.lateralMin, LIFT.pad),
+        offset(b, zone.lateralMin, LIFT.pad),
+        offset(b, zone.lateralMax, LIFT.pad),
+        offset(a, zone.lateralMax, LIFT.pad),
+        colour,
+      );
+    }
+    if (geometry.def.ramps?.some((ramp) => inRange(tA, ramp))) {
+      const colour = Math.floor(a.s / RAMP_STRIPE) % 2 === 0 ? RAMP_A : RAMP_B;
+      ground.quad(
+        offset(a, -half(a), LIFT.pad),
+        offset(b, -half(b), LIFT.pad),
+        offset(b, half(b), LIFT.pad),
+        offset(a, half(a), LIFT.pad),
+        colour,
+      );
+    }
+
     // Walls (skipped at gaps), striped so speed is readable.
     const wallColour = Math.floor(a.s / WALL_STRIPE) % 2 === 0 ? WALL_A : WALL_B;
     const t = a.s / geometry.length;
@@ -158,6 +190,19 @@ export function createSplineTrackMesh(geometry: TrackGeometry): THREE.Group {
         (c + row) % 2 ? LINE_DARK : LINE_LIGHT,
       );
     }
+  }
+
+  // Drivable grass infields (shortcuts), as flat fans.
+  for (const cut of geometry.def.shortcuts ?? []) {
+    const cx = cut.polygon.reduce((sum, v) => sum + v.x, 0) / cut.polygon.length;
+    const cz = cut.polygon.reduce((sum, v) => sum + v.z, 0) / cut.polygon.length;
+    cut.polygon.forEach((v, i) => {
+      const w = cut.polygon[(i + 1) % cut.polygon.length] ?? v;
+      const centre = new THREE.Vector3(cx, cut.y + LIFT.grass, cz);
+      const p1 = new THREE.Vector3(v.x, cut.y + LIFT.grass, v.z);
+      const p2 = new THREE.Vector3(w.x, cut.y + LIFT.grass, w.z);
+      ground.quad(centre, p1, p2, centre, INFIELD_COLOUR);
+    });
   }
 
   group.add(

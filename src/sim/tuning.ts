@@ -47,6 +47,8 @@ export const tuning = {
   wallBounce: 0.2,
   /** Top speed on grass as a fraction of road top speed. */
   offroadSpeed: 0.55,
+  /** Top speed in deep grass (shortcut infields) as a fraction of road top speed. */
+  roughSpeed: 0.4,
   /** Extra deceleration when faster than the grass top speed, m/s². */
   offroadDecel: 15,
   /** Collision radius of a kart for kart-vs-kart bumps (MK-8), m. */
@@ -83,6 +85,22 @@ export const tuning = {
   boostAccelRate: 4,
   /** A wall hit harder than this (m/s into the wall) cancels a drift. */
   driftWallCancel: 3,
+
+  // --- Track features (MK-10) ---
+  /** Boost from driving over a boost pad, s. */
+  boostPadSeconds: 1.0,
+  /** Leaving the ground faster than this upward (m/s) counts as a ramp launch (enables a trick). */
+  trickMinLaunch: 3,
+  /** Tap drift within this long after a ramp launch to do a trick, s. */
+  trickWindow: 0.4,
+  /** Boost on landing after a trick, s. */
+  trickBoostSeconds: 0.4,
+  /** Leaving a ramp's lip launches the kart upward at this fraction of its speed. */
+  rampLaunch: 0.28,
+  /** A grounded kart stays glued to the ground over drops up to this per tick, m. */
+  groundSnap: 0.15,
+  /** A kart further than this past a wall line is on its far side (e.g. a shortcut), not in it, m. */
+  wallMaxPenetration: 3,
 };
 
 export type Tuning = typeof tuning;

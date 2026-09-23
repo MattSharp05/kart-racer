@@ -21,6 +21,7 @@
     "tests",
     "vite.config.ts",
     "vitest.config.ts",
+    "vitest.perf.config.ts",
     "playwright.config.ts",
     "eslint.config.js"
   ]

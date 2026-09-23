@@ -14,6 +14,8 @@ export interface GameTestApi {
   /** Let the centreline autopilot drive a kart (spline tracks). */
   setAutopilot(kartId: number, enabled: boolean): void;
   events(): SimEvent[];
+  /** Renderer stats from the last frame (draw calls, triangles) for perf budgets. */
+  renderInfo(): { calls: number; triangles: number };
 }
 
 declare global {
@@ -25,7 +27,12 @@ declare global {
 /** Fired on `window` once `window.__game` is usable. */
 export const GAME_READY_EVENT = 'game-ready';
 
-export function installTestApi(game: Game, onStep: () => void, scenario?: string): GameTestApi {
+export function installTestApi(
+  game: Game,
+  onStep: () => void,
+  scenario?: string,
+  renderInfo: () => { calls: number; triangles: number } = () => ({ calls: 0, triangles: 0 }),
+): GameTestApi {
   const api: GameTestApi = {
     ready: true,
     scenario: scenario ?? null,
@@ -41,6 +48,7 @@ export function installTestApi(game: Game, onStep: () => void, scenario?: string
       game.setInputOverride(kartId, frame ? { ...NEUTRAL_INPUT, ...frame } : null),
     setAutopilot: (kartId, enabled) => game.setAutopilot(kartId, enabled),
     events: () => game.drainEvents(),
+    renderInfo,
   };
   window.__game = api;
   window.dispatchEvent(new Event(GAME_READY_EVENT));

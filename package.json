@@ -17,9 +17,10 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:e2e": "playwright test",
-    "check": "pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm test:e2e",
+    "check": "pnpm lint && pnpm typecheck && pnpm test && pnpm test:perf && pnpm build && pnpm test:e2e",
     "test:visual": "playwright test -c playwright.visual.config.ts",
-    "test:visual:update": "playwright test -c playwright.visual.config.ts --update-snapshots"
+    "test:visual:update": "playwright test -c playwright.visual.config.ts --update-snapshots",
+    "test:perf": "vitest run -c vitest.perf.config.ts"
   },
   "dependencies": {
     "three": "^0.186.0"

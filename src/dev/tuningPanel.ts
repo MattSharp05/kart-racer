@@ -22,6 +22,8 @@ export function openTuningPanel(): GUI {
   handling.add(tuning, 'steerAtTopSpeed', 0.2, 1.5, 0.05).name('steer at top speed');
   handling.add(tuning, 'lateralGrip', 0.5, 30, 0.5).name('grip');
   handling.add(tuning, 'wallSpeedKeep', 0, 1, 0.05).name('wall speed kept');
+  handling.add(tuning, 'offroadSpeed', 0.1, 1, 0.05).name('grass speed ×');
+  handling.add(tuning, 'roughSpeed', 0.1, 1, 0.05).name('deep grass speed ×');
 
   const drift = gui.addFolder('Drift & boost');
   drift.add(tuning, 'driftYaw', 0.3, 4, 0.05).name('drift turn rate');

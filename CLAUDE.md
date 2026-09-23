@@ -26,7 +26,7 @@ _Created by MK-1/MK-3/MK-4 — keep this list current._
 - `pnpm dev` — dev server (LAN-exposed for phone testing)
 - `pnpm build` / `pnpm preview`
 - `pnpm lint` · `pnpm typecheck` · `pnpm format`
-- `pnpm test` — unit (Vitest)
+- `pnpm test` — unit (Vitest) · `pnpm test:perf` — perf budgets (`*.perf.test.ts`), run alone so timings are stable
 - `pnpm test:e2e` — Playwright (all projects) · `pnpm test:visual` — screenshot tests (chromium, run in CI's Docker image) · `scripts/update-visual-baselines.sh` — regenerate baselines locally with Docker
 - `pnpm check` — everything CI runs (lint, typecheck, unit, build, e2e)
 

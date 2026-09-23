@@ -43,6 +43,14 @@ export interface SplineTrackDef {
   surfaceZones: SurfaceZone[];
   /** Lap checkpoints as `t` values, ascending, first is 0 (the finish line). */
   checkpoints: number[];
+  /** Off-track areas of deep grass (e.g. an infield cut); karts can drive here, slowly. */
+  shortcuts?: { polygon: { x: number; z: number }[]; y: number }[];
+  /** Jump ramps, drawn with chevrons (the ramp shape itself comes from the points' `y`). */
+  ramps?: TrackRange[];
+  /** Starting grid, pole first. */
+  gridSlots?: { t: number; lateral: number }[];
+  /** Item box rows (boxes arrive in MK-16). */
+  itemBoxRows?: { t: number; laterals: number[] }[];
 }
 
 /** A resampled point on the centreline, evenly spaced along its length. */
@@ -61,7 +69,8 @@ export interface TrackSample {
   s: number;
 }
 
-export type Surface = 'road' | 'offroad' | 'boostPad' | 'out';
+/** `rough` = deep grass on shortcuts: slower than the verges, so a cut only pays with a boost. */
+export type Surface = 'road' | 'offroad' | 'rough' | 'boostPad' | 'out';
 
 export interface TrackProjection {
   /** Distance along the lap, m, in [0, length). */
@@ -371,4 +380,16 @@ export function inRange(t: number, range: TrackRange): boolean {
   return range.from <= range.to
     ? t >= range.from && t <= range.to
     : t >= range.from || t <= range.to;
+}
+
+/** Point-in-polygon on the XZ plane (even-odd rule). */
+export function insidePolygon(x: number, z: number, polygon: { x: number; z: number }[]): boolean {
+  let inside = false;
+  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i, i += 1) {
+    const a = polygon[i];
+    const b = polygon[j];
+    if (!a || !b) continue;
+    if (a.z > z !== b.z > z && x < ((b.x - a.x) * (z - a.z)) / (b.z - a.z) + a.x) inside = !inside;
+  }
+  return inside;
 }
