@@ -20,6 +20,7 @@ TypeScript (strict) · Vite · Three.js · in-house arcade physics (no physics e
 ## Commands
 
 _Created by MK-1/MK-3/MK-4 — keep this list current._
+
 - Setup: Node 22, `pnpm install` (`pnpm-workspace.yaml` installs native bindings for arm64 + x64, because the local pnpm may run under Rosetta)
 
 - `pnpm dev` — dev server (LAN-exposed for phone testing)
