@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { scenarios } from '../../src/scenarios';
+import { footprintOffsets } from '../../src/sim/kart';
 import { step as simStep } from '../../src/sim/step';
 import { tuning } from '../../src/sim/tuning';
 import { NEUTRAL_INPUT } from '../../src/sim/types';
@@ -28,12 +29,19 @@ test.describe('driving on the test pad', () => {
     expect(state.karts[0]!.position.x).toBeCloseTo(0, 5);
   });
 
-  test('driving into the wall keeps the kart inside the boundary', async ({ page }) => {
-    await loadScenario(page, 'test-pad-wall', { paused: true });
-    await setInput(page, 0, { throttle: 1 });
-    const state = await step(page, 60);
-    expect(Math.abs(state.karts[0]!.position.z)).toBeLessThanOrEqual(100 - tuning.kartRadius);
-  });
+  for (const name of ['test-pad-wall', 'test-pad-wall-angled']) {
+    test(`${name}: the kart's whole footprint stays inside the wall`, async ({ page }) => {
+      await loadScenario(page, name, { paused: true });
+      await setInput(page, 0, { throttle: 1 });
+      for (let i = 0; i < 6; i += 1) {
+        const kart = (await step(page, 10)).karts[0]!;
+        for (const o of footprintOffsets(kart.heading)) {
+          expect(Math.abs(kart.position.x + o.x)).toBeLessThanOrEqual(100 + 1e-9);
+          expect(Math.abs(kart.position.z + o.z)).toBeLessThanOrEqual(100 + 1e-9);
+        }
+      }
+    });
+  }
 
   test('holding W and D on the real keyboard drives forward and turns right', async ({
     page,
