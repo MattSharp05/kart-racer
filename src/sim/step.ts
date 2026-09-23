@@ -2,6 +2,7 @@ import { resolveKartCollisions } from './collisions';
 import { updateKart } from './kart';
 import { updateRace } from './race';
 import { afterRace, beforeMovement } from './raceFlow';
+import { updateItems } from './items';
 import { isRespawning, updateRespawns } from './respawn';
 import { getTrack } from './track';
 import { DT } from './tuning';
@@ -38,6 +39,7 @@ export function step(state: SimState, inputs: readonly InputFrame[], dt = DT): S
     events,
   );
   updateRespawns(next, resolved, track, dt, events);
+  updateItems(next, resolved, dt, events);
   updateRace(next, track, events, dt);
   afterRace(next, events);
 

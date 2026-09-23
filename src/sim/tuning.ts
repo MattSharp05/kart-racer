@@ -120,6 +120,12 @@ export const tuning = {
   respawnCooldownSeconds: 3,
   /** Karts respawning at the same spot are spread across the road this far apart, m. */
   respawnSpacing: 3.5,
+  // --- Items (MK-16+) ---
+  /** Driving within this distance of a box's centre picks it up, m. */
+  itemBoxRadius: 1.8,
+  itemBoxRespawnSeconds: 2,
+  rouletteSeconds: 1.5,
+  mushroomSeconds: 1.5,
   // --- AI (MK-14) ---
   ai: {
     /** Look-ahead along the racing line = base + speed × this, m. */
