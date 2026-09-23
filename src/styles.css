@@ -42,20 +42,76 @@ body {
   padding: 4px 12px;
 }
 
-.race-debug {
+.race-overlay {
   position: fixed;
-  top: max(10px, env(safe-area-inset-top));
-  left: max(10px, env(safe-area-inset-left));
-  padding: 6px 10px;
-  border-radius: 8px;
-  background: rgb(0 0 0 / 0.55);
-  color: #fff;
+  inset: 0;
+  pointer-events: none;
   font:
     600 16px/1.2 system-ui,
     sans-serif;
-  pointer-events: none;
+  color: #fff;
 }
 
-.race-debug.wrong-way {
+.race-status,
+.race-timer {
+  position: absolute;
+  top: max(10px, env(safe-area-inset-top));
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: rgb(0 0 0 / 0.55);
+}
+
+.race-status {
+  left: max(10px, env(safe-area-inset-left));
+}
+
+.race-status.wrong-way {
   background: #d62828;
+}
+
+.race-timer {
+  right: max(10px, env(safe-area-inset-right));
+  font-variant-numeric: tabular-nums;
+}
+
+.race-centre {
+  position: absolute;
+  top: 30%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: clamp(40px, 12vw, 120px);
+  font-weight: 900;
+  text-shadow: 0 4px 0 rgb(0 0 0 / 0.35);
+}
+
+.race-results {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -30%);
+  min-width: min(90vw, 360px);
+  margin: 0;
+  padding: 12px 16px;
+  list-style: none;
+  border-radius: 12px;
+  background: rgb(0 0 0 / 0.7);
+}
+
+.race-results li {
+  display: grid;
+  grid-template-columns: 3em 1fr auto;
+  gap: 8px;
+  padding: 3px 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.race-results li.you {
+  color: #ffd166;
+}
+
+.race-results li.best {
+  display: block;
+  color: #06d6a0;
+  text-align: center;
+  padding-top: 8px;
 }

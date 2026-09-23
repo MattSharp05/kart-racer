@@ -49,6 +49,20 @@ export interface KartRace {
   wrongWay: boolean;
   /** Tick the kart finished the race (MK-12). */
   finishTick?: number;
+  /** Countdown only: tick since which throttle has been held (for the rocket start). */
+  throttleSince?: number;
+  /** Seconds left of an engine stall (too-early rocket start): no drive. */
+  stallTimer: number;
+}
+
+/** Race settings and timing (MK-12). */
+export interface RaceInfo {
+  /** Laps to finish. */
+  laps: number;
+  /** Tick the countdown started. */
+  countdownStartTick: number;
+  /** Tick of GO (countdown end); race times are measured from here. */
+  goTick: number;
 }
 
 export interface KartState {
@@ -94,6 +108,7 @@ export interface SimState {
   entities: Entity[];
   /** Kart ids in race order, leader first (MK-11). */
   positions: number[];
+  race: RaceInfo;
 }
 
 export type SimEvent =
@@ -101,6 +116,11 @@ export type SimEvent =
   | { type: 'checkpoint'; kartId: number; index: number }
   | { type: 'lap'; kartId: number; lap: number; lapTime?: number }
   | { type: 'positionChange'; positions: number[] }
+  | { type: 'countdown'; value: 3 | 2 | 1 }
+  | { type: 'go' }
+  | { type: 'rocketStart'; kartId: number }
+  | { type: 'stall'; kartId: number }
+  | { type: 'finish'; kartId: number; position: number; time: number }
   | { type: 'wallHit'; kartId: number; strength: number }
   | { type: 'bump'; a: number; b: number; strength: number }
   | { type: 'hop'; kartId: number }

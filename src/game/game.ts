@@ -25,6 +25,7 @@ export class Game {
   /** Karts driven by the centreline autopilot (tests, QA, perf runs). */
   private readonly autopiloted = new Set<number>();
   private pendingEvents: SimEvent[] = [];
+  private readonly listeners: ((events: SimEvent[], state: SimState) => void)[] = [];
 
   constructor(
     initialState: SimState,
@@ -70,6 +71,11 @@ export class Game {
     else this.autopiloted.delete(kartId);
   }
 
+  /** Called after every tick that emitted events (UI, audio, saving bests). */
+  onEvents(listener: (events: SimEvent[], state: SimState) => void): void {
+    this.listeners.push(listener);
+  }
+
   /** Events emitted since the last call. */
   drainEvents(): SimEvent[] {
     const events = this.pendingEvents;
@@ -91,5 +97,7 @@ export class Game {
     this.previousState = this.state;
     this.state = result.state;
     this.pendingEvents.push(...result.events);
+    if (result.events.length)
+      for (const listener of this.listeners) listener(result.events, this.state);
   }
 }
