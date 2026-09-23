@@ -1,6 +1,16 @@
 import { positionOf } from '../sim/race';
 import { raceTime } from '../sim/raceFlow';
-import type { SimEvent, SimState } from '../sim/types';
+import type { ItemId, SimEvent, SimState } from '../sim/types';
+
+export const ITEM_NAMES: Record<ItemId, string> = {
+  mushroom: 'Mushroom',
+  banana: 'Banana',
+  green: 'Green shell',
+  red: 'Red shell',
+  star: 'Star',
+  lightning: 'Lightning',
+};
+const ROULETTE_ORDER: ItemId[] = ['mushroom', 'banana', 'green', 'red', 'star', 'lightning'];
 
 const ORDINAL = ['th', 'st', 'nd', 'rd'];
 
@@ -24,6 +34,7 @@ export class RaceOverlay {
   private readonly status = document.createElement('div');
   private readonly timer = document.createElement('div');
   private readonly centre = document.createElement('div');
+  private readonly item = document.createElement('div');
   private centreUntil = 0;
   private lastStatus = '';
   bestNote = '';
@@ -33,7 +44,8 @@ export class RaceOverlay {
     this.status.className = 'race-status';
     this.timer.className = 'race-timer';
     this.centre.className = 'race-centre';
-    this.root.append(this.status, this.timer, this.centre);
+    this.item.className = 'race-item';
+    this.root.append(this.status, this.timer, this.centre, this.item);
     document.body.append(this.root);
   }
 
@@ -81,6 +93,22 @@ export class RaceOverlay {
       if (left > 0 && left <= 3) this.flash(String(left), now, 1000);
     }
     if (now > this.centreUntil) this.centre.hidden = true;
+
+    this.updateItem(state, now);
+  }
+
+  /** Item slot (text until the HUD's icons in MK-24); the roulette cycles through names. */
+  private updateItem(state: SimState, now: number): void {
+    const slot = state.karts[0]?.item;
+    const text = !slot
+      ? ''
+      : slot.roulette > 0
+        ? `🎲 ${ITEM_NAMES[ROULETTE_ORDER[Math.floor(now / 90) % ROULETTE_ORDER.length] ?? 'mushroom']}`
+        : slot.held
+          ? `${ITEM_NAMES[slot.held]} — press E`
+          : '';
+    this.item.hidden = text === '';
+    if (this.item.textContent !== text) this.item.textContent = text;
   }
 
   private flash(text: string, now: number, ms: number): void {

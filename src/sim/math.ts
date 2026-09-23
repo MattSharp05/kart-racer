@@ -72,3 +72,9 @@ export function wrapAngleDelta(delta: number): number {
   if (d > Math.PI) d -= twoPi;
   return d;
 }
+
+/** Counts a timer down by `dt`, snapping to exactly 0 (avoids float slivers like 2e-15). */
+export function countDown(timer: number, dt: number): number {
+  const next = timer - dt;
+  return next <= 1e-9 ? 0 : next;
+}

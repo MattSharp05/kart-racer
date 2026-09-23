@@ -103,6 +103,7 @@ export interface KartState {
   /** Ramp trick state: `ready` after launching off a ramp, `done` once drift is tapped in the air. */
   trick: 'none' | 'ready' | 'done';
   race: KartRace;
+  item: KartItem;
   /** Respawn (MK-13): seconds left of being carried back to the track (0 = not respawning). */
   respawnTimer: number;
   /** Seconds of invulnerability left after a respawn (blinks; items ignore the kart). */
@@ -120,9 +121,27 @@ export interface KartState {
 export type RacePhase = 'free' | 'countdown' | 'racing' | 'finished';
 
 /** Non-kart things in the world (item boxes, bananas, shells…). Typed properly by the items epic. */
-export interface Entity {
+export type ItemId = 'mushroom' | 'banana' | 'green' | 'red' | 'star' | 'lightning';
+
+/** An item box on the track (MK-16): active, or waiting to reappear. */
+export interface ItemBoxEntity {
   id: number;
-  kind: string;
+  kind: 'itemBox';
+  position: Vec3;
+  /** Seconds until it reappears after being hit (0 = active). */
+  respawnTimer: number;
+}
+
+/** Things in the world other than karts. Items add their own kinds (bananas, shells…). */
+export type Entity = ItemBoxEntity;
+
+/** A kart's item slot. */
+export interface KartItem {
+  held: ItemId | null;
+  /** Seconds left of the roulette spin (0 = not spinning). */
+  roulette: number;
+  /** Whether the item button was held last tick (to use items on press, not hold). */
+  buttonHeld: boolean;
 }
 
 /** The whole simulation state. Plain JSON only: no classes, Maps or functions. */
@@ -150,6 +169,9 @@ export type SimEvent =
   | { type: 'stall'; kartId: number }
   | { type: 'finish'; kartId: number; position: number; time: number }
   | { type: 'respawn'; kartId: number }
+  | { type: 'itemBoxHit'; kartId: number; boxId: number }
+  | { type: 'itemGranted'; kartId: number; item: ItemId }
+  | { type: 'itemUsed'; kartId: number; item: ItemId }
   | { type: 'wallHit'; kartId: number; strength: number }
   | { type: 'bump'; a: number; b: number; strength: number }
   | { type: 'hop'; kartId: number }
