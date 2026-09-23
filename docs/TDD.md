@@ -20,7 +20,7 @@ Status: Draft · PRD: https://www.notion.so/3e424983f3ca8171ad9bffbdee9cedf1
 ## Architecture
 
 ```
- input/ (keyboard, gamepad, touch) ──► InputFrame (per player, per tick)
+ input/ (keyboard, touch) ──► InputFrame (per player, per tick)
                                           │
                                           ▼
  game/loop ── fixed 60 Hz ──► sim/  (pure, deterministic)  ── SimState ──► render/ (Three.js scene, camera, effects)
@@ -44,7 +44,7 @@ src/
   sim/               math, rng, kart physics, drift, track queries, race/laps, items, ai
   sim/data/          karts.ts, tracks/sunny-circuit.ts (pure data)
   render/            scene, track mesh builder, kart models, camera, effects
-  input/             keyboard, gamepad, touch → InputFrame
+  input/             keyboard, touch → InputFrame
   ui/                hud, menus, rotate prompt (DOM + CSS)
   audio/             sound manager (Howler), event → sound mapping
   scenarios/         registry + one file per group of scenarios
