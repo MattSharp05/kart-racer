@@ -126,6 +126,28 @@ export const tuning = {
   itemBoxRespawnSeconds: 2,
   rouletteSeconds: 1.5,
   mushroomSeconds: 1.5,
+  // --- AI (MK-14) ---
+  ai: {
+    /** Look-ahead along the racing line = base + speed × this, m. */
+    lookAheadBase: 7,
+    lookAheadPerSpeed: 0.45,
+    steerGain: 2.6,
+    /** Max sideways grip the AI plans corners with, m/s² (× skill). */
+    cornerGrip: 26,
+    /** How far ahead it checks for tight corners, m. */
+    brakeHorizon: 45,
+    /** Skill range: min–max (tighter at 150cc). */
+    skillMin: 0.86,
+    skillMax: 1.0,
+    skillMin150: 0.92,
+    lineOffsetMax: 1.5,
+    /** Cruising speed = top × (base + skill × this): 0.90–0.95 of top speed. */
+    cruiseBase: 0.9,
+    cruiseSkill: 0.05,
+    stuckSpeed: 1,
+    stuckSeconds: 1,
+    recoverSeconds: 1,
+  },
   // --- Race (MK-11, MK-12) ---
   raceLaps: 3,
   /** 3-2-1-GO, s. */

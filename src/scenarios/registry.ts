@@ -6,6 +6,8 @@ export interface ScenarioSetup {
   state: SimState;
   /** Camera: behind the player (default), top-down over the track, or a slow orbit showing all karts. */
   view?: ScenarioView;
+  /** Kart the camera follows (default 0, the player). */
+  follow?: number;
 }
 
 /** A named, deterministic starting state reachable via `/?scenario=<name>` (CLAUDE.md → Testing). */

@@ -29,12 +29,22 @@ if (!canvas) throw new Error('Missing #game canvas');
 const params = parseLaunchParams(window.location.search);
 
 /** Resolves the starting state from the URL: a named scenario, or free-drive on the test pad. */
-function initialState(): { state: SimState; scenario?: string; view?: ScenarioView } {
+function initialState(): {
+  state: SimState;
+  scenario?: string;
+  view?: ScenarioView;
+  follow?: number;
+} {
   if (params.scenario) {
     const scenario = scenarios.get(params.scenario);
     if (scenario) {
       const setup = scenario.setup(params.seed ?? scenario.defaultSeed);
-      return { state: setup.state, scenario: scenario.name, view: setup.view ?? 'chase' };
+      return {
+        state: setup.state,
+        scenario: scenario.name,
+        view: setup.view ?? 'chase',
+        follow: setup.follow ?? 0,
+      };
     }
     showErrorBanner(
       `Unknown scenario "${params.scenario}". Valid scenarios:`,
@@ -103,8 +113,9 @@ game.onEvents((events, state) => {
 function render(frameSeconds: number, snapCamera = false, draw = true): void {
   karts.sync(game.previousState, game.state, game.alpha, [playerInput]);
   itemBoxes.sync(game.state, game.state.tick / 60);
-  const player = karts.player;
-  const kart = game.state.karts[0];
+  const followId = launch.follow ?? 0;
+  const player = karts.kart(followId);
+  const kart = game.state.karts[followId];
   if (lineup) {
     lineup.update(game.paused ? 0 : frameSeconds);
   } else if (player && kart && !overview) {

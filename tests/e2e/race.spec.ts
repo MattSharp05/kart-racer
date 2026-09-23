@@ -68,3 +68,17 @@ test('sunny-fall-off: the kart is picked up and put back on the road', async ({ 
   expect(state.karts[0]!.grounded).toBe(true);
   expect(state.karts[0]!.respawnTimer).toBe(0);
 });
+
+test('race-full-100cc: after the countdown all 8 karts race and positions change', async ({
+  page,
+}) => {
+  test.setTimeout(60_000);
+  await loadScenario(page, 'race-full-100cc', { paused: true });
+  await page.evaluate(() => window.__game!.setAutopilot(0, true));
+  await step(page, 180);
+  await page.evaluate(() => window.__game!.events());
+  const state = await step(page, 600);
+  for (const kart of state.karts) expect(Math.abs(kart.speed)).toBeGreaterThan(5);
+  const events: SimEvent[] = await page.evaluate(() => window.__game!.events());
+  expect(events.some((e) => e.type === 'positionChange')).toBe(true);
+});

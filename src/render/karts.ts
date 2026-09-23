@@ -1,7 +1,13 @@
 import * as THREE from 'three';
 import { DT } from '../sim/tuning';
 import type { InputFrame, SimState } from '../sim/types';
-import { PrimitiveKartFactory, type KartModel, type KartModelFactory } from './kartModels';
+import type { KartId } from '../sim/data/karts';
+import {
+  alternateColours,
+  PrimitiveKartFactory,
+  type KartModel,
+  type KartModelFactory,
+} from './kartModels';
 import type { KartState } from '../sim/types';
 
 const MAX_WHEEL_TURN = 0.45;
@@ -28,6 +34,7 @@ function lerpAngle(a: number, b: number, t: number): number {
 /** Kart meshes driven by sim state, interpolated between ticks. */
 export class KartRenderer {
   private readonly models: KartModel[] = [];
+  private readonly types: KartId[] = [];
   /** Last sim tick the wheels were advanced for, so they spin once per tick, not per frame. */
   private wheelTick = -1;
 
@@ -103,8 +110,16 @@ export class KartRenderer {
     return this.models[0]?.root;
   }
 
+  /** Any kart's model root (for the camera to follow another kart). */
+  kart(id: number): THREE.Object3D | undefined {
+    return this.models[id]?.root;
+  }
+
   private createModel(kart: KartState): KartModel {
-    const model = this.factory.create(kart.kartType);
+    // The same kart type twice in a race gets an alternate paint job.
+    const repeats = this.types.filter((type) => type === kart.kartType).length;
+    this.types.push(kart.kartType);
+    const model = this.factory.create(kart.kartType, alternateColours(kart.kartType, repeats));
     this.scene.add(model.root);
     this.models.push(model);
     return model;
