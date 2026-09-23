@@ -7,20 +7,38 @@ Follows the `dev-workflow` skill (ticket-driven: Notion → branch → PR → QA
 - Notion project page: https://www.notion.so/3e424983f3ca8171ad9bffbdee9cedf1
 - Tickets data source: collection://36312bfb-9682-471e-85e4-08a7034a4ff2   (ID prefix: MK)
 - Epics data source: collection://2445fc6b-0619-46c1-b0cb-59003f6b0325
-- GitHub: _TBD_ (MattSharp05/kart-racer)
-- Preview URLs: Vercel preview per PR (link is on the PR); production: _TBD_
+- GitHub: MattSharp05/kart-racer
+- Preview URLs: Vercel preview per PR (link is on the PR); production: _TBD (set by MK-4)_
 
 ## Stack
-_TBD after TDD (/plan-work)._
+TypeScript (strict) · Vite · Three.js · in-house arcade physics (no physics engine) · plain DOM/CSS UI · Howler.js audio · pnpm · Vitest · Playwright · ESLint + Prettier · GitHub Actions · Vercel. Details and reasons: [docs/TDD.md](docs/TDD.md); decisions: [docs/decisions/](docs/decisions/).
 
 ## Commands
-_TBD after TDD._
+_Created by MK-1/MK-3/MK-4 — keep this list current._
+- `pnpm dev` — dev server (LAN-exposed for phone testing)
+- `pnpm build` / `pnpm preview`
+- `pnpm lint` · `pnpm typecheck` · `pnpm format`
+- `pnpm test` — unit (Vitest)
+- `pnpm test:e2e` — Playwright (all projects) · `pnpm test:visual` — screenshot tests
+- `pnpm check` — everything CI runs (lint, typecheck, unit, build, e2e)
 
 ## Structure
-_TBD after TDD._
+- `src/sim/` — pure deterministic simulation (60 Hz fixed step, seeded RNG, plain-JSON state). Tunables in `sim/tuning.ts`, data in `sim/data/`.
+- `src/render/` Three.js · `src/input/` keyboard/gamepad/touch → `InputFrame` · `src/ui/` DOM HUD/menus · `src/audio/` Howler
+- `src/game/` loop, app state machine, `window.__game` test API
+- `src/scenarios/` scenario registry · `dev.html` + `src/dev/` = `/dev` index
+- `tests/e2e/` Playwright specs · `docs/` TDD, ADRs, CREDITS
 
 ## Conventions
-_TBD after TDD._
+- `src/sim/**` must not import `three`, DOM, input/render/ui/audio, nor use `Math.random`/`Date` (lint-enforced). Use `sim/rng.ts`.
+- No magic numbers in logic — tunables go in `sim/tuning.ts` or data files.
+- Units: metres, seconds, radians; +Y up; heading 0 faces −Z.
+- Render/UI/audio only read `SimState` and `SimEvent`s; they never mutate sim state.
+- New dependency or architectural change → `/block-ticket` and record an ADR.
 
 ## Testing
-_TBD after TDD. Scenario rule applies: every testable state reachable via `?scenario=<name>`, listed at `/dev`._
+- Scenario rule: every testable state reachable via `/?scenario=<name>[&seed=][&paused=1]`, listed at `/dev`. Add scenarios in `src/scenarios/`.
+- E2E: load a scenario, `__game.pause()`, `__game.setInput(...)`, `__game.step(n)`, assert on `__game.getState()` — never sleep/wait on real time for gameplay.
+- Every sim change gets Vitest unit tests; keep the determinism test passing.
+- Playwright projects: desktop-chrome, desktop-webkit, iphone-landscape, pixel-landscape, ipad. Visual baselines are generated in CI (Docker), not locally.
+- Definition of Done: see the `dev-workflow` skill.
