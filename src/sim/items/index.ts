@@ -3,19 +3,31 @@ import { countDown } from '../math';
 import { positionOf } from '../race';
 import { rngFloat } from '../rng';
 import { tuning } from '../tuning';
-import type { InputFrame, ItemId, KartState, SimEvent, SimState } from '../types';
+import {
+  NEUTRAL_INPUT,
+  type InputFrame,
+  type ItemId,
+  type KartState,
+  type SimEvent,
+  type SimState,
+} from '../types';
+import { updateBananas, useBanana } from './banana';
 import { oddsRow, pickItem } from './odds';
 
 /** What an item does when used. Each item is one entry (MK-16: mushroom; MK-17–20 add the rest). */
 export interface ItemDef {
   id: ItemId;
-  onUse(kart: KartState, state: SimState, events: SimEvent[]): void;
+  onUse(kart: KartState, state: SimState, events: SimEvent[], input: InputFrame): void;
 }
 
 export const ITEMS: Partial<Record<ItemId, ItemDef>> = {
   mushroom: {
     id: 'mushroom',
     onUse: (kart, _state, events) => applyBoost(kart, tuning.mushroomSeconds, events),
+  },
+  banana: {
+    id: 'banana',
+    onUse: (kart, state, _events, input) => useBanana(kart, state, input),
   },
 };
 
@@ -38,7 +50,10 @@ export function updateItems(
     if (box.kind === 'itemBox') box.respawnTimer = countDown(box.respawnTimer, dt);
   }
 
+  updateBananas(state, dt, events);
+
   for (const kart of state.karts) {
+    kart.spinTimer = countDown(kart.spinTimer, dt);
     const slot = kart.item;
 
     // Drive through an active box: it breaks; start the roulette if the slot is free.
@@ -71,7 +86,7 @@ export function updateItems(
     if (pressed && slot.held !== null && slot.roulette === 0) {
       const item = slot.held;
       slot.held = null;
-      ITEMS[item]?.onUse(kart, state, events);
+      ITEMS[item]?.onUse(kart, state, events, inputs[kart.id] ?? NEUTRAL_INPUT);
       events.push({ type: 'itemUsed', kartId: kart.id, item });
     }
   }
