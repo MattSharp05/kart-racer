@@ -49,5 +49,10 @@ export default tseslint.config(
       ],
     },
   },
+  {
+    // E2E tests wait for window.__game before touching it, so `!` is safe there.
+    files: ['tests/**/*.ts'],
+    rules: { '@typescript-eslint/no-non-null-assertion': 'off' },
+  },
   prettier,
 );
