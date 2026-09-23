@@ -66,3 +66,29 @@ export class ChaseCamera {
     this.camera.lookAt(this.lookAt);
   }
 }
+
+const LINEUP_RADIUS = 11;
+const LINEUP_HEIGHT = 3.5;
+/** rad/s */
+const LINEUP_ORBIT_SPEED = 0.25;
+/** Start in front of the karts (they face −Z), slightly to the side. */
+const LINEUP_START_ANGLE = -0.35;
+
+/** Slow orbit around the kart lineup (kart select preview, `kart-lineup` scenario). Frozen when paused. */
+export class LineupCamera {
+  private angle = LINEUP_START_ANGLE;
+
+  constructor(private readonly camera: THREE.PerspectiveCamera) {
+    this.update(0);
+  }
+
+  update(dt: number): void {
+    this.angle += LINEUP_ORBIT_SPEED * dt;
+    this.camera.position.set(
+      Math.sin(this.angle) * LINEUP_RADIUS,
+      LINEUP_HEIGHT,
+      -Math.cos(this.angle) * LINEUP_RADIUS,
+    );
+    this.camera.lookAt(0, 0.6, 0);
+  }
+}

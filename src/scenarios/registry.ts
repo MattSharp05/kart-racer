@@ -1,9 +1,11 @@
 import type { SimState } from '../sim/types';
 
+export type ScenarioView = 'chase' | 'overview' | 'lineup';
+
 export interface ScenarioSetup {
   state: SimState;
-  /** Camera to start with: behind the player (default) or a top-down view of the whole track. */
-  view?: 'chase' | 'overview';
+  /** Camera: behind the player (default), top-down over the track, or a slow orbit showing all karts. */
+  view?: ScenarioView;
 }
 
 /** A named, deterministic starting state reachable via `/?scenario=<name>` (CLAUDE.md → Testing). */

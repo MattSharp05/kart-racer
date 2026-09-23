@@ -1,3 +1,4 @@
+import type { KartId } from './data/karts';
 import type { Vec3 } from './math';
 import type { EngineClass } from './tuning';
 
@@ -33,6 +34,8 @@ export interface DriftState {
 
 export interface KartState {
   id: number;
+  /** Which of the four karts this is (stats + model). */
+  kartType: KartId;
   position: Vec3;
   /** World-space velocity, m/s. */
   velocity: Vec3;

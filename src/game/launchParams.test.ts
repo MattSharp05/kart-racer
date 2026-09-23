@@ -26,4 +26,8 @@ describe('parseLaunchParams', () => {
   it('reads the tune flag', () => {
     expect(parseLaunchParams('?tune=1').tune).toBe(true);
   });
+
+  it('reads the kart override', () => {
+    expect(parseLaunchParams('?scenario=test-pad&kart=boulder').kart).toBe('boulder');
+  });
 });
