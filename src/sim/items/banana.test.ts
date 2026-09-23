@@ -127,3 +127,15 @@ describe('banana', () => {
     expect(bananas(s)).toHaveLength(tuning.maxBananas);
   });
 });
+
+describe('AI after a spin-out', () => {
+  it('does not count the spin as being stuck', () => {
+    const state = kartOnTrack(1, 'sunny-circuit', 0.02, { speed: 0.5 });
+    const kart = state.karts[0]!;
+    kart.ai = { skill: 1, lineOffset: 0, aggression: 0, stuckTime: 0, recoverTime: 0 };
+    kart.spinTimer = tuning.spinSeconds;
+    state.phase = 'racing';
+    const s = run(state, Math.round(tuning.spinSeconds / DT) + 1).state;
+    expect(s.karts[0]!.ai!.recoverTime).toBe(0);
+  });
+});

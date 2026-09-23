@@ -47,8 +47,8 @@ export function beforeMovement(
       resolved[kart.id] = { ...NEUTRAL_INPUT };
     } else if (kart.race.finishTick !== undefined && geometry) {
       resolved[kart.id] = autopilotInput(kart, geometry, 0.8);
-    } else if (kart.ai && kart.respawnTimer > 0) {
-      // Being carried by the pickup drone: not driving, so not "stuck" either.
+    } else if (kart.ai && (kart.respawnTimer > 0 || kart.spinTimer > 0)) {
+      // Being carried by the pickup drone or spinning out: not driving, so not "stuck" either.
       kart.ai.stuckTime = 0;
     } else if (kart.ai && geometry && track.kind === 'spline') {
       resolved[kart.id] = aiInput(
