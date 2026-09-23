@@ -4,7 +4,10 @@
       {
         "matcher": "Bash",
         "hooks": [
-          { "type": "command", "command": "bash ~/.claude/skills/dev-workflow/hooks/protect-main.sh" }
+          {
+            "type": "command",
+            "command": "bash ~/.claude/skills/dev-workflow/hooks/protect-main.sh"
+          }
         ]
       }
     ]
