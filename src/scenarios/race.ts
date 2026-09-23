@@ -163,6 +163,37 @@ export const raceScenarios: Scenario[] = [
       return { state };
     },
   },
+  {
+    name: 'hud-mid-race',
+    group: 'Race',
+    description: 'Lap 2, 4th place, holding a Red shell, with 7 AI racers around you (HUD check).',
+    defaultSeed: 1,
+    setup: (seed) => {
+      const state = racingSince(sunnyRace(seed, { karts: 8, ai: true }), 70);
+      // Leader furthest round the lap; the player is 4th.
+      const order = [3, 5, 1, 0, 2, 4, 6, 7];
+      order.forEach((id, place) => {
+        const kart = state.karts[id];
+        if (!kart) return;
+        const t = 0.3 - place * (9 / sunny.length);
+        kart.position = sunny.pointAt(t, (place % 2 ? 1 : -1) * 2.5);
+        kart.heading = sunny.headingAt(t);
+        kart.race = {
+          ...kart.race,
+          lap: 2,
+          nextCheckpoint:
+            sunnyCircuit.checkpoints.filter((c) => c <= t).length % sunnyCircuit.checkpoints.length,
+          lastT: t,
+          lapStartTick: -Math.round(17 / DT),
+          lapTimes: [52.9],
+        };
+      });
+      state.positions = order;
+      const player = state.karts[0];
+      if (player) player.item.held = 'red';
+      return { state };
+    },
+  },
   ...([50, 100, 150] as const).map((cc): Scenario => ({
     name: `race-full-${cc}cc`,
     group: 'Race',

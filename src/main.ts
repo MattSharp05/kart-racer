@@ -20,7 +20,7 @@ import { tuning, type EngineClass } from './sim/tuning';
 import { NEUTRAL_INPUT, type InputFrame, type ItemId, type SimState } from './sim/types';
 import { showErrorBanner } from './ui/errorBanner';
 import { createPauseButton, Menus } from './ui/menus';
-import { RaceOverlay } from './ui/raceOverlay';
+import { Hud } from './ui/hud/hud';
 import { RotatePrompt } from './ui/rotatePrompt';
 
 /** Longest real frame we feed the sim, so a backgrounded tab doesn't cause a huge catch-up. */
@@ -102,7 +102,7 @@ const lineup = new LineupCamera(camera);
 const karts = new KartRenderer(scene);
 const chaseCamera = new ChaseCamera(camera);
 const itemBoxes = new ItemBoxRenderer(scene);
-const raceOverlay = new RaceOverlay();
+const hud = new Hud();
 const menus = new Menus();
 let resultsTimer: number | undefined;
 
@@ -115,7 +115,7 @@ function load(state: SimState, nextView: ScenarioView, follow = 0): void {
   karts.reset();
   view = nextView;
   followId = follow;
-  raceOverlay.bestNote = '';
+  hud.bestNote = '';
   markChanged();
 }
 
@@ -211,7 +211,7 @@ function showResults(): void {
     };
   });
   pauseButton.hidden = true;
-  menus.showResults(rows, raceOverlay.bestNote, {
+  menus.showResults(rows, hud.bestNote, {
     onAgain: startRace,
     onChangeKart: showKartSelect,
     onMenu: showTitle,
@@ -225,7 +225,7 @@ window.addEventListener('keydown', (e) => {
 });
 
 game.onEvents((events, state) => {
-  raceOverlay.onEvents(events, state, performance.now());
+  hud.onEvents(events, state, performance.now());
   const finished = events.find((e) => e.type === 'finish' && e.kartId === 0);
   const player = state.karts[0];
   if (finished && player) {
@@ -237,10 +237,7 @@ game.onEvents((events, state) => {
       player.race.lapTimes,
       raceTime(state, player.race.finishTick),
     );
-    raceOverlay.bestNote = [
-      bests.newBestRace && 'New best race time!',
-      bests.newBestLap && 'New best lap!',
-    ]
+    hud.bestNote = [bests.newBestRace && 'New best race time!', bests.newBestLap && 'New best lap!']
       .filter(Boolean)
       .join(' ');
     resultsTimer = window.setTimeout(showResults, RESULTS_DELAY_MS);
@@ -261,7 +258,7 @@ function render(frameSeconds: number, snapCamera = false, draw = true): void {
     const speedRatio = Math.abs(kart.speed) / tuning.topSpeed[game.state.engineClass];
     chaseCamera.update(followed, speedRatio, frameSeconds, 0, snapCamera);
   }
-  raceOverlay.update(game.state, performance.now(), menus.current !== 'none');
+  hud.update(game.state, performance.now(), menus.current !== 'none');
   controls.touch.setActive(menus.current === 'none' && !rotatePrompt.shown);
   if (draw) renderer.render(scene, camera);
 }

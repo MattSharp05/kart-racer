@@ -17,7 +17,7 @@ test.describe('laps and positions', () => {
     await page.evaluate(() => window.__game!.setInput(0, { throttle: 1 }));
     await step(page, 100);
     expect((await getState(page)).karts[0]!.race.wrongWay).toBe(true);
-    await expect(page.locator('.race-status')).toContainText('WRONG WAY');
+    await expect(page.locator('.hud-wrong-way')).toBeVisible();
   });
 
   test('sunny-positions: 8 karts in lap-then-distance order', async ({ page }) => {

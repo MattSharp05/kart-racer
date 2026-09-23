@@ -103,10 +103,12 @@ export class TouchControls {
   private show(): void {
     this.shown = true;
     this.root.hidden = !this.active;
+    document.body.classList.add('touch');
   }
 
   private hide(): void {
     this.shown = false;
+    document.body.classList.remove('touch');
     this.engaged = false;
     this.held.clear();
     this.root.hidden = true;

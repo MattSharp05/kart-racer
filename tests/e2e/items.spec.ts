@@ -7,7 +7,7 @@ test.describe('items', () => {
     await page.evaluate(() => window.__game!.setAutopilot(0, true));
     await step(page, 180);
     expect((await getState(page)).karts[0]!.item.held).not.toBeNull();
-    await expect(page.locator('.race-item')).toContainText('press E');
+    await expect(page.locator('.hud-item')).toHaveAttribute('data-item', /^(mushroom)$/);
   });
 
   test('&item=mushroom: using it boosts', async ({ page }) => {

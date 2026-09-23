@@ -1,6 +1,6 @@
 import { KART_IDS, KARTS, type KartId } from '../sim/data/karts';
 import type { EngineClass } from '../sim/tuning';
-import { formatTime, ordinal } from './raceOverlay';
+import { formatTime, ordinal } from './hud/format';
 
 export interface ResultRowView {
   position: number;
