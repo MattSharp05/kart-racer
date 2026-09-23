@@ -10,6 +10,7 @@ import { DT, tuning } from '../tuning';
 import {
   NEUTRAL_INPUT,
   type InputFrame,
+  type ItemBoxEntity,
   type ItemId,
   type SimEvent,
   type SimState,
@@ -85,7 +86,8 @@ describe('item boxes and the roulette', () => {
       const hit = result.events.find((e) => e.type === 'itemBoxHit');
       if (hit && hit.type === 'itemBoxHit') boxId = hit.boxId;
     }
-    const box = () => s.entities.find((e) => e.id === boxId)!;
+    const box = () =>
+      s.entities.find((e) => e.id === boxId && e.kind === 'itemBox') as ItemBoxEntity;
     expect(box().respawnTimer).toBeCloseTo(tuning.itemBoxRespawnSeconds, 1);
     s = run(s, Math.round(tuning.itemBoxRespawnSeconds / DT), () => ({})).state;
     expect(box().respawnTimer).toBe(0);

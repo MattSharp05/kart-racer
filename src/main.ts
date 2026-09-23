@@ -5,6 +5,7 @@ import { browserStore, readPrefs, recordBests, writePrefs } from './game/storage
 import { installTestApi } from './game/testApi';
 import { PlayerInput } from './input/playerInput';
 import { ChaseCamera, LineupCamera } from './render/camera';
+import { BananaRenderer } from './render/bananas';
 import { ItemBoxRenderer } from './render/itemBoxes';
 import { KartRenderer } from './render/karts';
 import { createScene } from './render/scene';
@@ -102,6 +103,7 @@ const lineup = new LineupCamera(camera);
 const karts = new KartRenderer(scene);
 const chaseCamera = new ChaseCamera(camera);
 const itemBoxes = new ItemBoxRenderer(scene);
+const bananas = new BananaRenderer(scene);
 const hud = new Hud();
 const menus = new Menus();
 let resultsTimer: number | undefined;
@@ -250,6 +252,7 @@ game.onEvents((events, state) => {
 function render(frameSeconds: number, snapCamera = false, draw = true): void {
   karts.sync(game.previousState, game.state, game.alpha, [playerInput]);
   itemBoxes.sync(game.state, game.state.tick / 60);
+  bananas.sync(game.state);
   const followed = karts.kart(followId);
   const kart = game.state.karts[followId];
   if (view === 'lineup') {

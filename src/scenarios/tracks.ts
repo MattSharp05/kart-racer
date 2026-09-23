@@ -2,6 +2,7 @@ import { createSimState } from '../sim/state';
 import { getTrack, trackGeometry } from '../sim/track';
 import { SUNNY_INFIELD, sunnyCircuit } from '../sim/data/tracks/sunnyCircuit';
 import type { SplineTrackDef } from '../sim/splineTrack';
+import { nextEntityId } from '../sim/items/banana';
 import { tuning } from '../sim/tuning';
 import type { Scenario } from './registry';
 
@@ -225,6 +226,53 @@ export const trackScenarios: Scenario[] = [
       const state = sunnyStart(seed);
       const [kart] = state.karts;
       if (kart) kart.item.roulette = 0.7;
+      return { state };
+    },
+  },
+  {
+    name: 'banana-ahead',
+    group: 'Items',
+    description: 'A banana 20 m ahead on the main straight. Drive into it to spin out.',
+    defaultSeed: 1,
+    setup: (seed) => {
+      const t = sunnyT(0.02, 0);
+      const state = kartOnTrack(seed, 'sunny-circuit', t, { speed: 15 });
+      const position = sunny.pointAt(sunnyT(t, 20), 0);
+      state.entities.push({
+        id: nextEntityId(state),
+        kind: 'banana',
+        position,
+        from: position,
+        flightTimer: 0,
+        ownerId: -1,
+        ownerImmune: 0,
+      });
+      return { state };
+    },
+  },
+  {
+    name: 'banana-drop',
+    group: 'Items',
+    description:
+      'Holding a banana with a kart close behind. Press E without accelerating to drop it on them.',
+    defaultSeed: 1,
+    setup: (seed) => {
+      const t = sunnyT(0.02, 0);
+      const state = createSimState({
+        seed,
+        trackId: 'sunny-circuit',
+        karts: [
+          { position: sunny.pointAt(t, 0), heading: sunny.headingAt(t), speed: 10 },
+          {
+            position: sunny.pointAt(sunnyT(t, -7), 0),
+            heading: sunny.headingAt(t),
+            speed: 12,
+            kartType: 'swoop',
+          },
+        ],
+      });
+      const [kart] = state.karts;
+      if (kart) kart.item.held = 'banana';
       return { state };
     },
   },

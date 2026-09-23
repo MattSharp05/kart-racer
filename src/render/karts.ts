@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { DT } from '../sim/tuning';
+import { DT, tuning } from '../sim/tuning';
 import type { InputFrame, SimState } from '../sim/types';
 import type { KartId } from '../sim/data/karts';
 import {
@@ -70,7 +70,9 @@ export class KartRenderer {
     const drift = kart.drift.direction;
     // Lean outward and swing the tail out, like a drifting kart.
     model.body.rotation.z = drift * DRIFT_LEAN;
-    model.body.rotation.y = -drift * DRIFT_YAW;
+    // Spin-out (MK-17): one full turn over the spin time.
+    const spin = kart.spinTimer > 0 ? (1 - kart.spinTimer / tuning.spinSeconds) * Math.PI * 2 : 0;
+    model.body.rotation.y = -drift * DRIFT_YAW + spin;
 
     const showSparks = drift !== 0;
     const colour = SPARK_COLOURS[kart.drift.tier];
