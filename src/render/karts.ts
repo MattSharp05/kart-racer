@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { DT } from '../sim/tuning';
 import type { InputFrame, SimState } from '../sim/types';
 import { createPlaceholderKart, WHEEL_RADIUS, type KartModel } from './kartModel';
 
@@ -15,6 +16,8 @@ function lerpAngle(a: number, b: number, t: number): number {
 /** Kart meshes driven by sim state, interpolated between ticks. */
 export class KartRenderer {
   private readonly models: KartModel[] = [];
+  /** Last sim tick the wheels were advanced for, so they spin once per tick, not per frame. */
+  private wheelTick = -1;
 
   constructor(private readonly scene: THREE.Scene) {}
 
@@ -29,11 +32,15 @@ export class KartRenderer {
       );
       model.root.rotation.y = lerpAngle(before.heading, kart.heading, alpha);
 
-      const distance = (kart.speed * (current.tick - previous.tick)) / 60;
-      for (const wheel of model.wheels) wheel.rotation.x -= distance / WHEEL_RADIUS;
+      if (current.tick !== this.wheelTick) {
+        const ticks = this.wheelTick < 0 ? 0 : current.tick - this.wheelTick;
+        const distance = kart.speed * ticks * DT;
+        for (const wheel of model.wheels) wheel.rotation.x -= distance / WHEEL_RADIUS;
+      }
       const steer = inputs[i]?.steer ?? 0;
       for (const pivot of model.frontWheels) pivot.rotation.y = -steer * MAX_WHEEL_TURN;
     });
+    this.wheelTick = current.tick;
   }
 
   /** The player's kart (kart 0), for the camera. */
