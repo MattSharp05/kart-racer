@@ -1,0 +1,5 @@
+# The local pnpm may run under Rosetta (x64) on Apple Silicon; install native
+# bindings for every platform we run on (Apple Silicon, Intel, Linux CI).
+supportedArchitectures:
+  os: [current, darwin, linux]
+  cpu: [current, arm64, x64]

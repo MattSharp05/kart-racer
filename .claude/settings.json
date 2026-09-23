@@ -1,10 +1,28 @@
 {
+  "permissions": {
+    "allow": [
+      "Bash(git push)",
+      "Bash(git push:*)",
+      "Bash(git push *)",
+      "Bash(gh pr create:*)",
+      "Bash(gh pr merge:*)",
+      "Bash(gh pr checks:*)",
+      "Bash(gh pr view:*)",
+      "Bash(gh pr list:*)",
+      "Bash(gh run view:*)",
+      "Bash(gh run list:*)",
+      "Bash(gh run watch:*)"
+    ]
+  },
   "hooks": {
     "PreToolUse": [
       {
         "matcher": "Bash",
         "hooks": [
-          { "type": "command", "command": "bash ~/.claude/skills/dev-workflow/hooks/protect-main.sh" }
+          {
+            "type": "command",
+            "command": "bash ~/.claude/skills/dev-workflow/hooks/protect-main.sh"
+          }
         ]
       }
     ]
