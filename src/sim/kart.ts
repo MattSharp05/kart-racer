@@ -10,7 +10,14 @@ import {
   wrapAngleDelta,
   type Vec3,
 } from './math';
-import { cancelDrift, chargeDrift, driftYawRate, handleDriftButton, isDrifting } from './drift';
+import {
+  applyBoost,
+  cancelDrift,
+  chargeDrift,
+  driftYawRate,
+  handleDriftButton,
+  isDrifting,
+} from './drift';
 import { kartPhysics } from './kartStats';
 import { groundAt, trackGeometry, type TrackDef } from './track';
 import { tuning, type EngineClass } from './tuning';
@@ -86,7 +93,9 @@ export function updateKart(
   const forwardSpeed = dot(kart.velocity, forward);
   const lateral = sub(vec3(kart.velocity.x, 0, kart.velocity.z), scale(forward, forwardSpeed));
 
+  const driftPressed = input.drift && !kart.driftHeld;
   handleDriftButton(kart, input, forwardSpeed, topSpeed, events);
+  if (driftPressed && !kart.grounded) tryTrick(kart, events);
   if (isDrifting(kart) && forwardSpeed < tuning.driftMinSpeed * topSpeed) {
     cancelDrift(kart, events);
   }
@@ -112,7 +121,10 @@ export function updateKart(
   // Longitudinal speed along the new heading. Boosting raises the top speed and pulls towards it
   // hard, even without throttle (unless braking), and ignores the grass penalty.
   const boosting = kart.boostTimer > 0;
-  const onGrass = kart.grounded && groundAt(track, kart.position).surface === 'offroad';
+  const surface = kart.grounded ? groundAt(track, kart.position).surface : 'road';
+  const grassSpeed =
+    surface === 'offroad' ? tuning.offroadSpeed : surface === 'rough' ? tuning.roughSpeed : 0;
+  const onGrass = grassSpeed > 0;
   const newSpeed = boosting
     ? updateForwardSpeed(
         forwardSpeed,
@@ -125,7 +137,7 @@ export function updateKart(
       ? updateForwardSpeed(
           forwardSpeed,
           input,
-          topSpeed * tuning.offroadSpeed,
+          topSpeed * grassSpeed,
           dt,
           kartAccel,
           tuning.offroadDecel,
@@ -138,15 +150,20 @@ export function updateKart(
   const slide = scale(lateral, Math.exp(-grip * dt));
   const horizontal = add(scale(forward, newSpeed), slide);
 
-  // Vertical: gravity + snap to the ground (follows hills; off the edge there is no ground).
+  // Vertical: gravity + snap to the ground. While grounded, vertical speed follows the ground,
+  // so a kart leaving the top of a ramp keeps its upward speed and flies.
+  const wasGrounded = kart.grounded;
   let vy = kart.velocity.y - tuning.gravity * dt;
   let position = add(kart.position, scale(vec3(horizontal.x, vy, horizontal.z), dt));
-  const ground = groundAt(track, position).height;
-  kart.grounded = position.y <= ground;
+  const ground = groundAt(track, position);
+  kart.grounded = position.y <= ground.height;
   if (kart.grounded) {
-    position = { ...position, y: ground };
-    vy = 0;
+    vy = Math.max(0, (ground.height - kart.position.y) / dt);
+    if (!wasGrounded) vy = 0;
+    position = { ...position, y: ground.height };
   }
+  updateAirState(kart, wasGrounded, vy, dt, events);
+  if (kart.grounded && ground.surface === 'boostPad') hitBoostPad(kart, events);
 
   kart.velocity = vec3(horizontal.x, vy, horizontal.z);
   kart.position = position;
@@ -157,6 +174,44 @@ export function updateKart(
   if (wallImpact > tuning.driftWallCancel) cancelDrift(kart, events);
   kart.speed = dot(kart.velocity, forwardFromHeading(kart.heading));
   return kart;
+}
+
+/** Airtime bookkeeping: launches, landings, and the ramp trick boost. */
+function updateAirState(
+  kart: KartState,
+  wasGrounded: boolean,
+  vy: number,
+  dt: number,
+  events: SimEvent[],
+): void {
+  if (wasGrounded && !kart.grounded) {
+    kart.airTime = 0;
+    if (vy > tuning.trickMinLaunch) {
+      kart.trick = 'ready';
+      events.push({ type: 'launch', kartId: kart.id });
+    }
+  } else if (!kart.grounded) {
+    kart.airTime += dt;
+  } else if (!wasGrounded) {
+    events.push({ type: 'land', kartId: kart.id, airTime: kart.airTime });
+    if (kart.trick === 'done') applyBoost(kart, tuning.trickBoostSeconds, events);
+    kart.trick = 'none';
+    kart.airTime = 0;
+  }
+}
+
+/** Drift tapped in the air shortly after a ramp launch = trick (boost on landing). */
+function tryTrick(kart: KartState, events: SimEvent[]): void {
+  if (kart.trick !== 'ready' || kart.airTime > tuning.trickWindow) return;
+  kart.trick = 'done';
+  events.push({ type: 'trick', kartId: kart.id });
+}
+
+/** Boost pads refresh the boost while you're on them; the event fires once per pad. */
+function hitBoostPad(kart: KartState, events: SimEvent[]): void {
+  if (kart.boostTimer < tuning.boostPadSeconds - 0.05)
+    events.push({ type: 'boostPad', kartId: kart.id });
+  kart.boostTimer = Math.max(kart.boostTimer, tuning.boostPadSeconds);
 }
 
 /** The kart's four footprint corners as offsets from its centre, in world orientation (XZ). */
@@ -246,7 +301,8 @@ function collideWithTrackWalls(
     if (!geometry.hasWall(projection.t, side === 1 ? 'right' : 'left')) continue;
     const reach = Math.max(...offsets.map((o) => (o.x * normal.x + o.z * normal.z) * side));
     const penetration = projection.lateral * side + reach - wallOffset;
-    if (penetration <= 0) continue;
+    // Far past the wall line means we're on its other side (a shortcut), not stuck in it.
+    if (penetration <= 0 || penetration > tuning.wallMaxPenetration) continue;
     kart.position = {
       ...kart.position,
       x: kart.position.x - normal.x * side * penetration,

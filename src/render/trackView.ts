@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { trackGeometry, type TrackDef } from '../sim/track';
+import { createScenery, skyGradient } from './scenery';
 import { createSplineTrackMesh } from './trackMesh';
 
 const WALL_HEIGHT = 1.2;
@@ -8,7 +9,10 @@ const WALL_THICKNESS = 1;
 /** Builds the visuals for a track: generated from spline data, or the flat walled test pad. */
 export function createTrackView(scene: THREE.Scene, track: TrackDef): void {
   if (track.kind === 'spline') {
-    scene.add(createSplineTrackMesh(trackGeometry(track)));
+    const geometry = trackGeometry(track);
+    scene.add(createSplineTrackMesh(geometry));
+    scene.add(createScenery(geometry));
+    scene.background = skyGradient();
     return;
   }
   const size = track.halfSize * 2;

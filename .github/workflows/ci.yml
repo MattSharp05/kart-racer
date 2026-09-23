@@ -26,6 +26,7 @@ jobs:
       - run: pnpm format:check
       - run: pnpm typecheck
       - run: pnpm test
+      - run: pnpm test:perf
       - run: pnpm build
 
   e2e:

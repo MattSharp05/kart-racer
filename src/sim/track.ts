@@ -1,7 +1,8 @@
+import { sunnyCircuit } from './data/tracks/sunnyCircuit';
 import { testOval } from './data/tracks/testOval';
 import { testPad } from './data/tracks/testPad';
 import type { Vec3 } from './math';
-import { TrackGeometry, type SplineTrackDef, type Surface } from './splineTrack';
+import { insidePolygon, TrackGeometry, type SplineTrackDef, type Surface } from './splineTrack';
 
 /** Flat square arena bounded by walls, for tuning handling. */
 export interface ArenaTrackDef {
@@ -21,6 +22,7 @@ export const VOID_HEIGHT = -1000;
 const TRACKS: Record<string, TrackDef> = {
   [testPad.id]: testPad,
   [testOval.id]: testOval,
+  [sunnyCircuit.id]: sunnyCircuit,
 };
 
 const geometries = new Map<string, TrackGeometry>();
@@ -50,6 +52,9 @@ export interface GroundInfo {
 export function groundAt(track: TrackDef, position: Vec3): GroundInfo {
   if (track.kind === 'arena') return { height: track.groundHeight, surface: 'road' };
   const projection = trackGeometry(track).project(position);
-  if (projection.surface === 'out') return { height: VOID_HEIGHT, surface: 'out' };
-  return { height: projection.groundY, surface: projection.surface };
+  if (projection.surface !== 'out')
+    return { height: projection.groundY, surface: projection.surface };
+  const cut = track.shortcuts?.find((c) => insidePolygon(position.x, position.z, c.polygon));
+  if (cut) return { height: cut.y, surface: 'rough' };
+  return { height: VOID_HEIGHT, surface: 'out' };
 }

@@ -8,8 +8,8 @@ import { createScene } from './render/scene';
 import { createTrackView, overviewCamera } from './render/trackView';
 import { scenarios } from './scenarios';
 import type { ScenarioView } from './scenarios/registry';
+import { sunnyStart } from './scenarios/tracks';
 import { isKartId, KART_IDS } from './sim/data/karts';
-import { createSimState } from './sim/state';
 import { getTrack } from './sim/track';
 import { tuning } from './sim/tuning';
 import { NEUTRAL_INPUT, type InputFrame, type SimState } from './sim/types';
@@ -37,7 +37,8 @@ function initialState(): { state: SimState; scenario?: string; view?: ScenarioVi
       scenarios.list().map((s) => s.name),
     );
   }
-  return { state: createSimState({ seed: params.seed ?? DEFAULT_SEED }) };
+  // No scenario: free drive on Sunny Circuit.
+  return { state: sunnyStart(params.seed ?? DEFAULT_SEED) };
 }
 
 const { renderer, scene, camera } = createScene(canvas);
@@ -76,7 +77,15 @@ function render(frameSeconds: number, snapCamera = false): void {
   renderer.render(scene, camera);
 }
 
-installTestApi(game, () => render(0, true), launch.scenario);
+installTestApi(
+  game,
+  () => render(0, true),
+  launch.scenario,
+  () => ({
+    calls: renderer.info.render.calls,
+    triangles: renderer.info.render.triangles,
+  }),
+);
 
 if (params.tune) {
   void import('./dev/tuningPanel').then(({ openTuningPanel }) => openTuningPanel());

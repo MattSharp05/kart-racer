@@ -49,6 +49,10 @@ export interface KartState {
   driftHeld: boolean;
   /** Seconds of boost left (mini-turbo; later mushrooms, boost pads, rocket start). */
   boostTimer: number;
+  /** Seconds since the kart last left the ground (0 while grounded). */
+  airTime: number;
+  /** Ramp trick state: `ready` after launching off a ramp, `done` once drift is tapped in the air. */
+  trick: 'none' | 'ready' | 'done';
 }
 
 export type RacePhase = 'free' | 'countdown' | 'racing' | 'finished';
@@ -78,7 +82,11 @@ export type SimEvent =
   | { type: 'driftTier'; kartId: number; tier: DriftTier }
   | { type: 'driftCancel'; kartId: number }
   | { type: 'miniTurbo'; kartId: number; tier: DriftTier }
-  | { type: 'boost'; kartId: number; seconds: number };
+  | { type: 'boost'; kartId: number; seconds: number }
+  | { type: 'boostPad'; kartId: number }
+  | { type: 'launch'; kartId: number }
+  | { type: 'trick'; kartId: number }
+  | { type: 'land'; kartId: number; airTime: number };
 
 export interface StepResult {
   state: SimState;

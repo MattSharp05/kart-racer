@@ -46,6 +46,8 @@ export function createSimState({
         drift: { direction: 0, charge: 0, tier: 0 },
         driftHeld: false,
         boostTimer: 0,
+        airTime: 0,
+        trick: 'none',
       };
     }),
     entities: [],
