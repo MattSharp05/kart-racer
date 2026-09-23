@@ -1,4 +1,5 @@
 import { add, clamp, dot, forwardFromHeading, rotateY, scale, sub, vec3, type Vec3 } from './math';
+import { cancelDrift, chargeDrift, driftYawRate, handleDriftButton, isDrifting } from './drift';
 import { groundHeightAt, type TrackDef } from './track';
 import { tuning, type EngineClass } from './tuning';
 import type { InputFrame, KartState, SimEvent } from './types';
@@ -29,8 +30,9 @@ export function updateForwardSpeed(
   input: InputFrame,
   topSpeed: number,
   dt: number,
+  rate = accelRate(),
 ): number {
-  const blend = 1 - Math.exp(-accelRate() * dt);
+  const blend = 1 - Math.exp(-rate * dt);
   const reverseTop = topSpeed * tuning.reverseFraction;
 
   if (input.brake > 0) {
@@ -71,19 +73,45 @@ export function updateKart(
   const forwardSpeed = dot(kart.velocity, forward);
   const lateral = sub(vec3(kart.velocity.x, 0, kart.velocity.z), scale(forward, forwardSpeed));
 
+  handleDriftButton(kart, input, forwardSpeed, topSpeed, events);
+  if (isDrifting(kart) && forwardSpeed < tuning.driftMinSpeed * topSpeed) {
+    cancelDrift(kart, events);
+  }
+
   // Steering: positive steer turns right (heading decreases); reversing inverts it.
-  const direction = forwardSpeed >= 0 ? 1 : -1;
-  const yaw =
-    -clamp(input.steer, -1, 1) *
-    tuning.maxYawRate *
-    steeringStrength(forwardSpeed, topSpeed) *
-    direction;
+  // While drifting the turn rate comes from the drift instead (tighter, direction locked).
+  let yaw: number;
+  if (isDrifting(kart)) {
+    yaw = driftYawRate(kart, input);
+    chargeDrift(kart, input, dt, events);
+  } else {
+    const direction = forwardSpeed >= 0 ? 1 : -1;
+    yaw =
+      -clamp(input.steer, -1, 1) *
+      tuning.maxYawRate *
+      steeringStrength(forwardSpeed, topSpeed) *
+      direction;
+  }
   kart.heading = wrapAngle(kart.heading + yaw * dt);
   forward = forwardFromHeading(kart.heading);
 
-  // Longitudinal speed along the new heading, plus the remaining sideways slide decaying with grip.
-  const newSpeed = updateForwardSpeed(forwardSpeed, input, topSpeed, dt);
-  const slide = scale(lateral, Math.exp(-tuning.lateralGrip * dt));
+  // Longitudinal speed along the new heading. Boosting raises the top speed and pulls towards it
+  // hard, even without throttle (unless braking).
+  const boosting = kart.boostTimer > 0;
+  const newSpeed = boosting
+    ? updateForwardSpeed(
+        forwardSpeed,
+        input.brake > 0 ? input : { ...input, throttle: 1 },
+        topSpeed * tuning.boostSpeed,
+        dt,
+        tuning.boostAccelRate,
+      )
+    : updateForwardSpeed(forwardSpeed, input, topSpeed, dt);
+  kart.boostTimer = Math.max(0, kart.boostTimer - dt);
+
+  // Plus the remaining sideways slide, decaying with grip (low grip while drifting = outward slide).
+  const grip = isDrifting(kart) ? tuning.driftGrip : tuning.lateralGrip;
+  const slide = scale(lateral, Math.exp(-grip * dt));
   const horizontal = add(scale(forward, newSpeed), slide);
 
   // Vertical: gravity + ground snap (flat until the track system adds height, MK-9).
@@ -98,7 +126,8 @@ export function updateKart(
 
   kart.velocity = vec3(horizontal.x, vy, horizontal.z);
   kart.position = position;
-  collideWithArenaWalls(kart, track, events);
+  const wallImpact = collideWithArenaWalls(kart, track, events);
+  if (wallImpact > tuning.driftWallCancel) cancelDrift(kart, events);
   kart.speed = dot(kart.velocity, forwardFromHeading(kart.heading));
   return kart;
 }
@@ -116,9 +145,10 @@ export function footprintOffsets(heading: number): Vec3[] {
 
 /**
  * Keeps the kart's whole footprint (not just its centre) inside the arena, and slides it
- * along walls, losing speed by impact angle.
+ * along walls, losing speed by impact angle. Returns the hardest impact speed into a wall, m/s.
  */
-function collideWithArenaWalls(kart: KartState, track: TrackDef, events: SimEvent[]): void {
+function collideWithArenaWalls(kart: KartState, track: TrackDef, events: SimEvent[]): number {
+  let hardestImpact = 0;
   const offsets = footprintOffsets(kart.heading);
   for (const axis of ['x', 'z'] as const) {
     for (const side of [1, -1] as const) {
@@ -141,6 +171,8 @@ function collideWithArenaWalls(kart: KartState, track: TrackDef, events: SimEven
         [other]: kart.velocity[other] * keep,
       };
       events.push({ type: 'wallHit', kartId: kart.id, strength: into });
+      hardestImpact = Math.max(hardestImpact, into);
     }
   }
+  return hardestImpact;
 }

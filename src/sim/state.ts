@@ -40,6 +40,9 @@ export function createSimState({
         heading,
         speed,
         grounded: true,
+        drift: { direction: 0, charge: 0, tier: 0 },
+        driftHeld: false,
+        boostTimer: 0,
       };
     }),
     entities: [],

@@ -23,6 +23,20 @@ export function openTuningPanel(): GUI {
   handling.add(tuning, 'lateralGrip', 0.5, 30, 0.5).name('grip');
   handling.add(tuning, 'wallSpeedKeep', 0, 1, 0.05).name('wall speed kept');
 
+  const drift = gui.addFolder('Drift & boost');
+  drift.add(tuning, 'driftYaw', 0.3, 4, 0.05).name('drift turn rate');
+  drift.add(tuning, 'driftYawRange', 0, 2, 0.05).name('in/out steer range');
+  drift.add(tuning, 'driftGrip', 0.2, 10, 0.1).name('drift grip');
+  drift.add(tuning, 'driftMinSpeed', 0, 1, 0.05).name('min speed ×top');
+  drift.add(tuning.driftTiers, 0, 0.1, 5, 0.05).name('blue at (s)');
+  drift.add(tuning.driftTiers, 1, 0.1, 6, 0.05).name('orange at (s)');
+  drift.add(tuning.driftTiers, 2, 0.1, 8, 0.05).name('purple at (s)');
+  drift.add(tuning.miniTurboSeconds, 0, 0, 3, 0.05).name('blue boost (s)');
+  drift.add(tuning.miniTurboSeconds, 1, 0, 3, 0.05).name('orange boost (s)');
+  drift.add(tuning.miniTurboSeconds, 2, 0, 3, 0.05).name('purple boost (s)');
+  drift.add(tuning, 'boostSpeed', 1, 2, 0.05).name('boost speed ×');
+  drift.add(tuning, 'hopVelocity', 0, 10, 0.25).name('hop strength');
+
   gui
     .add(
       {
