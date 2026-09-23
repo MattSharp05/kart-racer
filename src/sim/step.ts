@@ -1,3 +1,4 @@
+import { resolveKartCollisions } from './collisions';
 import { updateKart } from './kart';
 import { getTrack } from './track';
 import { DT } from './tuning';
@@ -19,9 +20,11 @@ export function step(state: SimState, inputs: readonly InputFrame[], dt = DT): S
   const track = getTrack(next.trackId);
   next.tick += 1;
 
+  const positionsBefore = new Map(next.karts.map((kart) => [kart.id, kart.position]));
   for (const kart of next.karts) {
     updateKart(kart, inputs[kart.id] ?? NEUTRAL_INPUT, next.engineClass, track, dt, events);
   }
+  resolveKartCollisions(next.karts, positionsBefore, events);
 
   return { state: next, events };
 }
