@@ -7,14 +7,16 @@ const geometry = trackGeometry(testOval);
 
 test.describe('test oval (track system)', () => {
   test('an autopilot lap of the oval stays on the road the whole way', async ({ page }) => {
+    // Headless Chrome renders in software (slow); keep round trips few and allow extra time.
+    test.setTimeout(60_000);
     await loadScenario(page, 'oval-start', { paused: true });
     await page.evaluate(() => window.__game!.setAutopilot(0, true));
     let state = await getState(page);
     let lastS = geometry.project(state.karts[0]!.position).s;
     let travelled = 0;
-    // The autopilot runs inside the game; check position every 60 ticks from Node.
+    // The autopilot runs inside the game (the unit test checks every tick); sample every 4 s here.
     while (travelled < geometry.length) {
-      state = await step(page, 60);
+      state = await step(page, 240);
       const p = geometry.project(state.karts[0]!.position);
       expect(p.surface).toBe('road');
       let ds = p.s - lastS;
