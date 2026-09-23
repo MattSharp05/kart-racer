@@ -2,7 +2,8 @@ import type { KartId } from './data/karts';
 import { forwardFromHeading, scale, vec3 } from './math';
 import { seedRng } from './rng';
 import type { EngineClass } from './tuning';
-import type { KartState, SimState } from './types';
+import { DT, tuning } from './tuning';
+import type { KartState, RacePhase, SimState } from './types';
 
 export interface KartSpawn {
   kartType?: KartId;
@@ -14,6 +15,9 @@ export interface KartSpawn {
 
 export interface InitialStateOptions {
   seed: number;
+  /** `free` = free drive (no race); `countdown` = a race that starts with 3-2-1-GO. */
+  phase?: RacePhase;
+  laps?: number;
   trackId?: string;
   engineClass?: EngineClass;
   karts?: KartSpawn[];
@@ -22,6 +26,8 @@ export interface InitialStateOptions {
 /** Builds a fresh SimState. With no karts given, places one kart at the origin facing −Z. */
 export function createSimState({
   seed,
+  phase = 'free',
+  laps = tuning.raceLaps,
   trackId = 'test-pad',
   engineClass = 100,
   karts = [{}],
@@ -29,7 +35,7 @@ export function createSimState({
   return {
     tick: 0,
     rngState: seedRng(seed),
-    phase: 'free',
+    phase,
     trackId,
     engineClass,
     karts: karts.map((spawn, id) => {
@@ -56,10 +62,16 @@ export function createSimState({
           lapTimes: [],
           wrongWayTime: 0,
           wrongWay: false,
+          stallTimer: 0,
         },
       };
     }),
     entities: [],
     positions: karts.map((_, id) => id),
+    race: {
+      laps,
+      countdownStartTick: 0,
+      goTick: phase === 'countdown' ? Math.round(tuning.countdownSeconds / DT) : 0,
+    },
   };
 }

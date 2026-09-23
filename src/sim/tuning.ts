@@ -107,7 +107,16 @@ export const tuning = {
   rampLaunch: 0.28,
   /** A grounded kart stays glued to the ground over drops up to this per tick, m. */
   groundSnap: 0.15,
-  // --- Race (MK-11) ---
+  // --- Race (MK-11, MK-12) ---
+  raceLaps: 3,
+  /** 3-2-1-GO, s. */
+  countdownSeconds: 3,
+  /** Throttle pressed within this long before GO (and held) = rocket start, s. */
+  rocketWindow: 0.3,
+  /** Throttle held longer than this before GO = engine stall, s. */
+  rocketEarly: 1.0,
+  rocketBoostSeconds: 1.0,
+  stallSeconds: 0.8,
   /** A checkpoint crossing only counts if the kart is within this lap fraction of it (no teleports). */
   checkpointWindow: 0.05,
   /** Driving against the track faster than this (m/s)… */
