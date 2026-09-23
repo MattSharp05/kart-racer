@@ -1,4 +1,5 @@
 import type { Vec3 } from './math';
+import type { EngineClass } from './tuning';
 
 /** One player's controls for one tick. Humans and AI both produce these. */
 export interface InputFrame {
@@ -23,10 +24,13 @@ export const NEUTRAL_INPUT: Readonly<InputFrame> = Object.freeze({
 export interface KartState {
   id: number;
   position: Vec3;
-  /** Radians; 0 faces −Z. */
+  /** World-space velocity, m/s. */
+  velocity: Vec3;
+  /** Radians in (-π, π]; 0 faces −Z, positive turns left. */
   heading: number;
-  /** Forward speed, m/s. */
+  /** Signed speed along the heading, m/s (negative when reversing). */
   speed: number;
+  grounded: boolean;
 }
 
 export type RacePhase = 'free' | 'countdown' | 'racing' | 'finished';
@@ -42,11 +46,15 @@ export interface SimState {
   tick: number;
   rngState: number;
   phase: RacePhase;
+  trackId: string;
+  engineClass: EngineClass;
   karts: KartState[];
   entities: Entity[];
 }
 
-export type SimEvent = { type: 'phaseChanged'; phase: RacePhase };
+export type SimEvent =
+  | { type: 'phaseChanged'; phase: RacePhase }
+  | { type: 'wallHit'; kartId: number; strength: number };
 
 export interface StepResult {
   state: SimState;

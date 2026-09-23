@@ -5,14 +5,14 @@ export const basicScenarios: Scenario[] = [
   {
     name: 'empty',
     group: 'Basics',
-    description: 'One placeholder kart at the origin, stationary.',
+    description: 'One kart at the origin, stationary.',
     defaultSeed: 1,
     setup: (seed) => ({ state: createSimState({ seed }) }),
   },
   {
     name: 'moving',
     group: 'Basics',
-    description: 'One placeholder kart already moving forward.',
+    description: 'One kart already rolling forward at 8 m/s (it coasts to a stop).',
     defaultSeed: 1,
     setup: (seed) => ({ state: createSimState({ seed, karts: [{ speed: 8 }] }) }),
   },

@@ -1,19 +1,38 @@
-import { NEUTRAL_INPUT, type InputFrame } from '../sim/types';
+import type { InputFrame } from '../sim/types';
 
-const THROTTLE_KEYS = new Set(['KeyW', 'ArrowUp']);
+const KEYS = {
+  throttle: ['KeyW', 'ArrowUp'],
+  brake: ['KeyS', 'ArrowDown'],
+  left: ['KeyA', 'ArrowLeft'],
+  right: ['KeyD', 'ArrowRight'],
+  drift: ['Space', 'ShiftLeft', 'ShiftRight'],
+  item: ['KeyE', 'ControlLeft', 'ControlRight'],
+} as const;
 
-/** Tracks held keys and turns them into an InputFrame. Full mapping arrives in MK-5. */
+/** Keys the game handles, so the page doesn't scroll on arrows/space. */
+const GAME_KEYS = new Set<string>(Object.values(KEYS).flat());
+
+/** Tracks held keys and turns them into an InputFrame (docs: PRD → Target platforms & controls). */
 export class KeyboardInput {
   private readonly held = new Set<string>();
 
   constructor(target: Window = window) {
-    target.addEventListener('keydown', (e) => this.held.add(e.code));
+    target.addEventListener('keydown', (e) => {
+      if (GAME_KEYS.has(e.code)) e.preventDefault();
+      this.held.add(e.code);
+    });
     target.addEventListener('keyup', (e) => this.held.delete(e.code));
     target.addEventListener('blur', () => this.held.clear());
   }
 
   read(): InputFrame {
-    const throttle = [...THROTTLE_KEYS].some((code) => this.held.has(code)) ? 1 : 0;
-    return { ...NEUTRAL_INPUT, throttle };
+    const down = (codes: readonly string[]) => codes.some((code) => this.held.has(code));
+    return {
+      throttle: down(KEYS.throttle) ? 1 : 0,
+      brake: down(KEYS.brake) ? 1 : 0,
+      steer: (down(KEYS.right) ? 1 : 0) - (down(KEYS.left) ? 1 : 0),
+      drift: down(KEYS.drift),
+      item: down(KEYS.item),
+    };
   }
 }

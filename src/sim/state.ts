@@ -1,24 +1,47 @@
-import { vec3 } from './math';
+import { forwardFromHeading, scale, vec3 } from './math';
 import { seedRng } from './rng';
+import type { EngineClass } from './tuning';
 import type { KartState, SimState } from './types';
+
+export interface KartSpawn {
+  position?: KartState['position'];
+  heading?: number;
+  /** Initial forward speed, m/s. */
+  speed?: number;
+}
 
 export interface InitialStateOptions {
   seed: number;
-  karts?: Partial<KartState>[];
+  trackId?: string;
+  engineClass?: EngineClass;
+  karts?: KartSpawn[];
 }
 
-/** Builds a fresh SimState. With no karts given, places one kart at the origin. */
-export function createSimState({ seed, karts = [{}] }: InitialStateOptions): SimState {
+/** Builds a fresh SimState. With no karts given, places one kart at the origin facing −Z. */
+export function createSimState({
+  seed,
+  trackId = 'test-pad',
+  engineClass = 100,
+  karts = [{}],
+}: InitialStateOptions): SimState {
   return {
     tick: 0,
     rngState: seedRng(seed),
     phase: 'free',
-    karts: karts.map((kart, id) => ({
-      id,
-      position: kart.position ?? vec3(),
-      heading: kart.heading ?? 0,
-      speed: kart.speed ?? 0,
-    })),
+    trackId,
+    engineClass,
+    karts: karts.map((spawn, id) => {
+      const heading = spawn.heading ?? 0;
+      const speed = spawn.speed ?? 0;
+      return {
+        id,
+        position: spawn.position ?? vec3(),
+        velocity: scale(forwardFromHeading(heading), speed),
+        heading,
+        speed,
+        grounded: true,
+      };
+    }),
     entities: [],
   };
 }

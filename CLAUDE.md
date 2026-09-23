@@ -49,6 +49,7 @@ _Created by MK-1/MK-3/MK-4 — keep this list current._
 ## Testing
 
 - Scenario rule: every testable state reachable via `/?scenario=<name>[&seed=][&paused=1]`, listed at `/dev` (`/dev.html` locally). Add scenarios in `src/scenarios/<group>.ts` and register them in `src/scenarios/index.ts`.
+- Handling feel: `?tune=1` opens a live tuning panel (lil-gui, lazy-loaded) editing `src/sim/tuning.ts` values; "Copy values as JSON" to report numbers.
 - E2E helpers in `tests/e2e/helpers.ts`: `loadScenario`, `pause`, `setInput`, `step`, `getState`. First run: `pnpm exec playwright install chromium webkit`.
 - E2E: load a scenario, `__game.pause()`, `__game.setInput(...)`, `__game.step(n)`, assert on `__game.getState()` — never sleep/wait on real time for gameplay.
 - Every sim change gets Vitest unit tests; keep the determinism test passing.

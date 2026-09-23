@@ -1,5 +1,6 @@
-import { add, forwardFromHeading, scale } from './math';
-import { DT, PLACEHOLDER_SPEED } from './tuning';
+import { updateKart } from './kart';
+import { getTrack } from './track';
+import { DT } from './tuning';
 import {
   NEUTRAL_INPUT,
   type InputFrame,
@@ -15,13 +16,11 @@ import {
 export function step(state: SimState, inputs: readonly InputFrame[], dt = DT): StepResult {
   const next = structuredClone(state);
   const events: SimEvent[] = [];
+  const track = getTrack(next.trackId);
   next.tick += 1;
 
   for (const kart of next.karts) {
-    const input = inputs[kart.id] ?? NEUTRAL_INPUT;
-    // Placeholder motion until real kart physics (MK-5).
-    kart.speed = input.throttle * PLACEHOLDER_SPEED;
-    kart.position = add(kart.position, scale(forwardFromHeading(kart.heading), kart.speed * dt));
+    updateKart(kart, inputs[kart.id] ?? NEUTRAL_INPUT, next.engineClass, track, dt, events);
   }
 
   return { state: next, events };

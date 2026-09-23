@@ -10,7 +10,7 @@ export interface SceneContext {
   resize: () => void;
 }
 
-/** Creates the renderer, scene, camera and lights, and keeps them sized to the window. */
+/** Creates the renderer, scene, camera and lights, and keeps them sized to the window. Track visuals are added separately. */
 export function createScene(canvas: HTMLCanvasElement): SceneContext {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, MAX_PIXEL_RATIO));
@@ -26,13 +26,6 @@ export function createScene(canvas: HTMLCanvasElement): SceneContext {
   const sun = new THREE.DirectionalLight(0xffffff, 1.5);
   sun.position.set(10, 20, 5);
   scene.add(sun);
-
-  const ground = new THREE.Mesh(
-    new THREE.PlaneGeometry(200, 200),
-    new THREE.MeshLambertMaterial({ color: 0x5dab4a }),
-  );
-  ground.rotation.x = -Math.PI / 2;
-  scene.add(ground);
 
   const resize = () => {
     const width = window.innerWidth;
