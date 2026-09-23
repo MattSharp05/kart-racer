@@ -95,6 +95,10 @@ export const tuning = {
   trickWindow: 0.4,
   /** Boost on landing after a trick, s. */
   trickBoostSeconds: 0.4,
+  /** Leaving a ramp's lip launches the kart upward at this fraction of its speed. */
+  rampLaunch: 0.28,
+  /** A grounded kart stays glued to the ground over drops up to this per tick, m. */
+  groundSnap: 0.15,
   /** A kart further than this past a wall line is on its far side (e.g. a shortcut), not in it, m. */
   wallMaxPenetration: 3,
 };

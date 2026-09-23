@@ -76,6 +76,14 @@ describe('Sunny Circuit data', () => {
 });
 
 describe('Sunny Circuit features', () => {
+  it('stays on the ground driving down the hill crest (no airborne flicker)', () => {
+    const crest = geometry.project({ x: 175, y: 0, z: -190 }).t;
+    const start = kartOnTrack(1, 'sunny-circuit', crest, { speed: TOP });
+    const { frames, events } = run(start, 90, autopilot);
+    expect(events.filter((e) => e.type === 'land')).toHaveLength(0);
+    expect(frames.every((f) => f.karts[0]!.grounded)).toBe(true);
+  });
+
   it('a boost pad gives a 1.0 s boost', () => {
     const start = scenarios.get('sunny-boost-pad')!.setup(1).state;
     const { frames, events } = run(start, 120, autopilot);

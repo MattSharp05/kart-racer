@@ -19,6 +19,7 @@ import {
   isDrifting,
 } from './drift';
 import { kartPhysics } from './kartStats';
+import { inRange } from './splineTrack';
 import { groundAt, trackGeometry, type TrackDef } from './track';
 import { tuning, type EngineClass } from './tuning';
 import type { InputFrame, KartState, SimEvent } from './types';
@@ -156,11 +157,18 @@ export function updateKart(
   let vy = kart.velocity.y - tuning.gravity * dt;
   let position = add(kart.position, scale(vec3(horizontal.x, vy, horizontal.z), dt));
   const ground = groundAt(track, position);
-  kart.grounded = position.y <= ground.height;
+  // A grounded kart sticks to the ground over small drops (downhills); only a sudden drop
+  // bigger than the snap distance (a ramp lip, a cliff) lets it fly.
+  const snap = wasGrounded ? tuning.groundSnap : 0;
+  kart.grounded = position.y <= ground.height + snap;
   if (kart.grounded) {
-    vy = Math.max(0, (ground.height - kart.position.y) / dt);
-    if (!wasGrounded) vy = 0;
+    vy = wasGrounded ? (ground.height - kart.position.y) / dt : 0;
     position = { ...position, y: ground.height };
+  }
+  if (wasGrounded && crossedRampLip(track, kart.position, position)) {
+    // Off the lip: fly, with upward speed from the kart's speed.
+    kart.grounded = false;
+    vy = Math.hypot(horizontal.x, horizontal.z) * tuning.rampLaunch;
   }
   updateAirState(kart, wasGrounded, vy, dt, events);
   if (kart.grounded && ground.surface === 'boostPad') hitBoostPad(kart, events);
@@ -174,6 +182,15 @@ export function updateKart(
   if (wallImpact > tuning.driftWallCancel) cancelDrift(kart, events);
   kart.speed = dot(kart.velocity, forwardFromHeading(kart.heading));
   return kart;
+}
+
+/** Whether moving from `before` to `after` passes the end (lip) of one of the track's ramps. */
+function crossedRampLip(track: TrackDef, before: Vec3, after: Vec3): boolean {
+  if (track.kind !== 'spline' || !track.ramps?.length) return false;
+  const geometry = trackGeometry(track);
+  const t0 = geometry.project(before).t;
+  const t1 = geometry.project(after).t;
+  return track.ramps.some((ramp) => inRange(t0, ramp) && !inRange(t1, ramp) && t1 >= ramp.to);
 }
 
 /** Airtime bookkeeping: launches, landings, and the ramp trick boost. */

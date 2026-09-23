@@ -136,7 +136,8 @@ export const sunnyCircuit: SplineTrackDef = {
       }),
     },
   ],
-  ramps: [{ from: tAt(104, -5), to: tAt(117.5, -5) }],
+  // The ramp ends at its top (the lip); crossing it launches the kart.
+  ramps: [{ from: tAt(104, -5), to: tAt(116, -5) }],
   gridSlots: gridSlots(),
   itemBoxRows: [
     { t: tAt(0, -80), laterals: [-4.5, -1.5, 1.5, 4.5] },
