@@ -291,3 +291,116 @@ body {
   border-radius: 8px;
   background: rgb(0 0 0 / 0.55);
 }
+
+/* ---- Touch controls (MK-23) ---- */
+
+body {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  touch-action: none;
+}
+
+.touch-controls {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  touch-action: none;
+}
+
+.touch-controls[hidden] {
+  display: none;
+}
+
+.touch-steer {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 45%;
+  height: 60%;
+  pointer-events: auto;
+}
+
+.touch-stick {
+  position: absolute;
+  left: calc(max(16px, env(safe-area-inset-left)) + 60px);
+  bottom: calc(max(16px, env(safe-area-inset-bottom)) + 20px);
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: rgb(255 255 255 / 0.35);
+  border: 3px solid rgb(255 255 255 / 0.6);
+}
+
+.touch-buttons {
+  position: absolute;
+  right: max(16px, env(safe-area-inset-right));
+  bottom: max(16px, env(safe-area-inset-bottom));
+  display: grid;
+  grid-template-columns: auto auto;
+  grid-template-areas:
+    'item  .'
+    'brake drift';
+  gap: 12px;
+  align-items: end;
+  pointer-events: auto;
+}
+
+.touch-button {
+  min-width: 56px;
+  min-height: 56px;
+  border: 3px solid rgb(255 255 255 / 0.7);
+  border-radius: 50%;
+  background: rgb(0 0 0 / 0.35);
+  color: #fff;
+  font:
+    700 13px system-ui,
+    sans-serif;
+  touch-action: none;
+}
+
+.touch-button.down {
+  background: rgb(255 209 102 / 0.7);
+}
+
+.touch-drift {
+  grid-area: drift;
+  width: 84px;
+  height: 84px;
+}
+
+.touch-item {
+  grid-area: item;
+  width: 60px;
+  height: 60px;
+}
+
+.touch-brake {
+  grid-area: brake;
+  width: 60px;
+  height: 60px;
+}
+
+.rotate-prompt {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: #1d3557;
+  color: #fff;
+  font:
+    700 20px system-ui,
+    sans-serif;
+  text-align: center;
+}
+
+.rotate-prompt[hidden] {
+  display: none;
+}
+
+.rotate-icon {
+  font-size: 56px;
+}

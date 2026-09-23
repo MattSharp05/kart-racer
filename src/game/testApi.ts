@@ -9,6 +9,8 @@ export interface GameTestApi {
   getState(): SimState;
   pause(): void;
   resume(): void;
+  /** Whether the game loop is paused (menus, portrait prompt, tests). */
+  isPaused(): boolean;
   step(ticks: number): SimState;
   setInput(kartId: number, frame: Partial<InputFrame> | null): void;
   /** Let the centreline autopilot drive a kart (spline tracks). */
@@ -39,6 +41,7 @@ export function installTestApi(
     getState: () => structuredClone(game.state),
     pause: () => game.pause(),
     resume: () => game.resume(),
+    isPaused: () => game.paused,
     step: (ticks) => {
       game.stepTicks(ticks);
       onStep();
