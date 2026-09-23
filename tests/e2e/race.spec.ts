@@ -47,16 +47,16 @@ test.describe('race flow', () => {
     await page.evaluate(() => window.__game!.setAutopilot(0, true));
     const state = await step(page, 360);
     expect(state.phase).toBe('finished');
-    const results = page.locator('.race-results');
+    const results = page.locator('.menu-results');
     await expect(results).toBeVisible();
     await expect(results.locator('li.you')).toContainText('(you)');
   });
 
   test('race-finished: results show 8 karts with you 3rd', async ({ page }) => {
     await loadScenario(page, 'race-finished', { paused: true });
-    const rows = page.locator('.race-results li:not(.best)');
+    const rows = page.locator('.menu-results ol.results li');
     await expect(rows).toHaveCount(8);
-    await expect(page.locator('.race-results li.you')).toContainText('3rd');
+    await expect(page.locator('.menu-results li.you')).toContainText('3rd');
   });
 });
 
