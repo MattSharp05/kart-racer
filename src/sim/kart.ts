@@ -11,6 +11,7 @@ import {
   type Vec3,
 } from './math';
 import { cancelDrift, chargeDrift, driftYawRate, handleDriftButton, isDrifting } from './drift';
+import { kartPhysics } from './kartStats';
 import { groundAt, trackGeometry, type TrackDef } from './track';
 import { tuning, type EngineClass } from './tuning';
 import type { InputFrame, KartState, SimEvent } from './types';
@@ -26,9 +27,9 @@ function approach(value: number, target: number, maxDelta: number): number {
   return Math.max(value - maxDelta, target);
 }
 
-/** Exponential approach rate that reaches 95% of the target in `tuning.timeTo95` seconds. */
-function accelRate(): number {
-  return Math.log(20) / tuning.timeTo95;
+/** Exponential approach rate that reaches 95% of the target in `timeTo95` seconds. */
+function accelRate(timeTo95 = tuning.timeTo95): number {
+  return Math.log(20) / timeTo95;
 }
 
 /** New forward speed from throttle/brake (arcade model, ADR 0002). */
@@ -78,7 +79,9 @@ export function updateKart(
   dt: number,
   events: SimEvent[],
 ): KartState {
-  const topSpeed = tuning.topSpeed[engineClass];
+  const physics = kartPhysics(kart.kartType, engineClass);
+  const { topSpeed } = physics;
+  const kartAccel = accelRate(physics.timeTo95);
   let forward = forwardFromHeading(kart.heading);
   const forwardSpeed = dot(kart.velocity, forward);
   const lateral = sub(vec3(kart.velocity.x, 0, kart.velocity.z), scale(forward, forwardSpeed));
@@ -92,13 +95,14 @@ export function updateKart(
   // While drifting the turn rate comes from the drift instead (tighter, direction locked).
   let yaw: number;
   if (isDrifting(kart)) {
-    yaw = driftYawRate(kart, input);
+    yaw = driftYawRate(kart, input) * physics.handling;
     chargeDrift(kart, input, dt, events);
   } else {
     const direction = forwardSpeed >= 0 ? 1 : -1;
     yaw =
       -clamp(input.steer, -1, 1) *
       tuning.maxYawRate *
+      physics.handling *
       steeringStrength(forwardSpeed, topSpeed) *
       direction;
   }
@@ -123,10 +127,10 @@ export function updateKart(
           input,
           topSpeed * tuning.offroadSpeed,
           dt,
-          accelRate(),
+          kartAccel,
           tuning.offroadDecel,
         )
-      : updateForwardSpeed(forwardSpeed, input, topSpeed, dt);
+      : updateForwardSpeed(forwardSpeed, input, topSpeed, dt, kartAccel);
   kart.boostTimer = Math.max(0, kart.boostTimer - dt);
 
   // Plus the remaining sideways slide, decaying with grip (low grip while drifting = outward slide).

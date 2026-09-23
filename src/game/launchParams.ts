@@ -1,10 +1,12 @@
-/** What the URL asks the game to boot into: `/?scenario=<name>&seed=<n>&paused=1&tune=1`. */
+/** What the URL asks the game to boot into: `/?scenario=<name>&seed=<n>&paused=1&tune=1&kart=<id>`. */
 export interface LaunchParams {
   scenario?: string;
   seed?: number;
   paused: boolean;
   /** Show the live tuning panel. */
   tune: boolean;
+  /** Player kart override, e.g. `&kart=boulder`. */
+  kart?: string;
 }
 
 const TRUE_VALUES = ['1', 'true'];
@@ -15,9 +17,11 @@ export function parseLaunchParams(search: string): LaunchParams {
   const seedText = params.get('seed');
   const seed = seedText !== null && seedText !== '' ? Number(seedText) : undefined;
   const flag = (name: string) => TRUE_VALUES.includes(params.get(name) ?? '');
+  const kart = params.get('kart') ?? undefined;
   return {
     ...(scenario ? { scenario } : {}),
     ...(seed !== undefined && Number.isFinite(seed) ? { seed } : {}),
+    ...(kart ? { kart } : {}),
     paused: flag('paused'),
     tune: flag('tune'),
   };

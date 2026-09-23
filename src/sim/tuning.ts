@@ -14,8 +14,17 @@ export type EngineClass = 50 | 100 | 150;
 export const tuning = {
   /** Top speed on road by engine class, m/s. */
   topSpeed: { 50: 20, 100: 24, 150: 28 } as Record<EngineClass, number>,
-  /** Seconds to reach 95% of top speed from rest at full throttle. */
+  /** Seconds to reach 95% of top speed from rest at full throttle (for a stat-3 kart). */
   timeTo95: 2.5,
+  /** How much each kart stat point away from 3 changes the physics (MK-7). */
+  stats: {
+    /** Top speed ±3% per point (±6% at 1 or 5). */
+    speedPerPoint: 0.03,
+    /** Time to top speed −12% per point (faster) above 3. */
+    accelerationPerPoint: 0.12,
+    /** Turn rates ±6% per point. */
+    handlingPerPoint: 0.06,
+  },
   /** Deceleration while braking forwards (or throttling while rolling backwards), m/s². */
   brakeDecel: 20,
   /** Deceleration when neither throttle nor brake is held, m/s². */

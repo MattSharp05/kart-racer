@@ -1,9 +1,11 @@
+import type { KartId } from './data/karts';
 import { forwardFromHeading, scale, vec3 } from './math';
 import { seedRng } from './rng';
 import type { EngineClass } from './tuning';
 import type { KartState, SimState } from './types';
 
 export interface KartSpawn {
+  kartType?: KartId;
   position?: KartState['position'];
   heading?: number;
   /** Initial forward speed, m/s. */
@@ -35,6 +37,7 @@ export function createSimState({
       const speed = spawn.speed ?? 0;
       return {
         id,
+        kartType: spawn.kartType ?? 'maple',
         position: spawn.position ?? vec3(),
         velocity: scale(forwardFromHeading(heading), speed),
         heading,

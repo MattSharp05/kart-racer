@@ -1,3 +1,4 @@
+import { KART_IDS } from '../sim/data/karts';
 import { tierIndex } from '../sim/drift';
 import { vec3 } from '../sim/math';
 import { createSimState } from '../sim/state';
@@ -9,6 +10,7 @@ const WALL_GAP = 10;
 /** 35° left of straight-on, so the kart meets the −Z wall at an angle. */
 const ANGLED_HIT = (35 * Math.PI) / 180;
 const TIER_NAMES = { 1: 'blue', 2: 'orange', 3: 'purple' } as const;
+const LINEUP_SPACING = 3.2;
 
 export const drivingScenarios: Scenario[] = [
   {
@@ -90,4 +92,22 @@ export const drivingScenarios: Scenario[] = [
       return { state };
     },
   })),
+  {
+    name: 'kart-lineup',
+    group: 'Karts',
+    description: 'All four karts parked side by side: Maple, Pixie, Boulder, Swoop.',
+    defaultSeed: 1,
+    setup: (seed) => ({
+      state: createSimState({
+        seed,
+        trackId: 'test-pad',
+        karts: KART_IDS.map((kartType, i) => ({
+          kartType,
+          position: vec3((i - (KART_IDS.length - 1) / 2) * LINEUP_SPACING, 0, 0),
+          heading: 0,
+        })),
+      }),
+      view: 'lineup',
+    }),
+  },
 ];

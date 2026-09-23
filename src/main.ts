@@ -2,11 +2,13 @@ import { Game } from './game/game';
 import { parseLaunchParams } from './game/launchParams';
 import { installTestApi } from './game/testApi';
 import { KeyboardInput } from './input/keyboard';
-import { ChaseCamera } from './render/camera';
+import { ChaseCamera, LineupCamera } from './render/camera';
 import { KartRenderer } from './render/karts';
 import { createScene } from './render/scene';
 import { createTrackView, overviewCamera } from './render/trackView';
 import { scenarios } from './scenarios';
+import type { ScenarioView } from './scenarios/registry';
+import { isKartId, KART_IDS } from './sim/data/karts';
 import { createSimState } from './sim/state';
 import { getTrack } from './sim/track';
 import { tuning } from './sim/tuning';
@@ -23,7 +25,7 @@ if (!canvas) throw new Error('Missing #game canvas');
 const params = parseLaunchParams(window.location.search);
 
 /** Resolves the starting state from the URL: a named scenario, or free-drive on the test pad. */
-function initialState(): { state: SimState; scenario?: string; view?: 'chase' | 'overview' } {
+function initialState(): { state: SimState; scenario?: string; view?: ScenarioView } {
   if (params.scenario) {
     const scenario = scenarios.get(params.scenario);
     if (scenario) {
@@ -41,6 +43,11 @@ function initialState(): { state: SimState; scenario?: string; view?: 'chase' | 
 const { renderer, scene, camera } = createScene(canvas);
 const keyboard = new KeyboardInput();
 const launch = initialState();
+if (params.kart) {
+  const player = launch.state.karts[0];
+  if (player && isKartId(params.kart)) player.kartType = params.kart;
+  else showErrorBanner(`Unknown kart "${params.kart}". Valid karts:`, KART_IDS);
+}
 
 let playerInput: InputFrame = NEUTRAL_INPUT;
 const game = new Game(launch.state, () => {
@@ -52,6 +59,7 @@ if (params.paused) game.pause();
 const track = getTrack(launch.state.trackId);
 createTrackView(scene, track);
 const overview = launch.view === 'overview' ? overviewCamera(camera, track) : false;
+const lineup = launch.view === 'lineup' ? new LineupCamera(camera) : undefined;
 const karts = new KartRenderer(scene);
 const chaseCamera = new ChaseCamera(camera);
 
@@ -59,7 +67,9 @@ function render(frameSeconds: number, snapCamera = false): void {
   karts.sync(game.previousState, game.state, game.alpha, [playerInput]);
   const player = karts.player;
   const kart = game.state.karts[0];
-  if (player && kart && !overview) {
+  if (lineup) {
+    lineup.update(game.paused ? 0 : frameSeconds);
+  } else if (player && kart && !overview) {
     const speedRatio = Math.abs(kart.speed) / tuning.topSpeed[game.state.engineClass];
     chaseCamera.update(player, speedRatio, frameSeconds, 0, snapCamera);
   }
