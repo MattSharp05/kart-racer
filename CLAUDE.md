@@ -1,6 +1,6 @@
 # Kart Racer
 
-A low-poly 3D arcade kart racer that runs in the browser on desktop (keyboard/gamepad) and mobile (touch, landscape), in the spirit of Mario Kart but with original characters and naming. MVP: one track, 4 karts, 1 player vs 7 AI, drift mini-turbos and 6 items (mushroom, banana, green/red shell, star, lightning). Static site on Vercel, no backend. Online multiplayer is v2.
+A low-poly 3D arcade kart racer that runs in the browser on desktop (keyboard) and mobile (touch, landscape), in the spirit of Mario Kart but with original characters and naming. MVP: one track, 4 karts, 1 player vs 7 AI, drift mini-turbos and 6 items (mushroom, banana, green/red shell, star, lightning). Static site on Vercel, no backend. Online multiplayer is v2.
 
 ## Workflow
 
@@ -34,7 +34,7 @@ _Created by MK-1/MK-3/MK-4 — keep this list current._
 ## Structure
 
 - `src/sim/` — pure deterministic simulation (60 Hz fixed step, seeded RNG, plain-JSON state). Tunables in `sim/tuning.ts`, data in `sim/data/`.
-- `src/render/` Three.js · `src/input/` keyboard/gamepad/touch → `InputFrame` · `src/ui/` DOM HUD/menus · `src/audio/` Howler
+- `src/render/` Three.js · `src/input/` keyboard/touch → `InputFrame` · `src/ui/` DOM HUD/menus · `src/audio/` Howler
 - `src/game/` loop, app state machine, `window.__game` test API
 - `src/scenarios/` scenario registry · `dev.html` + `src/dev/` = `/dev` index
 - `tests/e2e/` Playwright specs · `docs/` TDD, ADRs, CREDITS

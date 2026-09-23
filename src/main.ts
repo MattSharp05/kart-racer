@@ -51,8 +51,7 @@ if (params.kart) {
 }
 
 let playerInput: InputFrame = NEUTRAL_INPUT;
-// Pad Start toggles pause (the full pause menu is MK-25).
-const controls = new PlayerInput(() => (game.paused ? game.resume() : game.pause()));
+const controls = new PlayerInput();
 const game = new Game(launch.state, () => {
   playerInput = controls.read();
   return [playerInput];
@@ -112,7 +111,6 @@ renderer.setAnimationLoop((time) => {
   const frameSeconds =
     lastTime === undefined ? 0 : Math.min((time - lastTime) / 1000, MAX_FRAME_SECONDS);
   lastTime = time;
-  if (game.paused) controls.pollPause();
   game.frame(frameSeconds);
   if (!game.paused) markChanged();
   if (framesSinceChange > SETTLE_FRAMES) return;

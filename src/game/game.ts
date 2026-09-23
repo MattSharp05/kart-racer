@@ -5,7 +5,7 @@ import { DT } from '../sim/tuning';
 import type { InputFrame, SimEvent, SimState } from '../sim/types';
 import { advanceAccumulator } from './loop';
 
-/** Reads live player inputs (keyboard, later gamepad/touch), indexed by kart id. */
+/** Reads live player inputs (keyboard, later touch), indexed by kart id. */
 export type InputSource = () => InputFrame[];
 
 /**
