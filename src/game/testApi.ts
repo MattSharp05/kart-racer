@@ -11,6 +11,8 @@ export interface GameTestApi {
   resume(): void;
   step(ticks: number): SimState;
   setInput(kartId: number, frame: Partial<InputFrame> | null): void;
+  /** Let the centreline autopilot drive a kart (spline tracks). */
+  setAutopilot(kartId: number, enabled: boolean): void;
   events(): SimEvent[];
 }
 
@@ -37,6 +39,7 @@ export function installTestApi(game: Game, onStep: () => void, scenario?: string
     },
     setInput: (kartId, frame) =>
       game.setInputOverride(kartId, frame ? { ...NEUTRAL_INPUT, ...frame } : null),
+    setAutopilot: (kartId, enabled) => game.setAutopilot(kartId, enabled),
     events: () => game.drainEvents(),
   };
   window.__game = api;

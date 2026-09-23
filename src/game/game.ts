@@ -1,4 +1,6 @@
+import { autopilotInput } from '../sim/autopilot';
 import { step } from '../sim/step';
+import { getTrack, trackGeometry } from '../sim/track';
 import { DT } from '../sim/tuning';
 import type { InputFrame, SimEvent, SimState } from '../sim/types';
 import { advanceAccumulator } from './loop';
@@ -20,6 +22,8 @@ export class Game {
 
   private accumulator = 0;
   private readonly overrides = new Map<number, InputFrame>();
+  /** Karts driven by the centreline autopilot (tests, QA, perf runs). */
+  private readonly autopiloted = new Set<number>();
   private pendingEvents: SimEvent[] = [];
 
   constructor(
@@ -60,6 +64,12 @@ export class Game {
     else this.overrides.delete(kartId);
   }
 
+  /** Hands kart `kartId` to the centreline autopilot (spline tracks only) or back. */
+  setAutopilot(kartId: number, enabled: boolean): void {
+    if (enabled) this.autopiloted.add(kartId);
+    else this.autopiloted.delete(kartId);
+  }
+
   /** Events emitted since the last call. */
   drainEvents(): SimEvent[] {
     const events = this.pendingEvents;
@@ -70,6 +80,13 @@ export class Game {
   private tick(): void {
     const inputs = this.readInputs().slice();
     for (const [kartId, frame] of this.overrides) inputs[kartId] = frame;
+    const track = getTrack(this.state.trackId);
+    if (track.kind === 'spline') {
+      for (const kartId of this.autopiloted) {
+        const kart = this.state.karts[kartId];
+        if (kart) inputs[kartId] = autopilotInput(kart, trackGeometry(track));
+      }
+    }
     const result = step(this.state, inputs);
     this.previousState = this.state;
     this.state = result.state;
