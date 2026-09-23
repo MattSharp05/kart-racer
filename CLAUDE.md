@@ -10,7 +10,7 @@ Follows the `dev-workflow` skill (ticket-driven: Notion → branch → PR → QA
 - Tickets data source: collection://36312bfb-9682-471e-85e4-08a7034a4ff2 (ID prefix: MK)
 - Epics data source: collection://2445fc6b-0619-46c1-b0cb-59003f6b0325
 - GitHub: MattSharp05/kart-racer
-- Preview URLs: Vercel preview per PR (link is on the PR); production: _TBD (set by MK-4)_
+- Preview URLs: Vercel preview per PR (link is on the PR); production: https://kart-racer-alpha.vercel.app (scenario index at `/dev`)
 - QA mode: batched (batch plan: waves 1–5 → 6–7 → 8–10 → 11–14; checkpoints MK-5, MK-10, MK-14)
 
 ## Stack
@@ -27,7 +27,7 @@ _Created by MK-1/MK-3/MK-4 — keep this list current._
 - `pnpm build` / `pnpm preview`
 - `pnpm lint` · `pnpm typecheck` · `pnpm format`
 - `pnpm test` — unit (Vitest)
-- `pnpm test:e2e` — Playwright (all projects) · `pnpm test:visual` — screenshot tests
+- `pnpm test:e2e` — Playwright (all projects) · `pnpm test:visual` — screenshot tests (chromium, run in CI's Docker image; see README for updating baselines)
 - `pnpm check` — everything CI runs (lint, typecheck, unit, build, e2e)
 
 ## Structure
