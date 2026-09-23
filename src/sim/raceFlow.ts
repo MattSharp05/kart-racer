@@ -1,3 +1,4 @@
+import { aiInput } from './ai/driver';
 import { autopilotInput } from './autopilot';
 import { applyBoost } from './drift';
 import { positionOf } from './race';
@@ -46,6 +47,15 @@ export function beforeMovement(
       resolved[kart.id] = { ...NEUTRAL_INPUT };
     } else if (kart.race.finishTick !== undefined && geometry) {
       resolved[kart.id] = autopilotInput(kart, geometry, 0.8);
+    } else if (kart.ai && geometry && track.kind === 'spline') {
+      resolved[kart.id] = aiInput(
+        kart,
+        kart.ai,
+        geometry,
+        track.aiLine ?? [],
+        state.engineClass,
+        state.phase === 'racing',
+      );
     }
   }
   return { inputs: resolved, frozen: false };

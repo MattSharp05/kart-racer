@@ -46,6 +46,22 @@ export const KART_COLOURS: Record<KartId, KartColours> = {
   swoop: { body: 0x2a9d8f, accent: 0xe9c46a, driver: 0xffddd2 },
 };
 
+/** Extra paint jobs for when the same kart appears more than once in a race. */
+const ALTERNATE_BODIES: Record<KartId, number[]> = {
+  maple: [0x9d0208, 0xf77f00],
+  pixie: [0xc77dff, 0x80ed99],
+  boulder: [0x6c757d, 0x3a0ca3],
+  swoop: [0x06d6a0, 0x118ab2],
+};
+
+/** Colours for the `repeat`-th copy of a kart in a race (0 = the standard paint). */
+export function alternateColours(kartId: KartId, repeat: number): Partial<KartColours> {
+  if (repeat === 0) return {};
+  const options = ALTERNATE_BODIES[kartId];
+  const body = options[(repeat - 1) % options.length];
+  return body === undefined ? {} : { body };
+}
+
 export const SPARKS_PER_WHEEL = 6;
 
 interface Shape {

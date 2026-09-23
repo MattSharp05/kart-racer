@@ -34,6 +34,20 @@ export interface DriftState {
   tier: DriftTier;
 }
 
+/** A computer driver's personality and memory (MK-14). */
+export interface AiState {
+  /** Offset from the racing line this driver prefers, m. */
+  lineOffset: number;
+  /** 0.85–1.0: scales cornering speed; lower = more cautious. */
+  skill: number;
+  /** 0–1: how eager it is to use items and bump (items: MK-21). */
+  aggression: number;
+  /** Seconds spent (nearly) stopped while racing. */
+  stuckTime: number;
+  /** Seconds left of backing up to get unstuck. */
+  recoverTime: number;
+}
+
 /** Per-kart lap and checkpoint progress (MK-11). */
 export interface KartRace {
   /** Current lap, 1-based. 0 = on the grid, not yet across the start line. */
@@ -99,6 +113,8 @@ export interface KartState {
   outTime: number;
   /** Seconds until the respawn button works again. */
   respawnCooldown: number;
+  /** Present on computer-controlled karts (MK-14). */
+  ai?: AiState;
 }
 
 export type RacePhase = 'free' | 'countdown' | 'racing' | 'finished';

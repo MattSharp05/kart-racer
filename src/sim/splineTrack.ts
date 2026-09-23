@@ -51,6 +51,8 @@ export interface SplineTrackDef {
   gridSlots?: { t: number; lateral: number }[];
   /** Item box rows (boxes arrive in MK-16). */
   itemBoxRows?: { t: number; laterals: number[] }[];
+  /** AI racing line: lateral offset (m) at evenly spaced lap fractions i / length (MK-14). */
+  aiLine?: number[];
 }
 
 /** A resampled point on the centreline, evenly spaced along its length. */

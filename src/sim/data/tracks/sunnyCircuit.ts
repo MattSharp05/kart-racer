@@ -1,3 +1,4 @@
+import { computeRacingLine } from '../../ai/racingLine';
 import { TrackGeometry, type SplinePoint, type SplineTrackDef } from '../../splineTrack';
 
 /** Default road width, m. */
@@ -139,6 +140,7 @@ export const sunnyCircuit: SplineTrackDef = {
   // The ramp ends at its top (the lip); crossing it launches the kart.
   ramps: [{ from: tAt(104, -5), to: tAt(116, -5) }],
   gridSlots: gridSlots(),
+  aiLine: computeRacingLine(geometry),
   itemBoxRows: [
     { t: tAt(0, -80), laterals: [-4.5, -1.5, 1.5, 4.5] },
     { t: tAt(200, -84), laterals: [-4.5, -1.5, 1.5, 4.5] },
