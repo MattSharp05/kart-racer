@@ -42,46 +42,203 @@ body {
   padding: 4px 12px;
 }
 
-.race-overlay {
+/* --- Race HUD (MK-24) --- */
+.hud {
+  --edge-top: max(10px, env(safe-area-inset-top));
+  --edge-right: max(12px, env(safe-area-inset-right));
+  --edge-bottom: max(10px, env(safe-area-inset-bottom));
+  --edge-left: max(12px, env(safe-area-inset-left));
   position: fixed;
   inset: 0;
   pointer-events: none;
-  font:
-    600 16px/1.2 system-ui,
-    sans-serif;
   color: #fff;
+  font:
+    900 clamp(16px, 2.2vw, 26px) / 1 system-ui,
+    sans-serif;
+  text-shadow:
+    0 2px 0 rgb(0 0 0 / 0.45),
+    0 0 6px rgb(0 0 0 / 0.25);
 }
 
-.race-status,
-.race-timer {
+.hud [hidden],
+.hud[hidden] {
+  display: none !important;
+}
+
+.hud-lap,
+.hud-timer {
   position: absolute;
-  top: max(10px, env(safe-area-inset-top));
-  padding: 6px 10px;
-  border-radius: 8px;
-  background: rgb(0 0 0 / 0.55);
+  top: var(--edge-top);
+  padding: 0.35em 0.6em;
+  border-radius: 0.6em;
+  background: rgb(0 0 0 / 0.4);
 }
 
-.race-status {
-  left: max(10px, env(safe-area-inset-left));
+.hud-lap {
+  left: var(--edge-left);
+  font-size: clamp(22px, 3vw, 40px);
 }
 
-.race-status.wrong-way {
-  background: #d62828;
+.hud-lap small {
+  font-size: 0.6em;
+  opacity: 0.85;
 }
 
-.race-timer {
-  right: max(10px, env(safe-area-inset-right));
+.hud-label {
+  font-size: 0.5em;
+  letter-spacing: 0.08em;
+  vertical-align: middle;
+  opacity: 0.85;
+}
+
+.hud-timer {
+  right: var(--edge-right);
+  text-align: right;
   font-variant-numeric: tabular-nums;
 }
 
-.race-centre {
+.hud-last-lap {
+  margin-top: 0.25em;
+  font-size: 0.6em;
+  font-weight: 700;
+  opacity: 0.85;
+}
+
+.hud-last-lap:empty {
+  display: none;
+}
+
+.hud-item {
   position: absolute;
-  top: 30%;
+  top: var(--edge-top);
+  left: 50%;
+  width: clamp(52px, 7vw, 84px);
+  height: clamp(52px, 7vw, 84px);
+  transform: translateX(-50%);
+  border: 4px solid rgb(255 255 255 / 0.85);
+  border-radius: 22%;
+  background: rgb(0 0 0 / 0.35);
+  box-sizing: border-box;
+  padding: 6px;
+}
+
+.hud-item svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.hud-item.rolling {
+  border-color: #ffd166;
+  animation: hud-roll 0.18s linear infinite;
+}
+
+@keyframes hud-roll {
+  50% {
+    transform: translateX(-50%) scale(1.08);
+  }
+}
+
+.hud-position {
+  position: absolute;
+  right: var(--edge-right);
+  bottom: var(--edge-bottom);
+  font-size: clamp(56px, 10vw, 128px);
+  font-style: italic;
+  color: #ffd166;
+  text-shadow:
+    0 4px 0 #c8553d,
+    0 0 12px rgb(0 0 0 / 0.35);
+}
+
+.hud-position small {
+  font-size: 0.4em;
+}
+
+.hud-position[data-position='1'] {
+  color: #ffe066;
+}
+
+.hud-minimap {
+  position: absolute;
+  left: var(--edge-left);
+  bottom: var(--edge-bottom);
+  width: clamp(90px, 14vw, 180px);
+  height: clamp(90px, 14vw, 180px);
+  filter: drop-shadow(0 2px 3px rgb(0 0 0 / 0.4));
+}
+
+.hud-minimap-track {
+  fill: none;
+  stroke: rgb(255 255 255 / 0.85);
+  stroke-width: 4;
+  stroke-linejoin: round;
+}
+
+.hud-dot {
+  fill: #9bd0ff;
+  stroke: #1d3557;
+  stroke-width: 1;
+}
+
+.hud-dot.you {
+  fill: #ffd166;
+  stroke: #000;
+  stroke-width: 1.5;
+}
+
+.hud-centre {
+  position: absolute;
+  top: 32%;
   left: 50%;
   transform: translate(-50%, -50%);
   font-size: clamp(40px, 12vw, 120px);
-  font-weight: 900;
-  text-shadow: 0 4px 0 rgb(0 0 0 / 0.35);
+  white-space: nowrap;
+  color: #fff;
+  -webkit-text-stroke: 2px rgb(0 0 0 / 0.3);
+}
+
+.hud-centre.pop {
+  animation: hud-pop 0.35s ease-out;
+}
+
+@keyframes hud-pop {
+  from {
+    transform: translate(-50%, -50%) scale(1.6);
+    opacity: 0;
+  }
+}
+
+.hud-wrong-way {
+  position: absolute;
+  top: 55%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  padding: 0.3em 0.8em;
+  border-radius: 0.5em;
+  background: #d62828;
+  font-size: clamp(22px, 4vw, 44px);
+  animation: hud-blink 0.6s steps(2) infinite;
+}
+
+@keyframes hud-blink {
+  50% {
+    opacity: 0.4;
+  }
+}
+
+/* Touch devices: keep clear of the steering stick (bottom-left) and buttons (bottom-right). */
+body.touch .hud-minimap {
+  bottom: auto;
+  top: calc(var(--edge-top) + 52px);
+  width: 80px;
+  height: 80px;
+}
+
+body.touch .hud-position {
+  bottom: auto;
+  top: calc(var(--edge-top) + 130px);
+  font-size: 52px;
 }
 
 /* --- Menus (MK-25) --- */
@@ -253,7 +410,7 @@ body {
 
 .pause-button {
   position: fixed;
-  top: calc(max(10px, env(safe-area-inset-top)) + 40px);
+  top: calc(max(10px, env(safe-area-inset-top)) + 76px);
   right: max(10px, env(safe-area-inset-right));
   width: 44px;
   height: 44px;
@@ -282,14 +439,117 @@ body {
   }
 }
 
-.race-item {
+/* ---- Touch controls (MK-23) ---- */
+
+body {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  touch-action: none;
+}
+
+.touch-controls {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  touch-action: none;
+}
+
+.touch-controls[hidden] {
+  display: none;
+}
+
+.touch-steer {
   position: absolute;
-  top: max(10px, env(safe-area-inset-top));
-  left: 50%;
-  transform: translateX(-50%);
-  padding: 6px 12px;
-  border-radius: 8px;
-  background: rgb(0 0 0 / 0.55);
+  left: 0;
+  bottom: 0;
+  width: 45%;
+  height: 60%;
+  pointer-events: auto;
+}
+
+.touch-stick {
+  position: absolute;
+  left: calc(max(16px, env(safe-area-inset-left)) + 60px);
+  bottom: calc(max(16px, env(safe-area-inset-bottom)) + 20px);
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: rgb(255 255 255 / 0.35);
+  border: 3px solid rgb(255 255 255 / 0.6);
+}
+
+.touch-buttons {
+  position: absolute;
+  right: max(16px, env(safe-area-inset-right));
+  bottom: max(16px, env(safe-area-inset-bottom));
+  display: grid;
+  grid-template-columns: auto auto;
+  grid-template-areas:
+    'item  .'
+    'brake drift';
+  gap: 12px;
+  align-items: end;
+  pointer-events: auto;
+}
+
+.touch-button {
+  min-width: 56px;
+  min-height: 56px;
+  border: 3px solid rgb(255 255 255 / 0.7);
+  border-radius: 50%;
+  background: rgb(0 0 0 / 0.35);
+  color: #fff;
+  font:
+    700 13px system-ui,
+    sans-serif;
+  touch-action: none;
+}
+
+.touch-button.down {
+  background: rgb(255 209 102 / 0.7);
+}
+
+.touch-drift {
+  grid-area: drift;
+  width: 84px;
+  height: 84px;
+}
+
+.touch-item {
+  grid-area: item;
+  width: 60px;
+  height: 60px;
+}
+
+.touch-brake {
+  grid-area: brake;
+  width: 60px;
+  height: 60px;
+}
+
+.rotate-prompt {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: #1d3557;
+  color: #fff;
+  font:
+    700 20px system-ui,
+    sans-serif;
+  text-align: center;
+}
+
+.rotate-prompt[hidden] {
+  display: none;
+}
+
+.rotate-icon {
+  font-size: 56px;
 }
 
 /* ---- Touch controls (MK-23) ---- */

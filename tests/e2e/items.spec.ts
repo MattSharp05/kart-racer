@@ -6,8 +6,10 @@ test.describe('items', () => {
     await loadScenario(page, 'item-box-ahead', { paused: true });
     await page.evaluate(() => window.__game!.setAutopilot(0, true));
     await step(page, 180);
-    expect((await getState(page)).karts[0]!.item.held).not.toBeNull();
-    await expect(page.locator('.race-item')).toContainText('press E');
+    const held = (await getState(page)).karts[0]!.item.held;
+    expect(held).not.toBeNull();
+    // The HUD shows whichever item the roulette granted.
+    await expect(page.locator('.hud-item')).toHaveAttribute('data-item', held!);
   });
 
   test('&item=mushroom: using it boosts', async ({ page }) => {
