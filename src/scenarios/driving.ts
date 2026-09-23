@@ -127,6 +127,22 @@ export const drivingScenarios: Scenario[] = [
     }),
   },
   {
+    name: 'bump-side-light',
+    group: 'Karts',
+    description: 'You (light Pixie) and a heavy Boulder driving side by side, converging.',
+    defaultSeed: 1,
+    setup: (seed) => ({
+      state: createSimState({
+        seed,
+        trackId: 'test-pad',
+        karts: [
+          { kartType: 'pixie', position: vec3(0, 0, 60), heading: -0.3, speed: 15 },
+          { kartType: 'boulder', position: vec3(3, 0, 59), heading: 0, speed: 15 },
+        ],
+      }),
+    }),
+  },
+  {
     name: 'bump-rear',
     group: 'Karts',
     description: 'You at full speed, about to rear-end a slow Maple.',
