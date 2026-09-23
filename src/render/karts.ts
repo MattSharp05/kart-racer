@@ -105,6 +105,14 @@ export class KartRenderer {
     }
   }
 
+  /** Removes every kart model (a new race with different karts is about to start). */
+  reset(): void {
+    for (const model of this.models) this.scene.remove(model.root);
+    this.models.length = 0;
+    this.types.length = 0;
+    this.wheelTick = -1;
+  }
+
   /** The player's kart (kart 0), for the camera. */
   get player(): THREE.Object3D | undefined {
     return this.models[0]?.root;
