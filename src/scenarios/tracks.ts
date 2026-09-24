@@ -374,6 +374,34 @@ export const trackScenarios: Scenario[] = [
     },
   },
   {
+    name: 'juice-boost',
+    group: 'Juice',
+    description:
+      'Mid mini-turbo at top speed on the main straight: boost trail, speed lines, wide FOV.',
+    defaultSeed: 1,
+    setup: (seed) => ({
+      state: kartOnTrack(seed, 'sunny-circuit', sunnyT(0.02, 0), {
+        speed: SUNNY_TOP_SPEED * 1.15,
+        boost: 0.8,
+      }),
+    }),
+  },
+  {
+    name: 'juice-hit',
+    group: 'Juice',
+    description: 'Two ticks after a shell hit: star burst, camera shake, spin-out.',
+    defaultSeed: 1,
+    setup: (seed) => {
+      const state = kartOnTrack(seed, 'sunny-circuit', sunnyT(0.02, 0), { speed: 6 });
+      const [kart] = state.karts;
+      if (kart) {
+        kart.spinTimer = tuning.spinSeconds - 2 / 60;
+        kart.invulnerableTimer = tuning.spinSeconds + tuning.hitInvulnerableSeconds - 2 / 60;
+      }
+      return { state };
+    },
+  },
+  {
     name: 'banana-drop',
     group: 'Items',
     description:
