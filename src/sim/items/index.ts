@@ -34,6 +34,10 @@ export const ITEMS: Partial<Record<ItemId, ItemDef>> = {
     id: 'green',
     onUse: (kart, state, _events, input) => fireShell(kart, state, input, 'green'),
   },
+  red: {
+    id: 'red',
+    onUse: (kart, state, _events, input) => fireShell(kart, state, input, 'red'),
+  },
 };
 
 /** Items the roulette can hand out: only ones that have been built. */

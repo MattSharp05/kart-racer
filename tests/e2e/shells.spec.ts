@@ -17,3 +17,15 @@ test('&item=green: using it launches a shell', async ({ page }) => {
   const state = await step(page, 2);
   expect(state.entities.some((e) => e.kind === 'shell')).toBe(true);
 });
+
+test('red-shell-target: the red shell homes in and hits the kart ahead', async ({ page }) => {
+  await loadScenario(page, 'red-shell-target', { paused: true });
+  await page.evaluate(() => window.__game!.setInput(0, { item: true }));
+  await step(page, 2);
+  await page.evaluate(() => window.__game!.setInput(0, {}));
+  await step(page, 360);
+  const events: SimEvent[] = await page.evaluate(() => window.__game!.events());
+  expect(events).toContainEqual(
+    expect.objectContaining({ type: 'kartHit', kartId: 1, by: 0, kind: 'red' }),
+  );
+});
