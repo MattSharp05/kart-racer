@@ -36,20 +36,78 @@ export function aiInput(
   const speed = Math.max(0, kart.speed);
   const lookAhead = cfg.lookAheadBase + speed * cfg.lookAheadPerSpeed;
   const error = aimError(kart, geometry, line, ai, lookAhead);
-  const steer = clamp(-error * cfg.steerGain, -1, 1);
+  let steer = clamp(-error * cfg.steerGain, -1, 1);
 
   // Corner speed: v = sqrt(grip / curvature) for the tightest bit of line ahead.
-  const top = kartPhysics(kart.kartType, engineClass).topSpeed;
+  const top = kartPhysics(kart.kartType, engineClass).topSpeed * (ai.speedScale ?? 1);
   const here = geometry.project(kart.position).s;
+
+  // Drifting (MK-15): hop into a drift for tight corners, hold it for a mini-turbo.
+  const drift =
+    racing && wantsDrift(kart, ai, geometry, line, here, speed, top, engineClass, error);
+  if (drift && !kart.driftHeld) steer = error > 0 ? -1 : 1; // full lock on the press picks the side
   const curvature = maxCurvatureAhead(geometry, line, here, cfg.brakeHorizon);
   const cornerSpeed =
     curvature > 1e-4 ? Math.sqrt((cfg.cornerGrip * ai.skill) / curvature) : Infinity;
   // AI cruises a little below top speed (90–95% by skill) so a good player can beat it.
   const cruise = top * (tuning.ai.cruiseBase + tuning.ai.cruiseSkill * ai.skill);
   const target = Math.min(cruise, cornerSpeed);
-  if (speed > target + 2) return { ...NEUTRAL_INPUT, brake: 0.6, steer };
-  if (speed > target) return { ...NEUTRAL_INPUT, steer };
-  return { ...NEUTRAL_INPUT, throttle: 1, steer };
+  if (speed > target + 2 && !drift) return { ...NEUTRAL_INPUT, brake: 0.6, steer };
+  if (speed > target) return { ...NEUTRAL_INPUT, steer, drift };
+  return { ...NEUTRAL_INPUT, throttle: 1, steer, drift };
+}
+
+/**
+ * Whether the AI holds the drift button this tick. Starts a drift when the racing line ahead
+ * curves tighter than `driftCurvature`; lets go once it has the mini-turbo tier it's after and the
+ * corner opens up, or early if the kart is swinging past its line.
+ */
+function wantsDrift(
+  kart: KartState,
+  ai: AiState,
+  geometry: TrackGeometry,
+  line: readonly number[],
+  here: number,
+  speed: number,
+  top: number,
+  engineClass: EngineClass,
+  error: number,
+): boolean {
+  const cfg = tuning.ai;
+  const curvature = maxCurvatureAhead(geometry, line, here, cfg.driftLookAhead);
+  if (ai.drifting) {
+    const direction = kart.drift.direction;
+    // Pressed, but no drift came of it (too slow / not steering hard enough): let go.
+    const fizzled = direction === 0 && kart.grounded && kart.driftHeld;
+    const targetTier = engineClass === 150 && ai.skill >= cfg.driftTier3Skill ? 3 : 2;
+    const overRotating = direction !== 0 && error * direction > cfg.driftOverRotation;
+    const opened = curvature < cfg.driftExitCurvature && kart.drift.tier >= 1;
+    const done = kart.drift.tier >= targetTier && curvature < cfg.driftCurvature;
+    ai.drifting = !(fizzled || overRotating || opened || done);
+    return ai.drifting;
+  }
+  if (
+    curvature > cfg.driftCurvature &&
+    speed >= cfg.driftMinSpeed * top &&
+    kart.grounded &&
+    !kart.driftHeld
+  ) {
+    ai.drifting = true;
+    return true;
+  }
+  return false;
+}
+
+/** The racing-line point the AI is steering at right now (for the `?ai-debug=1` overlay). */
+export function aiTargetPoint(
+  kart: KartState,
+  ai: AiState,
+  geometry: TrackGeometry,
+  line: readonly number[],
+) {
+  const distance = tuning.ai.lookAheadBase + Math.max(0, kart.speed) * tuning.ai.lookAheadPerSpeed;
+  const t = (geometry.project(kart.position).s + distance) / geometry.length;
+  return geometry.pointAt(t, lineOffsetAt(line, t) + ai.lineOffset);
 }
 
 /** Heading error (rad) to the racing-line point `distance` m ahead. Positive = target is to the left. */

@@ -46,6 +46,10 @@ export interface AiState {
   stuckTime: number;
   /** Seconds left of backing up to get unstuck. */
   recoverTime: number;
+  /** Holding a drift through the current corner (MK-15). */
+  drifting?: boolean;
+  /** Top-speed multiplier from rubber-banding this tick (1 = none). */
+  speedScale?: number;
 }
 
 /** Per-kart lap and checkpoint progress (MK-11). */
@@ -79,6 +83,8 @@ export interface RaceInfo {
   countdownStartTick: number;
   /** Tick of GO (countdown end); race times are measured from here. */
   goTick: number;
+  /** AI speeds up when far behind the player and eases off when far ahead (MK-15). */
+  rubberBand?: boolean;
 }
 
 export interface KartState {

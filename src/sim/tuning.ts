@@ -171,17 +171,43 @@ export const tuning = {
     cornerGrip: 26,
     /** How far ahead it checks for tight corners, m. */
     brakeHorizon: 45,
+    /**
+     * Difficulty per engine class. The AI's top speed follows the cc table like the player's, and
+     * skill (corner speed, cruise speed) is spread 0.86–1.0. At 150cc the spread tightens to
+     * 0.92–1.0 so the whole pack is sharper, and only there do the best drivers hold drifts for
+     * purple mini-turbos. 50cc and 100cc keep weaker drivers in the pack so a new player can win.
+     */
     /** Skill range: min–max (tighter at 150cc). */
     skillMin: 0.86,
     skillMax: 1.0,
     skillMin150: 0.92,
     lineOffsetMax: 1.5,
-    /** Cruising speed = top × (base + skill × this): 0.90–0.95 of top speed. */
-    cruiseBase: 0.9,
+    /** Cruising speed = top × (base + skill × this): 0.885–0.935 of top speed (drift boosts add the rest). */
+    cruiseBase: 0.885,
     cruiseSkill: 0.05,
     stuckSpeed: 1,
     stuckSeconds: 1,
     recoverSeconds: 1,
+    // Drifting (MK-15). The AI drifts through corners tighter than this…
+    /** Racing-line curvature (1/m) over the next `driftLookAhead` m that starts a drift. */
+    driftCurvature: 0.025,
+    driftLookAhead: 20,
+    /** …and lets go once the line ahead straightens out below this curvature. */
+    driftExitCurvature: 0.008,
+    /** Lets go early if the kart is swinging this far (rad) past where it should point. */
+    driftOverRotation: 0.6,
+    /** Only drifts from this fraction of top speed. */
+    driftMinSpeed: 0.55,
+    /** Skill needed to hold for a purple (tier 3) mini-turbo — and only at 150cc. */
+    driftTier3Skill: 0.97,
+    // Rubber-banding (MK-15): keeps races close without making the result feel fixed.
+    // Gaps are race-progress metres to the player. Behind by `rubberBandFar` m or more → the
+    // full +8%, ahead by that much → the full −10% (linear in between). Off for the last 200 m of
+    // the AI's race so finishes are fair.
+    rubberBandFar: 250,
+    rubberBandBoost: 0.08,
+    rubberBandBrake: 0.1,
+    rubberBandFinalMetres: 200,
   },
   // --- Race (MK-11, MK-12) ---
   raceLaps: 3,
