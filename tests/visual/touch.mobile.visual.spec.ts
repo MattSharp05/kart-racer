@@ -18,3 +18,14 @@ test('how to play, touch version (paused)', async ({ page }, info) => {
   await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(resolve)));
   await expect(page).toHaveScreenshot(`menu-how-to-play-${info.project.name}.png`);
 });
+
+for (const name of ['menu-title', 'menu-kart-select', 'race-finished']) {
+  test(`${name} on phones (paused)`, async ({ page }, info) => {
+    await loadScenario(page, name, { paused: true });
+    await page.waitForTimeout(600);
+    // Menus resume the sim behind them; freeze it so the frame is stable.
+    await page.evaluate(() => window.__game!.pause());
+    await page.waitForTimeout(100);
+    await expect(page).toHaveScreenshot(`${name}-${info.project.name}.png`);
+  });
+}
