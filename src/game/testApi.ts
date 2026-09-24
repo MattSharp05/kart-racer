@@ -17,7 +17,14 @@ export interface GameTestApi {
   setAutopilot(kartId: number, enabled: boolean): void;
   events(): SimEvent[];
   /** Renderer stats from the last frame (draw calls, triangles) for perf budgets. */
-  renderInfo(): { calls: number; triangles: number };
+  renderInfo(): RenderInfo;
+}
+
+/** Renderer stats and camera juice state (MK-27) for tests. */
+export interface RenderInfo {
+  calls: number;
+  triangles: number;
+  camera?: { fov: number; shake: number; fovKick: number };
 }
 
 declare global {
@@ -33,7 +40,7 @@ export function installTestApi(
   game: Game,
   onStep: () => void,
   scenario?: string,
-  renderInfo: () => { calls: number; triangles: number } = () => ({ calls: 0, triangles: 0 }),
+  renderInfo: () => RenderInfo = () => ({ calls: 0, triangles: 0 }),
 ): GameTestApi {
   const api: GameTestApi = {
     ready: true,

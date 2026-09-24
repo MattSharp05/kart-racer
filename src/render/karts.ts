@@ -132,6 +132,11 @@ export class KartRenderer {
   }
 
   /** Any kart's model root (for the camera to follow another kart). */
+  /** The visual body of kart `id` (for squash & stretch effects). */
+  body(id: number): THREE.Object3D | undefined {
+    return this.models[id]?.body;
+  }
+
   kart(id: number): THREE.Object3D | undefined {
     return this.models[id]?.root;
   }
