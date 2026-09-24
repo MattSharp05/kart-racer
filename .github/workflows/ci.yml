@@ -28,6 +28,7 @@ jobs:
       - run: pnpm test
       - run: pnpm test:perf
       - run: pnpm build
+      - run: pnpm check:bundle
 
   e2e:
     name: E2E (all Playwright projects)

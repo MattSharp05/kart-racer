@@ -11,6 +11,8 @@ export interface LaunchParams {
   item?: string;
   /** Turn off camera shake and FOV kick (MK-27); the OS setting does the same. */
   reducedMotion: boolean;
+  /** Show the performance overlay (MK-28). */
+  perf: boolean;
   /** Show each AI's target point and rubber-band multiplier (MK-15). */
   aiDebug: boolean;
 }
@@ -34,5 +36,6 @@ export function parseLaunchParams(search: string): LaunchParams {
     tune: flag('tune'),
     reducedMotion: flag('reduced-motion'),
     aiDebug: flag('ai-debug'),
+    perf: flag('perf'),
   };
 }

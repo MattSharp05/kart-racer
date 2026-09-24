@@ -58,6 +58,8 @@ export class Effects {
   private readonly speedLines = document.createElement('div');
   private lastTick = -1;
   private speedLinesOpacity = '';
+  /** Particle cap: lower in low-quality mode (MK-28). */
+  private maxParticles = MAX_PARTICLES;
 
   constructor(
     scene: THREE.Scene,
@@ -74,6 +76,11 @@ export class Effects {
     scene.add(this.mesh);
     this.speedLines.className = 'speed-lines';
     document.body.append(this.speedLines);
+  }
+
+  /** Low-quality mode (MK-28): a quarter of the particles. */
+  setLowQuality(low: boolean): void {
+    this.maxParticles = low ? Math.round(MAX_PARTICLES / 4) : MAX_PARTICLES;
   }
 
   /** A new race or screen: forget everything. */
@@ -222,7 +229,7 @@ export class Effects {
   }
 
   private spawn(p: Particle): void {
-    if (this.particles.length >= MAX_PARTICLES) this.particles.shift();
+    if (this.particles.length >= this.maxParticles) this.particles.shift();
     this.particles.push(p);
   }
 

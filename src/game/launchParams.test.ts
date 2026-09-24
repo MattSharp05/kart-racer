@@ -10,6 +10,7 @@ describe('parseLaunchParams', () => {
       tune: false,
       reducedMotion: false,
       aiDebug: false,
+      perf: false,
     });
   });
 
@@ -19,6 +20,7 @@ describe('parseLaunchParams', () => {
       tune: false,
       reducedMotion: false,
       aiDebug: false,
+      perf: false,
     });
   });
 
@@ -28,6 +30,7 @@ describe('parseLaunchParams', () => {
       tune: false,
       reducedMotion: false,
       aiDebug: false,
+      perf: false,
     });
   });
 
