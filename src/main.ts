@@ -1,7 +1,14 @@
 import * as THREE from 'three';
 import { Game } from './game/game';
 import { parseLaunchParams } from './game/launchParams';
-import { browserStore, readPrefs, recordBests, writePrefs } from './game/storage';
+import {
+  browserStore,
+  hasSeenHowToPlay,
+  markHowToPlaySeen,
+  readPrefs,
+  recordBests,
+  writePrefs,
+} from './game/storage';
 import { installTestApi } from './game/testApi';
 import { PlayerInput } from './input/playerInput';
 import { ChaseCamera, LineupCamera } from './render/camera';
@@ -25,6 +32,8 @@ import { NEUTRAL_INPUT, type InputFrame, type ItemId, type SimState } from './si
 import { showErrorBanner } from './ui/errorBanner';
 import { createPauseButton, Menus } from './ui/menus';
 import { AdaptiveQuality } from './render/quality';
+import { SoundManager } from './audio/soundManager';
+import { HowToPlay } from './ui/howToPlay';
 import { Hud } from './ui/hud/hud';
 import { PerfOverlay } from './ui/perfOverlay';
 import { RotatePrompt } from './ui/rotatePrompt';
@@ -117,6 +126,13 @@ const aiDebug = params.aiDebug ? new AiDebugView(scene) : undefined;
 const shells = new ShellRenderer(scene);
 const hud = new Hud();
 const menus = new Menus();
+const sound = new SoundManager(store, () => menus.refreshSound());
+menus.sound = { isMuted: () => sound.isMuted, toggle: () => sound.toggleMute() };
+const howToPlay = new HowToPlay();
+/** Opens the controls guide (MK-32); closing it counts as "seen" so it won't pop up again. */
+function openHowToPlay(): void {
+  howToPlay.open(() => markHowToPlaySeen(store));
+}
 let resultsTimer: number | undefined;
 
 // ---- Screens -------------------------------------------------------------------------------
@@ -139,7 +155,7 @@ function showTitle(): void {
   game.setAutopilot(0, true);
   game.resume();
   pauseButton.hidden = true;
-  menus.showTitle(showKartSelect);
+  menus.showTitle(showKartSelect, openHowToPlay);
 }
 
 function focusLineupKart(kart: KartId, snap = false): void {
@@ -205,6 +221,7 @@ function pauseRace(): void {
     onResume: resumeRace,
     onRestart: startRace,
     onQuit: showTitle,
+    onHowToPlay: openHowToPlay,
   });
 }
 
@@ -239,6 +256,7 @@ window.addEventListener('keydown', (e) => {
 });
 
 game.onEvents((events, state) => {
+  sound.onEvents(events, state, followId);
   effects.onEvents(events, followId);
   hud.onEvents(events, state, performance.now());
   const finished = events.find((e) => e.type === 'finish' && e.kartId === 0);
@@ -280,6 +298,11 @@ function render(frameSeconds: number, snapCamera = false, draw = true): void {
   const followedSpeed = kart ? Math.abs(kart.speed) / tuning.topSpeed[game.state.engineClass] : 0;
   effects.update(game.state, followId, followedSpeed, view);
   hud.update(game.state, performance.now(), menus.current !== 'none');
+  sound.update(game.state, {
+    menu: menus.current !== 'none' && menus.current !== 'paused',
+    paused: game.paused,
+    followId,
+  });
   controls.touch.setActive(menus.current === 'none' && !rotatePrompt.shown);
   if (draw) renderer.render(scene, camera);
 }
@@ -324,8 +347,13 @@ installTestApi(
 // Open the launch screen (menus or a direct race).
 switch (launch.screen) {
   case 'title':
-    menus.showTitle(showKartSelect);
+  case 'howToPlay':
+    menus.showTitle(showKartSelect, openHowToPlay);
     game.setAutopilot(0, true);
+    // First visit (plain URL, nothing stored): show the controls guide straight away.
+    if (launch.screen === 'howToPlay' || (!launch.scenario && !hasSeenHowToPlay(store))) {
+      openHowToPlay();
+    }
     break;
   case 'kartSelect':
     showKartSelect();
@@ -341,6 +369,10 @@ switch (launch.screen) {
   default:
     if (launch.state.phase === 'finished') resultsTimer = window.setTimeout(showResults, 300);
 }
+
+// `&paused=1` wins over menu screens that start the sim (kart select, title): tests and QA links
+// get a still frame.
+if (params.paused) game.pause();
 
 if (params.tune) {
   void import('./dev/tuningPanel').then(({ openTuningPanel }) => openTuningPanel());

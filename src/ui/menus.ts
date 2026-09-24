@@ -34,6 +34,8 @@ export class Menus {
   private keyHandler: ((e: KeyboardEvent) => void) | undefined;
   /** Name of the screen currently shown ('none' when racing). */
   current = 'none';
+  /** Sound on/off (MK-26): a toggle button on the title and pause screens. */
+  sound: { isMuted: () => boolean; toggle: () => void } | undefined;
 
   constructor() {
     this.root.className = 'menus';
@@ -49,13 +51,15 @@ export class Menus {
     this.keyHandler = undefined;
   }
 
-  showTitle(onPlay: () => void): void {
+  showTitle(onPlay: () => void, onHowToPlay?: () => void): void {
     const panel = this.open('title');
     const logo = document.createElement('h1');
     logo.className = 'logo';
     logo.textContent = 'Kart Racer';
     const play = button('Play', onPlay, 'primary');
     panel.append(logo, play);
+    if (onHowToPlay) panel.append(button('How to play', onHowToPlay, 'secondary'));
+    this.appendSoundToggle(panel);
     play.focus();
     this.keyHandler = (e) => {
       if (e.key === 'Enter' && document.activeElement !== play) onPlay();
@@ -163,7 +167,12 @@ export class Menus {
     };
   }
 
-  showPause(handlers: { onResume: () => void; onRestart: () => void; onQuit: () => void }): void {
+  showPause(handlers: {
+    onResume: () => void;
+    onRestart: () => void;
+    onQuit: () => void;
+    onHowToPlay?: () => void;
+  }): void {
     const panel = this.open('paused');
     const title = document.createElement('h2');
     title.textContent = 'Paused';
@@ -173,9 +182,11 @@ export class Menus {
     actions.append(
       resume,
       button('Restart race', handlers.onRestart),
+      ...(handlers.onHowToPlay ? [button('How to play', handlers.onHowToPlay)] : []),
       button('Quit to title', handlers.onQuit),
     );
     panel.append(title, actions);
+    this.appendSoundToggle(actions);
     resume.focus();
     this.keyHandler = (e) => {
       if (e.key === 'Escape') handlers.onResume();
@@ -220,6 +231,30 @@ export class Menus {
     again.focus();
     this.keyHandler = undefined;
   }
+
+  private appendSoundToggle(parent: HTMLElement): void {
+    const sound = this.sound;
+    if (!sound) return;
+    const label = () => (sound.isMuted() ? '🔇 Sound off' : '🔊 Sound on');
+    const refresh = () => {
+      toggle.textContent = label();
+      toggle.dataset.muted = String(sound.isMuted());
+    };
+    const toggle = button(
+      label(),
+      () => {
+        sound.toggle();
+        refresh();
+      },
+      'sound-toggle',
+    );
+    toggle.dataset.muted = String(sound.isMuted());
+    parent.append(toggle);
+    this.refreshSound = refresh;
+  }
+
+  /** Updates the sound button after the M key toggled mute. */
+  refreshSound: () => void = () => {};
 
   private open(name: string): HTMLElement {
     this.current = name;
