@@ -107,7 +107,7 @@ export function aiTargetPoint(
 ) {
   const distance = tuning.ai.lookAheadBase + Math.max(0, kart.speed) * tuning.ai.lookAheadPerSpeed;
   const t = (geometry.project(kart.position).s + distance) / geometry.length;
-  return geometry.pointAt(t, lineOffsetAt(line, t) + ai.lineOffset);
+  return geometry.pointAt(t, lineOffsetAt(line, t) + ai.lineOffset + (ai.steerOffset ?? 0));
 }
 
 /** Heading error (rad) to the racing-line point `distance` m ahead. Positive = target is to the left. */
@@ -120,13 +120,13 @@ function aimError(
 ): number {
   const s = geometry.project(kart.position).s + distance;
   const t = s / geometry.length;
-  const target = geometry.pointAt(t, lineOffsetAt(line, t) + ai.lineOffset);
+  const target = geometry.pointAt(t, lineOffsetAt(line, t) + ai.lineOffset + (ai.steerOffset ?? 0));
   const desired = Math.atan2(-(target.x - kart.position.x), -(target.z - kart.position.z));
   return wrapAngleDelta(desired - kart.heading);
 }
 
 /** Largest curvature (1/m) of the racing line over the next `horizon` metres. */
-function maxCurvatureAhead(
+export function maxCurvatureAhead(
   geometry: TrackGeometry,
   line: readonly number[],
   s: number,
