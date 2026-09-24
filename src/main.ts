@@ -342,6 +342,10 @@ switch (launch.screen) {
     if (launch.state.phase === 'finished') resultsTimer = window.setTimeout(showResults, 300);
 }
 
+// `&paused=1` wins over menu screens that start the sim (kart select, title): tests and QA links
+// get a still frame.
+if (params.paused) game.pause();
+
 if (params.tune) {
   void import('./dev/tuningPanel').then(({ openTuningPanel }) => openTuningPanel());
 }
