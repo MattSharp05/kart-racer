@@ -1,4 +1,12 @@
 {
+  "extraKnownMarketplaces": {
+    "claude-workflow": {
+      "source": { "source": "github", "repo": "MattSharp05/claude-workflow" }
+    }
+  },
+  "enabledPlugins": {
+    "workflow@claude-workflow": true
+  },
   "permissions": {
     "allow": [
       "Bash(git push)",
@@ -13,19 +21,6 @@
       "Bash(gh run list:*)",
       "Bash(gh run watch:*)",
       "mcp__Notion"
-    ]
-  },
-  "hooks": {
-    "PreToolUse": [
-      {
-        "matcher": "Bash",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash ~/.claude/skills/dev-workflow/hooks/protect-main.sh"
-          }
-        ]
-      }
     ]
   }
 }
