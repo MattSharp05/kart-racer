@@ -31,6 +31,7 @@ import { tuning, type EngineClass } from './sim/tuning';
 import { NEUTRAL_INPUT, type InputFrame, type ItemId, type SimState } from './sim/types';
 import { showErrorBanner } from './ui/errorBanner';
 import { createPauseButton, Menus } from './ui/menus';
+import { SoundManager } from './audio/soundManager';
 import { HowToPlay } from './ui/howToPlay';
 import { Hud } from './ui/hud/hud';
 import { RotatePrompt } from './ui/rotatePrompt';
@@ -123,6 +124,8 @@ const aiDebug = params.aiDebug ? new AiDebugView(scene) : undefined;
 const shells = new ShellRenderer(scene);
 const hud = new Hud();
 const menus = new Menus();
+const sound = new SoundManager(store, () => menus.refreshSound());
+menus.sound = { isMuted: () => sound.isMuted, toggle: () => sound.toggleMute() };
 const howToPlay = new HowToPlay();
 /** Opens the controls guide (MK-32); closing it counts as "seen" so it won't pop up again. */
 function openHowToPlay(): void {
@@ -251,6 +254,7 @@ window.addEventListener('keydown', (e) => {
 });
 
 game.onEvents((events, state) => {
+  sound.onEvents(events, state, followId);
   effects.onEvents(events, followId);
   hud.onEvents(events, state, performance.now());
   const finished = events.find((e) => e.type === 'finish' && e.kartId === 0);
@@ -292,6 +296,11 @@ function render(frameSeconds: number, snapCamera = false, draw = true): void {
   const followedSpeed = kart ? Math.abs(kart.speed) / tuning.topSpeed[game.state.engineClass] : 0;
   effects.update(game.state, followId, followedSpeed, view);
   hud.update(game.state, performance.now(), menus.current !== 'none');
+  sound.update(game.state, {
+    menu: menus.current !== 'none' && menus.current !== 'paused',
+    paused: game.paused,
+    followId,
+  });
   controls.touch.setActive(menus.current === 'none' && !rotatePrompt.shown);
   if (draw) renderer.render(scene, camera);
 }

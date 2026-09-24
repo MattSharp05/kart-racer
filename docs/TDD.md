@@ -11,7 +11,7 @@ Status: Draft · PRD: https://www.notion.so/3e424983f3ca8171ad9bffbdee9cedf1
 | **Three.js (r186)**                                     | Mature WebGL renderer, low-poly friendly, huge docs. No framework wrapper.                                                                                        |
 | **No physics engine** — in-house arcade physics         | Kart feel is the #1 goal; hand-tuned arcade model beats rigid-body sims for this and stays deterministic. ([ADR 0002](decisions/0002-in-house-arcade-physics.md)) |
 | **Plain DOM + CSS for UI/HUD** (no React)               | A handful of screens; HTML overlays are simpler and cheap on mobile.                                                                                              |
-| **Howler.js** for audio                                 | Handles mobile audio unlock, sprites, pooling.                                                                                                                    |
+| **Web Audio API** (synthesized) for audio               | No files to download or license; see ADR 0004 (replaced the planned Howler.js).                                                                                   |
 | **pnpm**                                                | Fast, strict dependency resolution.                                                                                                                               |
 | **Vitest** (unit), **Playwright** (e2e, mobile, visual) | Standard, fast, share TS config.                                                                                                                                  |
 | **ESLint (typescript-eslint) + Prettier**               | Consistent code; lint enforces sim purity (see Conventions).                                                                                                      |
@@ -46,7 +46,7 @@ src/
   render/            scene, track mesh builder, kart models, camera, effects
   input/             keyboard, touch → InputFrame
   ui/                hud, menus, rotate prompt (DOM + CSS)
-  audio/             sound manager (Howler), event → sound mapping
+  audio/             synthesized SFX/music (Web Audio), event → sound mapping
   scenarios/         registry + one file per group of scenarios
 public/audio/        CC0 sounds and music (credits in docs/CREDITS.md)
 tests/e2e/           Playwright specs (+ visual snapshots)
