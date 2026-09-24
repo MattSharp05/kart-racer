@@ -1,4 +1,5 @@
 import { aiInput } from './ai/driver';
+import { rubberBandScale } from './ai/rubberBand';
 import { autopilotInput } from './autopilot';
 import { applyBoost } from './drift';
 import { positionOf } from './race';
@@ -51,6 +52,7 @@ export function beforeMovement(
       // Being carried by the pickup drone or spinning out: not driving, so not "stuck" either.
       kart.ai.stuckTime = 0;
     } else if (kart.ai && geometry && track.kind === 'spline') {
+      kart.ai.speedScale = rubberBandScale(kart, state, geometry);
       resolved[kart.id] = aiInput(
         kart,
         kart.ai,
