@@ -139,6 +139,28 @@ export const tuning = {
   bananaRadius: 1.3,
   bananaOwnerImmuneSeconds: 0.5,
   maxBananas: 20,
+  // --- Shells (MK-18, MK-19) ---
+  /** Green shell speed as a multiple of the race's top speed. */
+  greenShellSpeed: 1.6,
+  redShellSpeed: 1.5,
+  greenShellBounces: 5,
+  greenShellLife: 8,
+  redShellLife: 12,
+  /** The thrower is immune to their own shell this long, s. */
+  shellOwnerImmuneSeconds: 0.3,
+  /** Shell centre within this of a kart centre = hit, m. */
+  shellHitRadius: 1.6,
+  /** Shell vs banana/shell contact distance, m. */
+  shellBlockRadius: 1.2,
+  shellRadius: 0.5,
+  /** Spawn distance in front of (or behind) the thrower, m. */
+  shellSpawnDistance: 2.5,
+  /** Red shell: follows the track until this close to its target, then flies straight at it, m. */
+  redHomingRange: 25,
+  /** Red shell: look-ahead along the track while following it, m. */
+  redLookAhead: 8,
+  /** Red shell: max turn rate, rad/s. */
+  redTurnRate: 6,
   // --- AI (MK-14) ---
   ai: {
     /** Look-ahead along the racing line = base + speed × this, m. */

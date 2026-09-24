@@ -13,6 +13,7 @@ import {
 } from '../types';
 import { updateBananas, useBanana } from './banana';
 import { oddsRow, pickItem } from './odds';
+import { fireShell, updateShells } from './shell';
 
 /** What an item does when used. Each item is one entry (MK-16: mushroom; MK-17–20 add the rest). */
 export interface ItemDef {
@@ -28,6 +29,10 @@ export const ITEMS: Partial<Record<ItemId, ItemDef>> = {
   banana: {
     id: 'banana',
     onUse: (kart, state, _events, input) => useBanana(kart, state, input),
+  },
+  green: {
+    id: 'green',
+    onUse: (kart, state, _events, input) => fireShell(kart, state, input, 'green'),
   },
 };
 
@@ -51,6 +56,7 @@ export function updateItems(
   }
 
   updateBananas(state, dt, events);
+  updateShells(state, dt, events);
 
   for (const kart of state.karts) {
     kart.spinTimer = countDown(kart.spinTimer, dt);
