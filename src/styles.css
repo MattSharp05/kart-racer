@@ -128,6 +128,35 @@ body {
   display: block;
 }
 
+.hud-item-key {
+  position: absolute;
+  right: -10px;
+  bottom: -10px;
+  min-width: 26px;
+  padding: 3px 6px;
+  border-radius: 8px;
+  background: #ffd166;
+  color: #1d3557;
+  font-size: 14px;
+  text-shadow: none;
+  text-align: center;
+  animation: hud-hint 1s ease-in-out infinite alternate;
+}
+
+.hud-item-key::after {
+  content: 'E';
+}
+
+body.touch .hud-item-key::after {
+  content: 'Item ▸';
+}
+
+@keyframes hud-hint {
+  to {
+    transform: scale(1.12);
+  }
+}
+
 .hud-item.rolling {
   border-color: #ffd166;
   animation: hud-roll 0.18s linear infinite;
@@ -696,4 +725,20 @@ body {
   -webkit-mask-image: radial-gradient(circle at 50% 55%, transparent 38%, #000 75%);
   mask-image: radial-gradient(circle at 50% 55%, transparent 38%, #000 75%);
   transition: opacity 0.2s linear;
+}
+
+/* ?ai-debug=1 (MK-15) */
+.ai-debug {
+  position: fixed;
+  left: max(10px, env(safe-area-inset-left));
+  top: 90px;
+  margin: 0;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: rgb(0 0 0 / 0.6);
+  color: #ffe066;
+  font:
+    12px/1.35 ui-monospace,
+    monospace;
+  pointer-events: none;
 }

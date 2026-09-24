@@ -88,11 +88,12 @@ export function updateKart(
   events: SimEvent[],
 ): KartState {
   const physics = kartPhysics(kart.kartType, engineClass);
-  // Star: faster (MK-20). Shrunk by lightning: slower.
+  // Star: faster (MK-20). Shrunk by lightning: slower. AI rubber-banding (MK-15) scales it too.
   const topSpeed =
     physics.topSpeed *
     (kart.starTimer > 0 ? tuning.starSpeed : 1) *
-    (kart.shrinkTimer > 0 ? tuning.shrinkSpeed : 1);
+    (kart.shrinkTimer > 0 ? tuning.shrinkSpeed : 1) *
+    (kart.ai?.speedScale ?? 1);
   const kartAccel = accelRate(physics.timeTo95);
   let forward = forwardFromHeading(kart.heading);
   const forwardSpeed = dot(kart.velocity, forward);

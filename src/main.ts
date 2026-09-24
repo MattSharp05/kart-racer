@@ -5,6 +5,7 @@ import { browserStore, readPrefs, recordBests, writePrefs } from './game/storage
 import { installTestApi } from './game/testApi';
 import { PlayerInput } from './input/playerInput';
 import { ChaseCamera, LineupCamera } from './render/camera';
+import { AiDebugView } from './render/aiDebug';
 import { BananaRenderer } from './render/bananas';
 import { Effects } from './render/effects';
 import { ShellRenderer } from './render/shells';
@@ -110,6 +111,7 @@ chaseCamera.reducedMotion =
 const effects = new Effects(scene, karts, chaseCamera);
 const itemBoxes = new ItemBoxRenderer(scene);
 const bananas = new BananaRenderer(scene);
+const aiDebug = params.aiDebug ? new AiDebugView(scene) : undefined;
 const shells = new ShellRenderer(scene);
 const hud = new Hud();
 const menus = new Menus();
@@ -262,6 +264,7 @@ function render(frameSeconds: number, snapCamera = false, draw = true): void {
   karts.sync(game.previousState, game.state, game.alpha, [playerInput]);
   itemBoxes.sync(game.state, game.state.tick / 60);
   bananas.sync(game.state);
+  aiDebug?.sync(game.state);
   shells.sync(game.state, game.state.tick / 60);
   const followed = karts.kart(followId);
   const kart = game.state.karts[followId];

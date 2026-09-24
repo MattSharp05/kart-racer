@@ -65,3 +65,12 @@ test.describe('HUD', () => {
     }
   });
 });
+
+test('holding an item shows how to use it (E / Item button)', async ({ page }) => {
+  await loadScenario(page, 'hud-mid-race', { paused: true });
+  const key = page.locator('.hud-item-key');
+  await expect(key).toBeVisible();
+  const text = await key.evaluate((el) => getComputedStyle(el, '::after').content);
+  const touch = await page.evaluate(() => document.body.classList.contains('touch'));
+  expect(text).toContain(touch ? 'Item' : 'E');
+});

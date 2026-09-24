@@ -9,11 +9,17 @@ describe('parseLaunchParams', () => {
       paused: true,
       tune: false,
       reducedMotion: false,
+      aiDebug: false,
     });
   });
 
   it('defaults to no scenario, no seed, not paused', () => {
-    expect(parseLaunchParams('')).toEqual({ paused: false, tune: false, reducedMotion: false });
+    expect(parseLaunchParams('')).toEqual({
+      paused: false,
+      tune: false,
+      reducedMotion: false,
+      aiDebug: false,
+    });
   });
 
   it('ignores a non-numeric seed', () => {
@@ -21,6 +27,7 @@ describe('parseLaunchParams', () => {
       paused: false,
       tune: false,
       reducedMotion: false,
+      aiDebug: false,
     });
   });
 
@@ -34,5 +41,11 @@ describe('parseLaunchParams', () => {
 
   it('reads the kart override', () => {
     expect(parseLaunchParams('?scenario=test-pad&kart=boulder').kart).toBe('boulder');
+  });
+});
+
+describe('ai-debug flag (MK-15)', () => {
+  it('reads &ai-debug=1', () => {
+    expect(parseLaunchParams('?scenario=ai-drift-corner&ai-debug=1').aiDebug).toBe(true);
   });
 });

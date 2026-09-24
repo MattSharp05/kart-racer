@@ -141,7 +141,9 @@ export class Hud {
     }
     this.item.classList.toggle('rolling', rolling);
     this.item.dataset.item = rolling ? 'roulette' : (item ?? '');
-    this.set(this.item, item ? itemIcon(item) : '');
+    // Key hint while an item is ready (QA round 2: players didn't know how to use it).
+    const hint = item && !rolling ? '<span class="hud-item-key"></span>' : '';
+    this.set(this.item, item ? itemIcon(item) + hint : '');
     this.item.title = item && !rolling ? ITEM_NAMES[item] : '';
   }
 
