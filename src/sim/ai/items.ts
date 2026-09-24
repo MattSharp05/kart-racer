@@ -12,10 +12,9 @@ function pairChance(a: number, b: number): number {
   return x - Math.floor(x);
 }
 
-/** Signed metres along the lap from `from` to `to`, in (−length/2, length/2]. */
-function aheadMetres(geometry: TrackGeometry, from: KartState, toS: number): number {
-  const s = geometry.project(from.position).s;
-  let d = toS - s;
+/** Signed metres along the lap from `fromS` to `toS`, in (−length/2, length/2]. */
+function aheadMetres(geometry: TrackGeometry, fromS: number, toS: number): number {
+  let d = toS - fromS;
   if (d > geometry.length / 2) d -= geometry.length;
   if (d <= -geometry.length / 2) d += geometry.length;
   return d;
@@ -25,6 +24,33 @@ function aheadMetres(geometry: TrackGeometry, from: KartState, toS: number): num
  * Where to aim sideways this tick (MK-21): around a banana it has spotted on its line, or towards an
  * item box when its slot is empty. Sets `ai.steerOffset` (m, added to its racing-line offset).
  */
+/**
+ * Item boxes never move, so their track projections are worked out once per track (the AI checks
+ * them for every kart, every tick).
+ */
+const boxProjections = new WeakMap<
+  TrackGeometry,
+  Map<number, { s: number; t: number; lateral: number }>
+>();
+function boxProjection(
+  geometry: TrackGeometry,
+  id: number,
+  position: { x: number; y: number; z: number },
+) {
+  let cache = boxProjections.get(geometry);
+  if (!cache) {
+    cache = new Map();
+    boxProjections.set(geometry, cache);
+  }
+  let p = cache.get(id);
+  if (!p) {
+    const full = geometry.project(position);
+    p = { s: full.s, t: full.t, lateral: full.lateral };
+    cache.set(id, p);
+  }
+  return p;
+}
+
 export function aiSteerOffset(
   kart: KartState,
   ai: AiState,
@@ -35,14 +61,19 @@ export function aiSteerOffset(
   const cfg = tuning.ai;
   const here = geometry.project(kart.position);
   const myLateral = here.lateral;
+  const myS = here.s;
 
   // Dodge: the nearest banana ahead near where we're going, if we noticed it.
   let dodge: number | undefined;
   let nearest = Infinity;
   for (const e of state.entities) {
     if (e.kind !== 'banana' || e.flightTimer > 0) continue;
+    // Cheap distance check first: most bananas are nowhere near.
+    const dx = e.position.x - kart.position.x;
+    const dz = e.position.z - kart.position.z;
+    if (dx * dx + dz * dz > cfg.dodgeRange * cfg.dodgeRange) continue;
     const p = geometry.project(e.position);
-    const d = aheadMetres(geometry, kart, p.s);
+    const d = aheadMetres(geometry, myS, p.s);
     if (d <= 0 || d > cfg.dodgeRange || d >= nearest) continue;
     const lineHere = lineOffsetAt(line, p.t) + ai.lineOffset;
     if (Math.abs(p.lateral - lineHere) > cfg.dodgeOffset) continue;
@@ -61,8 +92,8 @@ export function aiSteerOffset(
     let bestD = Infinity;
     for (const e of state.entities) {
       if (e.kind !== 'itemBox' || e.respawnTimer > 0) continue;
-      const p = geometry.project(e.position);
-      const d = aheadMetres(geometry, kart, p.s);
+      const p = boxProjection(geometry, e.id, e.position);
+      const d = aheadMetres(geometry, myS, p.s);
       if (d <= 2 || d > cfg.boxSeekRange) continue;
       const score = d + Math.abs(p.lateral - myLateral) * 2;
       if (score < bestD) {
@@ -123,10 +154,15 @@ export function aiItemInput(
     case 'mushroom':
       return straightAhead(cfg.straightLookAhead) < cfg.straightCurvature || giveUp ? use() : {};
     case 'banana': {
+      const myS = geometry.project(kart.position).s;
+      const range = cfg.bananaDropRange;
       const behind = state.karts.some((other) => {
         if (other.id === kart.id) return false;
-        const d = -aheadMetres(geometry, kart, geometry.project(other.position).s);
-        return d > 0 && d < cfg.bananaDropRange;
+        const dx = other.position.x - kart.position.x;
+        const dz = other.position.z - kart.position.z;
+        if (dx * dx + dz * dz > range * range) return false;
+        const d = -aheadMetres(geometry, myS, geometry.project(other.position).s);
+        return d > 0 && d < range;
       });
       // Let go of the throttle for this tick so it's dropped behind, not thrown.
       return behind || giveUp ? use({ throttle: 0 }) : {};
