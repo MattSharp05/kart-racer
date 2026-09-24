@@ -814,6 +814,28 @@ body {
 @media (max-height: 430px) {
   .how-to-play {
     font-size: 12px;
+    line-height: 1.2;
+  }
+
+  /* Short landscape phones: use the width, keep controls and tips side by side. */
+  .how-to-play-card {
+    max-width: 96vw;
+    gap: 6px;
+    padding: 8px 14px;
+  }
+
+  .how-to-play-card h2 {
+    font-size: 18px;
+  }
+
+  .how-to-play-body {
+    flex-wrap: nowrap;
+  }
+
+  .how-to-play-controls th,
+  .how-to-play-controls td {
+    padding-top: 1px;
+    padding-bottom: 1px;
   }
 
   .how-to-play kbd {
