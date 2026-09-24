@@ -148,11 +148,30 @@ export interface BananaEntity {
   ownerImmune: number;
 }
 
-/** Things in the world other than karts. Items add their own kinds (shells…). */
-export type Entity = ItemBoxEntity | BananaEntity;
+/** A shell on the track (MK-18 green, MK-19 red). Moves at constant speed along `direction`. */
+export interface ShellEntity {
+  id: number;
+  kind: 'shell';
+  colour: 'green' | 'red';
+  position: Vec3;
+  /** Travel direction on the XZ plane (unit vector). */
+  direction: { x: number; z: number };
+  speed: number;
+  bounces: number;
+  /** Seconds left before it disappears. */
+  life: number;
+  ownerId: number;
+  /** Seconds the thrower is still immune to it. */
+  ownerImmune: number;
+  /** Red shells: the kart being chased (−1 = none, flies straight). */
+  targetId: number;
+}
+
+/** Things in the world other than karts. */
+export type Entity = ItemBoxEntity | BananaEntity | ShellEntity;
 
 /** What hit a kart. */
-export type HitKind = 'banana';
+export type HitKind = 'banana' | 'green' | 'red' | 'star' | 'lightning' | 'squash';
 
 /** A kart's item slot. */
 export interface KartItem {

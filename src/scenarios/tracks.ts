@@ -36,6 +36,26 @@ const SUNNY_TOP_SPEED = tuning.topSpeed[100];
 /** Lap fraction `metres` before (negative) or after `t` on Sunny Circuit. */
 const sunnyT = (t: number, metres: number) => t + metres / sunny.length;
 
+/** Player holding a shell with a parked kart `metres` ahead on the main straight. */
+export function shellTarget(seed: number, item: 'green' | 'red', metres: number) {
+  const t = sunnyT(0.02, 0);
+  const state = createSimState({
+    seed,
+    trackId: 'sunny-circuit',
+    karts: [
+      { position: sunny.pointAt(t, 0), heading: sunny.headingAt(t) },
+      {
+        position: sunny.pointAt(sunnyT(t, metres), 0),
+        heading: sunny.headingAt(sunnyT(t, metres)),
+        kartType: 'boulder',
+      },
+    ],
+  });
+  const [kart] = state.karts;
+  if (kart) kart.item.held = item;
+  return state;
+}
+
 /** Sunny Circuit, pole position on the grid. */
 export function sunnyStart(seed: number) {
   const pole = sunnyCircuit.gridSlots?.[0] ?? { t: 0.99, lateral: 0 };
@@ -247,6 +267,29 @@ export const trackScenarios: Scenario[] = [
         ownerId: -1,
         ownerImmune: 0,
       });
+      return { state };
+    },
+  },
+  {
+    name: 'green-shell-target',
+    group: 'Items',
+    description:
+      'Holding a Green shell, with a parked kart 30 m ahead on the straight. Press E to fire.',
+    defaultSeed: 1,
+    setup: (seed) => ({ state: shellTarget(seed, 'green', 30) }),
+  },
+  {
+    name: 'green-shell-bounce',
+    group: 'Items',
+    description:
+      'Holding a Green shell, angled 45° at the wall on the main straight. Fire it to watch it bounce.',
+    defaultSeed: 1,
+    setup: (seed) => {
+      const state = kartOnTrack(seed, 'sunny-circuit', sunnyT(0.02, 0), {
+        headingOffset: -Math.PI / 4,
+      });
+      const [kart] = state.karts;
+      if (kart) kart.item.held = 'green';
       return { state };
     },
   },
