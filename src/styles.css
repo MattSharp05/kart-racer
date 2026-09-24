@@ -256,6 +256,23 @@ body.touch .hud-item-key::after {
   }
 }
 
+.hud-flash {
+  position: absolute;
+  inset: 0;
+  background: #fff;
+  opacity: 0;
+}
+
+.hud-flash.on {
+  animation: hud-flash 0.6s ease-out;
+}
+
+@keyframes hud-flash {
+  from {
+    opacity: 0.85;
+  }
+}
+
 /* Touch devices: keep clear of the steering stick (bottom-left) and buttons (bottom-right). */
 body.touch .hud-minimap {
   bottom: auto;

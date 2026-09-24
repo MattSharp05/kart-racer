@@ -14,6 +14,7 @@ import {
 import { updateBananas, useBanana } from './banana';
 import { oddsRow, pickItem } from './odds';
 import { fireShell, updateShells } from './shell';
+import { updateStarLightning, useLightning, useStar } from './starLightning';
 
 /** What an item does when used. Each item is one entry (MK-16: mushroom; MK-17–20 add the rest). */
 export interface ItemDef {
@@ -38,6 +39,11 @@ export const ITEMS: Partial<Record<ItemId, ItemDef>> = {
     id: 'red',
     onUse: (kart, state, _events, input) => fireShell(kart, state, input, 'red'),
   },
+  star: { id: 'star', onUse: (kart, _state, events) => useStar(kart, events) },
+  lightning: {
+    id: 'lightning',
+    onUse: (kart, state, events) => useLightning(kart, state, events),
+  },
 };
 
 /** Items the roulette can hand out: only ones that have been built. */
@@ -61,6 +67,7 @@ export function updateItems(
 
   updateBananas(state, dt, events);
   updateShells(state, dt, events);
+  updateStarLightning(state, dt, events);
 
   for (const kart of state.karts) {
     kart.spinTimer = countDown(kart.spinTimer, dt);

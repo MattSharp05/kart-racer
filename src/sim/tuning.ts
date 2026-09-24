@@ -139,6 +139,17 @@ export const tuning = {
   bananaRadius: 1.3,
   bananaOwnerImmuneSeconds: 0.5,
   maxBananas: 20,
+  // --- Star & lightning (MK-20) ---
+  starSeconds: 6,
+  starSpeed: 1.2,
+  /** A starred kart hits karts whose centres come this close, m. */
+  starHitRadius: 2.2,
+  /** Lightning shrink time: the leader's and last place's (linear in between), s. */
+  shrinkSecondsFirst: 8,
+  shrinkSecondsLast: 3,
+  shrinkSpeed: 0.7,
+  /** A full-size kart runs over a shrunk one this close, m. */
+  squashRadius: 2.2,
   // --- Shells (MK-18, MK-19) ---
   /** Green shell speed as a multiple of the race's top speed. */
   greenShellSpeed: 1.6,
