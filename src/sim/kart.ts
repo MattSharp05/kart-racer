@@ -88,7 +88,8 @@ export function updateKart(
   events: SimEvent[],
 ): KartState {
   const physics = kartPhysics(kart.kartType, engineClass);
-  const { topSpeed } = physics;
+  // AI rubber-banding (MK-15) scales the top speed.
+  const topSpeed = physics.topSpeed * (kart.ai?.speedScale ?? 1);
   const kartAccel = accelRate(physics.timeTo95);
   let forward = forwardFromHeading(kart.heading);
   const forwardSpeed = dot(kart.velocity, forward);
