@@ -726,3 +726,20 @@ body {
     monospace;
   pointer-events: none;
 }
+
+/* ?perf=1 (MK-28) */
+.perf-overlay {
+  position: fixed;
+  right: max(10px, env(safe-area-inset-right));
+  top: 130px;
+  margin: 0;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: rgb(0 0 0 / 0.6);
+  color: #9bf6ff;
+  font:
+    12px/1.35 ui-monospace,
+    monospace;
+  pointer-events: none;
+  z-index: 60;
+}

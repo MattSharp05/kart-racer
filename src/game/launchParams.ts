@@ -9,6 +9,8 @@ export interface LaunchParams {
   kart?: string;
   /** Give the player an item straight away, e.g. `&item=mushroom`. */
   item?: string;
+  /** Show the performance overlay (MK-28). */
+  perf: boolean;
   /** Show each AI's target point and rubber-band multiplier (MK-15). */
   aiDebug: boolean;
 }
@@ -31,5 +33,6 @@ export function parseLaunchParams(search: string): LaunchParams {
     paused: flag('paused'),
     tune: flag('tune'),
     aiDebug: flag('ai-debug'),
+    perf: flag('perf'),
   };
 }

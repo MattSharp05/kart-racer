@@ -23,7 +23,9 @@ import { tuning, type EngineClass } from './sim/tuning';
 import { NEUTRAL_INPUT, type InputFrame, type ItemId, type SimState } from './sim/types';
 import { showErrorBanner } from './ui/errorBanner';
 import { createPauseButton, Menus } from './ui/menus';
+import { AdaptiveQuality } from './render/quality';
 import { Hud } from './ui/hud/hud';
+import { PerfOverlay } from './ui/perfOverlay';
 import { RotatePrompt } from './ui/rotatePrompt';
 
 /** Longest real frame we feed the sim, so a backgrounded tab doesn't cause a huge catch-up. */
@@ -333,14 +335,28 @@ if (params.tune) {
   void import('./dev/tuningPanel').then(({ openTuningPanel }) => openTuningPanel());
 }
 
+// Adaptive quality + optional perf overlay (MK-28).
+const quality = new AdaptiveQuality(window.devicePixelRatio, (pixelRatio, lowQuality) => {
+  renderer.setPixelRatio(pixelRatio);
+  lowQualityHooks.forEach((hook) => hook(lowQuality));
+  markChanged();
+});
+/** Render parts that get cheaper in low-quality mode register here. */
+const lowQualityHooks: ((low: boolean) => void)[] = [];
+const perfOverlay = params.perf ? new PerfOverlay() : undefined;
+
 let lastTime: number | undefined;
 renderer.setAnimationLoop((time) => {
   const frameSeconds =
     lastTime === undefined ? 0 : Math.min((time - lastTime) / 1000, MAX_FRAME_SECONDS);
   lastTime = time;
+  const simStart = performance.now();
   game.frame(frameSeconds);
+  const simMs = performance.now() - simStart;
   if (!game.paused || view === 'lineup') markChanged();
   if (framesSinceChange > SETTLE_FRAMES) return;
   framesSinceChange += 1;
   render(frameSeconds);
+  if (!game.paused) quality.frame(frameSeconds);
+  perfOverlay?.frame(frameSeconds, simMs, renderer.info.render, quality);
 });
