@@ -139,6 +139,39 @@ export const tuning = {
   bananaRadius: 1.3,
   bananaOwnerImmuneSeconds: 0.5,
   maxBananas: 20,
+  // --- Star & lightning (MK-20) ---
+  starSeconds: 6,
+  starSpeed: 1.2,
+  /** A starred kart hits karts whose centres come this close, m. */
+  starHitRadius: 2.2,
+  /** Lightning shrink time: the leader's and last place's (linear in between), s. */
+  shrinkSecondsFirst: 8,
+  shrinkSecondsLast: 3,
+  shrinkSpeed: 0.7,
+  /** A full-size kart runs over a shrunk one this close, m. */
+  squashRadius: 2.2,
+  // --- Shells (MK-18, MK-19) ---
+  /** Green shell speed as a multiple of the race's top speed. */
+  greenShellSpeed: 1.6,
+  redShellSpeed: 1.5,
+  greenShellBounces: 5,
+  greenShellLife: 8,
+  redShellLife: 12,
+  /** The thrower is immune to their own shell this long, s. */
+  shellOwnerImmuneSeconds: 0.3,
+  /** Shell centre within this of a kart centre = hit, m. */
+  shellHitRadius: 1.6,
+  /** Shell vs banana/shell contact distance, m. */
+  shellBlockRadius: 1.2,
+  shellRadius: 0.5,
+  /** Spawn distance in front of (or behind) the thrower, m. */
+  shellSpawnDistance: 2.5,
+  /** Red shell: follows the track until this close to its target, then flies straight at it, m. */
+  redHomingRange: 25,
+  /** Red shell: look-ahead along the track while following it, m. */
+  redLookAhead: 8,
+  /** Red shell: max turn rate, rad/s. */
+  redTurnRate: 6,
   // --- AI (MK-14) ---
   ai: {
     /** Look-ahead along the racing line = base + speed × this, m. */
@@ -149,17 +182,70 @@ export const tuning = {
     cornerGrip: 26,
     /** How far ahead it checks for tight corners, m. */
     brakeHorizon: 45,
+    /**
+     * Difficulty per engine class. The AI's top speed follows the cc table like the player's, and
+     * skill (corner speed, cruise speed) is spread 0.86–1.0. At 150cc the spread tightens to
+     * 0.92–1.0 so the whole pack is sharper, and only there do the best drivers hold drifts for
+     * purple mini-turbos. 50cc and 100cc keep weaker drivers in the pack so a new player can win.
+     */
     /** Skill range: min–max (tighter at 150cc). */
     skillMin: 0.86,
     skillMax: 1.0,
     skillMin150: 0.92,
     lineOffsetMax: 1.5,
-    /** Cruising speed = top × (base + skill × this): 0.90–0.95 of top speed. */
-    cruiseBase: 0.9,
+    /** Cruising speed = top × (base + skill × this): 0.885–0.935 of top speed (drift boosts add the rest). */
+    cruiseBase: 0.885,
     cruiseSkill: 0.05,
     stuckSpeed: 1,
     stuckSeconds: 1,
     recoverSeconds: 1,
+    // Drifting (MK-15). The AI drifts through corners tighter than this…
+    /** Racing-line curvature (1/m) over the next `driftLookAhead` m that starts a drift. */
+    driftCurvature: 0.025,
+    driftLookAhead: 20,
+    /** …and lets go once the line ahead straightens out below this curvature. */
+    driftExitCurvature: 0.008,
+    /** Lets go early if the kart is swinging this far (rad) past where it should point. */
+    driftOverRotation: 0.6,
+    /** Only drifts from this fraction of top speed. */
+    driftMinSpeed: 0.55,
+    /** Skill needed to hold for a purple (tier 3) mini-turbo — and only at 150cc. */
+    driftTier3Skill: 0.97,
+    // Rubber-banding (MK-15): keeps races close without making the result feel fixed.
+    // Gaps are race-progress metres to the player. Behind by `rubberBandFar` m or more → the
+    // full +8%, ahead by that much → the full −10% (linear in between). Off for the last 200 m of
+    // the AI's race so finishes are fair.
+    rubberBandFar: 250,
+    rubberBandBoost: 0.08,
+    rubberBandBrake: 0.1,
+    rubberBandFinalMetres: 200,
+    // Items (MK-21).
+    /** Thinking time before using a new item, s (shorter for aggressive drivers). */
+    itemDelayMin: 0.5,
+    itemDelayMax: 3,
+    /** Star / Lightning are used this soon after getting them, s. */
+    powerDelayMin: 0.5,
+    powerDelayMax: 2,
+    /** Mushroom: use when the line is this straight for the next `straightLookAhead` m. */
+    straightCurvature: 0.006,
+    straightLookAhead: 40,
+    /** Banana: drop when a kart is within this many metres behind. */
+    bananaDropRange: 15,
+    /** Green shell: fire at a kart within this range and angle ahead. */
+    greenRange: 25,
+    greenAngle: (10 * Math.PI) / 180,
+    /** …or this far to the side when close, m. */
+    greenLateral: 1.5,
+    /** Use a held item anyway after this long, s (so nothing is hoarded forever). */
+    itemGiveUp: 12,
+    /** Drift towards an item box within this distance ahead when the slot is empty, m. */
+    boxSeekRange: 35,
+    /** Look for bananas this far ahead to dodge, m, and pass them this far to the side. */
+    dodgeRange: 20,
+    dodgeOffset: 2.6,
+    /** Chance of spotting a banana = clamp((skill − base) × gain): ~27% at 0.86, 90% at 1.0. */
+    dodgeSkillBase: 0.8,
+    dodgeSkillGain: 4.5,
   },
   // --- Race (MK-11, MK-12) ---
   raceLaps: 3,

@@ -1,4 +1,6 @@
-import { aiInput } from './ai/driver';
+import { aiInput, maxCurvatureAhead } from './ai/driver';
+import { aiItemInput, aiSteerOffset } from './ai/items';
+import { rubberBandScale } from './ai/rubberBand';
 import { autopilotInput } from './autopilot';
 import { applyBoost } from './drift';
 import { positionOf } from './race';
@@ -51,14 +53,18 @@ export function beforeMovement(
       // Being carried by the pickup drone or spinning out: not driving, so not "stuck" either.
       kart.ai.stuckTime = 0;
     } else if (kart.ai && geometry && track.kind === 'spline') {
-      resolved[kart.id] = aiInput(
-        kart,
-        kart.ai,
-        geometry,
-        track.aiLine ?? [],
-        state.engineClass,
-        state.phase === 'racing',
-      );
+      const line = track.aiLine ?? [];
+      const racing = state.phase === 'racing';
+      kart.ai.speedScale = rubberBandScale(kart, state, geometry);
+      kart.ai.steerOffset = racing ? aiSteerOffset(kart, kart.ai, state, geometry, line) : 0;
+      const drive = aiInput(kart, kart.ai, geometry, line, state.engineClass, racing);
+      const here = geometry.project(kart.position).s;
+      const items = racing
+        ? aiItemInput(kart, kart.ai, state, geometry, line, DT, (m) =>
+            maxCurvatureAhead(geometry, line, here, m),
+          )
+        : {};
+      resolved[kart.id] = { ...drive, ...items };
     }
   }
   return { inputs: resolved, frozen: false };

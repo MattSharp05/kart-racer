@@ -100,6 +100,17 @@ export class KartRenderer {
     if (model.drone.visible) model.drone.rotation.y = tick * 0.3;
     model.body.visible = kart.invulnerableTimer <= 0 || Math.floor(tick / 5) % 2 === 0;
 
+    // Star (MK-20): a rainbow glow around the kart. Lightning: shrink to half size.
+    const aura = starAura(model);
+    aura.visible = kart.starTimer > 0;
+    if (aura.visible) {
+      (aura.material as THREE.MeshBasicMaterial).color.setHSL((tick * 0.03) % 1, 1, 0.55);
+      aura.scale.setScalar(1 + Math.sin(tick * 0.4) * 0.06);
+    }
+    const size = kart.shrinkTimer > 0 ? 0.5 : 1;
+    const current = model.root.scale.x;
+    model.root.scale.setScalar(current + (size - current) * 0.2);
+
     model.flame.visible = kart.boostTimer > 0;
     if (model.flame.visible) {
       const flicker = 0.85 + noise(tick) * 0.4;
@@ -121,6 +132,11 @@ export class KartRenderer {
   }
 
   /** Any kart's model root (for the camera to follow another kart). */
+  /** The visual body of kart `id` (for squash & stretch effects). */
+  body(id: number): THREE.Object3D | undefined {
+    return this.models[id]?.body;
+  }
+
   kart(id: number): THREE.Object3D | undefined {
     return this.models[id]?.root;
   }
@@ -134,4 +150,24 @@ export class KartRenderer {
     this.models.push(model);
     return model;
   }
+}
+
+/** The star glow for a kart model, created on first use. */
+function starAura(model: KartModel): THREE.Mesh {
+  const existing = model.root.userData.aura as THREE.Mesh | undefined;
+  if (existing) return existing;
+  const aura = new THREE.Mesh(
+    new THREE.SphereGeometry(1.5, 12, 8),
+    new THREE.MeshBasicMaterial({
+      transparent: true,
+      opacity: 0.55,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+    }),
+  );
+  aura.position.y = 0.6;
+  aura.visible = false;
+  model.root.add(aura);
+  model.root.userData.aura = aura;
+  return aura;
 }

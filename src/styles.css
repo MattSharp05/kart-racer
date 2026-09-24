@@ -256,6 +256,23 @@ body.touch .hud-item-key::after {
   }
 }
 
+.hud-flash {
+  position: absolute;
+  inset: 0;
+  background: #fff;
+  opacity: 0;
+}
+
+.hud-flash.on {
+  animation: hud-flash 0.6s ease-out;
+}
+
+@keyframes hud-flash {
+  from {
+    opacity: 0.85;
+  }
+}
+
 /* Touch devices: keep clear of the steering stick (bottom-left) and buttons (bottom-right). */
 body.touch .hud-minimap {
   bottom: auto;
@@ -806,4 +823,36 @@ body {
   .how-to-play-tips {
     max-width: 200px;
   }
+}
+
+/* ---- Speed lines (MK-27) ---- */
+.speed-lines {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  background: repeating-conic-gradient(
+    from 0deg,
+    rgb(255 255 255 / 0.55) 0deg 0.6deg,
+    transparent 0.6deg 7deg
+  );
+  -webkit-mask-image: radial-gradient(circle at 50% 55%, transparent 38%, #000 75%);
+  mask-image: radial-gradient(circle at 50% 55%, transparent 38%, #000 75%);
+  transition: opacity 0.2s linear;
+}
+
+/* ?ai-debug=1 (MK-15) */
+.ai-debug {
+  position: fixed;
+  left: max(10px, env(safe-area-inset-left));
+  top: 90px;
+  margin: 0;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: rgb(0 0 0 / 0.6);
+  color: #ffe066;
+  font:
+    12px/1.35 ui-monospace,
+    monospace;
+  pointer-events: none;
 }

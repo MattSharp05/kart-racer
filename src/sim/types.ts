@@ -46,6 +46,16 @@ export interface AiState {
   stuckTime: number;
   /** Seconds left of backing up to get unstuck. */
   recoverTime: number;
+  /** Holding a drift through the current corner (MK-15). */
+  drifting?: boolean;
+  /** Top-speed multiplier from rubber-banding this tick (1 = none). */
+  speedScale?: number;
+  /** Extra sideways offset this tick, m: steering towards item boxes or around bananas (MK-21). */
+  steerOffset?: number;
+  /** Seconds before it may use the item it holds (seeded "thinking time", MK-21). */
+  itemDelay?: number;
+  /** Seconds it has been holding the current item. */
+  itemHeld?: number;
 }
 
 /** Per-kart lap and checkpoint progress (MK-11). */
@@ -79,6 +89,8 @@ export interface RaceInfo {
   countdownStartTick: number;
   /** Tick of GO (countdown end); race times are measured from here. */
   goTick: number;
+  /** AI speeds up when far behind the player and eases off when far ahead (MK-15). */
+  rubberBand?: boolean;
 }
 
 export interface KartState {
@@ -116,6 +128,10 @@ export interface KartState {
   respawnCooldown: number;
   /** Seconds left of a spin-out after being hit (MK-17): no control until 0. */
   spinTimer: number;
+  /** Seconds of star power left (MK-20): faster, immune, knocks karts it touches. */
+  starTimer: number;
+  /** Seconds left shrunk by lightning (MK-20): slower, can be run over. */
+  shrinkTimer: number;
   /** Present on computer-controlled karts (MK-14). */
   ai?: AiState;
 }
@@ -148,11 +164,30 @@ export interface BananaEntity {
   ownerImmune: number;
 }
 
-/** Things in the world other than karts. Items add their own kinds (shells…). */
-export type Entity = ItemBoxEntity | BananaEntity;
+/** A shell on the track (MK-18 green, MK-19 red). Moves at constant speed along `direction`. */
+export interface ShellEntity {
+  id: number;
+  kind: 'shell';
+  colour: 'green' | 'red';
+  position: Vec3;
+  /** Travel direction on the XZ plane (unit vector). */
+  direction: { x: number; z: number };
+  speed: number;
+  bounces: number;
+  /** Seconds left before it disappears. */
+  life: number;
+  ownerId: number;
+  /** Seconds the thrower is still immune to it. */
+  ownerImmune: number;
+  /** Red shells: the kart being chased (−1 = none, flies straight). */
+  targetId: number;
+}
+
+/** Things in the world other than karts. */
+export type Entity = ItemBoxEntity | BananaEntity | ShellEntity;
 
 /** What hit a kart. */
-export type HitKind = 'banana';
+export type HitKind = 'banana' | 'green' | 'red' | 'star' | 'lightning' | 'squash';
 
 /** A kart's item slot. */
 export interface KartItem {
@@ -192,6 +227,8 @@ export type SimEvent =
   | { type: 'itemGranted'; kartId: number; item: ItemId }
   | { type: 'itemUsed'; kartId: number; item: ItemId }
   | { type: 'kartHit'; kartId: number; by: number; kind: HitKind }
+  | { type: 'star'; kartId: number }
+  | { type: 'lightning'; kartId: number }
   | { type: 'wallHit'; kartId: number; strength: number }
   | { type: 'bump'; a: number; b: number; strength: number }
   | { type: 'hop'; kartId: number }

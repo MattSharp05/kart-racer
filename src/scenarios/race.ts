@@ -1,4 +1,5 @@
 import { KART_IDS, type KartId } from '../sim/data/karts';
+import { lineOffsetAt } from '../sim/ai/racingLine';
 import { sunnyCircuit } from '../sim/data/tracks/sunnyCircuit';
 import { forwardFromHeading } from '../sim/math';
 import { createSimState } from '../sim/state';
@@ -57,6 +58,7 @@ export function sunnyRace(seed: number, options: RaceOptions | number = {}): Sim
     }),
   });
   if (ai) {
+    state.race.rubberBand = true;
     const cfg = tuning.ai;
     const skillMin = engineClass === 150 ? cfg.skillMin150 : cfg.skillMin;
     for (const kart of state.karts.slice(1)) {
@@ -69,6 +71,46 @@ export function sunnyRace(seed: number, options: RaceOptions | number = {}): Sim
       };
     }
   }
+  return state;
+}
+
+/** Puts kart `id` at lap fraction `t` on lap `lap`, moving along the track at `speed`. */
+function placeOnLap(
+  state: SimState,
+  id: number,
+  t: number,
+  lap: number,
+  lateral: number,
+  speed: number,
+) {
+  const kart = state.karts[id];
+  if (!kart) return;
+  const wrapped = ((t % 1) + 1) % 1;
+  kart.position = sunny.pointAt(wrapped, lateral);
+  kart.heading = sunny.headingAt(wrapped);
+  const forward = forwardFromHeading(kart.heading);
+  kart.velocity = { x: forward.x * speed, y: 0, z: forward.z * speed };
+  kart.speed = speed;
+  kart.race = {
+    ...kart.race,
+    lap,
+    nextCheckpoint:
+      sunnyCircuit.checkpoints.filter((c) => c <= wrapped).length % sunnyCircuit.checkpoints.length,
+    lastT: wrapped,
+  };
+}
+
+/** Lap 2 with the player `gap` m ahead (+) or behind (−) a pack of 7 AI. */
+function gapRace(seed: number, gap: number): SimState {
+  const state = racingSince(sunnyRace(seed, { karts: 8, ai: true }), 60);
+  const packT = 0.6;
+  const speed = tuning.topSpeed[100] * 0.8;
+  placeOnLap(state, 0, packT + gap / sunny.length, 2, 0, speed);
+  for (let id = 1; id < 8; id += 1) {
+    placeOnLap(state, id, packT - (id - 1) * (8 / sunny.length), 2, ((id % 3) - 1) * 3, speed);
+  }
+  const ai = Array.from({ length: 7 }, (_, i) => i + 1);
+  state.positions = gap > 0 ? [0, ...ai] : [...ai, 0];
   return state;
 }
 
@@ -193,6 +235,96 @@ export const raceScenarios: Scenario[] = [
       if (player) player.item.held = 'red';
       return { state };
     },
+  },
+  {
+    name: 'ai-drift-corner',
+    group: 'Race',
+    description:
+      'Three AI racers at speed approaching the hairpin; the camera follows the first. Watch them drift through (MK-15).',
+    defaultSeed: 1,
+    setup: (seed) => {
+      const state = racingSince(sunnyRace(seed, { karts: 4, ai: true }), 30);
+      state.race.rubberBand = false;
+      const speed = tuning.topSpeed[100] * 0.85;
+      placeOnLap(state, 0, 0.25, 2, 0, 0);
+      [1, 2, 3].forEach((id, i) =>
+        placeOnLap(state, id, 0.345 - i * (10 / sunny.length), 1, (i - 1) * 2.5, speed),
+      );
+      state.positions = [1, 2, 3, 0];
+      return { state, follow: 1 };
+    },
+  },
+  {
+    name: 'ai-holding-green',
+    group: 'Race',
+    description:
+      'An AI holding a Green shell, lined up right behind you on the straight. It fires as soon as it has thought about it (MK-21).',
+    defaultSeed: 1,
+    setup: (seed) => {
+      const state = racingSince(sunnyRace(seed, { karts: 2, ai: true }), 20);
+      state.race.rubberBand = false;
+      const speed = tuning.topSpeed[100] * 0.7;
+      // Both on the racing line, the AI 20 m back and about to fire.
+      const line = sunnyCircuit.aiLine ?? [];
+      const tYou = 0.03;
+      const tAi = tYou - 20 / sunny.length;
+      placeOnLap(state, 0, tYou, 1, lineOffsetAt(line, tYou), speed);
+      placeOnLap(state, 1, tAi, 1, lineOffsetAt(line, tAi), speed);
+      const ai = state.karts[1];
+      if (ai?.ai) {
+        ai.item.held = 'green';
+        ai.ai.lineOffset = 0;
+        ai.ai.aggression = 1;
+        ai.ai.itemDelay = 0.4;
+      }
+      state.positions = [0, 1];
+      return { state, follow: 1 };
+    },
+  },
+  {
+    name: 'ai-banana-dodge',
+    group: 'Race',
+    description:
+      'A banana on the racing line ahead of 3 AI on the main straight; skilled drivers steer round it (MK-21).',
+    defaultSeed: 1,
+    setup: (seed) => {
+      const state = racingSince(sunnyRace(seed, { karts: 4, ai: true }), 20);
+      state.race.rubberBand = false;
+      const speed = tuning.topSpeed[100] * 0.8;
+      placeOnLap(state, 0, 0.5, 1, 0, 0);
+      [1, 2, 3].forEach((id, i) =>
+        placeOnLap(state, id, 0.02 - i * (9 / sunny.length), 1, 0, speed),
+      );
+      const t = 0.02 + 40 / sunny.length;
+      const position = sunny.pointAt(t, lineOffsetAt(sunnyCircuit.aiLine ?? [], t));
+      state.entities.push({
+        id: 1000,
+        kind: 'banana',
+        position,
+        from: position,
+        flightTimer: 0,
+        ownerId: -1,
+        ownerImmune: 0,
+      });
+      state.positions = [1, 2, 3, 0];
+      return { state, follow: 1 };
+    },
+  },
+  {
+    name: 'race-player-far-ahead',
+    group: 'Race',
+    description:
+      'Lap 2: you are 400 m ahead of all 7 AI, who get up to +8% speed to catch up (rubber-banding, MK-15).',
+    defaultSeed: 1,
+    setup: (seed) => ({ state: gapRace(seed, 400) }),
+  },
+  {
+    name: 'race-player-far-behind',
+    group: 'Race',
+    description:
+      'Lap 2: you are 400 m behind all 7 AI, who ease off by up to 10% (rubber-banding, MK-15).',
+    defaultSeed: 1,
+    setup: (seed) => ({ state: gapRace(seed, -400) }),
   },
   ...([50, 100, 150] as const).map((cc): Scenario => ({
     name: `race-full-${cc}cc`,

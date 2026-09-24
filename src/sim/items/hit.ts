@@ -5,7 +5,12 @@ import type { HitKind, KartState, SimEvent } from '../types';
 
 /** Whether items can hit this kart right now. */
 export function canBeHit(kart: KartState): boolean {
-  return kart.invulnerableTimer === 0 && kart.respawnTimer === 0 && kart.spinTimer === 0;
+  return (
+    kart.invulnerableTimer === 0 &&
+    kart.respawnTimer === 0 &&
+    kart.spinTimer === 0 &&
+    kart.starTimer === 0
+  );
 }
 
 /**
