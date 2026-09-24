@@ -127,3 +127,14 @@ export function readMuted(store: KeyValueStore): boolean {
 export function writeMuted(store: KeyValueStore, muted: boolean): void {
   store.set(MUTED_KEY, muted ? '1' : '0');
 }
+
+const HOW_TO_PLAY_KEY = 'kart-racer:seen-how-to-play';
+
+/** Whether the first-load controls guide (MK-32) has been dismissed before. */
+export function hasSeenHowToPlay(store: KeyValueStore): boolean {
+  return store.get(HOW_TO_PLAY_KEY) === '1';
+}
+
+export function markHowToPlaySeen(store: KeyValueStore): void {
+  store.set(HOW_TO_PLAY_KEY, '1');
+}

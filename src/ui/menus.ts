@@ -51,13 +51,14 @@ export class Menus {
     this.keyHandler = undefined;
   }
 
-  showTitle(onPlay: () => void): void {
+  showTitle(onPlay: () => void, onHowToPlay?: () => void): void {
     const panel = this.open('title');
     const logo = document.createElement('h1');
     logo.className = 'logo';
     logo.textContent = 'Kart Racer';
     const play = button('Play', onPlay, 'primary');
     panel.append(logo, play);
+    if (onHowToPlay) panel.append(button('How to play', onHowToPlay, 'secondary'));
     this.appendSoundToggle(panel);
     play.focus();
     this.keyHandler = (e) => {
@@ -166,7 +167,12 @@ export class Menus {
     };
   }
 
-  showPause(handlers: { onResume: () => void; onRestart: () => void; onQuit: () => void }): void {
+  showPause(handlers: {
+    onResume: () => void;
+    onRestart: () => void;
+    onQuit: () => void;
+    onHowToPlay?: () => void;
+  }): void {
     const panel = this.open('paused');
     const title = document.createElement('h2');
     title.textContent = 'Paused';
@@ -176,6 +182,7 @@ export class Menus {
     actions.append(
       resume,
       button('Restart race', handlers.onRestart),
+      ...(handlers.onHowToPlay ? [button('How to play', handlers.onHowToPlay)] : []),
       button('Quit to title', handlers.onQuit),
     );
     panel.append(title, actions);

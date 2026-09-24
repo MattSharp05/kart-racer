@@ -12,3 +12,9 @@ test('hud-mid-race with touch controls (paused)', async ({ page }, info) => {
   await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(resolve)));
   await expect(page).toHaveScreenshot(`hud-mid-race-${info.project.name}.png`);
 });
+
+test('how to play, touch version (paused)', async ({ page }, info) => {
+  await loadScenario(page, 'menu-how-to-play', { paused: true });
+  await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(resolve)));
+  await expect(page).toHaveScreenshot(`menu-how-to-play-${info.project.name}.png`);
+});

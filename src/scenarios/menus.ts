@@ -42,6 +42,13 @@ export const menuScenarios: Scenario[] = [
     setup: (seed) => ({ state: attractMode(seed), screen: 'title' }),
   },
   {
+    name: 'menu-how-to-play',
+    group: 'Menus',
+    description: 'The "How to play" controls guide over the title (keyboard or touch version).',
+    defaultSeed: 1,
+    setup: (seed) => ({ state: attractMode(seed), screen: 'howToPlay' }),
+  },
+  {
     name: 'menu-kart-select',
     group: 'Menus',
     description: 'Kart select: ← → to browse, Enter to choose.',
