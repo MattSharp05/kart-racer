@@ -58,12 +58,16 @@ test.describe('how to play (MK-32)', () => {
     await expect(card).toBeVisible();
     const touch = await page.evaluate(() => document.body.classList.contains('touch'));
     await expect(page.locator('.how-to-play-controls')).toHaveClass(touch ? /touch/ : /keyboard/);
-    const fits = await card.evaluate(
-      (el) =>
-        el.scrollHeight <= el.clientHeight + 1 &&
-        el.getBoundingClientRect().bottom <= window.innerHeight &&
-        el.getBoundingClientRect().top >= 0,
-    );
-    expect(fits).toBe(true);
+    // Poll: on slow CI browsers the layout can still be settling (fonts) on the first check.
+    await expect
+      .poll(() =>
+        card.evaluate(
+          (el) =>
+            el.scrollHeight <= el.clientHeight + 1 &&
+            el.getBoundingClientRect().bottom <= window.innerHeight &&
+            el.getBoundingClientRect().top >= 0,
+        ),
+      )
+      .toBe(true);
   });
 });
