@@ -116,6 +116,10 @@ export interface KartState {
   respawnCooldown: number;
   /** Seconds left of a spin-out after being hit (MK-17): no control until 0. */
   spinTimer: number;
+  /** Seconds of star power left (MK-20): faster, immune, knocks karts it touches. */
+  starTimer: number;
+  /** Seconds left shrunk by lightning (MK-20): slower, can be run over. */
+  shrinkTimer: number;
   /** Present on computer-controlled karts (MK-14). */
   ai?: AiState;
 }
@@ -211,6 +215,8 @@ export type SimEvent =
   | { type: 'itemGranted'; kartId: number; item: ItemId }
   | { type: 'itemUsed'; kartId: number; item: ItemId }
   | { type: 'kartHit'; kartId: number; by: number; kind: HitKind }
+  | { type: 'star'; kartId: number }
+  | { type: 'lightning'; kartId: number }
   | { type: 'wallHit'; kartId: number; strength: number }
   | { type: 'bump'; a: number; b: number; strength: number }
   | { type: 'hop'; kartId: number }

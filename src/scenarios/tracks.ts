@@ -79,6 +79,24 @@ export function redShellRace(seed: number, place: 1 | 2) {
   return state;
 }
 
+/** Player on the main straight at 15 m/s with 4 parked karts in a row `metres` ahead. */
+function pack(seed: number, metres: number) {
+  const t = sunnyT(0.02, 0);
+  const lanes = [-3, -1, 1, 3];
+  return createSimState({
+    seed,
+    trackId: 'sunny-circuit',
+    karts: [
+      { position: sunny.pointAt(t, 0), heading: sunny.headingAt(t), speed: 15 },
+      ...lanes.map((lateral, i) => ({
+        position: sunny.pointAt(sunnyT(t, metres + (i % 2) * 4), lateral),
+        heading: sunny.headingAt(sunnyT(t, metres)),
+        kartType: (['pixie', 'boulder', 'swoop', 'maple'] as const)[i],
+      })),
+    ],
+  });
+}
+
 /** Sunny Circuit, pole position on the grid. */
 export function sunnyStart(seed: number) {
   const pole = sunnyCircuit.gridSlots?.[0] ?? { t: 0.99, lateral: 0 };
@@ -331,6 +349,29 @@ export const trackScenarios: Scenario[] = [
       'Holding a Red shell in 1st: with nobody ahead it flies straight like a green shell.',
     defaultSeed: 1,
     setup: (seed) => ({ state: redShellRace(seed, 1) }),
+  },
+  {
+    name: 'star-active',
+    group: 'Items',
+    description: 'Star power on, driving into a pack of 4 parked karts. Hold W.',
+    defaultSeed: 1,
+    setup: (seed) => {
+      const state = pack(seed, 25);
+      const [kart] = state.karts;
+      if (kart) kart.starTimer = tuning.starSeconds;
+      return { state };
+    },
+  },
+  {
+    name: 'lightning-shrunk',
+    group: 'Items',
+    description: 'Just after Lightning: the 4 karts ahead are shrunk. Hold W and run them over.',
+    defaultSeed: 1,
+    setup: (seed) => {
+      const state = pack(seed, 25);
+      state.karts.slice(1).forEach((kart) => (kart.shrinkTimer = 6));
+      return { state };
+    },
   },
   {
     name: 'banana-drop',
