@@ -30,6 +30,8 @@ function aiOnly(seed: number, karts: number, engineClass: EngineClass = 100): Si
   const player = state.karts[0]!;
   // Park the (idle) player far off the racing line, inside the grass, so it's not an obstacle.
   player.position = geometry.pointAt(0.5, -geometry.wallOffset(16) + 1);
+  // A parked player would pull every AI back; these tests are about the driving itself.
+  state.race.rubberBand = false;
   return state;
 }
 

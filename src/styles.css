@@ -710,3 +710,19 @@ body {
 .rotate-icon {
   font-size: 56px;
 }
+
+/* ?ai-debug=1 (MK-15) */
+.ai-debug {
+  position: fixed;
+  left: max(10px, env(safe-area-inset-left));
+  top: 90px;
+  margin: 0;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: rgb(0 0 0 / 0.6);
+  color: #ffe066;
+  font:
+    12px/1.35 ui-monospace,
+    monospace;
+  pointer-events: none;
+}
