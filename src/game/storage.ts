@@ -116,3 +116,14 @@ export function readPrefs(store: KeyValueStore): Prefs {
 export function writePrefs(store: KeyValueStore, prefs: Prefs): void {
   store.set(PREFS_KEY, JSON.stringify(prefs));
 }
+
+const HOW_TO_PLAY_KEY = 'kart-racer:seen-how-to-play';
+
+/** Whether the first-load controls guide (MK-32) has been dismissed before. */
+export function hasSeenHowToPlay(store: KeyValueStore): boolean {
+  return store.get(HOW_TO_PLAY_KEY) === '1';
+}
+
+export function markHowToPlaySeen(store: KeyValueStore): void {
+  store.set(HOW_TO_PLAY_KEY, '1');
+}

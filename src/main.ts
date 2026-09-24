@@ -1,7 +1,14 @@
 import * as THREE from 'three';
 import { Game } from './game/game';
 import { parseLaunchParams } from './game/launchParams';
-import { browserStore, readPrefs, recordBests, writePrefs } from './game/storage';
+import {
+  browserStore,
+  hasSeenHowToPlay,
+  markHowToPlaySeen,
+  readPrefs,
+  recordBests,
+  writePrefs,
+} from './game/storage';
 import { installTestApi } from './game/testApi';
 import { PlayerInput } from './input/playerInput';
 import { ChaseCamera, LineupCamera } from './render/camera';
@@ -24,6 +31,7 @@ import { tuning, type EngineClass } from './sim/tuning';
 import { NEUTRAL_INPUT, type InputFrame, type ItemId, type SimState } from './sim/types';
 import { showErrorBanner } from './ui/errorBanner';
 import { createPauseButton, Menus } from './ui/menus';
+import { HowToPlay } from './ui/howToPlay';
 import { Hud } from './ui/hud/hud';
 import { RotatePrompt } from './ui/rotatePrompt';
 
@@ -115,6 +123,11 @@ const aiDebug = params.aiDebug ? new AiDebugView(scene) : undefined;
 const shells = new ShellRenderer(scene);
 const hud = new Hud();
 const menus = new Menus();
+const howToPlay = new HowToPlay();
+/** Opens the controls guide (MK-32); closing it counts as "seen" so it won't pop up again. */
+function openHowToPlay(): void {
+  howToPlay.open(() => markHowToPlaySeen(store));
+}
 let resultsTimer: number | undefined;
 
 // ---- Screens -------------------------------------------------------------------------------
@@ -137,7 +150,7 @@ function showTitle(): void {
   game.setAutopilot(0, true);
   game.resume();
   pauseButton.hidden = true;
-  menus.showTitle(showKartSelect);
+  menus.showTitle(showKartSelect, openHowToPlay);
 }
 
 function focusLineupKart(kart: KartId, snap = false): void {
@@ -203,6 +216,7 @@ function pauseRace(): void {
     onResume: resumeRace,
     onRestart: startRace,
     onQuit: showTitle,
+    onHowToPlay: openHowToPlay,
   });
 }
 
@@ -322,8 +336,13 @@ installTestApi(
 // Open the launch screen (menus or a direct race).
 switch (launch.screen) {
   case 'title':
-    menus.showTitle(showKartSelect);
+  case 'howToPlay':
+    menus.showTitle(showKartSelect, openHowToPlay);
     game.setAutopilot(0, true);
+    // First visit (plain URL, nothing stored): show the controls guide straight away.
+    if (launch.screen === 'howToPlay' || (!launch.scenario && !hasSeenHowToPlay(store))) {
+      openHowToPlay();
+    }
     break;
   case 'kartSelect':
     showKartSelect();
