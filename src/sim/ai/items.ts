@@ -28,8 +28,15 @@ function aheadMetres(geometry: TrackGeometry, fromS: number, toS: number): numbe
  * Item boxes never move, so their track projections are worked out once per track (the AI checks
  * them for every kart, every tick).
  */
-const boxProjections = new WeakMap<TrackGeometry, Map<number, { s: number; t: number; lateral: number }>>();
-function boxProjection(geometry: TrackGeometry, id: number, position: { x: number; y: number; z: number }) {
+const boxProjections = new WeakMap<
+  TrackGeometry,
+  Map<number, { s: number; t: number; lateral: number }>
+>();
+function boxProjection(
+  geometry: TrackGeometry,
+  id: number,
+  position: { x: number; y: number; z: number },
+) {
   let cache = boxProjections.get(geometry);
   if (!cache) {
     cache = new Map();
