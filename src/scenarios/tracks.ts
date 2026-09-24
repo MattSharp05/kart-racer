@@ -56,6 +56,29 @@ export function shellTarget(seed: number, item: 'green' | 'red', metres: number)
   return state;
 }
 
+/**
+ * Player holding a Red shell on the main straight, racing, with a kart 80 m ahead around the
+ * first bend. `place` 2 = that kart leads; 1 = the player leads (the other kart is behind instead).
+ */
+export function redShellRace(seed: number, place: 1 | 2) {
+  // On the straight just before the first right-hander (it starts at t ≈ 0.15).
+  const t = 0.14;
+  const other = place === 2 ? sunnyT(t, 80) : sunnyT(t, -30);
+  const state = createSimState({
+    seed,
+    trackId: 'sunny-circuit',
+    phase: 'racing',
+    karts: [
+      { position: sunny.pointAt(t, 0), heading: sunny.headingAt(t), speed: 18 },
+      { position: sunny.pointAt(other, 0), heading: sunny.headingAt(other), kartType: 'swoop' },
+    ],
+  });
+  state.positions = place === 2 ? [1, 0] : [0, 1];
+  const [kart] = state.karts;
+  if (kart) kart.item.held = 'red';
+  return state;
+}
+
 /** Sunny Circuit, pole position on the grid. */
 export function sunnyStart(seed: number) {
   const pole = sunnyCircuit.gridSlots?.[0] ?? { t: 0.99, lateral: 0 };
@@ -292,6 +315,22 @@ export const trackScenarios: Scenario[] = [
       if (kart) kart.item.held = 'green';
       return { state };
     },
+  },
+  {
+    name: 'red-shell-target',
+    group: 'Items',
+    description:
+      'Holding a Red shell in 2nd; 1st place is 80 m ahead around the first bend. Press E and watch it home in.',
+    defaultSeed: 1,
+    setup: (seed) => ({ state: redShellRace(seed, 2) }),
+  },
+  {
+    name: 'red-shell-leader',
+    group: 'Items',
+    description:
+      'Holding a Red shell in 1st: with nobody ahead it flies straight like a green shell.',
+    defaultSeed: 1,
+    setup: (seed) => ({ state: redShellRace(seed, 1) }),
   },
   {
     name: 'banana-drop',
