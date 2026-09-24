@@ -50,6 +50,12 @@ export interface AiState {
   drifting?: boolean;
   /** Top-speed multiplier from rubber-banding this tick (1 = none). */
   speedScale?: number;
+  /** Extra sideways offset this tick, m: steering towards item boxes or around bananas (MK-21). */
+  steerOffset?: number;
+  /** Seconds before it may use the item it holds (seeded "thinking time", MK-21). */
+  itemDelay?: number;
+  /** Seconds it has been holding the current item. */
+  itemHeld?: number;
 }
 
 /** Per-kart lap and checkpoint progress (MK-11). */

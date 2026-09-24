@@ -11,9 +11,24 @@ const BASE_FOV = 62;
 const MAX_EXTRA_FOV = 10;
 const MIN_HEIGHT_ABOVE_GROUND = 0.8;
 
-/** Third-person chase camera: sits behind the kart, lags smoothly, widens FOV with speed. */
+/** Extra FOV right after a boost starts (MK-27), degrees. */
+const FOV_KICK = 8;
+const FOV_KICK_DECAY = 3;
+const SHAKE_DECAY = 7;
+const MAX_SHAKE = 0.6;
+
+/**
+ * Third-person chase camera: sits behind the kart, lags smoothly, widens FOV with speed. Juice
+ * (MK-27): shake on hits/bumps/landings and an FOV kick on boosts — both off with reduced motion.
+ */
 export class ChaseCamera {
   private heading: number | undefined;
+  /** Current shake amplitude, m (decays). */
+  shake = 0;
+  /** Current extra FOV from a boost, degrees (decays). */
+  fovKick = 0;
+  reducedMotion = false;
+  private shakeTime = 0;
   private readonly target = new THREE.Vector3();
   private readonly desired = new THREE.Vector3();
   private readonly lookAt = new THREE.Vector3();
@@ -41,11 +56,34 @@ export class ChaseCamera {
     this.place(kart, this.heading, 1 - Math.exp(-FOLLOW_RATE * dt));
     this.camera.position.y = Math.max(this.camera.position.y, groundY + MIN_HEIGHT_ABOVE_GROUND);
 
-    const fov = BASE_FOV + MAX_EXTRA_FOV * Math.min(1, Math.max(0, speedRatio));
+    // Shake: a quick wobble on top of the follow position, fading out.
+    if (this.shake > 0.001) {
+      this.shakeTime += dt;
+      const s = this.shake;
+      this.camera.position.x += Math.sin(this.shakeTime * 71) * s;
+      this.camera.position.y += Math.sin(this.shakeTime * 53 + 1) * s * 0.6;
+      this.camera.position.z += Math.cos(this.shakeTime * 67) * s;
+      this.shake *= Math.exp(-SHAKE_DECAY * dt);
+    } else this.shake = 0;
+    this.fovKick *= Math.exp(-FOV_KICK_DECAY * dt);
+
+    const fov = BASE_FOV + MAX_EXTRA_FOV * Math.min(1, Math.max(0, speedRatio)) + this.fovKick;
     if (Math.abs(this.camera.fov - fov) > 0.01) {
       this.camera.fov += (fov - this.camera.fov) * (1 - Math.exp(-4 * dt));
       this.camera.updateProjectionMatrix();
     }
+  }
+
+  /** Adds camera shake (`amount` 0..1 = gentle..hard). Ignored with reduced motion. */
+  addShake(amount: number): void {
+    if (this.reducedMotion) return;
+    this.shake = Math.min(MAX_SHAKE, this.shake + amount * MAX_SHAKE);
+  }
+
+  /** Widens the FOV briefly when a boost starts. Ignored with reduced motion. */
+  kickFov(): void {
+    if (this.reducedMotion) return;
+    this.fovKick = FOV_KICK;
   }
 
   private place(kart: THREE.Object3D, heading: number, blend: number): void {

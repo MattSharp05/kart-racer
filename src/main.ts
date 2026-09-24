@@ -7,6 +7,7 @@ import { PlayerInput } from './input/playerInput';
 import { ChaseCamera, LineupCamera } from './render/camera';
 import { AiDebugView } from './render/aiDebug';
 import { BananaRenderer } from './render/bananas';
+import { Effects } from './render/effects';
 import { ShellRenderer } from './render/shells';
 import { ItemBoxRenderer } from './render/itemBoxes';
 import { KartRenderer } from './render/karts';
@@ -105,6 +106,10 @@ if (view === 'overview') overviewCamera(camera, track);
 const lineup = new LineupCamera(camera);
 const karts = new KartRenderer(scene);
 const chaseCamera = new ChaseCamera(camera);
+// Juice (MK-27). Shake and FOV kick respect reduced motion (OS setting or &reduced-motion=1).
+chaseCamera.reducedMotion =
+  params.reducedMotion || window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const effects = new Effects(scene, karts, chaseCamera);
 const itemBoxes = new ItemBoxRenderer(scene);
 const bananas = new BananaRenderer(scene);
 const aiDebug = params.aiDebug ? new AiDebugView(scene) : undefined;
@@ -122,6 +127,7 @@ function load(state: SimState, nextView: ScenarioView, follow = 0): void {
   window.clearTimeout(resultsTimer);
   game.reset(state);
   karts.reset();
+  effects.reset();
   view = nextView;
   followId = follow;
   hud.bestNote = '';
@@ -235,6 +241,7 @@ window.addEventListener('keydown', (e) => {
 
 game.onEvents((events, state) => {
   sound.onEvents(events, state, followId);
+  effects.onEvents(events, followId);
   hud.onEvents(events, state, performance.now());
   const finished = events.find((e) => e.type === 'finish' && e.kartId === 0);
   const player = state.karts[0];
@@ -269,8 +276,11 @@ function render(frameSeconds: number, snapCamera = false, draw = true): void {
     lineup.update(game.paused ? 0 : frameSeconds);
   } else if (followed && kart && view === 'chase') {
     const speedRatio = Math.abs(kart.speed) / tuning.topSpeed[game.state.engineClass];
-    chaseCamera.update(followed, speedRatio, frameSeconds, 0, snapCamera);
+    // Paused: the camera holds still (shake and FOV kick freeze too).
+    chaseCamera.update(followed, speedRatio, game.paused ? 0 : frameSeconds, 0, snapCamera);
   }
+  const followedSpeed = kart ? Math.abs(kart.speed) / tuning.topSpeed[game.state.engineClass] : 0;
+  effects.update(game.state, followId, followedSpeed, view);
   hud.update(game.state, performance.now(), menus.current !== 'none');
   sound.update(game.state, {
     menu: menus.current !== 'none' && menus.current !== 'paused',
@@ -314,6 +324,7 @@ installTestApi(
   () => ({
     calls: renderer.info.render.calls,
     triangles: renderer.info.render.triangles,
+    camera: { fov: camera.fov, shake: chaseCamera.shake, fovKick: chaseCamera.fovKick },
   }),
 );
 
