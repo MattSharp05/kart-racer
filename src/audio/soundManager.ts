@@ -16,6 +16,19 @@ interface EngineVoice {
   gain: GainNode;
 }
 
+/**
+ * Events iOS Safari accepts as a user gesture for starting audio. A touch going *down* is not one,
+ * which is why sound never started on iPhone when we listened for `pointerdown` (MK-26 QA round 2).
+ */
+export const AUDIO_GESTURES = ['pointerup', 'touchend', 'click', 'keydown'] as const;
+
+/** Calls `onGesture` for every audio gesture, in the capture phase so no handler can swallow it. */
+export function listenForAudioGestures(target: EventTarget, onGesture: () => void): void {
+  for (const type of AUDIO_GESTURES) {
+    target.addEventListener(type, onGesture, { capture: true, passive: true });
+  }
+}
+
 export interface AudioView {
   /** A menu screen is showing (menu music, no engines). */
   menu: boolean;
@@ -42,13 +55,7 @@ export class SoundManager {
     private readonly onMuteChange: () => void = () => {},
   ) {
     this.muted = readMuted(store);
-    const unlock = () => {
-      this.unlock();
-      window.removeEventListener('pointerdown', unlock);
-      window.removeEventListener('keydown', unlock);
-    };
-    window.addEventListener('pointerdown', unlock);
-    window.addEventListener('keydown', unlock);
+    listenForAudioGestures(window, () => this.onGesture());
     window.addEventListener('keydown', (e) => {
       if (e.code === 'KeyM' && !e.repeat) {
         this.toggleMute();
@@ -72,14 +79,30 @@ export class SoundManager {
     this.applyMute();
   }
 
+  /** Every qualifying gesture: start audio, or resume it if iOS left or put it back to sleep. */
+  private onGesture(): void {
+    this.unlock();
+    const ctx = this.synth?.ctx;
+    if (ctx && ctx.state !== 'running' && !this.suspended) void ctx.resume();
+  }
+
   private unlock(): void {
     if (this.synth || typeof AudioContext === 'undefined') return;
     try {
+      // iPhone: play through the ring/silent switch like a game, not like a ringtone.
+      const session = (navigator as Navigator & { audioSession?: { type: string } }).audioSession;
+      if (session) session.type = 'playback';
       this.synth = new Synth();
       this.music = new Music(this.synth);
       this.engines = Array.from({ length: 1 + AI_ENGINES }, () => this.engineVoice());
       this.applyMute();
-      void this.synth.ctx.resume();
+      // iOS only starts a context that plays something inside the gesture: a one-sample silence.
+      const ctx = this.synth.ctx;
+      const blip = ctx.createBufferSource();
+      blip.buffer = ctx.createBuffer(1, 1, ctx.sampleRate);
+      blip.connect(ctx.destination);
+      blip.start();
+      void ctx.resume();
     } catch {
       this.synth = undefined; // no audio on this device; the game still runs
     }

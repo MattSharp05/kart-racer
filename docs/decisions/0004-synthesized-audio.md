@@ -1,6 +1,6 @@
 # 0004 — Synthesized audio instead of sound files
 
-Status: Proposed (needs Matthew's OK) · 2026-09-24
+Status: Accepted (Matthew, QA batch 4) · 2026-09-24
 
 ## Context
 
