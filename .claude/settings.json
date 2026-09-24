@@ -1,7 +1,10 @@
 {
   "extraKnownMarketplaces": {
     "claude-workflow": {
-      "source": { "source": "github", "repo": "MattSharp05/claude-workflow" }
+      "source": {
+        "source": "github",
+        "repo": "MattSharp05/claude-workflow"
+      }
     }
   },
   "enabledPlugins": {
@@ -20,7 +23,9 @@
       "Bash(gh run view:*)",
       "Bash(gh run list:*)",
       "Bash(gh run watch:*)",
-      "mcp__Notion"
+      "mcp__Notion",
+      "mcp__github",
+      "mcp__Claude_Code_Remote"
     ]
   }
 }
