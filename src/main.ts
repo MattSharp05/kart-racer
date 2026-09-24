@@ -22,6 +22,7 @@ import { tuning, type EngineClass } from './sim/tuning';
 import { NEUTRAL_INPUT, type InputFrame, type ItemId, type SimState } from './sim/types';
 import { showErrorBanner } from './ui/errorBanner';
 import { createPauseButton, Menus } from './ui/menus';
+import { SoundManager } from './audio/soundManager';
 import { Hud } from './ui/hud/hud';
 import { RotatePrompt } from './ui/rotatePrompt';
 
@@ -108,6 +109,8 @@ const bananas = new BananaRenderer(scene);
 const shells = new ShellRenderer(scene);
 const hud = new Hud();
 const menus = new Menus();
+const sound = new SoundManager(store, () => menus.refreshSound());
+menus.sound = { isMuted: () => sound.isMuted, toggle: () => sound.toggleMute() };
 let resultsTimer: number | undefined;
 
 // ---- Screens -------------------------------------------------------------------------------
@@ -229,6 +232,7 @@ window.addEventListener('keydown', (e) => {
 });
 
 game.onEvents((events, state) => {
+  sound.onEvents(events, state, followId);
   hud.onEvents(events, state, performance.now());
   const finished = events.find((e) => e.type === 'finish' && e.kartId === 0);
   const player = state.karts[0];
@@ -265,6 +269,11 @@ function render(frameSeconds: number, snapCamera = false, draw = true): void {
     chaseCamera.update(followed, speedRatio, frameSeconds, 0, snapCamera);
   }
   hud.update(game.state, performance.now(), menus.current !== 'none');
+  sound.update(game.state, {
+    menu: menus.current !== 'none' && menus.current !== 'paused',
+    paused: game.paused,
+    followId,
+  });
   controls.touch.setActive(menus.current === 'none' && !rotatePrompt.shown);
   if (draw) renderer.render(scene, camera);
 }

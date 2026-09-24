@@ -116,3 +116,14 @@ export function readPrefs(store: KeyValueStore): Prefs {
 export function writePrefs(store: KeyValueStore, prefs: Prefs): void {
   store.set(PREFS_KEY, JSON.stringify(prefs));
 }
+
+const MUTED_KEY = 'kart-racer:muted';
+
+/** Sound on/off (MK-26). */
+export function readMuted(store: KeyValueStore): boolean {
+  return store.get(MUTED_KEY) === '1';
+}
+
+export function writeMuted(store: KeyValueStore, muted: boolean): void {
+  store.set(MUTED_KEY, muted ? '1' : '0');
+}
