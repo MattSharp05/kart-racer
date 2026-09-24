@@ -219,6 +219,33 @@ export const tuning = {
     rubberBandBoost: 0.08,
     rubberBandBrake: 0.1,
     rubberBandFinalMetres: 200,
+    // Items (MK-21).
+    /** Thinking time before using a new item, s (shorter for aggressive drivers). */
+    itemDelayMin: 0.5,
+    itemDelayMax: 3,
+    /** Star / Lightning are used this soon after getting them, s. */
+    powerDelayMin: 0.5,
+    powerDelayMax: 2,
+    /** Mushroom: use when the line is this straight for the next `straightLookAhead` m. */
+    straightCurvature: 0.006,
+    straightLookAhead: 40,
+    /** Banana: drop when a kart is within this many metres behind. */
+    bananaDropRange: 15,
+    /** Green shell: fire at a kart within this range and angle ahead. */
+    greenRange: 25,
+    greenAngle: (10 * Math.PI) / 180,
+    /** …or this far to the side when close, m. */
+    greenLateral: 1.5,
+    /** Use a held item anyway after this long, s (so nothing is hoarded forever). */
+    itemGiveUp: 12,
+    /** Drift towards an item box within this distance ahead when the slot is empty, m. */
+    boxSeekRange: 35,
+    /** Look for bananas this far ahead to dodge, m, and pass them this far to the side. */
+    dodgeRange: 20,
+    dodgeOffset: 2.6,
+    /** Chance of spotting a banana = clamp((skill − base) × gain): ~27% at 0.86, 90% at 1.0. */
+    dodgeSkillBase: 0.8,
+    dodgeSkillGain: 4.5,
   },
   // --- Race (MK-11, MK-12) ---
   raceLaps: 3,

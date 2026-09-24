@@ -1,4 +1,5 @@
 import { KART_IDS, type KartId } from '../sim/data/karts';
+import { lineOffsetAt } from '../sim/ai/racingLine';
 import { sunnyCircuit } from '../sim/data/tracks/sunnyCircuit';
 import { forwardFromHeading } from '../sim/math';
 import { createSimState } from '../sim/state';
@@ -249,6 +250,62 @@ export const raceScenarios: Scenario[] = [
       [1, 2, 3].forEach((id, i) =>
         placeOnLap(state, id, 0.345 - i * (10 / sunny.length), 1, (i - 1) * 2.5, speed),
       );
+      state.positions = [1, 2, 3, 0];
+      return { state, follow: 1 };
+    },
+  },
+  {
+    name: 'ai-holding-green',
+    group: 'Race',
+    description:
+      'An AI holding a Green shell, lined up right behind you on the straight. It fires as soon as it has thought about it (MK-21).',
+    defaultSeed: 1,
+    setup: (seed) => {
+      const state = racingSince(sunnyRace(seed, { karts: 2, ai: true }), 20);
+      state.race.rubberBand = false;
+      const speed = tuning.topSpeed[100] * 0.7;
+      // Both on the racing line, the AI 20 m back and about to fire.
+      const line = sunnyCircuit.aiLine ?? [];
+      const tYou = 0.03;
+      const tAi = tYou - 20 / sunny.length;
+      placeOnLap(state, 0, tYou, 1, lineOffsetAt(line, tYou), speed);
+      placeOnLap(state, 1, tAi, 1, lineOffsetAt(line, tAi), speed);
+      const ai = state.karts[1];
+      if (ai?.ai) {
+        ai.item.held = 'green';
+        ai.ai.lineOffset = 0;
+        ai.ai.aggression = 1;
+        ai.ai.itemDelay = 0.4;
+      }
+      state.positions = [0, 1];
+      return { state, follow: 1 };
+    },
+  },
+  {
+    name: 'ai-banana-dodge',
+    group: 'Race',
+    description:
+      'A banana on the racing line ahead of 3 AI on the main straight; skilled drivers steer round it (MK-21).',
+    defaultSeed: 1,
+    setup: (seed) => {
+      const state = racingSince(sunnyRace(seed, { karts: 4, ai: true }), 20);
+      state.race.rubberBand = false;
+      const speed = tuning.topSpeed[100] * 0.8;
+      placeOnLap(state, 0, 0.5, 1, 0, 0);
+      [1, 2, 3].forEach((id, i) =>
+        placeOnLap(state, id, 0.02 - i * (9 / sunny.length), 1, 0, speed),
+      );
+      const t = 0.02 + 40 / sunny.length;
+      const position = sunny.pointAt(t, lineOffsetAt(sunnyCircuit.aiLine ?? [], t));
+      state.entities.push({
+        id: 1000,
+        kind: 'banana',
+        position,
+        from: position,
+        flightTimer: 0,
+        ownerId: -1,
+        ownerImmune: 0,
+      });
       state.positions = [1, 2, 3, 0];
       return { state, follow: 1 };
     },
