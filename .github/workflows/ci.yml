@@ -30,10 +30,43 @@ jobs:
       - run: pnpm build
       - run: pnpm check:bundle
 
-  e2e:
-    name: E2E (all Playwright projects)
-    needs: checks
+  # Does this change touch anything the browser tests exercise? Docs/config-only PRs skip e2e and
+  # visual (a settings-file PR once spent 20 min on e2e). Pushes to main always run everything.
+  changes:
+    name: What changed
     runs-on: ubuntu-latest
+    outputs:
+      app: ${{ steps.diff.outputs.app }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: diff
+        run: |
+          if [ "${{ github.event_name }}" != "pull_request" ]; then
+            echo "app=true" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          changed=$(git diff --name-only "origin/${{ github.base_ref }}...HEAD")
+          echo "$changed"
+          # Anything outside docs, markdown and Claude settings counts as an app change.
+          app=$(echo "$changed" | grep -vE '^(docs/|\.claude/)|\.md$' | head -1)
+          echo "app=$([ -n "$app" ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+
+  e2e:
+    # One job per Playwright project, in parallel (they used to run one after another: ~20 min).
+    name: E2E (${{ matrix.project }})
+    needs: [checks, changes]
+    if: needs.changes.outputs.app == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { project: desktop-chrome, browser: chromium }
+          - { project: pixel-landscape, browser: chromium }
+          - { project: desktop-webkit, browser: webkit }
+          - { project: iphone-landscape, browser: webkit }
+          - { project: ipad, browser: webkit }
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -42,20 +75,21 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm exec playwright install --with-deps chromium webkit
-      - run: pnpm test:e2e
+      - run: pnpm exec playwright install --with-deps ${{ matrix.browser }}
+      - run: pnpm test:e2e --project=${{ matrix.project }}
         env:
           CI: 'true'
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
-          name: playwright-report
+          name: playwright-report-${{ matrix.project }}
           path: playwright-report
           retention-days: 7
 
   visual:
     name: Visual (screenshot baselines)
-    needs: checks
+    needs: [checks, changes]
+    if: needs.changes.outputs.app == 'true'
     runs-on: ubuntu-latest
     # Same image every time so screenshots are pixel-comparable (docs/TDD.md → Testing).
     container: mcr.microsoft.com/playwright:v1.63.0-noble
