@@ -59,15 +59,20 @@ test.describe('how to play (MK-32)', () => {
     const touch = await page.evaluate(() => document.body.classList.contains('touch'));
     await expect(page.locator('.how-to-play-controls')).toHaveClass(touch ? /touch/ : /keyboard/);
     // Poll: on slow CI browsers the layout can still be settling (fonts) on the first check.
+    const measure = () =>
+      card.evaluate((el) => {
+        const r = el.getBoundingClientRect();
+        return {
+          fits:
+            el.scrollHeight <= el.clientHeight + 1 && r.bottom <= window.innerHeight && r.top >= 0,
+          detail: `top ${r.top} bottom ${r.bottom} scroll ${el.scrollHeight}/${el.clientHeight} viewport ${window.innerHeight}`,
+        };
+      });
     await expect
-      .poll(() =>
-        card.evaluate(
-          (el) =>
-            el.scrollHeight <= el.clientHeight + 1 &&
-            el.getBoundingClientRect().bottom <= window.innerHeight &&
-            el.getBoundingClientRect().top >= 0,
-        ),
-      )
-      .toBe(true);
+      .poll(async () => (await measure()).fits)
+      .toBe(true)
+      .catch(async () => {
+        throw new Error(`How to play doesn't fit: ${(await measure()).detail}`);
+      });
   });
 });
