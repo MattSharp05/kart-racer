@@ -77,7 +77,7 @@ docs/                TDD.md, decisions/, CREDITS.md
 - **Mobile:** layout fits viewport, no overflow/scroll, touch controls hit targets ≥ 44 px, rotate prompt in portrait.
 - **Visual:** Playwright `toHaveScreenshot` on paused scenarios (deterministic frame), chromium only, run in the official Playwright Docker image in CI; baselines generated/updated in CI (`pnpm test:visual:update` workflow dispatch). Tolerance `maxDiffPixelRatio: 0.02`. Screenshots attached to tickets for QA.
 - **Perf:** `sim.step` for 8 karts < 1 ms average (unit bench, node); render budget < 150 draw calls and < 150k triangles on the race scenario (asserted via `renderer.info` in e2e). Real-device smoothness is [Manual].
-- **CI (GitHub Actions, blocks merge):** install → lint → typecheck → unit → build → e2e (all projects) → visual. Playwright report uploaded as artifact.
+- **CI (GitHub Actions, blocks merge):** install → lint → typecheck → unit → perf → build → bundle budget, then in parallel: e2e as one job per Playwright project (≈5 min instead of ≈20 min serially) and visual. PRs that only touch docs, `*.md` or `.claude/` skip e2e and visual; pushes to main always run everything. Playwright report uploaded per project as an artifact.
 
 ## Environments & deploy
 
