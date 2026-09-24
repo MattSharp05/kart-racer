@@ -8,6 +8,7 @@ describe('parseLaunchParams', () => {
       seed: 42,
       paused: true,
       tune: false,
+      reducedMotion: false,
       aiDebug: false,
       perf: false,
     });
@@ -17,6 +18,7 @@ describe('parseLaunchParams', () => {
     expect(parseLaunchParams('')).toEqual({
       paused: false,
       tune: false,
+      reducedMotion: false,
       aiDebug: false,
       perf: false,
     });
@@ -26,6 +28,7 @@ describe('parseLaunchParams', () => {
     expect(parseLaunchParams('?seed=abc')).toEqual({
       paused: false,
       tune: false,
+      reducedMotion: false,
       aiDebug: false,
       perf: false,
     });
