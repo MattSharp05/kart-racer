@@ -7,6 +7,12 @@ body {
   overscroll-behavior: none;
 }
 
+/* A class that sets `display` would otherwise beat the `hidden` attribute and leave an invisible
+   layer on top of the game (MK-23 QA round 2: an emptied menu overlay swallowed every tap). */
+[hidden] {
+  display: none !important;
+}
+
 #game {
   display: block;
   width: 100vw;

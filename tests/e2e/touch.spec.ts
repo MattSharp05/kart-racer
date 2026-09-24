@@ -53,6 +53,30 @@ test.describe('touch controls', () => {
     }
   });
 
+  test('phones: after the menus, a real tap reaches the touch controls (QA round 2)', async ({
+    page,
+  }, info) => {
+    test.skip(!isPhone(info.project.name));
+    await page.goto('/');
+    await page.waitForFunction(() => window.__game?.ready === true);
+    await page.locator('.how-to-play button').click();
+    await page.locator('.menu-title button.primary').click();
+    await page.locator('.menu-kartSelect button.primary').click();
+    await page.locator('.menu-ccSelect button', { hasText: '100' }).click();
+    await expect(page.locator('.touch-controls')).toBeVisible();
+    // Hit-test the centre of each control the way a finger would: nothing (such as an emptied
+    // menu overlay) may sit on top of it.
+    const blocked = await page.evaluate(() =>
+      ['.touch-steer', '.touch-drift', '.touch-item', '.touch-brake'].flatMap((sel) => {
+        const el = document.querySelector(sel)!;
+        const r = el.getBoundingClientRect();
+        const top = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+        return top && el.contains(top) ? [] : [`${sel} is covered by ${top?.className}`];
+      }),
+    );
+    expect(blocked).toEqual([]);
+  });
+
   test('phones in portrait: rotate prompt shows and the game pauses', async ({ page }, info) => {
     test.skip(!isPhone(info.project.name));
     await loadScenario(page, 'sunny-start');
