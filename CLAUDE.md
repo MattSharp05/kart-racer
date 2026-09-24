@@ -16,7 +16,7 @@ Follows the `dev-workflow` skill (ticket-driven: Notion → branch → PR → QA
 
 ## Stack
 
-TypeScript (strict) · Vite · Three.js · in-house arcade physics (no physics engine) · plain DOM/CSS UI · Howler.js audio · pnpm · Vitest · Playwright · ESLint + Prettier · GitHub Actions · Vercel. Details and reasons: [docs/TDD.md](docs/TDD.md); decisions: [docs/decisions/](docs/decisions/).
+TypeScript (strict) · Vite · Three.js · in-house arcade physics (no physics engine) · plain DOM/CSS UI · Web Audio (synthesized) · pnpm · Vitest · Playwright · ESLint + Prettier · GitHub Actions · Vercel. Details and reasons: [docs/TDD.md](docs/TDD.md); decisions: [docs/decisions/](docs/decisions/).
 
 ## Commands
 
@@ -34,7 +34,7 @@ _Created by MK-1/MK-3/MK-4 — keep this list current._
 ## Structure
 
 - `src/sim/` — pure deterministic simulation (60 Hz fixed step, seeded RNG, plain-JSON state). Tunables in `sim/tuning.ts`, data in `sim/data/`.
-- `src/render/` Three.js · `src/input/` keyboard/touch → `InputFrame` · `src/ui/` DOM HUD/menus · `src/audio/` Howler
+- `src/render/` Three.js · `src/input/` keyboard/touch → `InputFrame` · `src/ui/` DOM HUD/menus · `src/audio/` Web Audio synth
 - `src/game/` loop, app state machine, `window.__game` test API
 - `src/scenarios/` scenario registry · `dev.html` + `src/dev/` = `/dev` index
 - `tests/e2e/` Playwright specs · `docs/` TDD, ADRs, CREDITS
