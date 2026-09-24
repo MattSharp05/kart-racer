@@ -29,6 +29,7 @@ export class Hud {
   private readonly centre = div('hud-centre');
   private readonly wrongWay = div('hud-wrong-way');
   private readonly minimap = new Minimap();
+  private readonly screenFlash = div('hud-flash');
   private centreUntil = 0;
   private readonly shown = new Map<HTMLElement, string>();
   bestNote = '';
@@ -44,6 +45,7 @@ export class Hud {
       this.centre,
       this.wrongWay,
       this.minimap.root,
+      this.screenFlash,
     );
     document.body.append(this.root);
   }
@@ -59,7 +61,15 @@ export class Hud {
       if (event.type === 'lap' && event.kartId === 0 && event.lap === state.race.laps) {
         this.flash('FINAL LAP!', now, 1500);
       }
+      if (event.type === 'lightning') this.lightningFlash();
     }
+  }
+
+  /** A white screen flash when anyone uses Lightning (MK-20). */
+  private lightningFlash(): void {
+    this.screenFlash.classList.remove('on');
+    void this.screenFlash.offsetWidth; // restart the animation
+    this.screenFlash.classList.add('on');
   }
 
   /** Sets text/HTML only when it changed (no layout thrash at render rate). */

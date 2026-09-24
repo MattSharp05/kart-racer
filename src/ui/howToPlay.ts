@@ -16,11 +16,11 @@ const TOUCH: [string, string][] = [
   ['Drift', 'Hold through a corner, let go for a boost'],
   ['Item', 'Use the item you picked up'],
   ['Brake', 'Brake / reverse'],
-  ['❚❚', 'Pause'],
+  ['Pause button', 'Pause'],
 ];
 
 const TIPS = [
-  'Drive through ❓ boxes to get an item.',
+  'Drive through the ? boxes to get an item.',
   'Longer drifts: blue → orange → purple sparks = a bigger boost.',
   'Press accelerate just as the "1" disappears for a rocket start.',
 ];

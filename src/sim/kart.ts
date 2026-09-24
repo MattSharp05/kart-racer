@@ -88,7 +88,12 @@ export function updateKart(
   events: SimEvent[],
 ): KartState {
   const physics = kartPhysics(kart.kartType, engineClass);
-  const { topSpeed } = physics;
+  // Star: faster (MK-20). Shrunk by lightning: slower. AI rubber-banding (MK-15) scales it too.
+  const topSpeed =
+    physics.topSpeed *
+    (kart.starTimer > 0 ? tuning.starSpeed : 1) *
+    (kart.shrinkTimer > 0 ? tuning.shrinkSpeed : 1) *
+    (kart.ai?.speedScale ?? 1);
   const kartAccel = accelRate(physics.timeTo95);
   let forward = forwardFromHeading(kart.heading);
   const forwardSpeed = dot(kart.velocity, forward);
@@ -125,7 +130,8 @@ export function updateKart(
   const surface = kart.grounded ? groundAt(track, kart.position).surface : 'road';
   const grassSpeed =
     surface === 'offroad' ? tuning.offroadSpeed : surface === 'rough' ? tuning.roughSpeed : 0;
-  const onGrass = grassSpeed > 0;
+  // A star ignores the grass penalty, like a boost.
+  const onGrass = grassSpeed > 0 && kart.starTimer === 0;
   const newSpeed = boosting
     ? updateForwardSpeed(
         forwardSpeed,
