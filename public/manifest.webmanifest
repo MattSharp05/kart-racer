@@ -1,0 +1,9 @@
+{
+  "name": "Kart Racer",
+  "short_name": "Kart Racer",
+  "start_url": "/",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#87ceeb",
+  "theme_color": "#87ceeb"
+}
