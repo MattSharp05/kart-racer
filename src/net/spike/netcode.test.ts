@@ -78,6 +78,7 @@ describe('spike protocol', () => {
     for (let i = 0; i < 400; i += 1) {
       state = step(state, [driverInput(i, 0), driverInput(i, 1)]).state;
     }
+    state.karts[0]!.race.lapTimes = [31.234, 30.5];
     const packet = encodeSnapshot(state, 7, [{ kartId: 0, input: NEUTRAL_INPUT }]);
     const msg = decodeMessage(packet);
     if (msg.type !== MSG.snapshot) throw new Error('not a snapshot');
@@ -98,6 +99,7 @@ describe('spike protocol', () => {
       expect(got?.race.nextCheckpoint).toBe(kart.race.nextCheckpoint);
       expect(got?.drift.direction).toBe(kart.drift.direction);
       expect(got?.item.held).toBe(kart.item.held);
+      expect(got?.race.lapTimes).toEqual(kart.race.lapTimes);
     });
     // 8 karts + item boxes: the whole snapshot fits comfortably in one packet.
     expect(packet.length).toBeLessThan(600);
@@ -110,7 +112,7 @@ describe('spike protocol', () => {
 });
 
 describe('spike netcode over a loopback', () => {
-  it('matches the host exactly on a perfect network once inputs stop changing', () => {
+  it('keeps the prediction error at quantization level on a perfect network', () => {
     const { host, client } = race({ lagMs: 0, jitterMs: 0, loss: 0 }, 600);
     expect(client.started).toBe(true);
     const mine = client.state?.karts[CLIENT_KART];
@@ -139,6 +141,24 @@ describe('spike netcode over a loopback', () => {
     const lead = (client.state?.tick ?? 0) - host.state.tick;
     expect(lead).toBeGreaterThan(0);
     expect(lead).toBeLessThan(client.leadTicks() + 6);
+  });
+
+  it("starts even when the host's first hello is lost", () => {
+    let calls = 0;
+    const [hostEnd, clientEnd] = createLoopbackPair({
+      conditions: { lagMs: 0, jitterMs: 0, loss: 0.5 },
+      // Lose only the very first packet (the hello).
+      random: () => (calls++ === 0 ? 0 : 0.99),
+      schedule: (fn) => fn(),
+    });
+    const host = new NetHost(spikeRace(SEED), SEED);
+    const client = new NetClient(clientEnd, () => 0);
+    host.addClient(hostEnd, CLIENT_KART);
+    for (let i = 0; i < 60; i += 1) {
+      host.tick(NEUTRAL_INPUT);
+      client.tick(NEUTRAL_INPUT);
+    }
+    expect(client.started).toBe(true);
   });
 
   it('predicts the host kart from its last known input', () => {

@@ -21,6 +21,8 @@ import {
 export const SNAPSHOT_EVERY_TICKS = 3;
 /** Client runs this many ticks ahead of its RTT estimate, so inputs reach the host in time. */
 export const INPUT_BUFFER_TICKS = 2;
+/** Host repeats its hello this often until the client answers, ticks (0.25 s). */
+const HELLO_REPEAT_TICKS = 15;
 /** Client pings the host this often, ticks (0.5 s). */
 const PING_EVERY_TICKS = 30;
 /** RTT assumed until the first pong, ms. */
@@ -141,6 +143,10 @@ export class NetHost {
     this.lastLocalInput = quantizeInput(localInput);
     inputs[this.localKartId] = this.lastLocalInput;
     for (const remote of this.remotes) {
+      // The hello can be lost like any packet: repeat it until the client's inputs arrive.
+      if (remote.newestTick === 0 && nextTick % HELLO_REPEAT_TICKS === 0) {
+        this.send(remote, encodeHello(this.seed, remote.kartId));
+      }
       const input = remote.inputs.get(nextTick);
       if (input) remote.lastInput = input;
       else if (remote.newestTick > 0) remote.stats.lateInputs += 1;
@@ -266,6 +272,7 @@ export class NetClient {
     this.stats.packetsReceived += 1;
     const msg = decodeMessage(packet);
     if (msg.type === MSG.hello) {
+      if (this.initial) return; // A repeat.
       this.kartId = msg.kartId;
       this.initial = spikeRace(msg.seed);
     } else if (msg.type === MSG.pong) {

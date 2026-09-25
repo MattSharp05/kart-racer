@@ -251,6 +251,9 @@ function writeKart(w: ByteWriter, k: KartState): void {
     .u8(race.nextCheckpoint)
     .u16((race.lastT + 1) * LAP_T);
   w.u16((k.lastSafeT + 1) * LAP_T).u32(race.lapStartTick);
+  // Lap times too: otherwise a client that predicted a line crossing records the lap again on replay.
+  w.u8(race.lapTimes.length);
+  for (const time of race.lapTimes) w.u32(Math.round(time * MS));
   if (race.finishTick !== undefined) w.u32(race.finishTick);
   if (race.throttleSince !== undefined) w.u32(race.throttleSince);
   w.u8(k.item.held === null ? 0 : ITEM_ORDER.indexOf(k.item.held) + 1);
@@ -288,6 +291,7 @@ function readKart(r: ByteReader, k: KartState): void {
   k.race.lastT = r.u16() / LAP_T - 1;
   k.lastSafeT = r.u16() / LAP_T - 1;
   k.race.lapStartTick = r.u32();
+  k.race.lapTimes = Array.from({ length: r.u8() }, () => r.u32() / MS);
   if (flags2 & 8) k.race.finishTick = r.u32();
   else delete k.race.finishTick;
   if (flags2 & 16) k.race.throttleSince = r.u32();
