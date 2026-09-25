@@ -49,10 +49,12 @@ export function beforeMovement(
       resolved[kart.id] = { ...NEUTRAL_INPUT };
     } else if (kart.race.finishTick !== undefined && geometry) {
       resolved[kart.id] = autopilotInput(kart, geometry, 0.8);
-    } else if (kart.ai && (kart.respawnTimer > 0 || kart.spinTimer > 0)) {
+    } else if (kart.controller !== 'ai' || !kart.ai) {
+      // Driven by a person (local or remote): their input as given.
+    } else if (kart.respawnTimer > 0 || kart.spinTimer > 0) {
       // Being carried by the pickup drone or spinning out: not driving, so not "stuck" either.
       kart.ai.stuckTime = 0;
-    } else if (kart.ai && geometry && track.kind === 'spline') {
+    } else if (geometry && track.kind === 'spline') {
       const line = track.aiLine ?? [];
       const racing = state.phase === 'racing';
       kart.ai.speedScale = rubberBandScale(kart, state, geometry);
@@ -88,7 +90,10 @@ function startRace(state: SimState, events: SimEvent[]): void {
   }
 }
 
-/** Marks karts that just completed the final lap as finished; the player finishing ends the race. */
+/**
+ * Marks karts that just completed the final lap as finished. The race ends once every kart driven
+ * by a person (`local` or `remote`) has finished; the AI finish in their own time (MK-38).
+ */
 export function afterRace(state: SimState, events: SimEvent[]): void {
   if (state.phase !== 'racing' && state.phase !== 'finished') return;
   for (const kart of state.karts) {
@@ -101,7 +106,10 @@ export function afterRace(state: SimState, events: SimEvent[]): void {
   for (const event of events) {
     if (event.type === 'finish') event.position = positionOf(state, event.kartId);
   }
-  if (state.phase === 'racing' && state.karts[0]?.race.finishTick !== undefined) {
+  const humans = state.karts.filter((kart) => kart.controller !== 'ai');
+  const allHumansDone =
+    humans.length > 0 && humans.every((kart) => kart.race.finishTick !== undefined);
+  if (state.phase === 'racing' && allHumansDone) {
     state.phase = 'finished';
     events.push({ type: 'phaseChanged', phase: 'finished' });
   }

@@ -21,12 +21,22 @@ export interface Launch {
   view?: ScenarioView;
   follow?: number;
   screen?: MenuScreen;
+  /** The kart this device drives (MK-38). */
+  localKartId: number;
+}
+
+/** `localKartId` when this device drives no kart (spectating). */
+export const NO_LOCAL_KART = -1;
+
+/** The kart this device drives in `state`: the first `local` one. */
+export function localKartOf(state: SimState): number {
+  return state.karts.find((kart) => kart.controller === 'local')?.id ?? NO_LOCAL_KART;
 }
 
 /** Resolves the starting state from the URL (`?scenario=`, `&seed=`, `&item=`, `&kart=`). */
 export function resolveLaunch(params: LaunchParams): Launch {
   const launch = initialState(params);
-  const player = launch.state.karts[0];
+  const player = launch.state.karts[launch.localKartId];
   if (params.item) {
     if (player && ITEM_IDS.includes(params.item)) player.item.held = params.item as ItemId;
     else showErrorBanner(`Unknown item "${params.item}". Valid items:`, ITEM_IDS);
@@ -43,11 +53,13 @@ function initialState(params: LaunchParams): Launch {
     const scenario = scenarios.get(params.scenario);
     if (scenario) {
       const setup = scenario.setup(params.seed ?? scenario.defaultSeed);
+      const localKartId = localKartOf(setup.state);
       return {
         state: setup.state,
         scenario: scenario.name,
         view: setup.view ?? 'chase',
-        follow: setup.follow ?? 0,
+        follow: setup.follow ?? localKartId,
+        localKartId,
         ...(setup.screen ? { screen: setup.screen } : {}),
       };
     }
@@ -56,7 +68,8 @@ function initialState(params: LaunchParams): Launch {
       scenarios.list().map((s) => s.name),
     );
   }
-  return { state: attractMode(params.seed ?? DEFAULT_SEED), screen: 'title' };
+  const state = attractMode(params.seed ?? DEFAULT_SEED);
+  return { state, screen: 'title', localKartId: localKartOf(state) };
 }
 
 /** A local race against the AI. */
@@ -68,23 +81,35 @@ export interface RaceConfig {
 
 /**
  * A race session (MK-35): the Game plus the local player's input wiring. The local player drives
- * kart 0. v2 adds online host/client sessions here.
+ * kart `localKartId` (MK-38), the first `local` kart of the loaded state. v2 adds online
+ * host/client sessions here.
  */
 export class RaceSession {
   readonly game: Game;
   readonly controls = new PlayerInput();
   /** The local player's input from the last tick (kart poses read it). */
   playerInput: InputFrame = NEUTRAL_INPUT;
+  /** The kart this device drives: camera, HUD, sound, results and controls all follow it. */
+  localKartId: number;
 
   constructor(initial: SimState) {
+    this.localKartId = localKartOf(initial);
     this.game = new Game(initial, () => {
       this.playerInput = this.controls.read();
-      return [this.playerInput];
+      return this.inputs();
     });
+  }
+
+  /** Live inputs indexed by kart id: the local controls on the local kart, nothing for the rest. */
+  inputs(): InputFrame[] {
+    const inputs: InputFrame[] = [];
+    if (this.localKartId !== NO_LOCAL_KART) inputs[this.localKartId] = this.playerInput;
+    return inputs;
   }
 
   /** Swaps in a new state (menu background, race). The caller resumes the sim. */
   load(state: SimState): void {
+    this.localKartId = localKartOf(state);
     this.game.reset(state);
   }
 

@@ -37,8 +37,9 @@ export interface FrameStats {
 export interface WorldOptions {
   track: TrackDef;
   view: ScenarioView;
+  /** Kart the camera and sound follow: the local player's, unless spectating another. */
   follow: number;
-  /** Live player inputs, for steering-wheel/lean poses. */
+  /** Live player inputs indexed by kart id, for steering-wheel/lean poses. */
   playerInputs: () => InputFrame[];
   reducedMotion: boolean;
   aiDebug: boolean;
@@ -104,8 +105,8 @@ export class World {
     });
   }
 
-  /** A new state was loaded: rebuild the karts and switch camera. */
-  reset(view: ScenarioView, follow = 0): void {
+  /** A new state was loaded: rebuild the karts and switch camera to follow kart `follow`. */
+  reset(view: ScenarioView, follow: number): void {
     this.karts.reset();
     this.effects.reset();
     this.view = view;

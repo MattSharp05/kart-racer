@@ -4,10 +4,13 @@ import { seedRng } from './rng';
 import type { EngineClass } from './tuning';
 import { getTrack, trackGeometry } from './track';
 import { DT, tuning } from './tuning';
-import type { KartState, RacePhase, SimState } from './types';
+import type { KartController, KartState, RacePhase, SimState } from './types';
 
 export interface KartSpawn {
   kartType?: KartId;
+  /** Default `local`. */
+  controller?: KartController;
+  name?: string;
   position?: KartState['position'];
   heading?: number;
   /** Initial forward speed, m/s. */
@@ -22,6 +25,8 @@ export interface InitialStateOptions {
   trackId?: string;
   engineClass?: EngineClass;
   karts?: KartSpawn[];
+  /** Item boxes on tracks that have them (default true). */
+  itemsOn?: boolean;
 }
 
 /** Builds a fresh SimState. With no karts given, places one kart at the origin facing −Z. */
@@ -32,6 +37,7 @@ export function createSimState({
   trackId = 'test-pad',
   engineClass = 100,
   karts = [{}],
+  itemsOn = true,
 }: InitialStateOptions): SimState {
   return {
     tick: 0,
@@ -45,6 +51,8 @@ export function createSimState({
       return {
         id,
         kartType: spawn.kartType ?? 'maple',
+        controller: spawn.controller ?? 'local',
+        ...(spawn.name !== undefined ? { name: spawn.name } : {}),
         position: spawn.position ?? vec3(),
         velocity: scale(forwardFromHeading(heading), speed),
         heading,
@@ -76,7 +84,7 @@ export function createSimState({
         shrinkTimer: 0,
       };
     }),
-    entities: itemBoxesFor(trackId),
+    entities: itemsOn ? itemBoxesFor(trackId) : [],
     positions: karts.map((_, id) => id),
     race: {
       laps,

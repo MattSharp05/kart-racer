@@ -2,14 +2,15 @@ import { SoundManager } from '../audio/soundManager';
 import type { World } from '../render/world';
 import { attractMode, sunnyLineup } from '../scenarios/menus';
 import type { ScenarioView } from '../scenarios/registry';
-import { isKartId, KART_IDS, KARTS, type KartId } from '../sim/data/karts';
-import { raceResults, raceTime } from '../sim/raceFlow';
+import { isKartId, KART_IDS, type KartId } from '../sim/data/karts';
+import { raceTime } from '../sim/raceFlow';
 import type { EngineClass } from '../sim/tuning';
 import type { SimEvent, SimState } from '../sim/types';
 import { HowToPlay } from '../ui/howToPlay';
 import { Hud } from '../ui/hud/hud';
 import { createPauseButton, Menus } from '../ui/menus';
 import { RotatePrompt } from '../ui/rotatePrompt';
+import { resultLines } from './results';
 import { DEFAULT_SEED, type Launch, type RaceSession } from './session';
 import {
   hasSeenHowToPlay,
@@ -80,7 +81,7 @@ export class Flow {
 
     world.onUpdate = () => {
       const menu = this.menus.current;
-      this.hud.update(game.state, performance.now(), menu !== 'none');
+      this.hud.update(game.state, session.localKartId, performance.now(), menu !== 'none');
       this.sound.update(game.state, {
         menu: menu !== 'none' && menu !== 'paused',
         paused: game.paused,
@@ -98,7 +99,7 @@ export class Flow {
       case 'title':
       case 'howToPlay':
         this.menus.showTitle(this.showKartSelect, this.openHowToPlay);
-        game.setAutopilot(0, true);
+        game.setAutopilot(launch.localKartId, true);
         // First visit (plain URL, nothing stored): show the controls guide straight away.
         if (launch.screen === 'howToPlay' || (!launch.scenario && !hasSeenHowToPlay(this.store))) {
           this.openHowToPlay();
@@ -133,7 +134,7 @@ export class Flow {
     this.session.stop();
     this.load(attractMode(DEFAULT_SEED + this.raceCount), 'chase');
     // An AI race runs behind the title; the "player" kart drives itself too.
-    this.session.game.setAutopilot(0, true);
+    this.session.game.setAutopilot(this.session.localKartId, true);
     this.session.game.resume();
     this.pauseButton.hidden = true;
     this.menus.showTitle(this.showKartSelect, this.openHowToPlay);
@@ -174,7 +175,7 @@ export class Flow {
       engineClass: this.chosenCc,
       playerKart: this.chosenKart,
     });
-    this.world.reset('chase');
+    this.world.reset('chase', this.session.localKartId);
     this.session.game.resume();
     this.pauseButton.hidden = false;
   };
@@ -197,16 +198,7 @@ export class Flow {
   };
 
   private readonly showResults = (): void => {
-    const state = this.session.game.state;
-    const rows = raceResults(state).map((row) => {
-      const kart = state.karts[row.kartId];
-      return {
-        position: row.position,
-        name: kart ? KARTS[kart.kartType].name : '?',
-        you: row.kartId === 0,
-        ...(row.time !== undefined ? { time: row.time } : {}),
-      };
-    });
+    const rows = resultLines(this.session.game.state, this.session.localKartId);
     this.pauseButton.hidden = true;
     this.menus.showResults(rows, this.hud.bestNote, {
       onAgain: this.startRace,
@@ -219,7 +211,7 @@ export class Flow {
   private load(state: SimState, view: ScenarioView): void {
     this.beforeLoad();
     this.session.load(state);
-    this.world.reset(view);
+    this.world.reset(view, this.session.localKartId);
   }
 
   private beforeLoad(): void {
@@ -235,9 +227,10 @@ export class Flow {
     const followId = this.world.followId;
     this.sound.onEvents(events, state, followId);
     this.world.effects.onEvents(events, followId);
-    this.hud.onEvents(events, state, performance.now());
-    const finished = events.find((e) => e.type === 'finish' && e.kartId === 0);
-    const player = state.karts[0];
+    const me = this.session.localKartId;
+    this.hud.onEvents(events, state, me, performance.now());
+    const finished = events.find((e) => e.type === 'finish' && e.kartId === me);
+    const player = state.karts[me];
     if (finished && player) {
       const bests = recordBests(
         this.store,

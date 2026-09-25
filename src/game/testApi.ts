@@ -6,12 +6,13 @@ export interface GameTestApi {
   ready: boolean;
   /** Scenario the game booted into, if any. */
   scenario: string | null;
-  getState(): SimState;
+  /** A copy of the sim state, plus which kart this device drives (MK-38). */
+  getState(): TestState;
   pause(): void;
   resume(): void;
   /** Whether the game loop is paused (menus, portrait prompt, tests). */
   isPaused(): boolean;
-  step(ticks: number): SimState;
+  step(ticks: number): TestState;
   setInput(kartId: number, frame: Partial<InputFrame> | null): void;
   /** Let the centreline autopilot drive a kart (spline tracks). */
   setAutopilot(kartId: number, enabled: boolean): void;
@@ -19,6 +20,9 @@ export interface GameTestApi {
   /** Renderer stats from the last frame (draw calls, triangles) for perf budgets. */
   renderInfo(): RenderInfo;
 }
+
+/** `SimState` plus the session's local kart (not part of the sim). */
+export type TestState = SimState & { localKartId: number };
 
 /** Renderer stats and camera juice state (MK-27) for tests. */
 export interface RenderInfo {
@@ -39,20 +43,25 @@ export const GAME_READY_EVENT = 'game-ready';
 export function installTestApi(
   game: Game,
   onStep: () => void,
-  scenario?: string,
-  renderInfo: () => RenderInfo = () => ({ calls: 0, triangles: 0 }),
+  scenario: string | undefined,
+  renderInfo: () => RenderInfo,
+  localKartId: () => number,
 ): GameTestApi {
+  const snapshot = (): TestState => ({
+    ...structuredClone(game.state),
+    localKartId: localKartId(),
+  });
   const api: GameTestApi = {
     ready: true,
     scenario: scenario ?? null,
-    getState: () => structuredClone(game.state),
+    getState: snapshot,
     pause: () => game.pause(),
     resume: () => game.resume(),
     isPaused: () => game.paused,
     step: (ticks) => {
       game.stepTicks(ticks);
       onStep();
-      return structuredClone(game.state);
+      return snapshot();
     },
     setInput: (kartId, frame) =>
       game.setInputOverride(kartId, frame ? { ...NEUTRAL_INPUT, ...frame } : null),
