@@ -52,15 +52,21 @@ export function supabaseRoomBackend(): RoomBackend {
 class SupabaseRoomChannel implements RoomChannel {
   private readonly handlers: (() => void)[] = [];
   private closed = false;
+  /** Our presence, shown again after a rejoin. */
+  private tracked: RoomMember | null = null;
 
   constructor(
     private readonly supabase: SupabaseClient,
     private readonly channel: RealtimeChannel,
   ) {}
 
-  /** Joins the channel; resolves at the first presence sync (who is already here). */
+  /**
+   * Joins the channel; resolves at the first presence sync (who is already here). After that,
+   * realtime-js rejoins by itself when the connection drops; we show our presence again then.
+   */
   subscribe(): Promise<void> {
     return new Promise((resolve, reject) => {
+      let joined = false;
       let synced = false;
       this.channel.on('presence', { event: 'sync' }, () => {
         synced = true;
@@ -68,9 +74,12 @@ class SupabaseRoomChannel implements RoomChannel {
         if (!this.closed) for (const handler of this.handlers) handler();
       });
       this.channel.subscribe((status, err) => {
+        if (this.closed) return;
         if (status === 'SUBSCRIBED') {
+          if (joined && this.tracked) void this.channel.track(this.tracked);
+          joined = true;
           setTimeout(() => synced || resolve(), PRESENCE_SYNC_TIMEOUT_MS);
-        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+        } else if (!joined && (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT')) {
           this.close();
           reject(err ?? new Error(`Supabase channel ${status}`));
         }
@@ -84,8 +93,10 @@ class SupabaseRoomChannel implements RoomChannel {
       const meta = metas[0];
       if (!meta) return [];
       // Only the member fields (presence adds its own `presence_ref`).
-      const { id, nickname, colour, racer, ready, isHost, joinedAt } = meta;
-      return [{ id, nickname, colour, racer, ready, isHost, joinedAt }];
+      const { id, nickname, colour, racer, ready, isHost, joinedAt, seats } = meta;
+      return [
+        { id, nickname, colour, racer, ready, isHost, joinedAt, ...(seats ? { seats } : {}) },
+      ];
     });
   }
 
@@ -95,6 +106,7 @@ class SupabaseRoomChannel implements RoomChannel {
 
   async track(member: RoomMember): Promise<void> {
     if (this.closed) return;
+    this.tracked = member;
     const result = await this.channel.track(member);
     if (result !== 'ok') throw new Error(`Supabase presence track: ${result}`);
   }

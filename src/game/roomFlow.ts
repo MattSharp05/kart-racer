@@ -48,6 +48,13 @@ export class RoomFlow {
     private readonly onExit: () => void,
   ) {
     window.addEventListener('pagehide', () => this.leave());
+    // Back to a page from the back/forward cache: the room was left on pagehide, so the lobby (or
+    // a "Joining…" wait) on screen is stale.
+    window.addEventListener('pageshow', (e) => {
+      if (e.persisted && ['online', 'join', 'lobby'].includes(this.screens.current)) {
+        this.showOnline();
+      }
+    });
   }
 
   /** Opens a launch's room: create it (host) or join its code (client). */

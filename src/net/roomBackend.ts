@@ -21,8 +21,13 @@ export interface RoomMember extends MemberInfo {
   id: string;
   /** The room's creator; the room ends when the host leaves. */
   isHost: boolean;
-  /** When this player joined, ms since the epoch (the join order breaks ties for the last seat). */
+  /** When this player joined, ms since the epoch (this device's clock: list order only). */
   joinedAt: number;
+  /**
+   * Host only: member ids in the order the host saw them arrive, host first. The host decides
+   * who gets the last seat when two players join at once (ADR 0005: the host is the authority).
+   */
+  seats?: string[];
 }
 
 /** One device's view of a room's channel. */

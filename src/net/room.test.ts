@@ -190,6 +190,17 @@ describe('joinRoom', () => {
 });
 
 describe('sortMembers', () => {
+  it("follows the host's seat order first", () => {
+    const host = { ...member('h', true, 9), seats: ['h', 'c', 'a'] };
+    const sorted = sortMembers([
+      member('a', false, 1),
+      member('b', false, 0),
+      member('c', false, 5),
+      host,
+    ]);
+    expect(sorted.map((m) => m.id)).toEqual(['h', 'c', 'a', 'b']);
+  });
+
   it('puts the host first, then join order, then id', () => {
     const sorted = sortMembers([
       member('c', false, 5),
@@ -227,6 +238,31 @@ describe('rooms over the local backend', () => {
     keep(await createRoom(backend, INFO, { code }));
     for (let i = 1; i < MAX_ROOM_PLAYERS; i += 1) keep(await joinRoom(backend, code, INFO));
     expect(await reason(joinRoom(backend, code, INFO))).toBe('full');
+  });
+
+  it('two players taking the last seat at once: the host seats one, the other steps out', async () => {
+    const code = freshCode();
+    const host = keep(await createRoom(backend, INFO, { code }));
+    keep(await joinRoom(backend, code, INFO));
+    keep(await joinRoom(backend, code, INFO));
+    await until(() => host.members.length === 3);
+    // Both see 3 players when they open the room, so both are let in at first.
+    const [a, b] = await Promise.all([
+      joinRoom(backend, code, INFO),
+      joinRoom(backend, code, INFO),
+    ]);
+    keep(a);
+    keep(b);
+    await until(() => [a, b].some((room) => room.ended === 'full'));
+    await until(() => host.members.length === MAX_ROOM_PLAYERS);
+    const out = [a, b].filter((room) => room.ended === 'full');
+    expect(out).toHaveLength(1);
+    const kept = [a, b].find((room) => room.ended === null)!;
+    expect(host.members.map((m) => m.id)).toContain(kept.selfId);
+    expect(host.members.map((m) => m.id)).not.toContain(out[0]!.selfId);
+    // Everyone lists the room in the host's seat order.
+    await until(() => kept.members.length === MAX_ROOM_PLAYERS);
+    expect(kept.members.map((m) => m.id)).toEqual(host.members.map((m) => m.id));
   });
 
   it('the host leaving ends the room for everyone', async () => {

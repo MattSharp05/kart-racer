@@ -59,10 +59,19 @@ export function isRoomCode(text: string): boolean {
   return text.length === ROOM_CODE_LENGTH && normalizeRoomCode(text) === text;
 }
 
-/** The host first, then everyone in join order (id breaks ties): the same order on every device. */
+/**
+ * The room's order, the same on every device: the host's seat order (`seats`) where it has one,
+ * then the host first and everyone else in join order (id breaks ties).
+ */
 export function sortMembers(members: RoomMember[]): RoomMember[] {
+  const seats = members.find((m) => m.isHost)?.seats ?? [];
+  const seat = (m: RoomMember) => {
+    const index = seats.indexOf(m.id);
+    return index < 0 ? seats.length : index;
+  };
   return [...members].sort(
     (a, b) =>
+      seat(a) - seat(b) ||
       Number(b.isHost) - Number(a.isHost) ||
       a.joinedAt - b.joinedAt ||
       (a.id < b.id ? -1 : a.id > b.id ? 1 : 0),
@@ -95,7 +104,8 @@ export async function createRoom(
       channel.close();
       continue;
     }
-    return enter(channel, code, { ...info, id: selfId, isHost: true, joinedAt: now(options) });
+    const self = { ...info, id: selfId, isHost: true, joinedAt: now(options), seats: [selfId] };
+    return enter(channel, code, self);
   }
   throw new RoomJoinError(options.code ? 'code-taken' : 'unavailable');
 }
@@ -175,6 +185,8 @@ export class Room {
   private readonly changeListeners = new Set<() => void>();
   private readonly endListeners = new Set<(reason: RoomError) => void>();
   private left = false;
+  /** Host: the other members in the order this device first saw them. */
+  private arrivals: string[] = [];
 
   constructor(
     readonly code: string,
@@ -225,15 +237,31 @@ export class Room {
   private sync(): void {
     if (this.left) return;
     const others = this.channel.members().filter((m) => m.id !== this.self.id);
-    // Our own entry from `self`: presence may echo it back later than we changed it.
-    this.members = sortMembers([this.self, ...others]);
-    if (!this.self.isHost) {
-      if (!others.some((m) => m.isHost)) return this.end('host-left');
-      // Two players took the last seat at once: the later one (same order everywhere) steps out.
-      const seat = this.members.findIndex((m) => m.id === this.self.id);
+    if (this.self.isHost) {
+      this.updateSeats(others);
+    } else {
+      const host = others.find((m) => m.isHost);
+      if (!host) return this.end('host-left');
+      // Two players took the last seat at once: the host seated one first, the other steps out.
+      const seat = host.seats?.indexOf(this.self.id) ?? -1;
       if (seat >= MAX_ROOM_PLAYERS) return this.end('full');
     }
+    // Our own entry from `self`: presence may echo it back later than we changed it.
+    this.members = sortMembers([this.self, ...others]);
     for (const listener of this.changeListeners) listener();
+  }
+
+  /** Host: keeps the arrival order of who's present and publishes it as `seats` when it changes. */
+  private updateSeats(others: RoomMember[]): void {
+    const present = new Set(others.map((m) => m.id));
+    const arrivals = this.arrivals.filter((id) => present.has(id));
+    for (const m of sortMembers(others)) if (!arrivals.includes(m.id)) arrivals.push(m.id);
+    const seats = [this.self.id, ...arrivals];
+    this.arrivals = arrivals;
+    if (this.self.seats?.join() === seats.join()) return;
+    this.self = { ...this.self, seats };
+    // Best effort: a failed update is retried with the next change.
+    this.channel.track(this.self).catch(() => undefined);
   }
 
   private end(reason: RoomError): void {
