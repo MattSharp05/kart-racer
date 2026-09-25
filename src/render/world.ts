@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { itemRendererClasses, type ItemRenderer } from '../content/items/render';
 import type { Game } from '../game/game';
 import type { RenderInfo } from '../game/testApi';
 import type { ScenarioView } from '../scenarios/registry';
@@ -6,14 +7,12 @@ import type { TrackDef } from '../sim/track';
 import { tuning } from '../sim/tuning';
 import type { InputFrame } from '../sim/types';
 import { AiDebugView } from './aiDebug';
-import { BananaRenderer } from './bananas';
 import { ChaseCamera, LineupCamera } from './camera';
 import { Effects } from './effects';
 import { ItemBoxRenderer } from './itemBoxes';
 import { KartRenderer } from './karts';
 import { AdaptiveQuality } from './quality';
 import { createScene } from './scene';
-import { ShellRenderer } from './shells';
 import { createTrackView, overviewCamera } from './trackView';
 
 /** Longest real frame we feed the sim, so a backgrounded tab doesn't cause a huge catch-up. */
@@ -65,8 +64,8 @@ export class World {
   private readonly lineup: LineupCamera;
   private readonly chaseCamera: ChaseCamera;
   private readonly itemBoxes: ItemBoxRenderer;
-  private readonly bananas: BananaRenderer;
-  private readonly shells: ShellRenderer;
+  /** Bananas, shells… one renderer per item renderer class (`src/content/items/<id>/render.ts`). */
+  private readonly itemRenderers: ItemRenderer[];
   private readonly aiDebug: AiDebugView | undefined;
   private readonly quality: AdaptiveQuality;
   /** Render parts that get cheaper in low-quality mode register here. */
@@ -91,9 +90,8 @@ export class World {
     this.chaseCamera.reducedMotion = options.reducedMotion;
     this.effects = new Effects(this.scene, this.karts, this.chaseCamera);
     this.itemBoxes = new ItemBoxRenderer(this.scene);
-    this.bananas = new BananaRenderer(this.scene);
+    this.itemRenderers = itemRendererClasses().map((Renderer) => new Renderer(this.scene));
     this.aiDebug = options.aiDebug ? new AiDebugView(this.scene) : undefined;
-    this.shells = new ShellRenderer(this.scene);
     window.addEventListener('resize', () => this.markChanged());
 
     // Adaptive quality (MK-28).
@@ -139,9 +137,8 @@ export class World {
     const state = game.state;
     this.karts.sync(game.previousState, state, game.alpha, this.options.playerInputs());
     this.itemBoxes.sync(state, state.tick / 60);
-    this.bananas.sync(state);
+    for (const renderer of this.itemRenderers) renderer.sync(state, state.tick / 60);
     this.aiDebug?.sync(state);
-    this.shells.sync(state, state.tick / 60);
     const followed = this.karts.kart(followId);
     const kart = state.karts[followId];
     if (view === 'lineup') {

@@ -1,6 +1,4 @@
-import { sunnyCircuit } from './data/tracks/sunnyCircuit';
-import { testOval } from './data/tracks/testOval';
-import { testPad } from './data/tracks/testPad';
+import { tracks } from '../content/tracks';
 import type { Vec3 } from './math';
 import { insidePolygon, TrackGeometry, type SplineTrackDef, type Surface } from './splineTrack';
 
@@ -19,18 +17,11 @@ export type TrackDef = ArenaTrackDef | SplineTrackDef;
 /** Height a kart falls to when off the edge of a track (respawn arrives in MK-13). */
 export const VOID_HEIGHT = -1000;
 
-const TRACKS: Record<string, TrackDef> = {
-  [testPad.id]: testPad,
-  [testOval.id]: testOval,
-  [sunnyCircuit.id]: sunnyCircuit,
-};
-
 const geometries = new Map<string, TrackGeometry>();
 
+/** The track data for `id` (registered in `src/content/tracks/`); throws for an unknown id. */
 export function getTrack(id: string): TrackDef {
-  const track = TRACKS[id];
-  if (!track) throw new Error(`Unknown track: ${id}`);
-  return track;
+  return tracks.get(id).def;
 }
 
 /** Precomputed geometry for a spline track (cached; tracks are immutable data). */

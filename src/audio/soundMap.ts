@@ -1,3 +1,4 @@
+import { itemViews } from '../content/items/render';
 import type { SimEvent } from '../sim/types';
 
 export type SoundId =
@@ -73,20 +74,11 @@ export function cueFor(event: SimEvent, laps = 3): SoundCue | null {
       return { id: 'itemBox', scope: 'near', kartId: event.kartId, volume: 0.7 };
     case 'itemGranted':
       return { id: 'itemGet', scope: 'player', kartId: event.kartId };
-    case 'itemUsed':
-      switch (event.item) {
-        case 'mushroom':
-          return { id: 'mushroom', scope: 'near', kartId: event.kartId };
-        case 'banana':
-          return { id: 'banana', scope: 'near', kartId: event.kartId };
-        case 'green':
-        case 'red':
-          return { id: 'shell', scope: 'near', kartId: event.kartId };
-        case 'star':
-        case 'lightning':
-          return null; // their own events below
-      }
-      return null;
+    case 'itemUsed': {
+      // Each item's use sound is in `src/content/items/<id>/render.ts`.
+      const id = itemViews.has(event.item) ? itemViews.get(event.item).useSound : null;
+      return id ? { id, scope: 'near', kartId: event.kartId } : null;
+    }
     case 'kartHit':
       return { id: 'hit', scope: 'near', kartId: event.kartId };
     case 'star':

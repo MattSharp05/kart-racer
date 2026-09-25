@@ -1,6 +1,6 @@
 import { oneWayOf, type NetConditions } from '../net/netsim';
 import { KART_IDS } from '../sim/data/karts';
-import { sunnyCircuit } from '../sim/data/tracks/sunnyCircuit';
+import { sunnyCircuit } from '../content/tracks/sunny-circuit/sim';
 import { createRace, type CreateRaceOptions, type RacerSlot } from '../sim/race/createRace';
 import type { Scenario, ScenarioSetup } from './registry';
 

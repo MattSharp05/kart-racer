@@ -184,6 +184,8 @@ export function aiItemInput(
     }
     case 'red':
       return positionOf(state, kart.id) > 1 || giveUp ? use() : {};
+    default:
+      // Items without their own tactic here (content added later, ADR 0007): use after the delay.
+      return use();
   }
-  return {};
 }

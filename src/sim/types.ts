@@ -147,8 +147,8 @@ export interface KartState {
 
 export type RacePhase = 'free' | 'countdown' | 'racing' | 'finished';
 
-/** Non-kart things in the world (item boxes, bananas, shells…). Typed properly by the items epic. */
-export type ItemId = 'mushroom' | 'banana' | 'green' | 'red' | 'star' | 'lightning';
+/** An item id: any id registered in `src/content/items/` (ADR 0007), validated on lookup. */
+export type ItemId = string;
 
 /** An item box on the track (MK-16): active, or waiting to reappear. */
 export interface ItemBoxEntity {
@@ -195,8 +195,8 @@ export interface ShellEntity {
 /** Things in the world other than karts. */
 export type Entity = ItemBoxEntity | BananaEntity | ShellEntity;
 
-/** What hit a kart. */
-export type HitKind = 'banana' | 'green' | 'red' | 'star' | 'lightning' | 'squash';
+/** What hit a kart: the item's id, or `squash` (run over while shrunk). */
+export type HitKind = ItemId | 'squash';
 
 /** A kart's item slot. */
 export interface KartItem {

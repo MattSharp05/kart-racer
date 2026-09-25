@@ -4,9 +4,9 @@ import { createSimState } from '../state';
 import { step } from '../step';
 import { DT } from '../tuning';
 import { NEUTRAL_INPUT, type SimState } from '../types';
-import { KART_IDS, KARTS, type KartId } from './karts';
+import { KART_IDS, kartDef, type KartId } from './karts';
 
-const total = (id: KartId) => Object.values(KARTS[id].stats).reduce((a, b) => a + b, 0);
+const total = (id: KartId) => Object.values(kartDef(id).stats).reduce((a, b) => a + b, 0);
 
 /** Seconds from rest to 95% of this kart's own top speed at 100cc. */
 function timeTo95(kartType: KartId): number {
@@ -31,7 +31,7 @@ describe('kart roster', () => {
 
   it('keeps every stat between 1 and 5', () => {
     for (const id of KART_IDS) {
-      for (const value of Object.values(KARTS[id].stats)) {
+      for (const value of Object.values(kartDef(id).stats)) {
         expect(value).toBeGreaterThanOrEqual(1);
         expect(value).toBeLessThanOrEqual(5);
       }
