@@ -2,9 +2,9 @@ import { KART_IDS, type KartId } from '../sim/data/karts';
 import { lineOffsetAt } from '../sim/ai/racingLine';
 import { sunnyCircuit } from '../sim/data/tracks/sunnyCircuit';
 import { forwardFromHeading } from '../sim/math';
-import { createSimState } from '../sim/state';
+import { createRace, raceSetupRng, type RacerSlot } from '../sim/race/createRace';
 import { trackGeometry } from '../sim/track';
-import { rngInt, rngPick, rngRange, seedRng } from '../sim/rng';
+import { rngInt, rngPick } from '../sim/rng';
 import { DT, tuning, type EngineClass } from '../sim/tuning';
 import type { SimState } from '../sim/types';
 import type { Scenario } from './registry';
@@ -22,8 +22,10 @@ export interface RaceOptions {
 }
 
 /**
- * A race on Sunny Circuit from the grid, in countdown. Player = kart 0. With AI, the grid order is
- * shuffled (seeded) and the player starts 5th–8th, as in a real race; otherwise the player is on pole.
+ * A race on Sunny Circuit from the grid, in countdown: a thin wrapper around `createRace` (MK-38).
+ * Player = kart 0 (`local`). With AI, the grid order is shuffled (seeded) and the player starts
+ * 5th–8th, as in a real race; otherwise the player is on pole and the others are parked dummies
+ * (`remote`: they only move when a test drives them).
  */
 export function sunnyRace(seed: number, options: RaceOptions | number = {}): SimState {
   const {
@@ -32,46 +34,39 @@ export function sunnyRace(seed: number, options: RaceOptions | number = {}): Sim
     engineClass = 100,
     playerKart = 'maple',
   } = typeof options === 'number' ? { karts: options } : options;
-  const rng = { rngState: seedRng(seed * 7919 + 13) };
-  const slots = sunnyCircuit.gridSlots ?? [];
+  const rng = raceSetupRng(seed);
   const playerSlot = ai && karts >= 5 ? rngInt(rng, 4, Math.min(7, karts - 1)) : 0;
   const otherSlots = Array.from({ length: karts }, (_, i) => i).filter((i) => i !== playerSlot);
-  const state = createSimState({
-    seed,
-    trackId: 'sunny-circuit',
-    phase: 'countdown',
-    engineClass,
-    karts: Array.from({ length: karts }, (_, i) => {
-      const slotIndex = i === 0 ? playerSlot : (otherSlots[i - 1] ?? i);
-      const slot = slots[slotIndex] ?? { t: 0.98, lateral: 0 };
-      const kartType =
-        i === 0
-          ? playerKart
-          : ai
-            ? rngPick(rng, KART_IDS)
-            : (KART_IDS[i % KART_IDS.length] ?? 'maple');
-      return {
-        kartType,
-        position: sunny.pointAt(slot.t, slot.lateral),
-        heading: sunny.headingAt(slot.t),
-      };
-    }),
+  const racers = Array.from({ length: karts }, (_, i): RacerSlot => {
+    if (i === 0) return { kartId: playerKart, controller: 'local', gridSlot: playerSlot };
+    return {
+      kartId: ai ? rngPick(rng, KART_IDS) : (KART_IDS[i % KART_IDS.length] ?? 'maple'),
+      controller: ai ? 'ai' : 'remote',
+      gridSlot: otherSlots[i - 1] ?? i,
+    };
   });
-  if (ai) {
-    state.race.rubberBand = true;
-    const cfg = tuning.ai;
-    const skillMin = engineClass === 150 ? cfg.skillMin150 : cfg.skillMin;
-    for (const kart of state.karts.slice(1)) {
-      kart.ai = {
-        lineOffset: rngRange(rng, -cfg.lineOffsetMax, cfg.lineOffsetMax),
-        skill: rngRange(rng, skillMin, cfg.skillMax),
-        aggression: rngRange(rng, 0, 1),
-        stuckTime: 0,
-        recoverTime: 0,
-      };
-    }
-  }
-  return state;
+  return createRace({
+    trackId: sunnyCircuit.id,
+    racers,
+    engineClass,
+    itemsOn: true,
+    seed,
+    rng,
+  });
+}
+
+/** 8 karts on Sunny's grid in order, with the local player in slot 3 and AI everywhere else. */
+export function localKart3Race(seed: number): SimState {
+  return createRace({
+    trackId: sunnyCircuit.id,
+    racers: Array.from({ length: 8 }, (_, i): RacerSlot => ({
+      kartId: KART_IDS[i % KART_IDS.length] ?? 'maple',
+      controller: i === 3 ? 'local' : 'ai',
+    })),
+    engineClass: 100,
+    itemsOn: true,
+    seed,
+  });
 }
 
 /** Puts kart `id` at lap fraction `t` on lap `lap`, moving along the track at `speed`. */
@@ -340,6 +335,14 @@ export const raceScenarios: Scenario[] = [
       'Spectate: the camera follows the first AI racer while you sit out (autopilot parks you).',
     defaultSeed: 1,
     setup: (seed) => ({ state: sunnyRace(seed, { karts: 8, ai: true }), follow: 1 }),
+  },
+  {
+    name: 'race-local-kart-3',
+    group: 'Race',
+    description:
+      'You drive kart 3 (4th on the grid) against 7 AI: the camera, HUD, minimap and sound follow kart 3, not kart 0 (MK-38).',
+    defaultSeed: 1,
+    setup: (seed) => ({ state: localKart3Race(seed) }),
   },
   {
     name: 'ai-stuck',

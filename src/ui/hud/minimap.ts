@@ -52,14 +52,17 @@ export class Minimap {
     return true;
   }
 
-  update(state: SimState): void {
+  /** Draws every kart; `youId` (the local player) gets the bigger yellow dot. */
+  update(state: SimState, youId: number): void {
     if (state.trackId !== this.trackId && !this.build(state)) {
       this.root.style.display = 'none';
       return;
     }
     this.root.style.display = '';
     // Player last so it's drawn on top.
-    const order = [...state.karts].sort((a, b) => (a.id === 0 ? 1 : 0) - (b.id === 0 ? 1 : 0));
+    const order = [...state.karts].sort(
+      (a, b) => (a.id === youId ? 1 : 0) - (b.id === youId ? 1 : 0),
+    );
     order.forEach((kart, i) => {
       let dot = this.dots[i];
       if (!dot) {
@@ -70,8 +73,8 @@ export class Minimap {
       const [x, y] = this.toMap(kart.position.x, kart.position.z);
       dot.setAttribute('cx', x.toFixed(1));
       dot.setAttribute('cy', y.toFixed(1));
-      dot.setAttribute('r', kart.id === 0 ? '4.5' : '3');
-      dot.setAttribute('class', kart.id === 0 ? 'hud-dot you' : 'hud-dot');
+      dot.setAttribute('r', kart.id === youId ? '4.5' : '3');
+      dot.setAttribute('class', kart.id === youId ? 'hud-dot you' : 'hud-dot');
     });
     for (const extra of this.dots.splice(order.length)) extra.remove();
   }

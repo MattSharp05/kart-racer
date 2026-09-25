@@ -126,11 +126,6 @@ export class KartRenderer {
     this.wheelTick = -1;
   }
 
-  /** The player's kart (kart 0), for the camera. */
-  get player(): THREE.Object3D | undefined {
-    return this.models[0]?.root;
-  }
-
   /** Any kart's model root (for the camera to follow another kart). */
   /** The visual body of kart `id` (for squash & stretch effects). */
   body(id: number): THREE.Object3D | undefined {

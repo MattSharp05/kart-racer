@@ -1,6 +1,6 @@
 import { positionOf } from '../../sim/race';
 import { raceTime } from '../../sim/raceFlow';
-import type { ItemId, SimEvent, SimState } from '../../sim/types';
+import type { ItemId, KartItem, SimEvent, SimState } from '../../sim/types';
 import { formatTime, ordinal } from './format';
 import { ITEM_NAMES, ITEM_ORDER, itemIcon } from './icons';
 import { Minimap } from './minimap';
@@ -51,15 +51,15 @@ export class Hud {
     document.body.append(this.root);
   }
 
-  /** Big centre messages come from sim events (countdown numbers, GO, FINISH). */
-  onEvents(events: SimEvent[], state: SimState, now: number): void {
+  /** Big centre messages come from sim events (countdown numbers, GO, FINISH) for kart `kartId`. */
+  onEvents(events: SimEvent[], state: SimState, kartId: number, now: number): void {
     for (const event of events) {
       if (event.type === 'countdown') this.flash(String(event.value), now, 1000);
       if (event.type === 'go') this.flash('GO!', now, 800);
-      if (event.type === 'finish' && event.kartId === 0) {
+      if (event.type === 'finish' && event.kartId === kartId) {
         this.flash(`FINISH! ${ordinal(event.position)}`, now, 3000);
       }
-      if (event.type === 'lap' && event.kartId === 0 && event.lap === state.race.laps) {
+      if (event.type === 'lap' && event.kartId === kartId && event.lap === state.race.laps) {
         this.flash('FINAL LAP!', now, 1500);
       }
       if (event.type === 'lightning') this.lightningFlash();
@@ -85,8 +85,9 @@ export class Hud {
     el.hidden = !visible;
   }
 
-  update(state: SimState, now: number, menuOpen = false): void {
-    const kart = state.karts[0];
+  /** Draws the HUD for kart `kartId` (the local player, MK-38). */
+  update(state: SimState, kartId: number, now: number, menuOpen = false): void {
+    const kart = state.karts[kartId];
     const racing = state.phase !== 'free';
     if (!kart || state.trackId === 'test-pad' || menuOpen) {
       this.show(this.root, false);
@@ -125,19 +126,18 @@ export class Hud {
     }
     if (now > this.centreUntil) this.show(this.centre, false);
 
-    this.updateItem(state, now);
-    this.minimap.update(state);
+    this.updateItem(kart.item, now);
+    this.minimap.update(state, kart.id);
   }
 
   /** Item slot: cycles icons during the roulette, then shows the held item. */
-  private updateItem(state: SimState, now: number): void {
-    const slot = state.karts[0]?.item;
+  private updateItem(slot: KartItem, now: number): void {
     let item: ItemId | null = null;
     let rolling = false;
-    if (slot?.roulette) {
+    if (slot.roulette) {
       item = ITEM_ORDER[Math.floor(now / 90) % ITEM_ORDER.length] ?? 'mushroom';
       rolling = true;
-    } else if (slot?.held) {
+    } else if (slot.held) {
       item = slot.held;
     }
     this.item.classList.toggle('rolling', rolling);
