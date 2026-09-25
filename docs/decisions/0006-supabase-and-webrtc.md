@@ -1,6 +1,6 @@
 # 0006 — Supabase for rooms and leaderboards; WebRTC for race traffic
 
-Status: Accepted · 2026-09-25 · confirmed or changed by the netcode spike
+Status: Accepted · 2026-09-25 · confirmed by the MK-36 spike (P2P on 4G pending Matthew's phone test)
 
 ## Context
 
@@ -24,3 +24,17 @@ Option 2. All networking goes through a `Transport` interface (`src/net/transpor
 - **Setup:** Matthew creates a free Supabase project and adds `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` to Vercel. The anon key is public by design; Row Level Security protects the data.
 - Free Supabase projects pause after about a week without activity. A weekly GitHub Actions keep-alive query prevents that.
 - The site stays static; there's no server code of our own apart from SQL (tables, RLS, one submit function).
+
+## Spike results (MK-36, 2026-09-25)
+
+| Measure                                                  | Result                                                                                                                                                                                                                                                                                                                                      |
+| -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| RTT, 2 browsers on one machine (WebRTC, host candidates) | ~1 ms ICE RTT, ~17 ms app-level (tick granularity)                                                                                                                                                                                                                                                                                          |
+| RTT via Supabase Realtime (signaling only)               | one-way broadcast ≈ 50 ms; joining the channel ≈ 1.3 s                                                                                                                                                                                                                                                                                      |
+| Snapshot size / bandwidth per client                     | 426 B avg, 449 B max · 8.5 KB/s down, 1.6 KB/s up (off every quota)                                                                                                                                                                                                                                                                         |
+| Signaling messages per connection                        | 3 sent + 2–3 received on a same-machine link (host-ready/join, offer, answer, ICE). With STUN (host + srflx candidates) expect ~6–15 per side                                                                                                                                                                                               |
+| Supabase messages per race                               | ≈ 100–150 for a 4-player room (signaling only; each broadcast is delivered to the other members). The 2M/month free quota covers > 10k races                                                                                                                                                                                                |
+| Connection path                                          | "P2P" on the test machine. **Phone on 4G: pending** (Matthew's manual check on MK-36)                                                                                                                                                                                                                                                       |
+| Real-browser Supabase signaling                          | Verified from Node (supabase-js, same project + anon key). The cloud builder's sandboxed Chromium can't open Supabase's WebSocket through its egress proxy, so the browser run is `NET_SPIKE_SIGNALING=supabase NET_SPIKE_URL=<deploy> pnpm exec playwright test netSpike -g "two browsers" --project=desktop-chrome` from a normal machine |
+
+**Recommendation:** keep option 2 (Supabase signaling + WebRTC P2P, public STUN). The WebRTC data channel (`ordered: false, maxRetransmits: 0`) behaves as planned and costs no quota. If Matthew's 4G test can't connect, or later rooms fail often, add option 3 (Durable Objects relay) behind the same `Transport` interface; it's filed as a Backlog ticket so the decision is ready.
