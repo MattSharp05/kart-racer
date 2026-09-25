@@ -60,6 +60,9 @@ export interface NetStats {
   /** Client: distance between its prediction for tick T and the host's kart at T, m. */
   predictionErrorAvg: number;
   predictionErrorMax: number;
+  /** Client: the same for the other human karts (predicted from their last known input), m. */
+  remoteErrorAvg: number;
+  remoteErrorMax: number;
   /** Host: remote inputs that arrived after their tick was simulated. */
   lateInputs: number;
   /** Snapshots dropped because a newer one had already arrived. */
@@ -81,6 +84,8 @@ function emptyStats(): NetStats {
     resimTicksAvg: 0,
     predictionErrorAvg: 0,
     predictionErrorMax: 0,
+    remoteErrorAvg: 0,
+    remoteErrorMax: 0,
     lateInputs: 0,
     staleSnapshots: 0,
   };
@@ -192,7 +197,7 @@ export class NetClient {
   readonly stats = emptyStats();
   private initial: SimState | null = null;
   private readonly history = new Map<number, InputFrame>();
-  private readonly predicted = new Map<number, Vec3>();
+  private readonly predicted = new Map<number, Vec3[]>();
   private readonly remoteInputs = new Map<number, InputFrame>();
   private lastSnapshotTick = -1;
   private rttMs = DEFAULT_RTT_MS;
@@ -249,8 +254,10 @@ export class NetClient {
     }
     inputs[this.kartId] = own;
     const next = step(state, inputs).state;
-    const kart = next.karts[this.kartId];
-    if (kart) this.predicted.set(next.tick, { ...kart.position });
+    this.predicted.set(
+      next.tick,
+      next.karts.map((k) => ({ ...k.position })),
+    );
     return next;
   }
 
@@ -313,17 +320,20 @@ export class NetClient {
   /** Compares what we predicted for the snapshot's tick with what the host says happened. */
   private measureError(authoritative: SimState): void {
     const predicted = this.predicted.get(authoritative.tick);
-    const kart = authoritative.karts[this.kartId];
-    if (!predicted || !kart) return;
-    const error = Math.hypot(
-      predicted.x - kart.position.x,
-      predicted.y - kart.position.y,
-      predicted.z - kart.position.z,
-    );
+    if (!predicted) return;
+    const distance = (id: number) => {
+      const a = predicted[id];
+      const b = authoritative.karts[id]?.position;
+      return a && b ? Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z) : 0;
+    };
     this.errorSamples += 1;
     const s = this.stats;
-    s.predictionErrorAvg = runningAverage(s.predictionErrorAvg, this.errorSamples, error);
-    s.predictionErrorMax = Math.max(s.predictionErrorMax, error);
+    const own = distance(this.kartId);
+    s.predictionErrorAvg = runningAverage(s.predictionErrorAvg, this.errorSamples, own);
+    s.predictionErrorMax = Math.max(s.predictionErrorMax, own);
+    const remote = Math.max(0, ...[...this.remoteInputs.keys()].map(distance));
+    s.remoteErrorAvg = runningAverage(s.remoteErrorAvg, this.errorSamples, remote);
+    s.remoteErrorMax = Math.max(s.remoteErrorMax, remote);
   }
 
   private send(packet: Uint8Array): void {

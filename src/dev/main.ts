@@ -13,22 +13,25 @@ function qrImageUrl(url: string): string {
 }
 
 function renderScenario(scenario: Scenario): HTMLElement {
-  const url = scenarioUrl(scenario.name);
+  return renderLink(scenario.name, scenarioUrl(scenario.name), scenario.description);
+}
+
+function renderLink(name: string, url: string, descriptionText: string): HTMLElement {
   const item = document.createElement('li');
   item.className = 'scenario';
-  item.dataset.scenario = scenario.name;
+  item.dataset.scenario = name;
 
   const text = document.createElement('div');
   const link = document.createElement('a');
   link.href = url;
-  link.textContent = scenario.name;
+  link.textContent = name;
   const description = document.createElement('p');
-  description.textContent = scenario.description;
+  description.textContent = descriptionText;
   text.append(link, description);
 
   const qr = document.createElement('img');
   qr.src = qrImageUrl(url);
-  qr.alt = `QR code for ${scenario.name}`;
+  qr.alt = `QR code for ${name}`;
   qr.width = QR_SIZE;
   qr.height = QR_SIZE;
 
@@ -58,4 +61,19 @@ if (app) {
     section.append(title, items);
     app.append(section);
   }
+
+  // MK-36 netcode spike: not a scenario (it needs two browsers), so it's listed by hand.
+  const spike = document.createElement('section');
+  const spikeTitle = document.createElement('h2');
+  spikeTitle.textContent = 'Online (spike)';
+  const spikeItems = document.createElement('ul');
+  spikeItems.append(
+    renderLink(
+      'net-spike-host',
+      `${window.location.origin}/?spike=net&role=host`,
+      'Host a 2-player WebRTC test race; it shows the client link + QR code to open on a second device.',
+    ),
+  );
+  spike.append(spikeTitle, spikeItems);
+  app.append(spike);
 }

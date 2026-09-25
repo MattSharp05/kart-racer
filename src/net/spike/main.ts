@@ -222,6 +222,8 @@ export async function run(): Promise<never> {
       resimTicksAvg: 0,
       predictionErrorAvg: 0,
       predictionErrorMax: 0,
+      remoteErrorAvg: 0,
+      remoteErrorMax: 0,
       lateInputs: 0,
       staleSnapshots: 0,
     };
@@ -258,7 +260,8 @@ export async function run(): Promise<never> {
       `down ${(s.bytesPerSecondDown / 1024).toFixed(1)} KB/s · up ${(s.bytesPerSecondUp / 1024).toFixed(1)} KB/s`,
       role === 'client'
         ? `resim: ${s.resimMsAvg.toFixed(2)} ms avg / ${s.resimMsMax.toFixed(1)} max (${s.resimTicksAvg.toFixed(1)} ticks)\n` +
-          `prediction error: ${s.predictionErrorAvg.toFixed(3)} m avg / ${s.predictionErrorMax.toFixed(2)} max`
+          `prediction error: ${s.predictionErrorAvg.toFixed(3)} m avg / ${s.predictionErrorMax.toFixed(2)} max\n` +
+          `remote kart error: ${s.remoteErrorAvg.toFixed(2)} m avg / ${s.remoteErrorMax.toFixed(2)} max`
         : `late inputs: ${s.lateInputs}`,
       `signaling msgs: ${s.signalingSent} sent / ${s.signalingReceived} received`,
       status === 'connected' ? 'Drive: arrows/WASD (space = drift) · touch: hold + steer' : '',

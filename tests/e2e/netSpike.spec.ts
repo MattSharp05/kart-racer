@@ -158,3 +158,18 @@ test.describe('cross-engine determinism (informational)', () => {
     expect(result.hash).toMatch(/^[0-9a-f]{8}$/);
   });
 });
+
+test('/dev links to the spike host page, which shows the client link', async ({ page }) => {
+  await page.goto('/dev.html');
+  const link = page.getByRole('link', { name: 'net-spike-host' });
+  await expect(link).toHaveAttribute('href', /\?spike=net&role=host$/);
+  await link.click();
+  await page.waitForFunction(() => window.__netSpike !== undefined);
+  const room = await page.evaluate(() => window.__netSpike!.room);
+  expect(room).toMatch(/^[A-Z]{4}$/);
+  await expect(page.getByRole('link', { name: /role=client/ })).toHaveAttribute(
+    'href',
+    new RegExp(`spike=net&role=client&room=${room}$`),
+  );
+  await expect(page.getByTestId('net-spike-panel')).toContainText('NET SPIKE · host');
+});
