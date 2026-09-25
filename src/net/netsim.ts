@@ -1,4 +1,4 @@
-import { BaseTransport } from './transport';
+import { BaseTransport, type Transport } from './transport';
 
 /** Simulated network conditions, one way (docs/TDD.md → v2 testing: `&netsim=150,30,5`). */
 export interface NetConditions {
@@ -88,4 +88,36 @@ export function createLoopbackPair(
   a.open();
   b.open();
   return [a, b];
+}
+
+/**
+ * Wraps a real transport and delays / drops its outgoing packets (`&netsim=lag,jitter,loss` on
+ * top of a real connection). Apply it on both ends for a symmetric link.
+ */
+export class ConditionedTransport extends BaseTransport {
+  constructor(
+    private readonly inner: Transport,
+    private readonly conditions: NetConditions,
+    private readonly random: () => number = Math.random,
+  ) {
+    super();
+    inner.onMessage((packet) => this.deliver(packet));
+    inner.onStateChange((state) => this.setState(state));
+    if (inner.state !== 'connecting') this.setState(inner.state);
+  }
+
+  send(packet: Uint8Array): void {
+    if (this.random() < this.conditions.loss) return;
+    const delay = this.conditions.lagMs + this.random() * this.conditions.jitterMs;
+    if (delay <= 0) this.inner.send(packet);
+    else {
+      const copy = packet.slice();
+      setTimeout(() => this.inner.send(copy), delay);
+    }
+  }
+
+  override close(): void {
+    this.inner.close();
+    super.close();
+  }
 }

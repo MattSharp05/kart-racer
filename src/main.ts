@@ -1,3 +1,6 @@
+// MK-36 netcode spike: `?spike=net` runs the prototype instead of the game (it never resolves).
+if (new URLSearchParams(location.search).get('spike') === 'net')
+  await import('./net/spike/main').then((spike) => spike.run());
 import * as THREE from 'three';
 import { Game } from './game/game';
 import { parseLaunchParams } from './game/launchParams';

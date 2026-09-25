@@ -300,7 +300,8 @@ function readKart(r: ByteReader, k: KartState): void {
     AI_TIMERS.forEach((key, i) => {
       if (aiMask & (1 << i)) ai[key] = r.u16() / MS;
       else if (key === 'stuckTime' || key === 'recoverTime') ai[key] = 0;
-      else delete ai[key];
+      else if (key === 'itemDelay') delete ai.itemDelay;
+      else delete ai.itemHeld;
     });
   }
 }
