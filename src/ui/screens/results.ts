@@ -10,10 +10,19 @@ export interface ResultRowView {
   time?: number;
 }
 
+/** One record line: "Race record 2:33.120", flagged when this race just set it. */
+export interface RecordLineView {
+  label: string;
+  time: number;
+  isNew: boolean;
+  /** The record this race beat, if there was one. */
+  previous?: number;
+}
+
 export interface ResultsProps {
   rows: ResultRowView[];
-  /** "New best lap!" etc., or ''. */
-  bestNote: string;
+  /** The track's records after the local player's finish (MK-44); absent without a finish. */
+  records?: RecordLineView[];
   onAgain: () => void;
   onChangeKart: () => void;
   onMenu: () => void;
@@ -26,7 +35,7 @@ declare module '../router' {
 }
 
 /** Results (MK-25): finishing order with times, the local player highlighted, then what next. */
-registerScreen('results', (panel, { rows, bestNote, ...handlers }) => {
+registerScreen('results', (panel, { rows, records, ...handlers }) => {
   const you = rows.find((r) => r.you);
   const list = document.createElement('ol');
   list.className = 'results';
@@ -39,12 +48,7 @@ registerScreen('results', (panel, { rows, bestNote, ...handlers }) => {
     list.append(li);
   }
   panel.append(heading('h2', you ? `You finished ${ordinal(you.position)}!` : 'Results'), list);
-  if (bestNote) {
-    const note = document.createElement('p');
-    note.className = 'best';
-    note.textContent = bestNote;
-    panel.append(note);
-  }
+  if (records?.length) panel.append(recordsBlock(records));
   const again = button('Race again', handlers.onAgain, 'primary');
   panel.append(
     row(
@@ -57,3 +61,18 @@ registerScreen('results', (panel, { rows, bestNote, ...handlers }) => {
   again.focus();
   return {};
 });
+
+/** "New record!" when this race set one, then each record with the previous best it beat. */
+function recordsBlock(records: RecordLineView[]): HTMLElement {
+  const block = document.createElement('div');
+  block.className = 'records';
+  if (records.some((r) => r.isNew)) block.append(heading('h3', 'New record!', 'new-record'));
+  for (const record of records) {
+    const line = document.createElement('p');
+    line.className = record.isNew ? 'record new' : 'record';
+    const was = record.previous !== undefined ? ` (was ${formatTime(record.previous)})` : '';
+    line.textContent = `${record.isNew ? '★ ' : ''}${record.label} ${formatTime(record.time)}${record.isNew ? was : ''}`;
+    block.append(line);
+  }
+  return block;
+}
