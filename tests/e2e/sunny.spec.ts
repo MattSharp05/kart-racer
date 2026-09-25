@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { sunnyCircuit } from '../../src/sim/data/tracks/sunnyCircuit';
+import { sunnyCircuit } from '../../src/content/tracks/sunny-circuit/sim';
 import { trackGeometry } from '../../src/sim/track';
 import type { SimEvent } from '../../src/sim/types';
 import { getState, loadScenario, step } from './helpers';

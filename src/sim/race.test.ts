@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { kartOnTrack, sunnyStart } from '../scenarios/tracks';
 import { scenarios } from '../scenarios';
 import { autopilotInput } from './autopilot';
-import { SUNNY_INFIELD, sunnyCircuit } from './data/tracks/sunnyCircuit';
+import { SUNNY_INFIELD, sunnyCircuit } from '../content/tracks/sunny-circuit/sim';
 import { crossing, positionOf } from './race';
 import { step } from './step';
 import { trackGeometry } from './track';
