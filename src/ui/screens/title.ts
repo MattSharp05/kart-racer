@@ -24,7 +24,8 @@ registerScreen('title', (panel, { onPlay, onHowToPlay, onSettings }) => {
   play.focus();
   return {
     onKey: (e) => {
-      if (e.key === 'Enter' && document.activeElement !== play) onPlay();
+      // Enter means Play unless a button has focus (it presses that button itself).
+      if (e.key === 'Enter' && !(document.activeElement instanceof HTMLButtonElement)) onPlay();
     },
   };
 });

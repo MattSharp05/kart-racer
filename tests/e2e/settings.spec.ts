@@ -49,7 +49,9 @@ test.describe('settings screen (MK-43)', () => {
     expect(await page.evaluate(() => window.__game!.isPaused())).toBe(false);
   });
 
-  test('Esc goes back, and the M key updates the sound setting', async ({ page }, info) => {
+  test('Esc goes back, Enter on the title button opens it, M updates the sound setting', async ({
+    page,
+  }, info) => {
     test.skip(!info.project.name.startsWith('desktop'), 'keyboard');
     await loadScenario(page, 'settings');
     await expect(soundField(page)).toHaveAttribute('data-muted', 'false');
@@ -57,6 +59,10 @@ test.describe('settings screen (MK-43)', () => {
     await expect(soundField(page)).toHaveAttribute('data-muted', 'true');
     await page.keyboard.press('Escape');
     await expect(page.locator('.menu-title')).toBeVisible();
+    // Enter on the focused Settings button opens Settings (not Play).
+    await page.locator('.menu-title .settings-button').focus();
+    await page.keyboard.press('Enter');
+    await expect(page.locator('.menu-settings')).toBeVisible();
   });
 
   test('Profile shows the saved nickname; no nickname, no Profile', async ({ page }) => {
