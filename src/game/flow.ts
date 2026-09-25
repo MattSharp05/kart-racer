@@ -34,7 +34,7 @@ const ENGINE_CLASSES = [50, 100, 150] as const;
 export class Flow {
   // Created in the same order as before MK-35, so the DOM overlays stack the same way.
   private readonly hud = new Hud();
-  readonly menus = new Menus();
+  private readonly menus = new Menus();
   private readonly sound: SoundManager;
   private readonly howToPlay: HowToPlay;
   private readonly pauseButton: HTMLButtonElement;
