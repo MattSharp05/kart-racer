@@ -14,7 +14,7 @@ import {
   type ConnectionInfo,
   type SignalingChannel,
   type WebRtcTransport,
-} from './webrtc';
+} from '../webrtc';
 
 /**
  * `/?spike=net&role=host|client&room=<code>` — the MK-36 netcode spike. Throwaway prototype: a
