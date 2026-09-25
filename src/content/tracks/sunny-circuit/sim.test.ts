@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { kartOnTrack, sunnyStart } from '../../../scenarios/tracks';
 import { scenarios } from '../../../scenarios';
-import { autopilotInput } from '../../autopilot';
-import { step } from '../../step';
-import { groundAt, trackGeometry } from '../../track';
-import { DT, tuning } from '../../tuning';
-import { NEUTRAL_INPUT, type InputFrame, type SimEvent, type SimState } from '../../types';
-import { SUNNY_INFIELD, sunnyCircuit } from './sunnyCircuit';
+import { autopilotInput } from '../../../sim/autopilot';
+import { step } from '../../../sim/step';
+import { groundAt, trackGeometry } from '../../../sim/track';
+import { DT, tuning } from '../../../sim/tuning';
+import { NEUTRAL_INPUT, type InputFrame, type SimEvent, type SimState } from '../../../sim/types';
+import { SUNNY_INFIELD, sunnyCircuit } from './sim';
 
 const geometry = trackGeometry(sunnyCircuit);
 const TOP = tuning.topSpeed[100];

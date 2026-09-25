@@ -3,7 +3,7 @@ import { resultLines } from '../../game/results';
 import { localKart3Race, sunnyRace } from '../../scenarios/race';
 import { rubberBandScale } from '../ai/rubberBand';
 import { autopilotInput } from '../autopilot';
-import { sunnyCircuit } from '../data/tracks/sunnyCircuit';
+import { sunnyCircuit } from '../../content/tracks/sunny-circuit/sim';
 import { forwardFromHeading } from '../math';
 import { raceResults } from '../raceFlow';
 import { step } from '../step';

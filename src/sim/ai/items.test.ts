@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { scenarios } from '../../scenarios';
 import { sunnyRace } from '../../scenarios/race';
-import { sunnyCircuit } from '../data/tracks/sunnyCircuit';
+import { sunnyCircuit } from '../../content/tracks/sunny-circuit/sim';
 import { step } from '../step';
 import { trackGeometry } from '../track';
 import { NEUTRAL_INPUT, type ItemId, type SimEvent, type SimState } from '../types';

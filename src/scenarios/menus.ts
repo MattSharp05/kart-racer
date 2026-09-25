@@ -1,5 +1,5 @@
 import { KART_IDS } from '../sim/data/karts';
-import { sunnyCircuit } from '../sim/data/tracks/sunnyCircuit';
+import { sunnyCircuit } from '../content/tracks/sunny-circuit/sim';
 import { createSimState } from '../sim/state';
 import { trackGeometry } from '../sim/track';
 import { DT } from '../sim/tuning';

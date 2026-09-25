@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { scenarios } from '../../scenarios';
 import { sunnyRace } from '../../scenarios/race';
 import { autopilotInput } from '../autopilot';
-import { sunnyCircuit } from '../data/tracks/sunnyCircuit';
+import { sunnyCircuit } from '../../content/tracks/sunny-circuit/sim';
 import { raceProgress } from '../race';
 import { step } from '../step';
 import { trackGeometry } from '../track';
