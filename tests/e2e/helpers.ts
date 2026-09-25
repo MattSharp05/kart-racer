@@ -1,6 +1,6 @@
 import type { Page } from '@playwright/test';
-import type { InputFrame, SimState } from '../../src/sim/types';
-import '../../src/game/testApi';
+import type { InputFrame } from '../../src/sim/types';
+import type { TestState } from '../../src/game/testApi';
 
 export interface LoadOptions {
   seed?: number;
@@ -16,7 +16,7 @@ export async function loadScenario(page: Page, name: string, options: LoadOption
   await page.waitForFunction(() => window.__game?.ready === true);
 }
 
-export function getState(page: Page): Promise<SimState> {
+export function getState(page: Page): Promise<TestState> {
   return page.evaluate(() => window.__game!.getState());
 }
 
@@ -25,7 +25,7 @@ export async function pause(page: Page): Promise<void> {
 }
 
 /** Runs exactly `ticks` sim ticks and returns the resulting state. */
-export function step(page: Page, ticks: number): Promise<SimState> {
+export function step(page: Page, ticks: number): Promise<TestState> {
   return page.evaluate((n) => window.__game!.step(n), ticks);
 }
 

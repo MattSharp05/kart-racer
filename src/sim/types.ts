@@ -93,10 +93,19 @@ export interface RaceInfo {
   rubberBand?: boolean;
 }
 
+/**
+ * Who drives a kart (MK-38): a player on this device, a player elsewhere (online), or the AI. The
+ * sim treats `local` and `remote` alike (it just reads their inputs); only `ai` karts get AI input.
+ */
+export type KartController = 'local' | 'remote' | 'ai';
+
 export interface KartState {
   id: number;
   /** Which of the four karts this is (stats + model). */
   kartType: KartId;
+  controller: KartController;
+  /** Display name (online nicknames); the kart's own name is used when absent. */
+  name?: string;
   position: Vec3;
   /** World-space velocity, m/s. */
   velocity: Vec3;
@@ -132,7 +141,7 @@ export interface KartState {
   starTimer: number;
   /** Seconds left shrunk by lightning (MK-20): slower, can be run over. */
   shrinkTimer: number;
-  /** Present on computer-controlled karts (MK-14). */
+  /** The AI driver's personality and memory, on karts with `controller: 'ai'` (MK-14). */
   ai?: AiState;
 }
 

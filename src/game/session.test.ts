@@ -32,6 +32,13 @@ describe('resolveLaunch', () => {
     expect(launch.state.karts[0]?.kartType).toBe('boulder');
   });
 
+  it('follows and equips the local kart when it is not kart 0', () => {
+    const launch = resolveLaunch(parseLaunchParams('?scenario=race-local-kart-3&item=star'));
+    expect(launch).toMatchObject({ localKartId: 3, follow: 3 });
+    expect(launch.state.karts[3]?.item.held).toBe('star');
+    expect(launch.state.karts[0]?.item.held).toBeNull();
+  });
+
   it('is deterministic for a seed', () => {
     const a = resolveLaunch(parseLaunchParams('?scenario=race-countdown&seed=5'));
     const b = resolveLaunch(parseLaunchParams('?scenario=race-countdown&seed=5'));
@@ -45,6 +52,18 @@ describe('RaceSession', () => {
     session.game.stepTicks(1);
     expect(session.playerInput.throttle).toBe(1);
     expect(session.game.state.karts[0]!.speed).toBeGreaterThan(0);
+  });
+
+  it('feeds the local controls to the local kart, whichever id it has', () => {
+    const session = new RaceSession(
+      resolveLaunch(parseLaunchParams('?scenario=race-local-kart-3')).state,
+    );
+    expect(session.localKartId).toBe(3);
+    expect(session.inputs()[0]).toBeUndefined();
+    session.game.stepTicks(1);
+    expect(session.inputs()[3]?.throttle).toBe(1);
+    expect(session.game.state.karts[3]!.race.throttleSince).toBeDefined();
+    expect(session.game.state.karts[0]!.race.throttleSince).toBeUndefined();
   });
 
   it('startRace loads the player plus 7 AI karts at the chosen class', () => {

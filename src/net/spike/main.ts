@@ -283,16 +283,20 @@ export async function run(): Promise<never> {
     simHash,
     benchResim: (ticks, reps) => benchResim(seed, ticks, reps),
   };
+  const testState = () => ({
+    ...structuredClone(displayState() ?? spikeRace(seed)),
+    localKartId: localKart,
+  });
   const api: GameTestApi = {
     ready: true,
     scenario: null,
-    getState: () => structuredClone(displayState() ?? spikeRace(seed)),
+    getState: testState,
     pause: () => (paused = true),
     resume: () => (paused = false),
     isPaused: () => paused,
     step: (ticks) => {
       for (let i = 0; i < ticks; i += 1) tick();
-      return structuredClone(displayState() ?? spikeRace(seed));
+      return testState();
     },
     // Only the local kart can be driven from this browser.
     setInput: (_kartId, frame) => (override = frame ? { ...NEUTRAL_INPUT, ...frame } : null),

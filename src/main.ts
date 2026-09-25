@@ -24,8 +24,8 @@ if (params.paused) game.pause();
 const world = new World(canvas, game, {
   track: getTrack(launch.state.trackId),
   view: launch.view ?? 'chase',
-  follow: launch.follow ?? 0,
-  playerInputs: () => [session.playerInput],
+  follow: launch.follow ?? launch.localKartId,
+  playerInputs: () => session.inputs(),
   reducedMotion:
     params.reducedMotion || window.matchMedia('(prefers-reduced-motion: reduce)').matches,
   aiDebug: params.aiDebug,
@@ -41,6 +41,7 @@ installTestApi(
   },
   launch.scenario,
   () => world.renderInfo(),
+  () => session.localKartId,
 );
 
 flow.open(launch);
