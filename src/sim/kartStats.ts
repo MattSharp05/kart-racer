@@ -1,4 +1,4 @@
-import { KARTS, type KartId } from './data/karts';
+import { kartDef, type KartId } from './data/karts';
 import { tuning, type EngineClass } from './tuning';
 
 /** Stat 3 is neutral; each point above/below scales these by the tuning step. */
@@ -16,7 +16,7 @@ export interface KartPhysics {
 
 /** Turns a kart's 1–5 stats into physics numbers for an engine class. */
 export function kartPhysics(kartType: KartId, engineClass: EngineClass): KartPhysics {
-  const { stats } = KARTS[kartType];
+  const { stats } = kartDef(kartType);
   const { speedPerPoint, accelerationPerPoint, handlingPerPoint } = tuning.stats;
   return {
     topSpeed: tuning.topSpeed[engineClass] * (1 + (stats.speed - NEUTRAL_STAT) * speedPerPoint),

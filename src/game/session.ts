@@ -1,3 +1,4 @@
+import { items } from '../content/items';
 import { PlayerInput } from '../input/playerInput';
 import { scenarios } from '../scenarios';
 import { attractMode } from '../scenarios/menus';
@@ -8,7 +9,7 @@ import { isKartId, KART_IDS, type KartId } from '../sim/data/karts';
 import type { EngineClass } from '../sim/tuning';
 import { createRace } from '../sim/race/createRace';
 import { step } from '../sim/step';
-import { NEUTRAL_INPUT, type InputFrame, type ItemId, type SimState } from '../sim/types';
+import { NEUTRAL_INPUT, type InputFrame, type SimState } from '../sim/types';
 import { showErrorBanner } from '../ui/errorBanner';
 import { Game } from './game';
 import type { LaunchParams } from './launchParams';
@@ -18,7 +19,6 @@ export const DEFAULT_SEED = 1;
 /** Room of an online scenario opened without `&room=`. */
 export const DEFAULT_ROOM = 'local';
 const AI_RACERS = 7;
-const ITEM_IDS: string[] = ['mushroom', 'banana', 'green', 'red', 'star', 'lightning'];
 
 /** What the page boots into: a named scenario, or the title screen over an attract-mode race. */
 export interface Launch {
@@ -48,8 +48,8 @@ export function resolveLaunch(params: LaunchParams): Launch {
   if (launch.online) return launch;
   const player = launch.state.karts[launch.localKartId];
   if (params.item) {
-    if (player && ITEM_IDS.includes(params.item)) player.item.held = params.item as ItemId;
-    else showErrorBanner(`Unknown item "${params.item}". Valid items:`, ITEM_IDS);
+    if (player && items.has(params.item)) player.item.held = params.item;
+    else showErrorBanner(`Unknown item "${params.item}". Valid items:`, items.ids());
   }
   if (params.kart) {
     if (player && isKartId(params.kart)) player.kartType = params.kart;

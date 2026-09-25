@@ -1,4 +1,4 @@
-import { KARTS } from '../sim/data/karts';
+import { kartDef } from '../sim/data/karts';
 import { raceResults } from '../sim/raceFlow';
 import type { SimState } from '../sim/types';
 
@@ -18,7 +18,7 @@ export function resultLines(state: SimState, localKartId: number): ResultLine[] 
     const kart = state.karts[row.kartId];
     return {
       position: row.position,
-      name: kart ? (kart.name ?? KARTS[kart.kartType].name) : '?',
+      name: kart ? (kart.name ?? kartDef(kart.kartType).name) : '?',
       you: row.kartId === localKartId,
       ...(row.time !== undefined ? { time: row.time } : {}),
     };
