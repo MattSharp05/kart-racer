@@ -40,7 +40,10 @@ export const CLIENT_KART = 1;
 export function spikeRace(seed: number): SimState {
   const state = sunnyRace(seed, { karts: SPIKE_KARTS, ai: true });
   const client = state.karts[CLIENT_KART];
-  if (client) delete client.ai;
+  if (client) {
+    delete client.ai;
+    client.controller = 'remote';
+  }
   return state;
 }
 
