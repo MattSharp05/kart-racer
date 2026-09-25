@@ -11,6 +11,8 @@ export interface ScenarioSetup {
   follow?: number;
   /** Open a menu screen on top of this state (MK-25). */
   screen?: MenuScreen;
+  /** Saved data the scenario needs (key → value, e.g. track records, MK-44), stored at launch. */
+  storage?: Record<string, string>;
 }
 
 /** A named, deterministic starting state reachable via `/?scenario=<name>` (CLAUDE.md → Testing). */

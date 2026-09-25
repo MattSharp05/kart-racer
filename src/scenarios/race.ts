@@ -7,6 +7,7 @@ import { trackGeometry } from '../sim/track';
 import { rngInt, rngPick } from '../sim/rng';
 import { DT, tuning, type EngineClass } from '../sim/tuning';
 import type { SimState } from '../sim/types';
+import { recordStorage } from '../game/storage/records';
 import type { Scenario } from './registry';
 
 const sunny = trackGeometry(sunnyCircuit);
@@ -124,6 +125,30 @@ function racingSince(state: SimState, secondsAgo: number): SimState {
   return state;
 }
 
+/** Final lap, 100 m before the finish line, with laps of 52.4 s and 49.8 s behind. */
+function finalStraight(seed: number): SimState {
+  const state = racingSince(sunnyRace(seed), 150);
+  const t = 1 - 100 / sunny.length;
+  const kart = state.karts[0];
+  if (kart) {
+    kart.position = sunny.pointAt(t);
+    kart.heading = sunny.headingAt(t);
+    const speed = tuning.topSpeed[100] * 0.9;
+    const forward = forwardFromHeading(kart.heading);
+    kart.velocity = { x: forward.x * speed, y: 0, z: forward.z * speed };
+    kart.speed = speed;
+    kart.race = {
+      ...kart.race,
+      lap: state.race.laps,
+      nextCheckpoint: 0,
+      lastT: t,
+      lapStartTick: -Math.round(48 / DT),
+      lapTimes: [52.4, 49.8],
+    };
+  }
+  return state;
+}
+
 export const raceScenarios: Scenario[] = [
   {
     name: 'race-countdown',
@@ -145,27 +170,23 @@ export const raceScenarios: Scenario[] = [
     group: 'Race',
     description: 'Final lap, 100 m before the finish line. Cross it to finish the race.',
     defaultSeed: 1,
+    setup: (seed) => ({ state: finalStraight(seed) }),
+  },
+  {
+    name: 'records-has-best',
+    group: 'Race',
+    description:
+      'race-final-straight on a profile with saved records (race 2:40.000, lap 0:48.000). Cross the line: a new race record, the lap record stands.',
+    defaultSeed: 1,
     setup: (seed) => {
-      const state = racingSince(sunnyRace(seed), 150);
-      const t = 1 - 100 / sunny.length;
-      const kart = state.karts[0];
-      if (kart) {
-        kart.position = sunny.pointAt(t);
-        kart.heading = sunny.headingAt(t);
-        const speed = tuning.topSpeed[100] * 0.9;
-        const forward = forwardFromHeading(kart.heading);
-        kart.velocity = { x: forward.x * speed, y: 0, z: forward.z * speed };
-        kart.speed = speed;
-        kart.race = {
-          ...kart.race,
-          lap: state.race.laps,
-          nextCheckpoint: 0,
-          lastT: t,
-          lapStartTick: -Math.round(48 / DT),
-          lapTimes: [52.4, 49.8],
-        };
-      }
-      return { state };
+      const state = finalStraight(seed);
+      return {
+        state,
+        storage: recordStorage(state.trackId, state.engineClass, {
+          race: { time: 160, kart: 'boulder', date: '2026-09-01' },
+          lap: { time: 48, kart: 'swoop', date: '2026-09-01' },
+        }),
+      };
     },
   },
   {

@@ -23,6 +23,8 @@ export interface Launch {
   screen?: MenuScreen;
   /** The kart this device drives (MK-38). */
   localKartId: number;
+  /** The scenario's saved data (MK-44); `Flow.open` writes it to the store. */
+  storage?: Record<string, string>;
 }
 
 /** `localKartId` when this device drives no kart (spectating). */
@@ -61,6 +63,7 @@ function initialState(params: LaunchParams): Launch {
         follow: setup.follow ?? localKartId,
         localKartId,
         ...(setup.screen ? { screen: setup.screen } : {}),
+        ...(setup.storage ? { storage: setup.storage } : {}),
       };
     }
     showErrorBanner(
