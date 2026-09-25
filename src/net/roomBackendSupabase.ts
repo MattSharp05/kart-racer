@@ -11,6 +11,12 @@ import type { RoomBackend, RoomChannel, RoomMember } from './roomBackend';
 /** How long `open` waits after subscribing for the presence state, before assuming an empty room, ms. */
 const PRESENCE_SYNC_TIMEOUT_MS = 3000;
 
+/**
+ * Presence reaches others about 1 s after a `track` (up to 2.4 s measured from Node); a
+ * friend who joins right after the room was created waits up to this for the host to show.
+ */
+const PRESENCE_LAG_MS = 3000;
+
 /** Supabase settings baked in at build time (Vercel env vars; see `.env.example`). */
 function supabaseConfig(): { url: string; key: string } | null {
   const url = import.meta.env.VITE_SUPABASE_URL as string | undefined;
@@ -27,6 +33,7 @@ export function supabaseRoomBackend(): RoomBackend {
     return createClient(config.url, config.key, { auth: { persistSession: false } });
   };
   return {
+    presenceLagMs: PRESENCE_LAG_MS,
     async open(code, selfId) {
       client ??= connect();
       // A failed connect (no config, chunk load error) is retried on the next open.

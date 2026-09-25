@@ -64,6 +64,7 @@ async function until(check: () => boolean, timeoutMs = 1000): Promise<void> {
 function fakeBackend(occupied: Record<string, RoomMember[]>) {
   const opened: string[] = [];
   const backend: RoomBackend = {
+    presenceLagMs: 0,
     open(code) {
       opened.push(code);
       const members = [...(occupied[code] ?? [])];
@@ -135,6 +136,7 @@ describe('createRoom', () => {
   it('gives up after every attempt collides', async () => {
     const backend: RoomBackend = fakeBackend({}).backend;
     const full: RoomBackend = {
+      presenceLagMs: 0,
       open: async (code, id) => {
         const channel = await backend.open(code, id);
         await channel.track(member('other', true, 1));
@@ -151,8 +153,39 @@ describe('createRoom', () => {
   });
 
   it('a backend that cannot connect is "unavailable"', async () => {
-    const down: RoomBackend = { open: () => Promise.reject(new Error('offline')) };
+    const down: RoomBackend = {
+      presenceLagMs: 0,
+      open: () => Promise.reject(new Error('offline')),
+    };
     expect(await reason(createRoom(down, INFO))).toBe('unavailable');
+  });
+});
+
+describe('joinRoom', () => {
+  it("waits up to the backend's presence lag for a host that shows up late", async () => {
+    const lagging = (hostAfterMs: number): RoomBackend => ({
+      presenceLagMs: 100,
+      open: () => {
+        const members: RoomMember[] = [];
+        const handlers: (() => void)[] = [];
+        setTimeout(() => {
+          members.push(member('h', true, 1));
+          handlers.forEach((handler) => handler());
+        }, hostAfterMs);
+        return Promise.resolve({
+          members: () => members,
+          onSync: (handler) => void handlers.push(handler),
+          track: (m) => {
+            members.push(m);
+            return Promise.resolve();
+          },
+          close: () => undefined,
+        });
+      },
+    });
+    const room = keep(await joinRoom(lagging(30), 'ABCD', INFO));
+    expect(room.members.map((m) => m.id)).toEqual(['h', room.selfId]);
+    expect(await reason(joinRoom(lagging(300), 'ABCD', INFO))).toBe('not-found');
   });
 });
 

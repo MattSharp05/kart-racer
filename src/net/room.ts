@@ -109,6 +109,7 @@ export async function joinRoom(
 ): Promise<Room> {
   const selfId = memberId(options.random ?? Math.random);
   const channel = await openChannel(backend, code, selfId);
+  await hostPresent(channel, backend.presenceLagMs);
   const present = channel.members();
   const error: RoomError | null = !present.some((m) => m.isHost)
     ? 'not-found'
@@ -120,6 +121,20 @@ export async function joinRoom(
     throw new RoomJoinError(error);
   }
   return enter(channel, code, { ...info, id: selfId, isHost: false, joinedAt: now(options) });
+}
+
+/** Resolves once the channel shows a host, or after `waitMs` without one. */
+function hostPresent(channel: RoomChannel, waitMs: number): Promise<void> {
+  const hasHost = () => channel.members().some((m) => m.isHost);
+  if (hasHost() || waitMs <= 0) return Promise.resolve();
+  return new Promise((resolve) => {
+    const timer = setTimeout(resolve, waitMs);
+    channel.onSync(() => {
+      if (!hasHost()) return;
+      clearTimeout(timer);
+      resolve();
+    });
+  });
 }
 
 async function openChannel(backend: RoomBackend, code: string, selfId: string) {

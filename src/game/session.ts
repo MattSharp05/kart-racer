@@ -69,7 +69,8 @@ function initialState(params: LaunchParams): Launch {
     if (scenario) {
       const setup = scenario.setup(params.seed ?? scenario.defaultSeed);
       if (setup.online) return onlineLaunch(scenario.name, setup.online, params);
-      if ((params.net || params.role) && !isOnlineScenario(scenario)) {
+      // `&net=local` alone is fine anywhere: it also picks the room backend (MK-40).
+      if (params.role && !isOnlineScenario(scenario)) {
         showErrorBanner(
           `"${scenario.name}" isn't an online scenario. Online scenarios:`,
           onlineNames(),

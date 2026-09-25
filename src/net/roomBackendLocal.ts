@@ -29,6 +29,8 @@ type PresenceMessage =
 
 export function localRoomBackend(timing: LocalRoomTiming = LOCAL_ROOM_TIMING): RoomBackend {
   return {
+    // `open` already listened for `syncMs`: everyone present has answered.
+    presenceLagMs: 0,
     async open(code, selfId) {
       const channel = new LocalRoomChannel(code, selfId, timing);
       await new Promise((resolve) => setTimeout(resolve, timing.syncMs));

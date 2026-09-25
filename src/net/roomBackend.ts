@@ -39,6 +39,11 @@ export interface RoomChannel {
 
 export interface RoomBackend {
   /**
+   * How long presence can lag behind a join, ms: a joiner who sees no host yet waits this long
+   * for one before calling the room missing (0 when presence is immediate).
+   */
+  readonly presenceLagMs: number;
+  /**
    * Opens room `code`'s channel as `selfId`, resolving once the members already present are
    * known (an empty list: nobody is in that room). Rejects when the service can't be reached.
    */
