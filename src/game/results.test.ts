@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { scenarios } from '../scenarios';
 import { recordFinish, recordLines } from './results';
-import { getRecord, recordStorage } from './storage/records';
-import { MemoryStore } from './storage/store';
+import { getRecord, recordStorage, saveRaceRecord } from './storage/records';
+import { MemoryStore, OverlayStore } from './storage/store';
 
 describe('record lines (MK-44)', () => {
   it('flags new records with the previous best, and lists standing ones plainly', () => {
@@ -41,10 +41,15 @@ describe('recordFinish', () => {
     expect(recordFinish(store, state, 1)).toBeUndefined();
   });
 
-  it('reads records seeded by a scenario', () => {
-    const store = new MemoryStore();
-    const seeded = recordStorage('sunny-circuit', 100, { race: { time: 1, kart: 'maple' } });
-    for (const [key, value] of Object.entries(seeded)) store.set(key, value);
-    expect(getRecord(store, 'sunny-circuit', 100)).toEqual({ race: { time: 1, kart: 'maple' } });
+  it('scenario records live in memory over the real store, which they never overwrite', () => {
+    const real = new MemoryStore();
+    real.set('kart-racer:muted', '1');
+    const seeded = recordStorage('sunny-circuit', 100, { race: { time: 160, kart: 'maple' } });
+    const store = new OverlayStore(real, seeded);
+    expect(getRecord(store, 'sunny-circuit', 100)).toEqual({ race: { time: 160, kart: 'maple' } });
+    expect(store.get('kart-racer:muted')).toBe('1');
+    saveRaceRecord(store, 'sunny-circuit', 100, { kart: 'pixie', raceTime: 150, lapTimes: [] });
+    expect(getRecord(store, 'sunny-circuit', 100).race?.time).toBe(150);
+    expect(getRecord(real, 'sunny-circuit', 100)).toEqual({});
   });
 });

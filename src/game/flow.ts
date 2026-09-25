@@ -100,7 +100,6 @@ export class Flow {
 
   /** Opens the launch screen (menus or a direct race). */
   open(launch: Launch): void {
-    for (const [key, value] of Object.entries(launch.storage ?? {})) this.store.set(key, value);
     const game = this.session.game;
     this.pauseButton.hidden = launch.screen !== undefined || launch.state.phase === 'free';
     switch (launch.screen) {

@@ -21,7 +21,7 @@ export interface RecordLineView {
 
 export interface ResultsProps {
   rows: ResultRowView[];
-  /** The track's records after this race (MK-44); absent when the race didn't set any. */
+  /** The track's records after the local player's finish (MK-44); absent without a finish. */
   records?: RecordLineView[];
   onAgain: () => void;
   onChangeKart: () => void;

@@ -23,7 +23,7 @@ export interface Launch {
   screen?: MenuScreen;
   /** The kart this device drives (MK-38). */
   localKartId: number;
-  /** The scenario's saved data (MK-44); `Flow.open` writes it to the store. */
+  /** The scenario's saved data (MK-44), layered over the real store for this page load. */
   storage?: Record<string, string>;
 }
 
