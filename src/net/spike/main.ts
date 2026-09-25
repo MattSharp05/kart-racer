@@ -303,6 +303,7 @@ export async function run(): Promise<never> {
     setAutopilot: () => undefined,
     events: () => [],
     renderInfo: () => ({ calls: 0, triangles: 0 }),
+    net: () => null,
   };
   window.__game = api;
 

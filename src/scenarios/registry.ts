@@ -1,3 +1,5 @@
+import type { NetConditions } from '../net/netsim';
+import type { CreateRaceOptions } from '../sim/race/createRace';
 import type { SimState } from '../sim/types';
 
 export type ScenarioView = 'chase' | 'overview' | 'lineup';
@@ -11,6 +13,16 @@ export interface ScenarioSetup {
   follow?: number;
   /** Open a menu screen on top of this state (MK-25). */
   screen?: MenuScreen;
+  /** An online race (MK-46): `state` is `createRace(online.race)`, played over `?net=local`. */
+  online?: OnlineScenario;
+}
+
+/** The online part of a scenario: the race the host runs, and a default simulated network. */
+export interface OnlineScenario {
+  /** The host's race: its own kart `local`, one `remote` kart per client, the rest AI. */
+  race: CreateRaceOptions;
+  /** Lag, jitter and loss each way unless the URL's `&netsim=` says otherwise. */
+  netsim?: NetConditions;
 }
 
 /** A named, deterministic starting state reachable via `/?scenario=<name>` (CLAUDE.md → Testing). */
