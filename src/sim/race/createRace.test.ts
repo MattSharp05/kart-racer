@@ -202,6 +202,21 @@ describe('rubber-banding', () => {
     expect(rubberBandScale(state.karts[1]!, state, geometry)).toBeLessThan(1);
   });
 
+  it('once one person has finished, measures the gap to the next one still racing', () => {
+    const state = racing(race(['local', 'remote', 'ai']), 30);
+    const place = (id: number, metres: number, lap = 2) => {
+      const t = 0.5 + metres / geometry.length;
+      const kart = state.karts[id]!;
+      kart.position = geometry.pointAt(t);
+      kart.race = { ...kart.race, lap, lastT: t };
+    };
+    state.karts[0]!.race.finishTick = 0; // finished, top of the order
+    place(1, 0);
+    place(2, 400);
+    state.positions = [0, 2, 1];
+    expect(rubberBandScale(state.karts[2]!, state, geometry)).toBeLessThan(1);
+  });
+
   it('is off without a human in the race', () => {
     const state = racing(race(['ai', 'ai']), 30);
     expect(rubberBandScale(state.karts[0]!, state, geometry)).toBe(1);
