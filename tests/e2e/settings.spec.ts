@@ -7,6 +7,8 @@ test.describe('settings screen (MK-43)', () => {
   test('title → Settings → mute → Back; mute survives a reload and matches the pause menu', async ({
     page,
   }) => {
+    // Three page loads (title, reload, pause menu): ~29 s on the slow pixel-landscape CI job.
+    test.setTimeout(60_000);
     await loadScenario(page, 'menu-title');
     await page.locator('.menu-title button', { hasText: 'Settings' }).click();
     await expect(page.locator('.menu-settings')).toBeVisible();
