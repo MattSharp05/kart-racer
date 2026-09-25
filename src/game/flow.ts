@@ -12,9 +12,11 @@ import '../ui/screens/ccSelect';
 import type { SoundControl } from '../ui/screens/common';
 import { HowToPlay } from '../ui/screens/howToPlay';
 import '../ui/screens/kartSelect';
+import '../ui/screens/nickname';
 import { createPauseButton } from '../ui/screens/pause';
 import '../ui/screens/results';
 import '../ui/screens/title';
+import { clearProfile, colourHex, readProfile, saveProfile, type Profile } from './profile';
 import { recordFinish, recordLines, resultLines } from './results';
 import { DEFAULT_SEED, type Launch, type RaceSession } from './session';
 import { readPrefs, writePrefs } from './storage/prefs';
@@ -104,13 +106,28 @@ export class Flow {
     this.pauseButton.hidden = launch.screen !== undefined || launch.state.phase === 'free';
     switch (launch.screen) {
       case 'title':
-      case 'howToPlay':
-        this.showTitleScreen();
+      case 'howToPlay': {
         game.setAutopilot(launch.localKartId, true);
-        // First visit (plain URL, nothing stored): show the controls guide straight away.
-        if (launch.screen === 'howToPlay' || (!launch.scenario && !hasSeenHowToPlay(this.store))) {
-          this.openHowToPlay();
-        }
+        const toTitle = () => {
+          this.showTitleScreen();
+          // First visit (plain URL, nothing stored): show the controls guide straight away.
+          if (
+            launch.screen === 'howToPlay' ||
+            (!launch.scenario && !hasSeenHowToPlay(this.store))
+          ) {
+            this.openHowToPlay();
+          }
+        };
+        // First launch (plain URL, no name saved yet): pick a nickname before the title (MK-42).
+        if (!launch.scenario && !readProfile(this.store)) this.showNickname(toTitle);
+        else toTitle();
+        break;
+      }
+      case 'nickname':
+        // The first-launch scenario: forget the saved name so the screen starts empty.
+        clearProfile(this.store);
+        game.setAutopilot(launch.localKartId, true);
+        this.showNickname(() => this.showTitleScreen());
         break;
       case 'kartSelect':
         this.showKartSelect();
@@ -148,10 +165,26 @@ export class Flow {
   };
 
   private showTitleScreen(): void {
+    const profile = readProfile(this.store);
     this.screens.show('title', {
       onPlay: this.showKartSelect,
       onHowToPlay: this.openHowToPlay,
       sound: this.soundControl,
+      ...(profile && {
+        player: { nickname: profile.nickname, colour: colourHex(profile.colour) },
+        onEditName: () => this.showNickname(() => this.showTitleScreen(), profile),
+      }),
+    });
+  }
+
+  /** Nickname and colour (MK-42): on first launch (no way back), or edited from the title. */
+  private showNickname(then: () => void, initial?: Profile): void {
+    this.screens.show('nickname', {
+      onSave: (profile) => {
+        saveProfile(this.store, profile);
+        then();
+      },
+      ...(initial && { initial, onBack: () => this.showTitleScreen() }),
     });
   }
 

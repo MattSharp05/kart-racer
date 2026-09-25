@@ -49,6 +49,14 @@ export const menuScenarios: Scenario[] = [
     setup: (seed) => ({ state: attractMode(seed), screen: 'howToPlay' }),
   },
   {
+    name: 'first-launch',
+    group: 'Menus',
+    description:
+      'First launch: the Nickname screen (name + colour) before the title. Clears the saved name.',
+    defaultSeed: 1,
+    setup: (seed) => ({ state: attractMode(seed), screen: 'nickname' }),
+  },
+  {
     name: 'menu-kart-select',
     group: 'Menus',
     description: 'Kart select: ← → to browse, Enter to choose.',

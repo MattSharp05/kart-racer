@@ -1,4 +1,5 @@
 import { readMuted, writeMuted, type KeyValueStore } from '../game/storage';
+import { isTextEntry } from '../input/keyboard';
 import { tuning } from '../sim/tuning';
 import type { KartState, SimEvent, SimState } from '../sim/types';
 import { Music } from './music';
@@ -57,7 +58,8 @@ export class SoundManager {
     this.muted = readMuted(store);
     listenForAudioGestures(window, () => this.onGesture());
     window.addEventListener('keydown', (e) => {
-      if (e.code === 'KeyM' && !e.repeat) {
+      // Typing an "m" into the nickname field (MK-42) isn't the mute key.
+      if (e.code === 'KeyM' && !e.repeat && !isTextEntry(e.target)) {
         this.toggleMute();
         this.onMuteChange();
       }
