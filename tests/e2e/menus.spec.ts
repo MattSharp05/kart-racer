@@ -1,10 +1,11 @@
 import { expect, test } from '@playwright/test';
-import { getState, loadScenario } from './helpers';
+import { enterNickname, getState, loadScenario } from './helpers';
 
 test('title → kart select → engine class → race with 8 karts', async ({ page }) => {
   await page.goto('/');
   await page.waitForFunction(() => window.__game?.ready === true);
-  // First visit: the controls guide shows first.
+  // First visit: the nickname (MK-42), then the controls guide.
+  await enterNickname(page);
   await page.locator('.how-to-play button').click();
   await page.locator('.menu-title button.primary').click();
   await expect(page.locator('.menu-kartSelect')).toBeVisible();
@@ -29,6 +30,7 @@ test.describe('how to play (MK-32)', () => {
   test('shows on first load, Got it closes it, not shown again after reload', async ({ page }) => {
     await page.goto('/');
     await page.waitForFunction(() => window.__game?.ready === true);
+    await enterNickname(page);
     const guide = page.locator('.how-to-play');
     await expect(guide).toBeVisible();
     await guide.locator('button').click();
@@ -113,6 +115,7 @@ test.describe('menus QA round 2 (MK-25)', () => {
 
   // One test per menu: each loads a page, so they get their own timeout.
   for (const name of [
+    'first-launch',
     'menu-title',
     'menu-kart-select',
     'menu-cc-select',

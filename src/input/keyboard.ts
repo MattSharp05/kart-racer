@@ -13,12 +13,19 @@ const KEYS = {
 /** Keys the game handles, so the page doesn't scroll on arrows/space. */
 const GAME_KEYS = new Set<string>(Object.values(KEYS).flat());
 
+/** Whether a key event is typing into a text field (the nickname, MK-42), not driving. */
+export function isTextEntry(target: EventTarget | null): boolean {
+  const tag = (target as { tagName?: string } | null)?.tagName;
+  return tag === 'INPUT' || tag === 'TEXTAREA';
+}
+
 /** Tracks held keys and turns them into an InputFrame (docs: PRD → Target platforms & controls). */
 export class KeyboardInput {
   private readonly held = new Set<string>();
 
   constructor(target: Window = window) {
     target.addEventListener('keydown', (e) => {
+      if (isTextEntry(e.target)) return;
       if (GAME_KEYS.has(e.code)) e.preventDefault();
       this.held.add(e.code);
     });

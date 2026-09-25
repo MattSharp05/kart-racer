@@ -1,24 +1,13 @@
-import { SETTINGS_KEY } from '../../game/storage/settings';
-import { readJson, type KeyValueStore } from '../../game/storage/store';
+import { colourHex, readProfile } from '../../game/profile';
 import { registerSettingsSection } from '../settingsSections';
 
-/**
- * The saved nickname and colour id (MK-42 stores them in the settings object), or undefined when
- * the player hasn't picked a name yet. Read raw so this works whether or not MK-42 is merged.
- */
-function storedProfile(store: KeyValueStore): { nickname: string; colour: string } | undefined {
-  const { nickname, colour } = readJson(store, SETTINGS_KEY);
-  if (typeof nickname !== 'string' || nickname.trim() === '') return undefined;
-  return { nickname, colour: typeof colour === 'string' ? colour : '' };
-}
-
-/** Profile (MK-43): who you race as. Only shown once a nickname exists. */
+/** Profile (MK-43): who you race as (MK-42's nickname and colour). Only shown once a name exists. */
 registerSettingsSection({
   id: 'profile',
   group: 'profile',
-  visible: (ctx) => storedProfile(ctx.store) !== undefined,
+  visible: (ctx) => readProfile(ctx.store) !== undefined,
   render(parent, { store }) {
-    const profile = storedProfile(store);
+    const profile = readProfile(store);
     if (!profile) return;
     const el = document.createElement('div');
     el.className = 'settings-field settings-profile';
@@ -29,8 +18,7 @@ registerSettingsSection({
     chip.className = 'settings-profile-chip';
     const dot = document.createElement('span');
     dot.className = 'settings-profile-dot';
-    // MK-42's colour ids (red, blue, teal…) are all CSS colour names.
-    if (profile.colour) dot.style.background = profile.colour;
+    dot.style.background = colourHex(profile.colour);
     const name = document.createElement('span');
     name.className = 'settings-profile-name';
     name.textContent = profile.nickname;

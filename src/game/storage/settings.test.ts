@@ -15,6 +15,9 @@ import {
 } from './settings';
 import { MemoryStore, type KeyValueStore } from './store';
 
+/** The MK-42 profile fields, empty until the player picks a nickname. */
+const NO_PROFILE = { nickname: '', colour: '', deviceId: '' };
+
 /** A store holding what the MVP (before MK-37) saved, keys and formats exactly as it wrote them. */
 function mvpStore(): MemoryStore {
   const store = new MemoryStore();
@@ -42,11 +45,12 @@ describe('saved data from before MK-37', () => {
 
   it('migrates the old setting keys into one versioned settings object, once', () => {
     const store = mvpStore();
-    expect(readSettings(store)).toEqual({ muted: true, seenHowToPlay: true });
+    expect(readSettings(store)).toEqual({ muted: true, seenHowToPlay: true, ...NO_PROFILE });
     expect(JSON.parse(store.get(SETTINGS_KEY) ?? '')).toEqual({
       version: SETTINGS_VERSION,
       muted: true,
       seenHowToPlay: true,
+      ...NO_PROFILE,
     });
     // After the migration the settings object wins over the legacy keys.
     store.set(LEGACY_KEYS.muted, '0');
@@ -55,7 +59,7 @@ describe('saved data from before MK-37', () => {
 
   it('a first visit (nothing stored) gets the defaults', () => {
     const store = new MemoryStore();
-    expect(readSettings(store)).toEqual({ muted: false, seenHowToPlay: false });
+    expect(readSettings(store)).toEqual({ muted: false, seenHowToPlay: false, ...NO_PROFILE });
     expect(readPrefs(store)).toEqual({});
   });
 });
@@ -65,10 +69,14 @@ describe('settings', () => {
     const store = new MemoryStore();
     writeMuted(store, true);
     markHowToPlaySeen(store);
-    expect(readSettings(store)).toEqual({ muted: true, seenHowToPlay: true });
+    expect(readSettings(store)).toEqual({ muted: true, seenHowToPlay: true, ...NO_PROFILE });
     writeMuted(store, false);
-    expect(readSettings(store)).toEqual({ muted: false, seenHowToPlay: true });
-    expect(updateSettings(store, { muted: true })).toEqual({ muted: true, seenHowToPlay: true });
+    expect(readSettings(store)).toEqual({ muted: false, seenHowToPlay: true, ...NO_PROFILE });
+    expect(updateSettings(store, { muted: true })).toEqual({
+      muted: true,
+      seenHowToPlay: true,
+      ...NO_PROFILE,
+    });
   });
 
   it('drops unknown fields and wrong types', () => {
@@ -76,13 +84,14 @@ describe('settings', () => {
     expect(migrate({ version: 1, muted: 'yes', seenHowToPlay: true, extra: 3 }, store)).toEqual({
       muted: false,
       seenHowToPlay: true,
+      ...NO_PROFILE,
     });
   });
 
   it('survives broken storage', () => {
     for (const raw of ['{not json', '[1,2]', 'null']) {
       const broken: KeyValueStore = { get: () => raw, set: () => {} };
-      expect(readSettings(broken)).toEqual({ muted: false, seenHowToPlay: false });
+      expect(readSettings(broken)).toEqual({ muted: false, seenHowToPlay: false, ...NO_PROFILE });
     }
   });
 });

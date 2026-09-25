@@ -1,4 +1,5 @@
 import { NEUTRAL_INPUT, type InputFrame } from '../sim/types';
+import { isTextEntry } from './keyboard';
 import './touch.css';
 
 /** Drag distance (px) for full steering lock. */
@@ -77,7 +78,10 @@ export class TouchControls {
 
     if (isTouchDevice()) this.show();
     window.addEventListener('touchstart', () => this.show(), { passive: true });
-    window.addEventListener('keydown', () => this.hide());
+    // A phone's on-screen keyboard sends keydown too: typing a name doesn't hide the controls.
+    window.addEventListener('keydown', (e) => {
+      if (!isTextEntry(e.target)) this.hide();
+    });
   }
 
   private button(name: ButtonName, label: string): HTMLButtonElement {

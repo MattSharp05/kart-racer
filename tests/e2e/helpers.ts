@@ -36,3 +36,9 @@ export async function setInput(
 ): Promise<void> {
   await page.evaluate(([id, f]) => window.__game!.setInput(id, f), [kartId, frame] as const);
 }
+
+/** First launch (MK-42): fills in the Nickname screen so the plain URL goes on to the title. */
+export async function enterNickname(page: Page, nickname = 'Tester'): Promise<void> {
+  await page.locator('.nickname-input').fill(nickname);
+  await page.locator('.menu-nickname button.primary').click();
+}
