@@ -1,6 +1,11 @@
 import { defineConfig, devices } from '@playwright/test';
 
 const PORT = 4173;
+/**
+ * Online specs (MK-46) run on the desktop projects only: BroadcastChannel links pages of one
+ * browser, and the phone/tablet projects add nothing to netcode coverage.
+ */
+const ONLINE_SPECS = /online.*\.spec\.ts$/i;
 
 export default defineConfig({
   testDir: 'tests/e2e',
@@ -15,9 +20,17 @@ export default defineConfig({
   projects: [
     { name: 'desktop-chrome', use: { ...devices['Desktop Chrome'] } },
     { name: 'desktop-webkit', use: { ...devices['Desktop Safari'] } },
-    { name: 'iphone-landscape', use: { ...devices['iPhone 15 landscape'] } },
-    { name: 'pixel-landscape', use: { ...devices['Pixel 7 landscape'] } },
-    { name: 'ipad', use: { ...devices['iPad (gen 7) landscape'] } },
+    {
+      name: 'iphone-landscape',
+      use: { ...devices['iPhone 15 landscape'] },
+      testIgnore: ONLINE_SPECS,
+    },
+    {
+      name: 'pixel-landscape',
+      use: { ...devices['Pixel 7 landscape'] },
+      testIgnore: ONLINE_SPECS,
+    },
+    { name: 'ipad', use: { ...devices['iPad (gen 7) landscape'] }, testIgnore: ONLINE_SPECS },
   ],
   webServer: {
     command: `pnpm build && pnpm preview --port ${PORT} --strictPort`,
