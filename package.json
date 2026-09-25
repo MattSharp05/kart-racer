@@ -24,6 +24,7 @@
     "check:bundle": "node scripts/check-bundle-size.mjs"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.117.2",
     "three": "^0.186.0"
   },
   "devDependencies": {
