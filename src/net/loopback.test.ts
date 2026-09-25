@@ -6,6 +6,10 @@ import { onlineRace, scriptedInput, TICK_MS } from './testRace';
 
 /** Ticks per second (60 Hz). */
 const HZ = 60;
+/** Host + 3 clients: karts 0–3 are human. */
+const HUMANS = 4;
+/** How long after a bump between two humans' karts the shown position isn't compared, ticks. */
+const BUMP_SETTLE_TICKS = HZ / 2;
 
 describe('online race over loopback (ADR 0005)', () => {
   it('keeps 3 clients converged to the host at 150 ms RTT, 30 ms jitter, 5 % loss', () => {
@@ -21,6 +25,9 @@ describe('online race over loopback (ADR 0005)', () => {
     let worstShown = 0;
     const shownErrors: number[] = [];
     let seq = 0;
+    /** Host tick of each kart's last bump with another human's kart (its input is a guess). */
+    const humanBumps = new Map<number, number>();
+    let lastComparedTick = 0;
 
     // Scripted driving until everyone has finished (a lap of Sunny Circuit is ~55 s, so at least
     // 30 s of it under these conditions), plus 1 s for the last packets.
@@ -31,6 +38,13 @@ describe('online race over loopback (ADR 0005)', () => {
       if (host.state.phase === 'finished') finishedAt = Math.min(finishedAt, ticks);
       const events = host.tick(scriptedInput(host.state.karts[0], host.state.tick, 0));
       for (const event of events) {
+        if (event.type === 'bump' && event.a < HUMANS && event.b < HUMANS) {
+          humanBumps.set(event.a, host.state.tick);
+          humanBumps.set(event.b, host.state.tick);
+        }
+        // Events in the last half second may still be in flight when the loop stops.
+        if (ticks > finishedAt + HZ / 2) continue;
+        lastComparedTick = host.state.tick;
         if (['finish', 'lap', 'kartHit', 'itemGranted'].includes(event.type)) {
           hostEvents.push({ seq: ++seq, tick: host.state.tick, event });
         }
@@ -44,9 +58,11 @@ describe('online race over loopback (ADR 0005)', () => {
         // The host has now simulated this tick: how far off was what the client showed?
         const was = shown[c]?.get(host.state.tick);
         const truth = hostKarts[kartId]?.position;
-        // A hit is the host's to decide: the client only learns about it a round trip later.
+        // A hit is the host's to decide: the client only learns about it a round trip later. So is
+        // a bump with another human's kart (MK-45): the client guessed that player's input.
         const hit = (hostKarts[kartId]?.spinTimer ?? 0) > 0;
-        if (was && truth && !hit) {
+        const bumped = host.state.tick - (humanBumps.get(kartId) ?? -Infinity) < BUMP_SETTLE_TICKS;
+        if (was && truth && !hit && !bumped) {
           const error = Math.hypot(was.x - truth.x, was.z - truth.z);
           shownErrors.push(error);
           worstShown = Math.max(worstShown, error);
@@ -87,6 +103,7 @@ describe('online race over loopback (ADR 0005)', () => {
       // The host's own events reached every client, once each and in order.
       const got = (clientEvents[c] ?? [])
         .filter((e) => ['finish', 'lap', 'kartHit', 'itemGranted'].includes(e.event.type))
+        .filter((e) => e.tick <= lastComparedTick)
         .map((e) => ({ tick: e.tick, event: e.event }));
       const sent = hostEvents.map((e) => ({ tick: e.tick, event: e.event }));
       expect(got).toEqual(sent);

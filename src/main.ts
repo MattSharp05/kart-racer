@@ -8,6 +8,7 @@ import { browserStore } from './game/storage';
 import { installTestApi } from './game/testApi';
 import { World } from './render/world';
 import { getTrack } from './sim/track';
+import { NetDebugOverlay } from './ui/netDebug';
 import { PerfOverlay } from './ui/perfOverlay';
 
 // Thin bootstrap (MK-35): read the URL, build the session, world and screen flow, start the loop.
@@ -29,6 +30,7 @@ const world = new World(canvas, game, {
   reducedMotion:
     params.reducedMotion || window.matchMedia('(prefers-reduced-motion: reduce)').matches,
   aiDebug: params.aiDebug,
+  poseFilter: () => session.online?.smoother,
 });
 const flow = new Flow(session, world, store);
 
@@ -60,4 +62,12 @@ if (params.tune) {
   void import('./dev/tuningPanel').then(({ openTuningPanel }) => openTuningPanel());
 }
 if (params.perf) world.perf = new PerfOverlay();
+if (params.netdebug) {
+  const overlay = new NetDebugOverlay(() => session.online?.debug() ?? null);
+  const onUpdate = world.onUpdate;
+  world.onUpdate = (seconds) => {
+    onUpdate(seconds);
+    overlay.frame(seconds);
+  };
+}
 world.start();

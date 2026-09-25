@@ -1,6 +1,6 @@
 import { createRace } from '../sim/race/createRace';
 import { step } from '../sim/step';
-import { DT } from '../sim/tuning';
+import { DT, tuning } from '../sim/tuning';
 import { NEUTRAL_INPUT, type InputFrame, type SimEvent, type SimState } from '../sim/types';
 import { HOST_EVENTS, NET } from './config';
 import {
@@ -17,6 +17,7 @@ import {
   type RaceSetup,
   type SnapshotMessage,
 } from './protocol';
+import { wrapAngle, type Correction } from './smoothing';
 import type { Transport } from './transport';
 
 /** What the client reports (tests, the perf suite, the netsim overlay). */
@@ -39,6 +40,13 @@ export interface ClientStats {
   snapshotMsMax: number;
   /** Own kart: distance between the prediction for a snapshot's tick and the host's, m. */
   predictionErrorMax: number;
+  /** Own kart: how far the last reconcile moved it, and the most any did, m (MK-45). */
+  lastCorrection: number;
+  correctionMax: number;
+  /** Tick of the first snapshot received (-1 before any): with `snapshots`, gives the loss. */
+  firstSnapshotTick: number;
+  /** `now()` when the newest snapshot arrived (-1 before any). */
+  lastSnapshotAt: number;
   bytesSent: number;
   bytesReceived: number;
   badPackets: number;
@@ -86,6 +94,8 @@ export class OnlineClient {
   ended: ByeReason | null = null;
   /** Called once when Start arrives and `kartId` / `setup` are known. */
   onStart: (() => void) | null = null;
+  /** Called with the host's state of every snapshot applied (remote-kart interpolation). */
+  onSnapshotState: ((state: SimState) => void) | null = null;
   readonly stats: ClientStats = {
     rttMs: 0,
     snapshots: 0,
@@ -97,6 +107,10 @@ export class OnlineClient {
     snapshotMsTotal: 0,
     snapshotMsMax: 0,
     predictionErrorMax: 0,
+    lastCorrection: 0,
+    correctionMax: 0,
+    firstSnapshotTick: -1,
+    lastSnapshotAt: -1,
     bytesSent: 0,
     bytesReceived: 0,
     badPackets: 0,
@@ -115,6 +129,8 @@ export class OnlineClient {
   private extraLead = 0;
   /** Local ticks to skip (not simulate) to ease back when ahead of the target. */
   private holdTicks = 0;
+  /** Smoothed ticks between where the clock should be and where it is (see `goalTick`). */
+  private drift = 0;
   private rttMs: number = NET.defaultRttMs;
   private ticksSincePing: number = NET.pingEveryTicks;
   private readonly received: NetEvent[] = [];
@@ -123,6 +139,10 @@ export class OnlineClient {
   private onTimeSnapshots = 0;
   private hasRttSample = false;
   private nextEventSeq = 1;
+  /** How reconciles moved each kart since the last `takeCorrections` (render smoothing). */
+  private readonly corrections: Correction[] = [];
+  /** Tick of the last own item use played from the prediction (-Infinity: none). */
+  private lastOwnUseTick = -Infinity;
 
   constructor(
     private readonly transport: Transport,
@@ -164,12 +184,23 @@ export class OnlineClient {
     this.state = state;
     this.sendInputs(nextTick);
     this.pruneHistory(state.tick - NET.historyTicks);
-    return [...this.pendingEvents.splice(0), ...cosmetic(events)];
+    return [...this.pendingEvents.splice(0), ...this.cosmetic(events, state.tick)];
   }
 
-  /** Host race events received since the last call, oldest first, each exactly once. */
+  /**
+   * Host race events received since the last call, oldest first, each exactly once. Our own item
+   * uses are left out: the prediction already played them (`cosmetic`).
+   */
   takeEvents(): NetEvent[] {
-    return this.received.splice(0).sort((a, b) => a.seq - b.seq);
+    return this.received
+      .splice(0)
+      .sort((a, b) => a.seq - b.seq)
+      .filter(({ event }) => !this.isOwnItemUse(event));
+  }
+
+  /** How reconciles moved the karts since the last call, for render smoothing (MK-45). */
+  takeCorrections(): Correction[] {
+    return this.corrections.splice(0);
   }
 
   /** Leaves the race (tells the host; best effort). */
@@ -181,7 +212,7 @@ export class OnlineClient {
 
   /** Ticks the client runs ahead of the newest snapshot: a full RTT plus a buffer. */
   leadTicks(): number {
-    return Math.ceil(this.rttMs / 1000 / DT) + NET.inputBufferTicks + this.extraLead;
+    return Math.ceil(this.rttMs / 1000 / DT) + tuning.net.inputDelayTicks + this.extraLead;
   }
 
   private simulate(state: SimState): { state: SimState; events: SimEvent[] } {
@@ -287,6 +318,9 @@ export class OnlineClient {
     }
     this.lastSnapshotTick = msg.tick;
     this.stats.snapshots += 1;
+    if (this.stats.firstSnapshotTick < 0) this.stats.firstSnapshotTick = msg.tick;
+    this.stats.lastSnapshotAt = this.now();
+    this.onSnapshotState?.(authoritative);
 
     let remoteChanged = false;
     let ownLate = false;
@@ -318,6 +352,12 @@ export class OnlineClient {
       for (let t = current; t < goal; t += 1) state = this.simulateNew(state);
       this.state = state;
     } else {
+      // Where the karts were drawn before, to measure how far this moves them (render smoothing):
+      // compared at the old present, or at the new one when that's earlier (jumping back).
+      const compareTick = Math.min(current, goal);
+      const before =
+        this.state && compareTick === current ? this.state : this.predicted.get(compareTick);
+      let after = compareTick === msg.tick ? authoritative : undefined;
       // Reset to the host's state and re-simulate the inputs it hasn't acknowledged yet.
       for (const tick of this.predicted.keys()) if (tick > msg.tick) this.predicted.delete(tick);
       this.predicted.set(msg.tick, authoritative);
@@ -325,7 +365,9 @@ export class OnlineClient {
       for (let t = msg.tick; t < goal; t += 1) {
         // Replayed ticks already played their cosmetic events; ones past the old present haven't.
         state = t < current || !this.state ? this.simulate(state).state : this.simulateNew(state);
+        if (state.tick === compareTick) after = state;
       }
+      if (this.state && before && after) this.recordCorrections(before, after);
       this.state = state;
       if (this.stats.snapshots > 1) {
         this.stats.reconciled += 1;
@@ -342,8 +384,50 @@ export class OnlineClient {
   /** Simulates a tick that is new to the player (not a replay), keeping its cosmetic events. */
   private simulateNew(state: SimState): SimState {
     const result = this.simulate(state);
-    this.pendingEvents.push(...cosmetic(result.events));
+    this.pendingEvents.push(...this.cosmetic(result.events, result.state.tick));
     return result.state;
+  }
+
+  /**
+   * The events a client plays from its own prediction: everything but the host's (`HOST_EVENTS`),
+   * plus our own item uses, so pressing the button shows (and sounds) at once. If the host doesn't
+   * confirm the use, the next reconcile takes it back without a sound.
+   */
+  private cosmetic(events: readonly SimEvent[], tick: number): SimEvent[] {
+    return events.filter((event) => {
+      if (!this.isOwnItemUse(event)) return !HOST_EVENTS.has(event.type);
+      // A reconcile can move a use a tick or two later: play it once.
+      if (event.type === 'itemUsed') {
+        if (tick - this.lastOwnUseTick < NET.ownItemUseDedupeTicks) return false;
+        this.lastOwnUseTick = tick;
+      }
+      return true;
+    });
+  }
+
+  private isOwnItemUse(event: SimEvent): boolean {
+    return (event.type === 'itemUsed' || event.type === 'star') && event.kartId === this.kartId;
+  }
+
+  /** Records how far a reconcile moved each kart at one tick (`before` → `after`). */
+  private recordCorrections(before: SimState, after: SimState): void {
+    for (const kart of after.karts) {
+      const old = before.karts[kart.id];
+      if (!old) continue;
+      const correction: Correction = {
+        kartId: kart.id,
+        dx: old.position.x - kart.position.x,
+        dy: old.position.y - kart.position.y,
+        dz: old.position.z - kart.position.z,
+        dHeading: wrapAngle(old.heading - kart.heading),
+      };
+      const size = Math.hypot(correction.dx, correction.dy, correction.dz);
+      if (kart.id === this.kartId) {
+        this.stats.lastCorrection = size;
+        this.stats.correctionMax = Math.max(this.stats.correctionMax, size);
+      }
+      if (size > 0 || correction.dHeading !== 0) this.corrections.push(correction);
+    }
   }
 
   /**
@@ -362,15 +446,30 @@ export class OnlineClient {
   }
 
   /**
-   * The tick to be at after this snapshot: a lead ahead of it. Ease one tick per snapshot (back by
-   * holding local ticks, which costs nothing); jump when far off (the start, lag spikes).
+   * The tick to be at after this snapshot: a lead ahead of it. Ease one tick at a time once the
+   * smoothed drift reaches `NET.tickDriftDeadband` (back by holding local ticks, which costs
+   * nothing); jump when far off (the start, lag spikes).
    */
   private goalTick(snapshotTick: number, current: number): number {
     const target = snapshotTick + this.leadTicks();
     const drift = target - current;
-    if (!this.state || Math.abs(drift) > NET.maxTickDrift) return Math.max(snapshotTick, target);
-    if (drift < 0) this.holdTicks = Math.max(this.holdTicks, 1);
-    return drift > 0 ? current + 1 : current;
+    if (!this.state || Math.abs(drift) > NET.maxTickDrift) {
+      this.drift = 0;
+      return Math.max(snapshotTick, target);
+    }
+    // Jitter makes each snapshot's drift bounce by a tick or two: ease on the average only, or
+    // the clock would hold a tick and then double one on almost every snapshot (a visible hitch).
+    this.drift += (drift - this.drift) * NET.tickDriftSmoothing;
+    if (this.drift <= -NET.tickDriftDeadband) {
+      this.drift += 1;
+      this.holdTicks = Math.max(this.holdTicks, 1);
+      return current;
+    }
+    if (this.drift >= NET.tickDriftDeadband) {
+      this.drift -= 1;
+      return current + 1;
+    }
+    return current;
   }
 
   private measureError(predicted: SimState, authoritative: SimState): void {
@@ -443,11 +542,6 @@ export function matches(predicted: SimState, host: SimState): boolean {
       k.race.stallTimer > 0 === h.race.stallTimer > 0
     );
   });
-}
-
-/** The events a client plays from its own prediction: everything but the host's (`HOST_EVENTS`). */
-function cosmetic(events: readonly SimEvent[]): SimEvent[] {
-  return events.filter((event) => !HOST_EVENTS.has(event.type));
 }
 
 /**

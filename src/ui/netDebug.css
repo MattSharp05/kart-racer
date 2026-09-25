@@ -1,0 +1,17 @@
+/* ?netdebug=1 (MK-45) */
+.net-debug {
+  position: fixed;
+  left: max(10px, env(safe-area-inset-left));
+  top: 130px;
+  margin: 0;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: rgb(0 0 0 / 0.6);
+  color: #b9fbc0;
+  font:
+    12px/1.35 ui-monospace,
+    monospace;
+  white-space: pre;
+  pointer-events: none;
+  z-index: 60;
+}

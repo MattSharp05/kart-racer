@@ -16,6 +16,8 @@ export interface RoomOptions {
   netsim?: string;
   /** Load paused (default true: the test steps with `stepAll`). */
   paused?: boolean;
+  /** `&netdebug=1`: the net debug overlay (MK-45). */
+  netdebug?: boolean;
 }
 
 export interface Room {
@@ -39,6 +41,7 @@ export function roomUrl(role: 'host' | 'client', options: RoomOptions & { room: 
   if (options.laps !== undefined) params.set('laps', String(options.laps));
   if (options.netsim) params.set('netsim', options.netsim);
   if (options.paused ?? true) params.set('paused', '1');
+  if (options.netdebug) params.set('netdebug', '1');
   return `/?${params}`;
 }
 
