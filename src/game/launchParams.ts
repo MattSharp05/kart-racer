@@ -1,4 +1,4 @@
-import { parseNetConditions, type NetConditions } from '../net/netsim';
+import { oneWayOf, parseNetConditions, type NetConditions } from '../net/netsim';
 
 /** Online roles (`&role=`): the authoritative host or a predicting client (ADR 0005). */
 export type NetRole = 'host' | 'client';
@@ -30,8 +30,8 @@ export interface LaunchParams {
   /** `&room=<id>`: tabs with the same room race each other. */
   room?: string;
   /**
-   * `&netsim=<rtt>,<jitter>,<loss%>` (e.g. `200,50,8`): simulated network on the online link.
-   * Stored per direction: `lagMs` is half the RTT, jitter and loss apply each way.
+   * `&netsim=<rtt>,<jitter>,<loss%>` (e.g. `200,50,8`): simulated network on the online link, all
+   * three round trip. Stored per direction (`oneWayOf`; the spike's `?spike=net&netsim=` is one way).
    */
   netsim?: NetConditions;
   /** `&laps=<n>`: laps of an online scenario's race (short races for tests). */
@@ -63,7 +63,7 @@ export function parseLaunchParams(search: string): LaunchParams {
     ...(params.get('net') === 'local' ? { net: 'local' as const } : {}),
     ...(role === 'host' || role === 'client' ? { role } : {}),
     ...(room ? { room } : {}),
-    ...(netsim ? { netsim: { ...netsim, lagMs: netsim.lagMs / 2 } } : {}),
+    ...(netsim ? { netsim: oneWayOf(netsim) } : {}),
     ...(Number.isInteger(laps) && laps > 0 ? { laps } : {}),
     paused: flag('paused'),
     tune: flag('tune'),

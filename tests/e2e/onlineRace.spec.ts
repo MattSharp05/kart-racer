@@ -81,8 +81,10 @@ test.describe('online race over BroadcastChannel', () => {
   });
 
   test('&netsim adds lag to the link', async ({ browser }) => {
+    // Simulated lag is real time (it delays packets with timers), so this one runs unpaused and
+    // measures the RTT; it asserts nothing about gameplay.
     const room = await openRoom(browser, 2, { scenario: 'net-bad', paused: false });
-    // Pings go out every 0.5 s: wait for a few round trips in real time.
+    // Pings go out every 0.5 s: wait for a few round trips.
     await expect
       .poll(() => netInfo(room.clients[0]!).then((net) => net?.rttMs ?? 0), { timeout: 10_000 })
       .toBeGreaterThan(150);
@@ -119,9 +121,9 @@ test.describe('/dev Online group', () => {
 
     await expect.poll(() => netInfo(dev).then((net) => net?.players)).toBe(2);
     await expect.poll(() => netInfo(client).then((net) => net?.kartId)).toBe(1);
-    // Both run the race (not paused): the client gets snapshots from the host.
-    await expect
-      .poll(() => netInfo(client).then((net) => net?.lastSnapshotTick ?? -1))
-      .toBeGreaterThan(0);
+    // The race runs: step both and the client applies the host's snapshots.
+    for (const page of [dev, client]) await page.evaluate(() => window.__game!.pause());
+    await stepAll([dev, client], 30);
+    expect((await netInfo(client))!.lastSnapshotTick).toBeGreaterThan(0);
   });
 });

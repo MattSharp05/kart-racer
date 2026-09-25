@@ -5,7 +5,7 @@ const PORT = 4173;
  * Online specs (MK-46) run on the desktop projects only: BroadcastChannel links pages of one
  * browser, and the phone/tablet projects add nothing to netcode coverage.
  */
-const ONLINE_SPECS = /online.*\.spec\.ts$/i;
+const ONLINE_SPECS = /[\\/]online[^\\/]*\.spec\.ts$/i;
 
 export default defineConfig({
   testDir: 'tests/e2e',

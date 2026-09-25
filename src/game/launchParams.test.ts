@@ -63,12 +63,11 @@ describe('online params (MK-46)', () => {
     ).toMatchObject({ net: 'local', role: 'client', room: 'r1', laps: 1, netdebug: true });
   });
 
-  it('turns &netsim=<rtt>,<jitter>,<loss%> into one-way conditions', () => {
-    expect(parseLaunchParams('?netsim=200,50,8').netsim).toEqual({
-      lagMs: 100,
-      jitterMs: 50,
-      loss: 0.08,
-    });
+  it('turns the round-trip &netsim=<rtt>,<jitter>,<loss%> into one-way conditions', () => {
+    const netsim = parseLaunchParams('?netsim=200,50,8').netsim!;
+    expect(netsim).toMatchObject({ lagMs: 100, jitterMs: 25 });
+    // Lost either way: 1 - (1 - loss)² = 8 %.
+    expect(1 - (1 - netsim.loss) ** 2).toBeCloseTo(0.08, 10);
   });
 
   it('ignores unknown transports, roles and bad lap counts', () => {

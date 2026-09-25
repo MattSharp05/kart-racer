@@ -9,6 +9,9 @@ import { NEUTRAL_INPUT, type InputFrame, type SimState, type StepResult } from '
 import type { Stepper } from './game';
 import type { NetRole } from './launchParams';
 
+/** Extra time the links stay open after leaving under a simulated network, for the Bye, ms. */
+const BYE_GRACE_MS = 50;
+
 /** An online race to join or host (from an online scenario plus `&role=&room=&netsim=`). */
 export interface OnlineLaunch {
   role: NetRole;
@@ -75,12 +78,14 @@ export class OnlineRace {
   info(): NetInfo {
     const { host, client } = this;
     const connected = host ? host.peers.filter((p) => p.connected).length + 1 : 1;
+    // A client counts the humans in the host's race once Start arrives, not its own URL's.
+    const humans = client?.setup?.racers.filter((r) => r.human).length;
     return {
       role: this.launch.role,
       room: this.launch.room,
       kartId: this.localKartId,
-      players: host ? connected : client?.setup ? this.expectedPlayers : 1,
-      expectedPlayers: this.expectedPlayers,
+      players: host ? connected : (humans ?? 1),
+      expectedPlayers: humans ?? this.expectedPlayers,
       started: host ? this.everyoneJoined() : client?.started === true,
       rttMs: client?.stats.rttMs ?? 0,
       lastSnapshotTick: client ? client.snapshotTick : this.lastSnapshotTick,
@@ -93,8 +98,12 @@ export class OnlineRace {
     this.closeRoom();
     this.host?.end();
     this.client?.leave();
-    for (const link of this.links) link.close();
     this.ended ??= this.launch.role === 'host' ? 'ended' : 'left';
+    // A simulated network sends the Bye late: close the links once it's gone.
+    const netsim = this.launch.netsim;
+    const closeLinks = () => this.links.forEach((link) => link.close());
+    if (netsim) setTimeout(closeLinks, netsim.lagMs + netsim.jitterMs + BYE_GRACE_MS);
+    else closeLinks();
   }
 
   private startHost(): Stepper {
@@ -129,9 +138,9 @@ export class OnlineRace {
     };
     return (state: SimState, inputs: InputFrame[]): StepResult => {
       const cosmetic = client.tick(inputs[client.kartId] ?? NEUTRAL_INPUT);
-      const hostEvents = client.takeEvents().map((e) => e.event);
-      // Until the first snapshot the placeholder race stands still.
+      // Until the first snapshot the placeholder race stands still; host events wait for it.
       if (!client.state) return { state, events: [] };
+      const hostEvents = client.takeEvents().map((e) => e.event);
       return { state: client.state, events: [...hostEvents, ...cosmetic] };
     };
   }

@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { NEUTRAL_INPUT } from '../sim/types';
 import { parseLaunchParams } from './launchParams';
+import { NETSIM_PRESETS } from '../scenarios/online';
 import { RaceSession, resolveLaunch } from './session';
 
 // The real controls listen on `window`; unit tests run in Node.
@@ -113,11 +114,9 @@ describe('online scenarios (MK-46)', () => {
   });
 
   it('take the preset network, unless the URL sets one', () => {
-    expect(resolveLaunch(parseLaunchParams('?scenario=net-bad')).online?.netsim).toEqual({
-      lagMs: 100,
-      jitterMs: 50,
-      loss: 0.08,
-    });
+    expect(resolveLaunch(parseLaunchParams('?scenario=net-bad')).online?.netsim).toEqual(
+      NETSIM_PRESETS.bad,
+    );
     expect(
       resolveLaunch(parseLaunchParams('?scenario=net-bad&netsim=40,0,0')).online?.netsim,
     ).toEqual({ lagMs: 20, jitterMs: 0, loss: 0 });
