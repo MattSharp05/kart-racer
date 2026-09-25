@@ -98,7 +98,10 @@ test.describe('nickname and colour (MK-42)', () => {
     await page.locator('.menu-nickname button', { hasText: 'Back' }).click();
     await expect(chip).toContainText('Matt');
 
-    await chip.click();
+    // Keyboard: Enter on the focused chip opens the editor (not Play).
+    await chip.focus();
+    await page.keyboard.press('Enter');
+    await expect(page.locator('.menu-nickname')).toBeVisible();
     await page.locator('.nickname-input').fill('Ed');
     await page.getByRole('radio', { name: 'Green' }).click();
     await page.locator('.menu-nickname button', { hasText: 'Save' }).click();

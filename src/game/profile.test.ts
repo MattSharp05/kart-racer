@@ -75,13 +75,31 @@ describe('bad-word filter', () => {
       'a-s-s',
       'd1ck',
       'H1tl3r',
+      'fuck69',
+      '5hit',
+      'ass 69',
+      'F U C K',
     ]) {
       expect(isOffensive(name), name).toBe(true);
     }
   });
 
   it("doesn't flag ordinary names that contain a short word", () => {
-    for (const name of ['Cassie', 'Classic', 'Dickens', 'Titan', 'Sussex', 'Cockpit', 'Matt']) {
+    for (const name of [
+      'Cassie',
+      'Classic',
+      'Dickens',
+      'Titan',
+      'Sussex',
+      'Cockpit',
+      'Matt',
+      // Digits after a name are a number, and separate words aren't run together.
+      'Josh17',
+      'Push It',
+      'Mash It',
+      'Scott Wat',
+      'Kit 5',
+    ]) {
       expect(isOffensive(name), name).toBe(false);
     }
   });

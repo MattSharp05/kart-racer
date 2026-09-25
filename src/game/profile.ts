@@ -40,7 +40,7 @@ export function colourHex(id: ColourId): string {
 }
 
 /**
- * Words rejected anywhere in a name (after leetspeak and separators are undone). Kept to words
+ * Words rejected anywhere inside a word of the name (after leetspeak is undone). Kept to words
  * that don't hide inside ordinary ones.
  */
 const BLOCKED_ANYWHERE = [
@@ -50,8 +50,7 @@ const BLOCKED_ANYWHERE = [
   'bitch',
   'whore',
   'slut',
-  'nigger',
-  'nigga',
+  'nigg',
   'faggot',
   'retard',
   'rapist',
@@ -103,9 +102,9 @@ const LEET: Record<string, string> = {
   '+': 't',
 };
 
-/** Lower case with leetspeak undone; separators (space, `-`, `_`) are kept. */
+/** Leetspeak undone: "sh1t" → "shit". */
 function unleet(text: string): string {
-  return [...text.toLowerCase()].map((c) => LEET[c] ?? c).join('');
+  return [...text].map((c) => LEET[c] ?? c).join('');
 }
 
 /** "shiiit" → "shit": repeated letters count once. */
@@ -113,16 +112,37 @@ function squeeze(text: string): string {
   return text.replace(/(.)\1+/g, '$1');
 }
 
+/**
+ * The words of a name as the filter reads them: lower case, leetspeak undone, trailing numbers
+ * dropped ("Josh17" is "josh", not "joshit"), and spelled-out letters joined ("f-u-c-k" → "fuck").
+ * Separate words are never run together, so "Push It" doesn't read as "pushit".
+ */
+function filterWords(name: string): string[] {
+  const words = name
+    .toLowerCase()
+    .split(/[\s_-]+/)
+    .map((word) => unleet(word.replace(/\d+$/, '')))
+    .filter(Boolean);
+  const spelled: string[] = [];
+  let letters = '';
+  for (const word of [...words, '']) {
+    if (word.length === 1) {
+      letters += word;
+      continue;
+    }
+    if (letters.length > 1) spelled.push(letters);
+    letters = '';
+  }
+  return [...words, ...spelled].flatMap((word) => [word, squeeze(word)]);
+}
+
 /** Whether a name contains a word on the filter list (case- and leetspeak-insensitive). */
 export function isOffensive(name: string): boolean {
-  const plain = unleet(name);
-  const words = plain.split(/[\s_-]+/).filter(Boolean);
-  const joined = words.join('');
-  const forms = [joined, squeeze(joined)];
-  if (BLOCKED_ANYWHERE.some((bad) => forms.some((form) => form.includes(bad)))) return true;
-  // Whole words, plus the whole name run together ("a s s" or "a-s-s").
-  const tokens = [...words, joined].flatMap((word) => [word, squeeze(word)]);
-  return BLOCKED_WORDS.some((bad) => tokens.includes(bad));
+  const words = filterWords(name);
+  return (
+    BLOCKED_ANYWHERE.some((bad) => words.some((word) => word.includes(bad))) ||
+    BLOCKED_WORDS.some((bad) => words.includes(bad))
+  );
 }
 
 export type NicknameCheck = { ok: true; nickname: string } | { ok: false; error: string };
