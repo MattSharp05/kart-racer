@@ -1,4 +1,4 @@
-import { KART_IDS, KARTS, type KartId } from '../../sim/data/karts';
+import { KART_IDS, kartDef, type KartId } from '../../sim/data/karts';
 import { registerScreen } from '../router';
 import { button, heading, row } from './common';
 import './kartSelect.css';
@@ -41,7 +41,7 @@ registerScreen('kartSelect', (panel, handlers) => {
 
   const kart = () => KART_IDS[index] ?? 'maple';
   const render = () => {
-    const def = KARTS[kart()];
+    const def = kartDef(kart());
     info.replaceChildren();
     const tagline = document.createElement('p');
     tagline.textContent = def.tagline;

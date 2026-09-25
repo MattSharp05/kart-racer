@@ -1,6 +1,6 @@
 import { createSimState } from '../sim/state';
 import { getTrack, trackGeometry } from '../sim/track';
-import { SUNNY_INFIELD, sunnyCircuit } from '../sim/data/tracks/sunnyCircuit';
+import { SUNNY_INFIELD, sunnyCircuit } from '../content/tracks/sunny-circuit/sim';
 import type { SplineTrackDef } from '../sim/splineTrack';
 import { nextEntityId } from '../sim/items/banana';
 import { tuning } from '../sim/tuning';

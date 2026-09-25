@@ -40,6 +40,7 @@ _Created by MK-1/MK-3/MK-4 — keep this list current._
 - `src/render/` Three.js · `src/input/` keyboard/touch → `InputFrame` · `src/ui/` DOM HUD/menus · `src/audio/` Web Audio synth
 - `src/game/` loop, app state machine, `window.__game` test API
 - `src/scenarios/` scenario registry · `dev.html` + `src/dev/` = `/dev` index
+- `src/content/` (v2, ADR 0007) — tracks, racers and items, one folder each. **To add one:** create `src/content/<tracks|racers|items>/<id>/` (folder name = id) with `sim.ts` (pure data/logic, sim lint rules; default-exports a `TrackContent`/`RacerContent`/`ItemContent`) and, for racers and items, `render.ts` (may import three; default-exports a `RacerView`/`ItemView`: model, colours, icon, sound, renderer), then add one line to that kind's list in `index.ts` (and `render.ts`); copy an existing folder as the template. No other shared file changes; ids are plain strings checked at lookup, and `registries.test.ts` fails if a folder isn't listed.
 - `src/net/` (v2) transport (WebRTC · loopback · BroadcastChannel), binary protocol, rooms, host/client netcode · `supabase/migrations/` SQL schema
 - `tests/e2e/` Playwright specs · `docs/` TDD, ADRs, CREDITS
 
@@ -59,6 +60,7 @@ _Created by MK-1/MK-3/MK-4 — keep this list current._
 - Handling feel: `?tune=1` opens a live tuning panel (lil-gui, lazy-loaded) editing `src/sim/tuning.ts` values; "Copy values as JSON" to report numbers.
 - E2E helpers in `tests/e2e/helpers.ts`: `loadScenario`, `pause`, `setInput`, `step`, `getState`. First run: `pnpm exec playwright install chromium webkit`.
 - E2E: load a scenario, `__game.pause()`, `__game.setInput(...)`, `__game.step(n)`, assert on `__game.getState()` — never sleep/wait on real time for gameplay.
+- Online (MK-46): `/?scenario=online-race-2p&net=local&role=host|client&room=<id>[&netsim=<rtt>,<jitter>,<loss%>][&laps=n]` races tabs of one browser over BroadcastChannel (no server). E2E: `openRoom(browser, n)` + `stepAll(pages, ticks)` from `tests/e2e/online.ts`, `__game.net()` for role/kart/RTT/snapshot tick; online specs run on the desktop projects only.
 - Every sim change gets Vitest unit tests; keep the determinism test passing.
 - Playwright projects: desktop-chrome, desktop-webkit, iphone-landscape, pixel-landscape, ipad. Visual baselines are generated in CI (Docker), not locally.
 - Definition of Done: see the `dev-workflow` skill.

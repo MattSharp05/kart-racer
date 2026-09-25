@@ -1,4 +1,5 @@
-import type { SplinePoint, SplineTrackDef } from '../../splineTrack';
+import type { SplinePoint, SplineTrackDef } from '../../../sim/splineTrack';
+import type { TrackContent } from '..';
 
 const STRAIGHT_HALF = 60;
 const RADIUS = 40;
@@ -38,3 +39,11 @@ export const testOval: SplineTrackDef = {
   surfaceZones: [],
   checkpoints: [0, 0.25, 0.5, 0.75],
 };
+
+export default {
+  id: testOval.id,
+  name: 'Test Oval',
+  order: 900,
+  def: testOval,
+  testOnly: true,
+} satisfies TrackContent;

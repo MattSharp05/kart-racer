@@ -1,4 +1,5 @@
 import { scenarios } from '../scenarios';
+import { isOnlineScenario, onlineQuery } from '../scenarios/online';
 import type { Scenario } from '../scenarios/registry';
 import './dev.css';
 
@@ -13,8 +14,24 @@ function qrImageUrl(url: string): string {
 }
 
 function renderScenario(scenario: Scenario): HTMLElement {
+  if (isOnlineScenario(scenario)) return renderOnlineScenario(scenario);
   const item = renderLink(scenario.name, scenarioUrl(scenario.name), scenario.description);
   item.dataset.scenario = scenario.name;
+  return item;
+}
+
+/** Online scenarios (MK-46): the host link (name, QR code) plus a client link for more tabs. */
+function renderOnlineScenario(scenario: Scenario): HTMLElement {
+  const url = (role: 'host' | 'client') =>
+    `${window.location.origin}/${onlineQuery(scenario.name, role)}`;
+  const item = renderLink(scenario.name, url('host'), scenario.description);
+  item.dataset.scenario = scenario.name;
+  const client = document.createElement('a');
+  client.href = url('client');
+  client.textContent = 'client';
+  client.className = 'role-link';
+  client.setAttribute('aria-label', `${scenario.name} client`);
+  item.querySelector('a')?.after(' · ', client);
   return item;
 }
 

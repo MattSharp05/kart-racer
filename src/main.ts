@@ -42,7 +42,14 @@ installTestApi(
   launch.scenario,
   () => world.renderInfo(),
   () => session.localKartId,
+  () => session.online?.info() ?? null,
 );
+
+// Online scenarios (MK-46): host or join the race; a client's camera moves to its kart on Start.
+if (launch.online) {
+  session.goOnline(launch.online, (kartId) => world.reset('chase', kartId));
+  window.addEventListener('pagehide', () => session.leaveOnline());
+}
 
 flow.open(launch);
 // `&paused=1` wins over menu screens that start the sim (kart select, title): tests and QA links

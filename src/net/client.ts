@@ -84,6 +84,8 @@ export class OnlineClient {
   setup: RaceSetup | null = null;
   /** Set when the race is over for this client: the host ended it, or it left. */
   ended: ByeReason | null = null;
+  /** Called once when Start arrives and `kartId` / `setup` are known. */
+  onStart: (() => void) | null = null;
   readonly stats: ClientStats = {
     rttMs: 0,
     snapshots: 0,
@@ -131,6 +133,11 @@ export class OnlineClient {
 
   get started(): boolean {
     return this.state !== null;
+  }
+
+  /** Tick of the newest snapshot applied (-1 before the first). */
+  get snapshotTick(): number {
+    return this.lastSnapshotTick;
   }
 
   /**
@@ -233,6 +240,7 @@ export class OnlineClient {
         }
         this.kartId = msg.kartId;
         this.setup = msg.setup;
+        this.onStart?.();
         break;
       case MSG.pong: {
         const sample = this.now() - msg.time;

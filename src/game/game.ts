@@ -2,11 +2,17 @@ import { autopilotInput } from '../sim/autopilot';
 import { step } from '../sim/step';
 import { getTrack, trackGeometry } from '../sim/track';
 import { DT } from '../sim/tuning';
-import type { InputFrame, SimEvent, SimState } from '../sim/types';
+import type { InputFrame, SimEvent, SimState, StepResult } from '../sim/types';
 import { advanceAccumulator } from './loop';
 
 /** Reads live player inputs (keyboard, later touch), indexed by kart id. */
 export type InputSource = () => InputFrame[];
+
+/**
+ * Advances the game one tick from `state` with `inputs` (indexed by kart id). Local races use the
+ * sim's `step`; online races swap in the host's or client's (MK-46, `game/online.ts`).
+ */
+export type Stepper = (state: SimState, inputs: InputFrame[]) => StepResult;
 
 /**
  * Owns the simulation: runs fixed ticks from real frame time, supports pausing,
@@ -19,6 +25,8 @@ export class Game {
   paused = false;
   /** Interpolation factor between `previousState` and `state`, 0..1. */
   alpha = 0;
+  /** How each tick is simulated (see `Stepper`). */
+  stepper: Stepper = step;
 
   private accumulator = 0;
   private readonly overrides = new Map<number, InputFrame>();
@@ -104,7 +112,7 @@ export class Game {
         if (kart) inputs[kartId] = autopilotInput(kart, trackGeometry(track));
       }
     }
-    const result = step(this.state, inputs);
+    const result = this.stepper(this.state, inputs);
     this.previousState = this.state;
     this.state = result.state;
     this.pendingEvents.push(...result.events);
