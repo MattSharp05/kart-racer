@@ -1,0 +1,37 @@
+/* Results (MK-25). */
+.menus .results {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  min-width: min(80vw, 340px);
+  font-size: 15px;
+}
+
+.menus .results li {
+  display: grid;
+  grid-template-columns: 3em 1fr auto;
+  gap: 8px;
+  padding: 2px 0;
+  text-align: left;
+  font-variant-numeric: tabular-nums;
+}
+
+.menus .results li.you {
+  color: var(--color-gold);
+}
+
+.menus .best {
+  margin: 0;
+  color: var(--color-mint);
+}
+
+/* Short landscape phones: tighten the list so nothing scrolls. */
+@media (max-height: 430px) {
+  .menus .results {
+    font-size: 12px;
+  }
+
+  .menus .results li {
+    padding: 0;
+  }
+}

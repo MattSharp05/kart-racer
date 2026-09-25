@@ -1,0 +1,16 @@
+/* Pause menu and the round in-race pause button (MK-25). */
+.pause-button {
+  position: fixed;
+  top: calc(max(10px, env(safe-area-inset-top)) + 76px);
+  right: max(10px, env(safe-area-inset-right));
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 50%;
+  background: rgb(0 0 0 / 0.55);
+  color: #fff;
+  font:
+    700 14px system-ui,
+    sans-serif;
+  cursor: pointer;
+}

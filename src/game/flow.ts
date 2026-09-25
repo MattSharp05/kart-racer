@@ -6,19 +6,21 @@ import { isKartId, KART_IDS, KARTS, type KartId } from '../sim/data/karts';
 import { raceResults, raceTime } from '../sim/raceFlow';
 import type { EngineClass } from '../sim/tuning';
 import type { SimEvent, SimState } from '../sim/types';
-import { HowToPlay } from '../ui/howToPlay';
 import { Hud } from '../ui/hud/hud';
-import { createPauseButton, Menus } from '../ui/menus';
 import { RotatePrompt } from '../ui/rotatePrompt';
+import { Router } from '../ui/router';
+import '../ui/screens/ccSelect';
+import type { SoundControl } from '../ui/screens/common';
+import { HowToPlay } from '../ui/screens/howToPlay';
+import '../ui/screens/kartSelect';
+import { createPauseButton } from '../ui/screens/pause';
+import '../ui/screens/results';
+import '../ui/screens/title';
 import { DEFAULT_SEED, type Launch, type RaceSession } from './session';
-import {
-  hasSeenHowToPlay,
-  markHowToPlaySeen,
-  readPrefs,
-  recordBests,
-  writePrefs,
-  type KeyValueStore,
-} from './storage';
+import { readPrefs, writePrefs } from './storage/prefs';
+import { recordBests } from './storage/records';
+import { hasSeenHowToPlay, markHowToPlaySeen } from './storage/settings';
+import type { KeyValueStore } from './storage/store';
 
 /** Pause between the player finishing and the results screen, ms. */
 const RESULTS_DELAY_MS = 2500;
@@ -28,14 +30,15 @@ const ENGINE_CLASSES = [50, 100, 150] as const;
 
 /**
  * The screen flow (MK-35): title → kart select → cc select → race ⇄ pause → results → (again,
- * change kart, title). `menus.current` is the state; each `show*` method is a transition. Also
+ * change kart, title). `screens.current` is the state; each `show*` method is a transition. Also
  * owns the DOM overlays that follow the flow (HUD, sound, pause button, rotate prompt).
  */
 export class Flow {
   // Created in the same order as before MK-35, so the DOM overlays stack the same way.
   private readonly hud = new Hud();
-  private readonly menus = new Menus();
+  private readonly screens = new Router();
   private readonly sound: SoundManager;
+  private readonly soundControl: SoundControl;
   private readonly howToPlay: HowToPlay;
   private readonly pauseButton: HTMLButtonElement;
   private readonly rotatePrompt: RotatePrompt;
@@ -54,13 +57,16 @@ export class Flow {
     this.chosenKart = prefs.kart && isKartId(prefs.kart) ? prefs.kart : 'maple';
     this.chosenCc = ENGINE_CLASSES.find((cc) => cc === prefs.engineClass) ?? 100;
 
-    this.sound = new SoundManager(store, () => this.menus.refreshSound());
-    this.menus.sound = { isMuted: () => this.sound.isMuted, toggle: () => this.sound.toggleMute() };
+    this.sound = new SoundManager(store, () => this.screens.refresh());
+    this.soundControl = {
+      isMuted: () => this.sound.isMuted,
+      toggle: () => this.sound.toggleMute(),
+    };
     this.howToPlay = new HowToPlay();
 
     this.pauseButton = createPauseButton(() => this.pauseRace());
     window.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && this.menus.current === 'none' && !this.pauseButton.hidden) {
+      if (e.key === 'Escape' && this.screens.current === 'none' && !this.pauseButton.hidden) {
         this.pauseRace();
       }
     });
@@ -79,7 +85,7 @@ export class Flow {
     this.rotatePrompt.onChange = () => world.markChanged();
 
     world.onUpdate = () => {
-      const menu = this.menus.current;
+      const menu = this.screens.current;
       this.hud.update(game.state, performance.now(), menu !== 'none');
       this.sound.update(game.state, {
         menu: menu !== 'none' && menu !== 'paused',
@@ -97,7 +103,7 @@ export class Flow {
     switch (launch.screen) {
       case 'title':
       case 'howToPlay':
-        this.menus.showTitle(this.showKartSelect, this.openHowToPlay);
+        this.showTitleScreen();
         game.setAutopilot(0, true);
         // First visit (plain URL, nothing stored): show the controls guide straight away.
         if (launch.screen === 'howToPlay' || (!launch.scenario && !hasSeenHowToPlay(this.store))) {
@@ -136,15 +142,24 @@ export class Flow {
     this.session.game.setAutopilot(0, true);
     this.session.game.resume();
     this.pauseButton.hidden = true;
-    this.menus.showTitle(this.showKartSelect, this.openHowToPlay);
+    this.showTitleScreen();
   };
 
+  private showTitleScreen(): void {
+    this.screens.show('title', {
+      onPlay: this.showKartSelect,
+      onHowToPlay: this.openHowToPlay,
+      sound: this.soundControl,
+    });
+  }
+
   private readonly showKartSelect = (): void => {
-    if (this.menus.current !== 'ccSelect') this.load(sunnyLineup(DEFAULT_SEED), 'lineup');
+    if (this.screens.current !== 'ccSelect') this.load(sunnyLineup(DEFAULT_SEED), 'lineup');
     this.pauseButton.hidden = true;
     this.session.game.resume();
     this.focusLineupKart(this.chosenKart, true);
-    this.menus.showKartSelect(this.chosenKart, {
+    this.screens.show('kartSelect', {
+      initial: this.chosenKart,
       onChange: (kart) => this.focusLineupKart(kart),
       onChoose: (kart) => {
         this.chosenKart = kart;
@@ -155,7 +170,8 @@ export class Flow {
   };
 
   private readonly showCcSelect = (): void => {
-    this.menus.showCcSelect(this.chosenCc, {
+    this.screens.show('ccSelect', {
+      initial: this.chosenCc,
       onChoose: (cc) => {
         this.chosenCc = cc;
         writePrefs(this.store, { kart: this.chosenKart, engineClass: this.chosenCc });
@@ -167,7 +183,7 @@ export class Flow {
 
   private readonly startRace = (): void => {
     this.raceCount += 1;
-    this.menus.hide();
+    this.screens.hide();
     this.beforeLoad();
     this.session.startRace({
       seed: DEFAULT_SEED + this.raceCount,
@@ -181,18 +197,19 @@ export class Flow {
 
   private readonly pauseRace = (): void => {
     const game = this.session.game;
-    if (this.menus.current !== 'none' || game.state.phase === 'finished') return;
+    if (this.screens.current !== 'none' || game.state.phase === 'finished') return;
     game.pause();
-    this.menus.showPause({
+    this.screens.show('paused', {
       onResume: this.resumeRace,
       onRestart: this.startRace,
       onQuit: this.showTitle,
       onHowToPlay: this.openHowToPlay,
+      sound: this.soundControl,
     });
   };
 
   private readonly resumeRace = (): void => {
-    this.menus.hide();
+    this.screens.hide();
     this.session.game.resume();
   };
 
@@ -208,7 +225,9 @@ export class Flow {
       };
     });
     this.pauseButton.hidden = true;
-    this.menus.showResults(rows, this.hud.bestNote, {
+    this.screens.show('results', {
+      rows,
+      bestNote: this.hud.bestNote,
       onAgain: this.startRace,
       onChangeKart: this.showKartSelect,
       onMenu: this.showTitle,
