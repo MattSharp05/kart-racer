@@ -29,7 +29,8 @@ export class SpikeView {
     this.ctx = ctx;
   }
 
-  draw(state: SimState, localKart: number): void {
+  /** `leftInset`: pixels on the left kept free for the stats panel. */
+  draw(state: SimState, localKart: number, leftInset = 0): void {
     const { canvas, ctx } = this;
     const dpr = window.devicePixelRatio || 1;
     const width = canvas.clientWidth;
@@ -47,12 +48,17 @@ export class SpikeView {
     const zs = samples.map((s) => s.z);
     const minX = Math.min(...xs);
     const minZ = Math.min(...zs);
+    // Pad by half the road width so the road (not just its centreline) fits.
+    const road = Math.max(...samples.map((s) => s.width)) / 2;
+    const spanX = Math.max(...xs) - minX + 2 * road;
+    const spanZ = Math.max(...zs) - minZ + 2 * road;
     const scale = Math.min(
-      (width - 2 * MARGIN_PX) / (Math.max(...xs) - minX),
-      (height - 2 * MARGIN_PX) / (Math.max(...zs) - minZ),
+      (width - leftInset - 2 * MARGIN_PX) / spanX,
+      (height - 2 * MARGIN_PX) / spanZ,
     );
-    const px = (x: number) => MARGIN_PX + (x - minX) * scale;
-    const pz = (z: number) => MARGIN_PX + (z - minZ) * scale;
+    const left = leftInset + MARGIN_PX + (width - leftInset - 2 * MARGIN_PX - spanX * scale) / 2;
+    const px = (x: number) => left + (x - minX + road) * scale;
+    const pz = (z: number) => MARGIN_PX + (z - minZ + road) * scale;
 
     ctx.strokeStyle = '#555';
     ctx.lineJoin = 'round';

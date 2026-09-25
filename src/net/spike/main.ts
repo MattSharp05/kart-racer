@@ -32,6 +32,8 @@ const ROOM_LETTERS = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
 const ROOM_LENGTH = 4;
 const DEFAULT_SEED = 1;
 const QR_SIZE = 140;
+/** Below this height (phones in landscape) the stats panel uses a smaller font. */
+const SMALL_SCREEN_PX = 500;
 
 export interface NetSpikeApi {
   role: 'host' | 'client';
@@ -105,7 +107,8 @@ function setupPage(): { canvas: HTMLCanvasElement; panel: HTMLElement; link: HTM
   panel.dataset.testid = 'net-spike-panel';
   panel.style.cssText =
     'position:fixed;top:8px;left:8px;margin:0;padding:8px 10px;background:#000b;color:#fff;' +
-    'border-radius:6px;pointer-events:none;font:12px ui-monospace,monospace;white-space:pre';
+    'border-radius:6px;pointer-events:none;white-space:pre;' +
+    `font:${window.innerHeight < SMALL_SCREEN_PX ? 10 : 12}px ui-monospace,monospace`;
   const link = document.createElement('div');
   link.style.cssText =
     'position:fixed;top:8px;right:8px;padding:8px;background:#fffe;border-radius:6px;' +
@@ -245,7 +248,7 @@ export async function run(): Promise<never> {
 
   const draw = () => {
     const state = displayState();
-    if (state) view.draw(state, localKart);
+    if (state) view.draw(state, localKart, panel.offsetWidth + panel.offsetLeft);
     const s = stats();
     const pathLabel = connection
       ? `${connection.path} (${connection.localType}↔${connection.remoteType})`
