@@ -29,6 +29,7 @@ export interface Room {
 }
 
 let rooms = 0;
+const JOIN_TIMEOUT_MS = 20_000;
 
 /** The URL of an online scenario for `role`. */
 export function roomUrl(role: 'host' | 'client', options: RoomOptions & { room: string }): string {
@@ -65,9 +66,13 @@ export async function openRoom(
   const host = await open('host');
   const clients: Page[] = [];
   for (let i = 1; i < n; i += 1) clients.push(await open('client'));
-  await expect.poll(() => netInfo(host).then((net) => net?.players)).toBe(n);
+  // A simulated network (lag, lost Starts) and a slow CI browser can take several seconds to join.
+  const timeout = JOIN_TIMEOUT_MS;
+  await expect.poll(() => netInfo(host).then((net) => net?.players), { timeout }).toBe(n);
   for (const client of clients) {
-    await expect.poll(() => netInfo(client).then((net) => net?.kartId)).toBeGreaterThan(0);
+    await expect
+      .poll(() => netInfo(client).then((net) => net?.kartId), { timeout })
+      .toBeGreaterThan(0);
   }
   return { host, clients, pages: [host, ...clients], context };
 }
@@ -84,6 +89,12 @@ export interface StepAllOptions {
    * camera settles, about 30 software-GL frames in CI: seconds that slow every later round.
    */
   render?: boolean;
+  /**
+   * Make each round take at least this long, ms (MK-45). A simulated network (`&netsim`) delays
+   * packets in real time, so under lag the race must run at real speed too (`chunk` ticks per
+   * `chunk × 16.7 ms`), or the lag in ticks balloons and every client input reaches the host late.
+   */
+  paceMs?: number;
 }
 
 /**
@@ -93,9 +104,10 @@ export interface StepAllOptions {
 export async function stepAll(
   pages: Page[],
   ticks: number,
-  { chunk = 3, render = false }: StepAllOptions = {},
+  { chunk = 3, render = false, paceMs = 0 }: StepAllOptions = {},
 ): Promise<void> {
   for (let done = 0; done < ticks; done += chunk) {
+    const started = Date.now();
     const n = Math.min(chunk, ticks - done);
     const draw = render && done + n >= ticks;
     for (const page of pages) {
@@ -104,6 +116,8 @@ export async function stepAll(
         [n, draw] as const,
       );
     }
+    const wait = paceMs - (Date.now() - started);
+    if (wait > 0) await new Promise((resolve) => setTimeout(resolve, wait));
   }
 }
 

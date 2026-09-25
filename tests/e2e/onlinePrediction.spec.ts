@@ -7,7 +7,10 @@ import { autopilotAll, netInfo, openRoom, stepAll } from './online';
 /** The ticket's lag: 150 ms round trip, 30 ms jitter, 5 % loss. */
 const NETSIM = '150,30,5';
 const BATCH = 300;
-const MAX_TICKS = 60 * 150;
+/** A 1-lap race is ~62 s; give it plenty. */
+const MAX_TICKS = 60 * 100;
+/** Real-time stepping (see `StepAllOptions.paceMs`): 3 ticks per 50 ms. */
+const REAL_TIME = { chunk: 3, paceMs: 50 };
 
 function state(page: Page): Promise<TestState> {
   return page.evaluate(() => window.__game!.getState());
@@ -24,7 +27,7 @@ async function hud(page: Page) {
 
 test.describe('online client prediction under lag', () => {
   test("the client's HUD position and lap match the host's at the finish", async ({ browser }) => {
-    test.setTimeout(180_000);
+    test.setTimeout(150_000);
     const room = await openRoom(browser, 2, { laps: 1, netsim: NETSIM });
     const [host, client] = room.pages as [Page, Page];
     const kartId = (await netInfo(client))!.kartId;
@@ -37,7 +40,7 @@ test.describe('online client prediction under lag', () => {
       hostState.karts[kartId]!.race.finishTick === undefined && ticks < MAX_TICKS;
       ticks += BATCH
     ) {
-      await stepAll(room.pages, BATCH);
+      await stepAll(room.pages, BATCH, REAL_TIME);
       hostState = await state(host);
     }
     expect(hostState.karts[kartId]!.race.finishTick).toBeDefined();
@@ -45,7 +48,7 @@ test.describe('online client prediction under lag', () => {
     await expect
       .poll(
         async () => {
-          await stepAll(room.pages, 6);
+          await stepAll(room.pages, 6, REAL_TIME);
           return (await state(client)).karts[kartId]!.race.finishTick;
         },
         { timeout: 20_000 },
@@ -57,10 +60,12 @@ test.describe('online client prediction under lag', () => {
     const shown = await hud(client);
     expect(shown.position).toBe(String(place));
     expect(shown.lap).toBe(`LAP 1/1`);
-    // The client's own standings agree with the host's for every finished kart.
+    // The client's own standings agree with the host's for every kart finished by the newest
+    // snapshot the client has (AI karts may have finished on the host since).
     const clientState = await state(client);
+    const seen = (await netInfo(client))!.lastSnapshotTick;
     const finished = hostState.positions.filter(
-      (id) => hostState.karts[id]!.race.finishTick !== undefined,
+      (id) => (hostState.karts[id]!.race.finishTick ?? Infinity) <= seen,
     );
     expect(clientState.positions.slice(0, finished.length)).toEqual(finished);
     await room.context.close();
