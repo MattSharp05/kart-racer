@@ -46,4 +46,20 @@ test.describe('scenario links', () => {
     await loadScenario(page, 'empty');
     expect(errors).toEqual([]);
   });
+
+  test('every scenario listed on /dev loads without errors', async ({ page }) => {
+    test.setTimeout(240_000);
+    await page.goto('/dev.html');
+    const names = await page
+      .locator('[data-scenario]')
+      .evaluateAll((items) => items.map((item) => item.getAttribute('data-scenario')!));
+    expect(names.length).toBeGreaterThan(10);
+    const errors: string[] = [];
+    page.on('pageerror', (error) => errors.push(error.message));
+    for (const name of names) {
+      await loadScenario(page, name, { paused: true });
+      expect(await page.evaluate(() => window.__game!.scenario), name).toBe(name);
+      expect(errors, name).toEqual([]);
+    }
+  });
 });
