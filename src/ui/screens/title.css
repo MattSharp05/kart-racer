@@ -1,0 +1,15 @@
+/* Title screen (MK-25). */
+.menu-title {
+  background: none;
+}
+
+.logo {
+  margin: 0;
+  font-size: clamp(40px, 11vw, 96px);
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  color: var(--color-gold);
+  text-shadow:
+    0 4px 0 var(--color-red),
+    0 8px 18px rgb(0 0 0 / 0.4);
+}

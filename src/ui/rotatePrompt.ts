@@ -1,4 +1,5 @@
 import { isTouchDevice } from '../input/touch';
+import './rotatePrompt.css';
 
 /**
  * "Rotate your device" for touch devices held in portrait (MK-23). Pauses the game while shown

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { MemoryStore, readBests, recordBests, type KeyValueStore } from './storage';
+import { readBests, recordBests } from './records';
+import { MemoryStore, type KeyValueStore } from './store';
 
 describe('best times', () => {
   it('saves the first race as the best, then only improvements', () => {

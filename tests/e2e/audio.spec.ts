@@ -14,7 +14,9 @@ test('mute toggles, is remembered after reload, and loading logs no audio errors
   await expect(toggle).toHaveAttribute('data-muted', 'false');
   await toggle.click(); // also the first gesture: audio starts here
   await expect(toggle).toHaveAttribute('data-muted', 'true');
-  expect(await page.evaluate(() => localStorage.getItem('kart-racer:muted'))).toBe('1');
+  // Settings are one versioned object since MK-37.
+  const stored = await page.evaluate(() => localStorage.getItem('kart-racer:settings'));
+  expect(JSON.parse(stored ?? '{}')).toMatchObject({ version: 1, muted: true });
 
   await page.reload();
   await page.waitForFunction(() => window.__game?.ready === true);
@@ -24,4 +26,17 @@ test('mute toggles, is remembered after reload, and loading logs no audio errors
   await page.keyboard.press('m');
   await expect(page.locator('.menu-title .sound-toggle')).toHaveAttribute('data-muted', 'false');
   expect(errors.filter((e) => /audio/i.test(e))).toEqual([]);
+});
+
+test('a mute saved by the MVP (before MK-37) is still on after the settings migration', async ({
+  page,
+}) => {
+  await page.goto('/?scenario=menu-title');
+  await page.evaluate(() => {
+    localStorage.clear();
+    localStorage.setItem('kart-racer:muted', '1');
+  });
+  await page.reload();
+  await page.waitForFunction(() => window.__game?.ready === true);
+  await expect(page.locator('.menu-title .sound-toggle')).toHaveAttribute('data-muted', 'true');
 });

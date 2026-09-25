@@ -1,4 +1,5 @@
 import { NEUTRAL_INPUT, type InputFrame } from '../sim/types';
+import './touch.css';
 
 /** Drag distance (px) for full steering lock. */
 export const STEER_MAX_PX = 60;

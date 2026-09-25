@@ -1,0 +1,66 @@
+/* Kart select (MK-25). */
+.kart-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.kart-card .arrow {
+  font-size: 28px;
+  line-height: 1;
+  padding: 6px 14px;
+}
+
+.kart-info {
+  min-width: min(60vw, 280px);
+}
+
+.kart-info h3 {
+  margin: 0;
+  font-size: 26px;
+  color: var(--color-gold);
+}
+
+.kart-info p {
+  margin: 4px 0 8px;
+  font-weight: 400;
+  font-size: 14px;
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: auto auto;
+  gap: 4px 10px;
+  margin: 0;
+  justify-content: center;
+  align-items: center;
+  font-size: 14px;
+}
+
+.stats dt {
+  text-align: right;
+}
+
+.stats dd {
+  display: flex;
+  gap: 4px;
+  margin: 0;
+}
+
+.pip {
+  width: 16px;
+  height: 10px;
+  border-radius: 3px;
+  background: rgb(255 255 255 / 0.2);
+}
+
+.pip.on {
+  background: var(--color-mint);
+}
+
+/* Short landscape phones: drop the tagline so nothing scrolls. */
+@media (max-height: 430px) {
+  .kart-info p {
+    display: none;
+  }
+}

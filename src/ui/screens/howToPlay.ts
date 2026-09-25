@@ -1,4 +1,5 @@
-import { isTouchDevice } from '../input/touch';
+import { isTouchDevice } from '../../input/touch';
+import './howToPlay.css';
 
 const KEYBOARD: [string, string][] = [
   ['W / ↑', 'Accelerate'],

@@ -4,6 +4,7 @@ import type { ItemId, KartItem, SimEvent, SimState } from '../../sim/types';
 import { formatTime, ordinal } from './format';
 import { ITEM_NAMES, ITEM_ORDER, itemIcon } from './icons';
 import { Minimap } from './minimap';
+import './hud.css';
 
 export { formatTime, ordinal } from './format';
 
