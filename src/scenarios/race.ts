@@ -1,6 +1,6 @@
 import { KART_IDS, type KartId } from '../sim/data/karts';
 import { lineOffsetAt } from '../sim/ai/racingLine';
-import { sunnyCircuit } from '../sim/data/tracks/sunnyCircuit';
+import { sunnyCircuit } from '../content/tracks/sunny-circuit/sim';
 import { forwardFromHeading } from '../sim/math';
 import { createRace, raceSetupRng, type RacerSlot } from '../sim/race/createRace';
 import { trackGeometry } from '../sim/track';

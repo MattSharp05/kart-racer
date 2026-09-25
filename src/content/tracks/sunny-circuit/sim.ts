@@ -1,5 +1,6 @@
-import { computeRacingLine } from '../../ai/racingLine';
-import { TrackGeometry, type SplinePoint, type SplineTrackDef } from '../../splineTrack';
+import { computeRacingLine } from '../../../sim/ai/racingLine';
+import { TrackGeometry, type SplinePoint, type SplineTrackDef } from '../../../sim/splineTrack';
+import type { TrackContent } from '..';
 
 /** Default road width, m. */
 const W = 16;
@@ -150,3 +151,10 @@ export const sunnyCircuit: SplineTrackDef = {
 
 /** Centre and radius of the shortcut infield, for tests and scenarios. */
 export const SUNNY_INFIELD = { ...U_CENTRE, radius: INFIELD_RADIUS };
+
+export default {
+  id: sunnyCircuit.id,
+  name: 'Sunny Circuit',
+  order: 10,
+  def: sunnyCircuit,
+} satisfies TrackContent;

@@ -134,7 +134,7 @@ Scope: [PRD v2](https://app.notion.com/p/3e524983f3ca812d85b8e778602f94e1). The 
 - `src/net/` (new, may import `sim/` types, never `render/`/`ui/`): `transport.ts`, `protocol.ts` (binary encode/decode, quantization, versioned), `room.ts` (Supabase channel, codes, presence), `host.ts`, `client.ts`, `netsim.ts` (lag, jitter, loss).
 - The **sim is unchanged in kind**: still `step(state, inputs)`. Online adds `localKartIds`, a `controller` per kart (`local | remote | ai`), and "a dropped player becomes AI" by switching that kart's controller.
 - **Tick and time:** the host starts the countdown at tick 0 and clients align by tick. Clients run slightly ahead of the host by about RTT/2 plus a buffer, adjusted from snapshot acks.
-- **Content registries** (ADR 0007): `sim/data/tracks/<id>/`, `sim/data/racers/<id>.ts` and `sim/items/<id>.ts` each register sim data, a render factory, an icon and sounds.
+- **Content registries** (ADR 0007, MK-41): `src/content/{tracks,racers,items}/<id>/` each hold a pure `sim.ts` (sim data and item behaviour, odds row) and, for racers and items, a `render.ts` (model, colours, icon, use sound, entity renderer), listed in the kind's `index.ts` / `render.ts`. Ids are plain strings validated by the registry (`src/content/registry.ts`).
 - **Track hazards:** a generic `hazards[]` in the track data (moving, rotating or periodic colliders, and surface modifiers such as ice, sand and conveyors). Their motion is a pure function of `tick`, so hazards cost no network state.
 
 ### Data and state (v2 additions)

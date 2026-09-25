@@ -1,4 +1,4 @@
-import { applyBoost } from '../drift';
+import { items } from '../../content/items';
 import { countDown } from '../math';
 import { positionOf } from '../race';
 import { rngFloat } from '../rng';
@@ -7,48 +7,19 @@ import {
   NEUTRAL_INPUT,
   type InputFrame,
   type ItemId,
-  type KartState,
   type SimEvent,
   type SimState,
 } from '../types';
-import { updateBananas, useBanana } from './banana';
 import { oddsRow, pickItem } from './odds';
-import { fireShell, updateShells } from './shell';
-import { updateStarLightning, useLightning, useStar } from './starLightning';
 
-/** What an item does when used. Each item is one entry (MK-16: mushroom; MK-17–20 add the rest). */
-export interface ItemDef {
-  id: ItemId;
-  onUse(kart: KartState, state: SimState, events: SimEvent[], input: InputFrame): void;
+/** Items the roulette can hand out: every registered item (`src/content/items/`), in order. */
+export function availableItems(): ItemId[] {
+  return items.ids();
 }
 
-export const ITEMS: Partial<Record<ItemId, ItemDef>> = {
-  mushroom: {
-    id: 'mushroom',
-    onUse: (kart, _state, events) => applyBoost(kart, tuning.mushroomSeconds, events),
-  },
-  banana: {
-    id: 'banana',
-    onUse: (kart, state, _events, input) => useBanana(kart, state, input),
-  },
-  green: {
-    id: 'green',
-    onUse: (kart, state, _events, input) => fireShell(kart, state, input, 'green'),
-  },
-  red: {
-    id: 'red',
-    onUse: (kart, state, _events, input) => fireShell(kart, state, input, 'red'),
-  },
-  star: { id: 'star', onUse: (kart, _state, events) => useStar(kart, events) },
-  lightning: {
-    id: 'lightning',
-    onUse: (kart, state, events) => useLightning(kart, state, events),
-  },
-};
-
-/** Items the roulette can hand out: only ones that have been built. */
-export function availableItems(): ItemId[] {
-  return Object.keys(ITEMS) as ItemId[];
+/** Each item's per-tick `update`, in item order, once per distinct function. */
+function itemUpdates() {
+  return [...new Set(items.list().flatMap((item) => (item.update ? [item.update] : [])))];
 }
 
 /**
@@ -65,9 +36,7 @@ export function updateItems(
     if (box.kind === 'itemBox') box.respawnTimer = countDown(box.respawnTimer, dt);
   }
 
-  updateBananas(state, dt, events);
-  updateShells(state, dt, events);
-  updateStarLightning(state, dt, events);
+  for (const update of itemUpdates()) update(state, dt, events);
 
   for (const kart of state.karts) {
     kart.spinTimer = countDown(kart.spinTimer, dt);
@@ -103,7 +72,7 @@ export function updateItems(
     if (pressed && slot.held !== null && slot.roulette === 0) {
       const item = slot.held;
       slot.held = null;
-      ITEMS[item]?.onUse(kart, state, events, inputs[kart.id] ?? NEUTRAL_INPUT);
+      items.get(item).onUse(kart, state, events, inputs[kart.id] ?? NEUTRAL_INPUT);
       events.push({ type: 'itemUsed', kartId: kart.id, item });
     }
   }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { kartOnTrack, shellTarget } from '../../scenarios/tracks';
-import { sunnyCircuit } from '../data/tracks/sunnyCircuit';
+import { sunnyCircuit } from '../../content/tracks/sunny-circuit/sim';
 import { step } from '../step';
 import { trackGeometry } from '../track';
 import { DT, tuning } from '../tuning';
