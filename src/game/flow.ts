@@ -15,6 +15,7 @@ import { HowToPlay } from '../ui/screens/howToPlay';
 import '../ui/screens/kartSelect';
 import { createPauseButton } from '../ui/screens/pause';
 import '../ui/screens/results';
+import '../ui/screens/settings';
 import '../ui/screens/title';
 import { resultLines } from './results';
 import { DEFAULT_SEED, type Launch, type RaceSession } from './session';
@@ -111,6 +112,11 @@ export class Flow {
           this.openHowToPlay();
         }
         break;
+      case 'settings':
+        this.showTitleScreen();
+        game.setAutopilot(launch.localKartId, true);
+        this.showSettings();
+        break;
       case 'kartSelect':
         this.showKartSelect();
         break;
@@ -150,9 +156,18 @@ export class Flow {
     this.screens.show('title', {
       onPlay: this.showKartSelect,
       onHowToPlay: this.openHowToPlay,
-      sound: this.soundControl,
+      onSettings: this.showSettings,
     });
   }
+
+  /** Settings (MK-43) over the title or the pause menu; Back returns there. */
+  private readonly showSettings = (): void => {
+    this.screens.show('settings', {
+      store: this.store,
+      sound: this.soundControl,
+      onBack: () => this.screens.back(),
+    });
+  };
 
   private readonly showKartSelect = (): void => {
     if (this.screens.current !== 'ccSelect') this.load(sunnyLineup(DEFAULT_SEED), 'lineup');
@@ -205,6 +220,7 @@ export class Flow {
       onRestart: this.startRace,
       onQuit: this.showTitle,
       onHowToPlay: this.openHowToPlay,
+      onSettings: this.showSettings,
       sound: this.soundControl,
     });
   };

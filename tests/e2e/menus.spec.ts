@@ -112,7 +112,13 @@ test.describe('menus QA round 2 (MK-25)', () => {
   });
 
   test('every menu fits the screen with buttons at least 44 px', async ({ page }) => {
-    for (const name of ['menu-title', 'menu-kart-select', 'menu-cc-select', 'menu-paused']) {
+    for (const name of [
+      'menu-title',
+      'menu-kart-select',
+      'menu-cc-select',
+      'menu-paused',
+      'settings',
+    ]) {
       await loadScenario(page, name, { paused: true });
       const panel = page.locator('.menu-panel');
       await expect(panel).toBeVisible();

@@ -7,6 +7,7 @@ for (const name of [
   'menu-paused',
   'race-finished',
   'menu-how-to-play',
+  'settings',
 ]) {
   test(`${name} (paused)`, async ({ page }) => {
     await loadScenario(page, name, { paused: true });
