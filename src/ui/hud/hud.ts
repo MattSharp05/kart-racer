@@ -34,7 +34,6 @@ export class Hud {
   private readonly screenFlash = div('hud-flash');
   private centreUntil = 0;
   private readonly shown = new Map<HTMLElement, string>();
-  bestNote = '';
 
   constructor() {
     this.timer.append(this.timerMain, this.lastLap);
