@@ -53,7 +53,9 @@ registerScreen('nickname', (panel, { initial, onSave, onBack }) => {
 
   const error = document.createElement('p');
   error.className = 'nickname-error';
-  error.setAttribute('role', 'alert');
+  // A live region, not role=alert: the element is always there (often empty), and
+  // role=alert would clash with the error banner's alert on the same page.
+  error.setAttribute('aria-live', 'assertive');
 
   const swatches = row('nickname-swatches');
   swatches.setAttribute('role', 'radiogroup');
