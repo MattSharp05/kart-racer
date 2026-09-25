@@ -52,7 +52,7 @@ export class NetDebugOverlay {
     this.update();
   }
 
-  /** Redraws now (also used while paused, where frames don't advance time). */
+  /** Redraws now. */
   update(): void {
     const info = this.read();
     const text = info ? netDebugText(info) : 'net: offline';

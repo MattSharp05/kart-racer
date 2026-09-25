@@ -2,13 +2,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { createRace } from '../sim/race/createRace';
 import { DT, tuning } from '../sim/tuning';
 import type { SimState } from '../sim/types';
-import {
-  CorrectionSmoother,
-  NetSmoother,
-  SnapshotInterpolator,
-  wrapAngle,
-  type KartPose,
-} from './smoothing';
+import { CorrectionSmoother, NetSmoother, SnapshotInterpolator, type KartPose } from './smoothing';
 import { onlineRacers } from './testRace';
 
 const FRAME = 1 / 60;
@@ -96,8 +90,6 @@ describe('CorrectionSmoother', () => {
     const p = drawn(smoother, 0, 12);
     expect(p.x).toBeCloseTo(0.6);
     expect(p.heading).toBeCloseTo(3.5 - Math.PI * 2);
-    expect(wrapAngle(Math.PI * 3)).toBeCloseTo(Math.PI);
-    expect(wrapAngle(-Math.PI * 1.5)).toBeCloseTo(Math.PI / 2);
   });
 });
 

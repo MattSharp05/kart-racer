@@ -1,3 +1,4 @@
+import { wrapAngleDelta } from '../sim/math';
 import { DT, tuning } from '../sim/tuning';
 import type { SimState } from '../sim/types';
 import { NET } from './config';
@@ -67,7 +68,7 @@ export class CorrectionSmoother {
       offset.x += c.dx;
       offset.y += c.dy;
       offset.z += c.dz;
-      offset.heading = wrapAngle(offset.heading + c.dHeading);
+      offset.heading = wrapAngleDelta(offset.heading + c.dHeading);
       offset.fresh.x += c.dx;
       offset.fresh.y += c.dy;
       offset.fresh.z += c.dz;
@@ -175,7 +176,7 @@ export class SnapshotInterpolator {
     out.x = a.x + (b.x - a.x) * t;
     out.y = a.y + (b.y - a.y) * t;
     out.z = a.z + (b.z - a.z) * t;
-    out.heading = a.heading + wrapAngle(b.heading - a.heading) * t;
+    out.heading = a.heading + wrapAngleDelta(b.heading - a.heading) * t;
     return true;
   }
 
@@ -285,13 +286,4 @@ function newOffset(): Offset {
     freshTick: -1,
     remaining: 0,
   };
-}
-
-/** `angle` in (-π, π]. */
-export function wrapAngle(angle: number): number {
-  const turn = Math.PI * 2;
-  let a = angle % turn;
-  if (a > Math.PI) a -= turn;
-  if (a <= -Math.PI) a += turn;
-  return a;
 }

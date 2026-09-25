@@ -17,9 +17,9 @@ export const NET = {
   /** The client eases 1 tick per snapshot towards its target tick; further off than this, it jumps. */
   maxTickDrift: 4,
   /**
-   * Weight of each snapshot's drift in the smoothed drift the clock eases on, and how far off (in
-   * ticks) the smoothed drift must be before it does (MK-45: raw jitter made it hold then double
-   * a tick on most snapshots).
+   * Weight of each snapshot in the smoothed "ticks ahead of the snapshot" the clock eases on, and
+   * how far (ticks) that may be off the lead before it does (MK-45: raw jitter made it hold, then
+   * double, a tick on most snapshots).
    */
   tickDriftSmoothing: 0.1,
   tickDriftDeadband: 0.75,

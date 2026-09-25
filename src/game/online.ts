@@ -191,7 +191,8 @@ export class OnlineRace {
       // Until the first snapshot the placeholder race stands still; host events wait for it.
       if (!client.state) return { state, events: [] };
       // Reconciles (and clock easing) since the last tick show from this state on: blend them out.
-      smoother.update(client.state, client.takeCorrections());
+      // (Once the race has ended here the state stands still: that's not the clock holding a tick.)
+      if (!client.ended) smoother.update(client.state, client.takeCorrections());
       const hostEvents = client.takeEvents().map((e) => e.event);
       return { state: client.state, events: [...hostEvents, ...cosmetic] };
     };

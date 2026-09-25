@@ -74,7 +74,7 @@ export class World {
   /** Render parts that get cheaper in low-quality mode register here. */
   private readonly lowQualityHooks: ((low: boolean) => void)[];
   private framesSinceChange = 0;
-  /** Tick (plus alpha) drawn last frame, for the pose filter's clock. */
+  /** Tick (plus alpha) drawn last frame, for the pose filter's clock while paused. */
   private lastSimTime = 0;
 
   constructor(
@@ -142,10 +142,10 @@ export class World {
     const { game, view, followId } = this;
     const state = game.state;
     const filter = this.options.poseFilter?.() ?? undefined;
-    // Offsets decay with race time (ticks drawn), so they hold while paused and a test's step
-    // decays them like real play would.
+    // Offsets decay with real time while the race runs; paused, with the ticks stepped (so a test's
+    // `step` decays them like real play would, and a still frame keeps them).
     const simTime = state.tick + game.alpha;
-    filter?.frame(Math.max(0, simTime - this.lastSimTime) * DT);
+    filter?.frame(game.paused ? Math.max(0, simTime - this.lastSimTime) * DT : frameSeconds);
     this.lastSimTime = simTime;
     this.karts.sync(game.previousState, state, game.alpha, this.options.playerInputs(), filter);
     this.itemBoxes.sync(state, state.tick / 60);

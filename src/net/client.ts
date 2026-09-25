@@ -1,5 +1,6 @@
 import { createRace } from '../sim/race/createRace';
 import { step } from '../sim/step';
+import { wrapAngleDelta } from '../sim/math';
 import { DT, tuning } from '../sim/tuning';
 import { NEUTRAL_INPUT, type InputFrame, type SimEvent, type SimState } from '../sim/types';
 import { HOST_EVENTS, NET } from './config';
@@ -17,7 +18,7 @@ import {
   type RaceSetup,
   type SnapshotMessage,
 } from './protocol';
-import { wrapAngle, type Correction } from './smoothing';
+import { type Correction } from './smoothing';
 import type { Transport } from './transport';
 
 /** What the client reports (tests, the perf suite, the netsim overlay). */
@@ -129,8 +130,8 @@ export class OnlineClient {
   private extraLead = 0;
   /** Local ticks to skip (not simulate) to ease back when ahead of the target. */
   private holdTicks = 0;
-  /** Smoothed ticks between where the clock should be and where it is (see `goalTick`). */
-  private drift = 0;
+  /** Smoothed ticks the prediction is ahead of each snapshot as it arrives (see `goalTick`). */
+  private ahead = 0;
   private rttMs: number = NET.defaultRttMs;
   private ticksSincePing: number = NET.pingEveryTicks;
   private readonly received: NetEvent[] = [];
@@ -141,8 +142,8 @@ export class OnlineClient {
   private nextEventSeq = 1;
   /** How reconciles moved each kart since the last `takeCorrections` (render smoothing). */
   private readonly corrections: Correction[] = [];
-  /** Tick of the last own item use played from the prediction (-Infinity: none). */
-  private lastOwnUseTick = -Infinity;
+  /** Tick each kind of own item-use event was last played at (prediction or host), for dedupe. */
+  private readonly ownUsePlayed = new Map<OwnUseEvent, number>();
 
   constructor(
     private readonly transport: Transport,
@@ -195,7 +196,7 @@ export class OnlineClient {
     return this.received
       .splice(0)
       .sort((a, b) => a.seq - b.seq)
-      .filter(({ event }) => !this.isOwnItemUse(event));
+      .filter(({ event, tick }) => !this.isOwnItemUse(event) || this.playOwnUse(event.type, tick));
   }
 
   /** How reconciles moved the karts since the last call, for render smoothing (MK-45). */
@@ -394,19 +395,26 @@ export class OnlineClient {
    * confirm the use, the next reconcile takes it back without a sound.
    */
   private cosmetic(events: readonly SimEvent[], tick: number): SimEvent[] {
-    return events.filter((event) => {
-      if (!this.isOwnItemUse(event)) return !HOST_EVENTS.has(event.type);
-      // A reconcile can move a use a tick or two later: play it once.
-      if (event.type === 'itemUsed') {
-        if (tick - this.lastOwnUseTick < NET.ownItemUseDedupeTicks) return false;
-        this.lastOwnUseTick = tick;
-      }
-      return true;
-    });
+    return events.filter((event) =>
+      this.isOwnItemUse(event) ? this.playOwnUse(event.type, tick) : !HOST_EVENTS.has(event.type),
+    );
   }
 
-  private isOwnItemUse(event: SimEvent): boolean {
+  private isOwnItemUse(event: SimEvent): event is SimEvent & { type: OwnUseEvent } {
     return (event.type === 'itemUsed' || event.type === 'star') && event.kartId === this.kartId;
+  }
+
+  /**
+   * Whether to play our own item-use event of `type` at `tick`: once per use, whichever copy comes
+   * first. The prediction's usually does; the host's plays when the prediction missed it (it
+   * didn't know we had the item), and a replay that re-predicts the use a few ticks later doesn't
+   * play it again.
+   */
+  private playOwnUse(type: OwnUseEvent, tick: number): boolean {
+    const last = this.ownUsePlayed.get(type);
+    if (last !== undefined && Math.abs(tick - last) < NET.ownItemUseDedupeTicks) return false;
+    this.ownUsePlayed.set(type, tick);
+    return true;
   }
 
   /** Records how far a reconcile moved each kart at one tick (`before` → `after`). */
@@ -419,7 +427,7 @@ export class OnlineClient {
         dx: old.position.x - kart.position.x,
         dy: old.position.y - kart.position.y,
         dz: old.position.z - kart.position.z,
-        dHeading: wrapAngle(old.heading - kart.heading),
+        dHeading: wrapAngleDelta(old.heading - kart.heading),
       };
       const size = Math.hypot(correction.dx, correction.dy, correction.dz);
       if (kart.id === this.kartId) {
@@ -454,19 +462,21 @@ export class OnlineClient {
     const target = snapshotTick + this.leadTicks();
     const drift = target - current;
     if (!this.state || Math.abs(drift) > NET.maxTickDrift) {
-      this.drift = 0;
+      this.ahead = this.leadTicks();
       return Math.max(snapshotTick, target);
     }
-    // Jitter makes each snapshot's drift bounce by a tick or two: ease on the average only, or
-    // the clock would hold a tick and then double one on almost every snapshot (a visible hitch).
-    this.drift += (drift - this.drift) * NET.tickDriftSmoothing;
-    if (this.drift <= -NET.tickDriftDeadband) {
-      this.drift += 1;
+    // Jitter makes how far ahead of each snapshot we are bounce by a tick or two: ease on its
+    // average, or the clock would hold a tick and then double one on almost every snapshot (a
+    // visible hitch). The lead itself (RTT, late inputs) counts at once.
+    this.ahead += (current - snapshotTick - this.ahead) * NET.tickDriftSmoothing;
+    const smoothed = this.leadTicks() - this.ahead;
+    if (smoothed <= -NET.tickDriftDeadband) {
+      this.ahead -= 1;
       this.holdTicks = Math.max(this.holdTicks, 1);
       return current;
     }
-    if (this.drift >= NET.tickDriftDeadband) {
-      this.drift -= 1;
+    if (smoothed >= NET.tickDriftDeadband) {
+      this.ahead += 1;
       return current + 1;
     }
     return current;
@@ -499,6 +509,9 @@ export class OnlineClient {
     this.transport.send(packet);
   }
 }
+
+/** Our own item-use events, played from the prediction (see `OnlineClient.cosmetic`). */
+type OwnUseEvent = 'itemUsed' | 'star';
 
 /**
  * Whether a predicted state is close enough to the host's at the same tick to keep predicting from

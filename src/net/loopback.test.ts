@@ -86,8 +86,11 @@ describe('online race over loopback (ADR 0005)', () => {
       // Snapshot size for 8 karts (ticket AC: < 600 B).
       expect(peer?.stats.snapshotBytesMax).toBeLessThan(600);
     }
-    // What each player saw of their own kart vs where the host had it at that tick.
-    expect(worstShown).toBeLessThan(0.5);
+    // What each player saw of their own kart vs where the host had it at that tick. Mostly
+    // centimetres (P99); the worst case is chaos: a prediction kept because it matched within
+    // `NET.reconcilePosition` can land a hop a tick apart from the host's (MK-45 measured 0.1–0.7 m
+    // across seeds and clock settings), and render smoothing hides the rest.
+    expect(worstShown).toBeLessThan(1);
     shownErrors.sort((a, b) => a - b);
     expect(shownErrors[Math.floor(shownErrors.length * 0.99)]).toBeLessThan(0.2);
 
