@@ -1,6 +1,6 @@
 # Technical Design — Kart Racer
 
-Status: MVP Approved · **v2 Draft** · PRD (MVP): https://www.notion.so/3e424983f3ca8171ad9bffbdee9cedf1 · PRD (v2): https://app.notion.com/p/3e524983f3ca812d85b8e778602f94e1
+Status: MVP Approved · **v2 Approved** (2026-09-25) · PRD (MVP): https://www.notion.so/3e424983f3ca8171ad9bffbdee9cedf1 · PRD (v2): https://app.notion.com/p/3e524983f3ca812d85b8e778602f94e1
 
 ## Stack
 

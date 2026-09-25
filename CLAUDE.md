@@ -11,12 +11,15 @@ Follows the `dev-workflow` skill (ticket-driven: Notion → branch → PR → QA
 - Epics data source: collection://2445fc6b-0619-46c1-b0cb-59003f6b0325
 - GitHub: MattSharp05/kart-racer
 - Preview URLs: Vercel preview per PR (link is on the PR); production: https://kart-racer-alpha.vercel.app (scenario index at `/dev`)
-- QA mode: batched (batch plan: waves 1–5 → 6–7 → 8–10 → 11–14; checkpoints MK-5, MK-10, MK-14)
-- Approval: standing (all planned tickets approved; stop only at checkpoint ⭐ waves for QA, and at blocks)
+- QA mode: batched, **no waves or QA stops (v2)**: the orchestrator builds in dependency order (Wave = order only) until every v2 ticket is QA Pending, then Matthew QAs on the ticket pages. Priority: the online chain (spike → net core → prediction → race flow → polish) first. _MVP history: waves 1–5 → 6–7 → 8–10 → 11–14; checkpoints MK-5, MK-10, MK-14._
+- Approval: standing (the v2 plan was approved at epic level on 2026-09-25; stop only at blocks)
+- Parallel builders: 2
+- Before a run: the **Cloud preflight** in `dev-workflow` (Notion write test from a child session must pass). If the workflow skills aren't listed, read them from a claude-workflow clone (`plugins/workflow/skills/`) and tell builders to do the same.
+- v2 scope: [PRD v2](https://app.notion.com/p/3e524983f3ca812d85b8e778602f94e1) · design: `docs/TDD.md` → "v2" + ADRs 0005–0007
 
 ## Stack
 
-TypeScript (strict) · Vite · Three.js · in-house arcade physics (no physics engine) · plain DOM/CSS UI · Web Audio (synthesized) · pnpm · Vitest · Playwright · ESLint + Prettier · GitHub Actions · Vercel. Details and reasons: [docs/TDD.md](docs/TDD.md); decisions: [docs/decisions/](docs/decisions/).
+TypeScript (strict) · Vite · Three.js · in-house arcade physics (no physics engine) · plain DOM/CSS UI · Web Audio (synthesized) · pnpm · Vitest · Playwright · ESLint + Prettier · GitHub Actions · Vercel · **v2:** Supabase (Realtime for rooms/signaling, Postgres for leaderboards) + WebRTC data channels for race packets. Details and reasons: [docs/TDD.md](docs/TDD.md); decisions: [docs/decisions/](docs/decisions/).
 
 ## Commands
 
@@ -37,6 +40,7 @@ _Created by MK-1/MK-3/MK-4 — keep this list current._
 - `src/render/` Three.js · `src/input/` keyboard/touch → `InputFrame` · `src/ui/` DOM HUD/menus · `src/audio/` Web Audio synth
 - `src/game/` loop, app state machine, `window.__game` test API
 - `src/scenarios/` scenario registry · `dev.html` + `src/dev/` = `/dev` index
+- `src/net/` (v2) transport (WebRTC · loopback · BroadcastChannel), binary protocol, rooms, host/client netcode · `supabase/migrations/` SQL schema
 - `tests/e2e/` Playwright specs · `docs/` TDD, ADRs, CREDITS
 
 ## Conventions
@@ -45,6 +49,8 @@ _Created by MK-1/MK-3/MK-4 — keep this list current._
 - No magic numbers in logic — tunables go in `sim/tuning.ts` or data files.
 - Units: metres, seconds, radians; +Y up; heading 0 faces −Z.
 - Render/UI/audio only read `SimState` and `SimEvent`s; they never mutate sim state.
+- `src/net/**` may import `sim/` types but never `render/`/`ui/`. Online races: the host is authoritative (ADR 0005); clients never decide hits, pickups or finishes.
+- Screens live in `src/ui/screens/` with their own CSS; content (tracks, racers, items) registers itself (ADR 0007) — don't add cases to shared switches.
 - New dependency or architectural change → `/block-ticket` and record an ADR.
 
 ## Testing

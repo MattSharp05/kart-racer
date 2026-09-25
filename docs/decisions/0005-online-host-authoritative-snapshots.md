@@ -1,6 +1,6 @@
 # 0005 — Online races: host-authoritative snapshots with client prediction
 
-Status: Proposed · 2026-09-24
+Status: Accepted · 2026-09-25
 
 ## Context
 

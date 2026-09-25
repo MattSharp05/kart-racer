@@ -1,6 +1,6 @@
 # 0006 — Supabase for rooms and leaderboards; WebRTC for race traffic
 
-Status: Proposed · 2026-09-24 · confirmed or changed by the netcode spike
+Status: Accepted · 2026-09-25 · confirmed or changed by the netcode spike
 
 ## Context
 

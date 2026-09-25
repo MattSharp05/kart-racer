@@ -1,6 +1,6 @@
 # 0007 — Feature modules and content registries (split hotspot files)
 
-Status: Proposed · 2026-09-24
+Status: Accepted · 2026-09-25
 
 ## Context
 
