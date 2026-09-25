@@ -1,4 +1,4 @@
-import type { Signal, SignalingChannel } from './webrtc';
+import type { Signal, SignalingChannel } from '../webrtc';
 
 interface Envelope {
   from: string;

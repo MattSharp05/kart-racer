@@ -1,4 +1,4 @@
-/** Little-endian binary writer that grows as needed. */
+/** Little-endian binary writer that grows as needed (the net protocol, ADR 0005). */
 export class ByteWriter {
   private buffer = new ArrayBuffer(256);
   private view = new DataView(this.buffer);
@@ -6,7 +6,7 @@ export class ByteWriter {
 
   u8(value: number): this {
     this.reserve(1);
-    this.view.setUint8(this.length, value);
+    this.view.setUint8(this.length, clamp(Math.round(value), 0, 0xff));
     this.length += 1;
     return this;
   }
@@ -43,6 +43,17 @@ export class ByteWriter {
     this.reserve(8);
     this.view.setFloat64(this.length, value, true);
     this.length += 8;
+    return this;
+  }
+
+  /** A short UTF-8 string: u8 byte length, then the bytes. Throws past 255 bytes. */
+  str(value: string): this {
+    const utf8 = textEncoder.encode(value);
+    if (utf8.length > 0xff) throw new Error(`String too long for the wire: ${value.slice(0, 20)}…`);
+    this.u8(utf8.length);
+    this.reserve(utf8.length);
+    new Uint8Array(this.buffer, this.length, utf8.length).set(utf8);
+    this.length += utf8.length;
     return this;
   }
 
@@ -104,7 +115,18 @@ export class ByteReader {
     this.offset += 8;
     return value;
   }
+
+  str(): string {
+    const length = this.u8();
+    if (this.offset + length > this.view.byteLength) throw new RangeError('Truncated string');
+    const bytes = new Uint8Array(this.view.buffer, this.view.byteOffset + this.offset, length);
+    this.offset += length;
+    return textDecoder.decode(bytes);
+  }
 }
+
+const textEncoder = new TextEncoder();
+const textDecoder = new TextDecoder();
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));

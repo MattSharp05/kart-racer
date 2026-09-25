@@ -60,6 +60,26 @@ export default tseslint.config(
     },
   },
   {
+    // The netcode may use sim types and logic, never the presentation (CLAUDE.md, ADR 0005).
+    files: ['src/net/**/*.ts'],
+    // The MK-36 spike page wires itself into the game loop; it's a prototype, not netcode.
+    ignores: ['src/net/spike/main.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            { group: ['three', 'three/*'], message: 'src/net must not import three.' },
+            {
+              group: ['**/render/**', '**/ui/**', '**/input/**', '**/audio/**', '**/game/**'],
+              message: 'src/net must not depend on render/ui/input/audio/game (ADR 0005).',
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
     // Tests assert on array entries they just created, so `!` is safe there.
     files: ['tests/**/*.ts', 'src/**/*.test.ts'],
     rules: { '@typescript-eslint/no-non-null-assertion': 'off' },

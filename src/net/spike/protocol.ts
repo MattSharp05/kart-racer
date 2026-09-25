@@ -1,4 +1,4 @@
-import { ByteReader, ByteWriter } from './bytes';
+import { ByteReader, ByteWriter } from '../bytes';
 import type {
   AiState,
   Entity,
