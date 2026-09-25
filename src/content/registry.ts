@@ -1,8 +1,8 @@
 /** What every piece of registered content has: a string id and a sort key for menus and tables. */
 export interface ContentDef {
   id: string;
-  /** Lists sort by this, then by id, so the order never depends on import order. */
-  order: number;
+  /** Lists sort by this (default 0), then by id, so the order never depends on import order. */
+  order?: number;
 }
 
 /**
@@ -45,7 +45,7 @@ export class Registry<T extends ContentDef> {
   /** Every def, sorted by `order` then id. */
   list(): readonly T[] {
     this.sorted ??= [...this.byId.values()].sort(
-      (a, b) => a.order - b.order || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0),
+      (a, b) => (a.order ?? 0) - (b.order ?? 0) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0),
     );
     return this.sorted;
   }

@@ -20,9 +20,10 @@ export default tseslint.config(
     languageOptions: { globals: { ...globals.browser, ...globals.node } },
   },
   {
-    files: ['src/sim/**/*.ts'],
+    // Content (ADR 0007) follows the sim rules too, except each piece's `render.ts`.
+    files: ['src/sim/**/*.ts', 'src/content/**/*.ts'],
     // Tests may time themselves (perf budgets); only runtime sim code must stay pure.
-    ignores: ['src/sim/**/*.test.ts'],
+    ignores: ['src/sim/**/*.test.ts', 'src/content/**/*.test.ts', 'src/content/**/render.ts'],
     rules: {
       'no-restricted-imports': [
         'error',
@@ -30,7 +31,14 @@ export default tseslint.config(
           patterns: [
             { group: ['three', 'three/*'], message: 'src/sim must not import three (ADR 0001).' },
             {
-              group: ['**/render/**', '**/input/**', '**/ui/**', '**/audio/**', '**/game/**'],
+              group: [
+                '**/render/**',
+                '**/render',
+                '**/input/**',
+                '**/ui/**',
+                '**/audio/**',
+                '**/game/**',
+              ],
               message: 'src/sim must not depend on render/input/ui/audio/game (ADR 0001).',
             },
           ],

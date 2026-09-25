@@ -16,7 +16,7 @@ import {
   type SimState,
 } from '../types';
 import { availableItems } from './index';
-import { ITEM_ODDS, oddsRow, pickItem } from './odds';
+import { oddsRow, oddsTable, pickItem } from './odds';
 
 const geometry = trackGeometry(sunnyCircuit);
 const ALL_ITEMS: ItemId[] = ['mushroom', 'banana', 'green', 'red', 'star', 'lightning'];
@@ -34,7 +34,7 @@ function run(state: SimState, ticks: number, input: (s: SimState) => Partial<Inp
 
 describe('item odds', () => {
   it('every position row sums to 1', () => {
-    for (const row of ITEM_ODDS) {
+    for (const row of oddsTable()) {
       expect(Object.values(row).reduce((a, b) => a + b, 0)).toBeCloseTo(1, 9);
     }
   });
