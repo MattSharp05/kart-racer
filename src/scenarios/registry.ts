@@ -1,7 +1,7 @@
 import type { SimState } from '../sim/types';
 
 export type ScenarioView = 'chase' | 'overview' | 'lineup';
-export type MenuScreen = 'title' | 'kartSelect' | 'ccSelect' | 'paused' | 'howToPlay';
+export type MenuScreen = 'title' | 'kartSelect' | 'ccSelect' | 'paused' | 'howToPlay' | 'nickname';
 
 export interface ScenarioSetup {
   state: SimState;
