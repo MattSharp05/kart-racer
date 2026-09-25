@@ -16,6 +16,7 @@ import {
   MSG,
   PROTOCOL_VERSION,
   quantizeInput,
+  withAck,
   type ByeReason,
   type NetMessage,
 } from './protocol';
@@ -138,6 +139,10 @@ describe('net protocol (ADR 0005)', () => {
       expect(got.drift.direction).toBe(kart.drift.direction);
       expect(got.drift.tier).toBe(kart.drift.tier);
     });
+    // The host encodes once and stamps each client's ack.
+    const other = decodeAs(withAck(packet, 99), MSG.snapshot);
+    expect(other.ackTick).toBe(99);
+    expect(other.bytes).toEqual(msg.bytes);
     // Snapshot size for 8 karts (ticket AC).
     expect(packet.length).toBeLessThan(600);
   });

@@ -6,7 +6,7 @@ export class ByteWriter {
 
   u8(value: number): this {
     this.reserve(1);
-    this.view.setUint8(this.length, value);
+    this.view.setUint8(this.length, clamp(Math.round(value), 0, 0xff));
     this.length += 1;
     return this;
   }

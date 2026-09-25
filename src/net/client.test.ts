@@ -4,7 +4,14 @@ import type { InputFrame } from '../sim/types';
 import { OnlineClient } from './client';
 import { OnlineHost } from './host';
 import { createLoopbackPair, parseNetConditions } from './netsim';
-import { decodeMessage, encodeStart, MSG, PROTOCOL_VERSION, quantizeInput } from './protocol';
+import {
+  decodeMessage,
+  encodeSnapshot,
+  encodeStart,
+  MSG,
+  PROTOCOL_VERSION,
+  quantizeInput,
+} from './protocol';
 import { onlineRace, onlineRacers, scriptedInput, TICK_MS, virtualClock } from './testRace';
 
 vi.mock('../sim/step', async (importOriginal) => {
@@ -120,6 +127,25 @@ describe('OnlineClient reconciliation (ADR 0005)', () => {
     expect(client.started).toBe(true);
     expect(client.kartId).toBe(CLIENT_KART);
     expect(host.peers[0]!.newestTick).toBeGreaterThan(0);
+  });
+
+  it('drops a malformed snapshot without losing the next good one', () => {
+    const { host, client, clock, tick } = settledRace();
+    const good = encodeSnapshot(host.state, 0, []);
+    const snapshots = client.stats.snapshots;
+    // A snapshot "from the future" whose state is cut short.
+    const bad = encodeSnapshot({ ...host.state, tick: host.state.tick + 1000 }, 0, []);
+    const hostEnd = host.peers[0]!.transport;
+    hostEnd.send(bad.subarray(0, 40));
+    hostEnd.send(good.subarray(0, good.length - 3));
+    clock.advance(60);
+    expect(client.stats.badPackets).toBe(2);
+    expect(client.stats.snapshots).toBeGreaterThan(snapshots); // the regular ones still arrive
+    for (let i = 0; i < 30; i += 1) {
+      tick();
+      clock.advance(TICK_MS);
+    }
+    expect(client.stats.staleSnapshots).toBe(0);
   });
 
   it('refuses a host speaking another protocol version', () => {

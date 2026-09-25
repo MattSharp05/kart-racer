@@ -47,3 +47,18 @@ Prototype: `src/net/spike/` (`?spike=net`). Host runs the sim with 2 humans + 6 
 1. **Reconcile only on mismatch** (default): keep the predicted state when it matches the snapshot at that tick within tolerance (position < 5 cm, same discrete state: lap, item, drift, respawn), and replay only when it doesn't. With the prediction errors above, most snapshots need no replay; mispredictions (a remote human changing input, items) still replay.
 2. **Fallback (Backlog ticket):** predict only the local kart and render the other karts interpolated between snapshots (~100 ms in the past). This cuts the replay to one kart and matches the remote-kart smoothing the polish ticket needs anyway.
 3. Profile the sim step (per-kart cost is high for arcade physics); a lower snapshot rate (15 Hz) is the last resort.
+
+## Net core (MK-39, 2026-09-25)
+
+`src/net/` now holds the production version: `protocol.ts` (v2 wire format: Start with the race setup and AI personalities, Input, Snapshot, Event, Bye, Ping), `host.ts` (`OnlineHost`), `client.ts` (`OnlineClient`), `transport.ts` (+ `BroadcastChannelTransport`), `webrtc.ts` (moved from the spike), tunables in `config.ts`. Race events the host decides (`HOST_EVENTS`) travel in Event packets that repeat the last 0.5 s, so no acks are needed.
+
+**Reconcile only on mismatch** is the default. The client keeps its prediction when, at the snapshot's tick, every kart is within 5 cm and 0.2 m/s, the discrete state matches (laps, items, drift, hits, timers running, entities, RNG), our input wasn't late, and no other player's input changed by more than 0.25 or pressed a different button. Loopback, host + 3 clients, 150 ms RTT / 30 ms jitter / 5 % loss, full 1-lap race (`loopback.test.ts`, `resim.perf.test.ts`, Node on a cloud CPU):
+
+| Measure                                                       | Result                                                                                                                                                       |
+| ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Snapshots needing a replay                                    | ~20–35 % (the rest: nothing re-simulated)                                                                                                                    |
+| Snapshot handling cost, average / max                         | **1.7–1.9 ms** / 12–13 ms (target 4 ms average)                                                                                                              |
+| Raw re-simulation of 10 ticks, 8 karts                        | **4.8–5.3 ms**: still over the 4 ms target; the cost is the sim step itself (clone ≈ 16 %) → sim-step optimisation ticket                                    |
+| Own-kart prediction at snapshot ticks vs host                 | ≤ 6 cm (one 29 cm case next to a hit)                                                                                                                        |
+| What the player saw vs host, excluding host-decided spin-outs | P50 7 mm, P99 < 12 cm, max < 0.5 m. A hit the client didn't foresee shows up to ~5 m off until the snapshot arrives: render smoothing is the polish ticket's |
+| Snapshot size, 8 karts + items                                | 454 B avg, 527 B max (lap times now sent as u16 ticks: exact)                                                                                                |

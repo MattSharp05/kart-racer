@@ -58,6 +58,8 @@ const ITEMS: readonly ItemId[] = ['mushroom', 'banana', 'green', 'red', 'star', 
 const HITS: readonly HitKind[] = ['banana', 'green', 'red', 'star', 'lightning', 'squash'];
 const TRICKS: readonly KartState['trick'][] = ['none', 'ready', 'done'];
 const ENGINE_CLASSES: readonly EngineClass[] = [50, 100, 150];
+/** Snapshot layout: type u8, tick u32, then the ack u32. */
+const SNAPSHOT_ACK_OFFSET = 5;
 
 // --- Messages ---------------------------------------------------------------------------------
 
@@ -194,6 +196,13 @@ export function encodeSnapshot(
   w.u8(state.entities.length);
   for (const entity of state.entities) writeEntity(w, entity);
   return w.bytes();
+}
+
+/** A copy of an encoded snapshot with another ack tick (the host encodes the state once). */
+export function withAck(snapshot: Uint8Array, ackTick: number): Uint8Array {
+  const copy = snapshot.slice();
+  new DataView(copy.buffer).setUint32(SNAPSHOT_ACK_OFFSET, ackTick >>> 0, true);
+  return copy;
 }
 
 export function encodeEvents(events: readonly NetEvent[]): Uint8Array {
@@ -371,9 +380,12 @@ const TIMERS: readonly {
 /** AI memory sent with a presence mask (optional fields stay undefined when absent). */
 const AI_TIMERS = ['stuckTime', 'recoverTime', 'itemDelay', 'itemHeld'] as const;
 
-/** A timer in ms as sent (0 = not sent). */
+/**
+ * A timer in ms as sent (0 = not sent). A running timer never rounds to 0, even a float leftover
+ * like 1e-17 s: "running or not" decides what the sim does next tick.
+ */
 function timerMs(seconds: number | undefined): number {
-  return Math.round((seconds ?? 0) * MS);
+  return seconds !== undefined && seconds > 0 ? Math.max(1, Math.round(seconds * MS)) : 0;
 }
 
 function writeKart(w: ByteWriter, k: KartState): void {

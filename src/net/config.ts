@@ -13,6 +13,8 @@ export const NET = {
   inputBufferTicks: 2,
   /** Extra lead the client adds, one tick at a time, when the host reports its input was late. */
   maxExtraLeadTicks: 4,
+  /** Snapshots in a row with our input on time before the extra lead drops a tick (2 s). */
+  extraLeadDecaySnapshots: 40,
   /** The client eases 1 tick per snapshot towards its target tick; further off than this, it jumps. */
   maxTickDrift: 4,
   /** The host repeats Start this often until the client's first input arrives, ticks (0.25 s). */

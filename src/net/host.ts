@@ -9,6 +9,7 @@ import {
   encodePing,
   encodeSnapshot,
   encodeStart,
+  withAck,
   MSG,
   quantizeInput,
   type AppliedInput,
@@ -196,9 +197,11 @@ export class OnlineHost {
       this.recentEvents.length > 0
         ? encodeEvents(this.recentEvents.slice(-MAX_EVENTS_PER_PACKET))
         : null;
+    // Encoded once; only the ack differs per client.
+    const snapshot = encodeSnapshot(this.state, 0, humans);
     for (const peer of this.peers) {
       if (!peer.connected) continue;
-      const packet = encodeSnapshot(this.state, peer.newestTick, humans);
+      const packet = withAck(snapshot, peer.newestTick);
       const s = peer.stats;
       s.snapshots += 1;
       s.snapshotBytesAvg += (packet.length - s.snapshotBytesAvg) / s.snapshots;
@@ -220,7 +223,10 @@ export class OnlineHost {
     if (msg.type === MSG.ping) {
       if (peer.connected) this.send(peer, encodePing(MSG.pong, msg.time));
     } else if (msg.type === MSG.bye) {
+      // Its kart coasts from now on (handing it to the AI is the drops ticket's job).
       peer.connected = false;
+      peer.lastInput = NEUTRAL_INPUT;
+      peer.inputs.clear();
     } else if (msg.type === MSG.input) {
       const now = this.state.tick;
       // Inputs for ticks already simulated are too late; ones absurdly far ahead are bogus.

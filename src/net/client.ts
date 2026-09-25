@@ -116,6 +116,10 @@ export class OnlineClient {
   private rttMs: number = NET.defaultRttMs;
   private ticksSincePing: number = NET.pingEveryTicks;
   private readonly received: NetEvent[] = [];
+  /** Cosmetic events of ticks simulated while handling a snapshot, returned by the next `tick`. */
+  private readonly pendingEvents: SimEvent[] = [];
+  private onTimeSnapshots = 0;
+  private hasRttSample = false;
   private nextEventSeq = 1;
 
   constructor(
@@ -152,7 +156,8 @@ export class OnlineClient {
     const { state, events } = this.simulate(this.state);
     this.state = state;
     this.sendInputs(nextTick);
-    return events.filter((event) => !HOST_EVENTS.has(event.type));
+    this.pruneHistory(state.tick - NET.historyTicks);
+    return [...this.pendingEvents.splice(0), ...cosmetic(events)];
   }
 
   /** Host race events received since the last call, oldest first, each exactly once. */
@@ -218,14 +223,23 @@ export class OnlineClient {
           this.ended = 'version';
           return;
         }
+        try {
+          this.initial = raceFromSetup(msg.setup, msg.kartId);
+        } catch {
+          // A track or kart this build doesn't have: we can't join this race.
+          this.send(encodeBye('version'));
+          this.ended = 'version';
+          return;
+        }
         this.kartId = msg.kartId;
         this.setup = msg.setup;
-        this.initial = raceFromSetup(msg.setup, msg.kartId);
         break;
       case MSG.pong: {
         const sample = this.now() - msg.time;
-        this.rttMs =
-          this.stats.rttMs === 0 ? sample : this.rttMs + (sample - this.rttMs) * NET.rttSmoothing;
+        this.rttMs = this.hasRttSample
+          ? this.rttMs + (sample - this.rttMs) * NET.rttSmoothing
+          : sample;
+        this.hasRttSample = true;
         this.stats.rttMs = this.rttMs;
         break;
       }
@@ -254,6 +268,15 @@ export class OnlineClient {
       return;
     }
     const started = performance.now();
+    const predicted = this.predicted.get(msg.tick);
+    const base = predicted ?? this.state ?? this.initial;
+    let authoritative: SimState;
+    try {
+      authoritative = applySnapshot(structuredClone(base), msg.tick, msg.bytes);
+    } catch {
+      this.stats.badPackets += 1; // malformed body: drop it, the next snapshot will do
+      return;
+    }
     this.lastSnapshotTick = msg.tick;
     this.stats.snapshots += 1;
 
@@ -268,12 +291,7 @@ export class OnlineClient {
       if (!known || inputChanged(known, input)) remoteChanged = true;
       this.remoteInputs.set(kartId, input);
     }
-    // The host simulated our kart with a held input: our input was late, so run further ahead.
-    if (ownLate) this.extraLead = Math.min(NET.maxExtraLeadTicks, this.extraLead + 1);
-
-    const predicted = this.predicted.get(msg.tick);
-    const base = predicted ?? this.state ?? this.initial;
-    const authoritative = applySnapshot(structuredClone(base), msg.tick, msg.bytes);
+    this.adjustExtraLead(ownLate);
     if (predicted) this.measureError(predicted, authoritative);
 
     const current = this.state?.tick ?? msg.tick;
@@ -289,14 +307,17 @@ export class OnlineClient {
     if (keep && this.state) {
       this.stats.matched += 1;
       let state = this.state;
-      for (let t = current; t < goal; t += 1) state = this.simulate(state).state;
+      for (let t = current; t < goal; t += 1) state = this.simulateNew(state);
       this.state = state;
     } else {
       // Reset to the host's state and re-simulate the inputs it hasn't acknowledged yet.
       for (const tick of this.predicted.keys()) if (tick > msg.tick) this.predicted.delete(tick);
       this.predicted.set(msg.tick, authoritative);
       let state = authoritative;
-      for (let t = msg.tick; t < goal; t += 1) state = this.simulate(state).state;
+      for (let t = msg.tick; t < goal; t += 1) {
+        // Replayed ticks already played their cosmetic events; ones past the old present haven't.
+        state = t < current || !this.state ? this.simulate(state).state : this.simulateNew(state);
+      }
       this.state = state;
       if (this.stats.snapshots > 1) {
         this.stats.reconciled += 1;
@@ -308,6 +329,28 @@ export class OnlineClient {
     const ms = performance.now() - started;
     this.stats.snapshotMsTotal += ms;
     this.stats.snapshotMsMax = Math.max(this.stats.snapshotMsMax, ms);
+  }
+
+  /** Simulates a tick that is new to the player (not a replay), keeping its cosmetic events. */
+  private simulateNew(state: SimState): SimState {
+    const result = this.simulate(state);
+    this.pendingEvents.push(...cosmetic(result.events));
+    return result.state;
+  }
+
+  /**
+   * More lead when the host had to hold our input (it arrived late); a tick less again after
+   * `NET.extraLeadDecaySnapshots` snapshots in a row without, so one lag spike doesn't cost
+   * latency for the rest of the race.
+   */
+  private adjustExtraLead(ownLate: boolean): void {
+    if (ownLate) {
+      this.extraLead = Math.min(NET.maxExtraLeadTicks, this.extraLead + 1);
+      this.onTimeSnapshots = 0;
+    } else if (this.extraLead > 0 && ++this.onTimeSnapshots >= NET.extraLeadDecaySnapshots) {
+      this.extraLead -= 1;
+      this.onTimeSnapshots = 0;
+    }
   }
 
   /**
@@ -336,6 +379,12 @@ export class OnlineClient {
     for (const tick of this.inputs.keys()) {
       if (tick <= snapshotTick && tick <= newest - NET.inputRedundancy) this.inputs.delete(tick);
     }
+  }
+
+  /** Drops history older than `oldest` even while no snapshots arrive (a stalled link). */
+  private pruneHistory(oldest: number): void {
+    for (const tick of this.predicted.keys()) if (tick < oldest) this.predicted.delete(tick);
+    for (const tick of this.inputs.keys()) if (tick < oldest) this.inputs.delete(tick);
   }
 
   private send(packet: Uint8Array): void {
@@ -386,6 +435,11 @@ export function matches(predicted: SimState, host: SimState): boolean {
       k.race.stallTimer > 0 === h.race.stallTimer > 0
     );
   });
+}
+
+/** The events a client plays from its own prediction: everything but the host's (`HOST_EVENTS`). */
+function cosmetic(events: readonly SimEvent[]): SimEvent[] {
+  return events.filter((event) => !HOST_EVENTS.has(event.type));
 }
 
 /**
