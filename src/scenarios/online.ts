@@ -2,6 +2,7 @@ import { oneWayOf, type NetConditions } from '../net/netsim';
 import { KART_IDS } from '../sim/data/karts';
 import { sunnyCircuit } from '../sim/data/tracks/sunnyCircuit';
 import { createRace, type CreateRaceOptions, type RacerSlot } from '../sim/race/createRace';
+import { attractMode } from './menus';
 import type { Scenario, ScenarioSetup } from './registry';
 
 /**
@@ -56,6 +57,14 @@ export function onlineQuery(name: string, role: 'host' | 'client', room = devRoo
 }
 
 export const onlineScenarios: Scenario[] = [
+  {
+    name: 'online-lobby',
+    group: ONLINE_GROUP,
+    description:
+      'Room lobby over BroadcastChannel (MK-40): the host link creates a room, the client link joins it in another window; the lists update as players come and go.',
+    defaultSeed: 1,
+    setup: (seed) => ({ state: attractMode(seed), view: 'chase', screen: 'title', lobby: true }),
+  },
   {
     name: 'online-race-2p',
     group: ONLINE_GROUP,

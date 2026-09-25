@@ -17,6 +17,7 @@ import { createPauseButton } from '../ui/screens/pause';
 import '../ui/screens/results';
 import '../ui/screens/title';
 import { resultLines } from './results';
+import { RoomFlow, type RoomService } from './roomFlow';
 import { DEFAULT_SEED, type Launch, type RaceSession } from './session';
 import { readPrefs, writePrefs } from './storage/prefs';
 import { recordBests } from './storage/records';
@@ -28,6 +29,8 @@ const RESULTS_DELAY_MS = 2500;
 /** Results for a scenario that boots already finished, ms. */
 const LAUNCH_RESULTS_DELAY_MS = 300;
 const ENGINE_CLASSES = [50, 100, 150] as const;
+/** The player's colour in a room until MK-42's colour pick. */
+const PLAYER_COLOUR = '#e63946';
 
 /**
  * The screen flow (MK-35): title → kart select → cc select → race ⇄ pause → results → (again,
@@ -47,11 +50,13 @@ export class Flow {
   private chosenCc: EngineClass;
   private raceCount = 0;
   private resultsTimer: number | undefined;
+  private readonly rooms: RoomFlow;
 
   constructor(
     private readonly session: RaceSession,
     private readonly world: World,
     private readonly store: KeyValueStore,
+    rooms: RoomService,
   ) {
     const game = session.game;
     const prefs = readPrefs(store);
@@ -64,6 +69,13 @@ export class Flow {
       toggle: () => this.sound.toggleMute(),
     };
     this.howToPlay = new HowToPlay();
+    // Online rooms (MK-40): the placeholder name until the nickname screen (MK-42) lands.
+    this.rooms = new RoomFlow(
+      this.screens,
+      rooms,
+      () => ({ nickname: 'Player', colour: PLAYER_COLOUR, racer: this.chosenKart, ready: false }),
+      () => this.showTitleScreen(),
+    );
 
     this.pauseButton = createPauseButton(() => this.pauseRace());
     window.addEventListener('keydown', (e) => {
@@ -106,6 +118,10 @@ export class Flow {
       case 'howToPlay':
         this.showTitleScreen();
         game.setAutopilot(launch.localKartId, true);
+        if (launch.lobby) {
+          this.rooms.launch(launch.lobby);
+          break;
+        }
         // First visit (plain URL, nothing stored): show the controls guide straight away.
         if (launch.screen === 'howToPlay' || (!launch.scenario && !hasSeenHowToPlay(this.store))) {
           this.openHowToPlay();
@@ -149,6 +165,7 @@ export class Flow {
   private showTitleScreen(): void {
     this.screens.show('title', {
       onPlay: this.showKartSelect,
+      onOnline: () => this.rooms.showOnline(),
       onHowToPlay: this.openHowToPlay,
       sound: this.soundControl,
     });
