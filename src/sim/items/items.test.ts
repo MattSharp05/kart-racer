@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { scenarios } from '../../scenarios';
 import { kartOnTrack } from '../../scenarios/tracks';
 import { autopilotInput } from '../autopilot';
-import { sunnyCircuit } from '../data/tracks/sunnyCircuit';
+import { sunnyCircuit } from '../../content/tracks/sunny-circuit/sim';
 import { rngFloat, seedRng } from '../rng';
 import { step } from '../step';
 import { trackGeometry } from '../track';
@@ -16,7 +16,7 @@ import {
   type SimState,
 } from '../types';
 import { availableItems } from './index';
-import { ITEM_ODDS, oddsRow, pickItem } from './odds';
+import { oddsRow, oddsTable, pickItem } from './odds';
 
 const geometry = trackGeometry(sunnyCircuit);
 const ALL_ITEMS: ItemId[] = ['mushroom', 'banana', 'green', 'red', 'star', 'lightning'];
@@ -34,7 +34,7 @@ function run(state: SimState, ticks: number, input: (s: SimState) => Partial<Inp
 
 describe('item odds', () => {
   it('every position row sums to 1', () => {
-    for (const row of ITEM_ODDS) {
+    for (const row of oddsTable()) {
       expect(Object.values(row).reduce((a, b) => a + b, 0)).toBeCloseTo(1, 9);
     }
   });

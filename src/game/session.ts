@@ -1,3 +1,4 @@
+import { items } from '../content/items';
 import { PlayerInput } from '../input/playerInput';
 import { scenarios } from '../scenarios';
 import { attractMode } from '../scenarios/menus';
@@ -8,7 +9,7 @@ import { isKartId, KART_IDS, type KartId } from '../sim/data/karts';
 import type { EngineClass } from '../sim/tuning';
 import { createRace } from '../sim/race/createRace';
 import { step } from '../sim/step';
-import { NEUTRAL_INPUT, type InputFrame, type ItemId, type SimState } from '../sim/types';
+import { NEUTRAL_INPUT, type InputFrame, type SimState } from '../sim/types';
 import { showErrorBanner } from '../ui/errorBanner';
 import { Game } from './game';
 import type { LaunchParams } from './launchParams';
@@ -19,7 +20,6 @@ export const DEFAULT_SEED = 1;
 /** Room of an online scenario opened without `&room=`. */
 export const DEFAULT_ROOM = 'local';
 const AI_RACERS = 7;
-const ITEM_IDS: string[] = ['mushroom', 'banana', 'green', 'red', 'star', 'lightning'];
 
 /** What the page boots into: a named scenario, or the title screen over an attract-mode race. */
 export interface Launch {
@@ -30,6 +30,8 @@ export interface Launch {
   screen?: MenuScreen;
   /** The kart this device drives (MK-38). */
   localKartId: number;
+  /** The scenario's saved data (MK-44), layered over the real store for this page load. */
+  storage?: Record<string, string>;
   /** An online scenario (MK-46): host or join its race over `?net=local`. */
   online?: OnlineLaunch;
   /** Straight into a room (MK-40): `/?room=CODE`, or the `online-lobby` scenario. */
@@ -53,8 +55,8 @@ export function resolveLaunch(params: LaunchParams): Launch {
   if (launch.online) return launch;
   const player = launch.state.karts[launch.localKartId];
   if (params.item) {
-    if (player && ITEM_IDS.includes(params.item)) player.item.held = params.item as ItemId;
-    else showErrorBanner(`Unknown item "${params.item}". Valid items:`, ITEM_IDS);
+    if (player && items.has(params.item)) player.item.held = params.item;
+    else showErrorBanner(`Unknown item "${params.item}". Valid items:`, items.ids());
   }
   if (params.kart) {
     if (player && isKartId(params.kart)) player.kartType = params.kart;
@@ -84,6 +86,7 @@ function initialState(params: LaunchParams): Launch {
         follow: setup.follow ?? localKartId,
         localKartId,
         ...(setup.screen ? { screen: setup.screen } : {}),
+        ...(setup.storage ? { storage: setup.storage } : {}),
         ...(setup.lobby ? { lobby: lobbyLaunch(params.role ?? 'host', params.room) } : {}),
         localRooms: params.net === 'local' || isOnlineScenario(scenario),
       };

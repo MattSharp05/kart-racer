@@ -3,7 +3,6 @@ import type { World } from '../render/world';
 import { attractMode, sunnyLineup } from '../scenarios/menus';
 import type { ScenarioView } from '../scenarios/registry';
 import { isKartId, KART_IDS, type KartId } from '../sim/data/karts';
-import { raceTime } from '../sim/raceFlow';
 import type { EngineClass } from '../sim/tuning';
 import type { SimEvent, SimState } from '../sim/types';
 import { Hud } from '../ui/hud/hud';
@@ -16,11 +15,11 @@ import '../ui/screens/kartSelect';
 import { createPauseButton } from '../ui/screens/pause';
 import '../ui/screens/results';
 import '../ui/screens/title';
-import { resultLines } from './results';
+import { recordFinish, recordLines, resultLines } from './results';
 import { RoomFlow, type RoomService } from './roomFlow';
 import { DEFAULT_SEED, type Launch, type RaceSession } from './session';
 import { readPrefs, writePrefs } from './storage/prefs';
-import { recordBests } from './storage/records';
+import type { RecordUpdate } from './storage/records';
 import { hasSeenHowToPlay, markHowToPlaySeen } from './storage/settings';
 import type { KeyValueStore } from './storage/store';
 
@@ -50,6 +49,8 @@ export class Flow {
   private chosenCc: EngineClass;
   private raceCount = 0;
   private resultsTimer: number | undefined;
+  /** What the local player's finish did to the track records, for the results screen. */
+  private recordUpdate: RecordUpdate | undefined;
   private readonly rooms: RoomFlow;
 
   constructor(
@@ -236,7 +237,7 @@ export class Flow {
     this.pauseButton.hidden = true;
     this.screens.show('results', {
       rows,
-      bestNote: this.hud.bestNote,
+      ...(this.recordUpdate ? { records: recordLines(this.recordUpdate) } : {}),
       onAgain: this.startRace,
       onChangeKart: this.showKartSelect,
       onMenu: this.showTitle,
@@ -252,7 +253,7 @@ export class Flow {
 
   private beforeLoad(): void {
     window.clearTimeout(this.resultsTimer);
-    this.hud.bestNote = '';
+    this.recordUpdate = undefined;
   }
 
   private focusLineupKart(kart: KartId, snap = false): void {
@@ -266,22 +267,8 @@ export class Flow {
     const me = this.session.localKartId;
     this.hud.onEvents(events, state, me, performance.now());
     const finished = events.find((e) => e.type === 'finish' && e.kartId === me);
-    const player = state.karts[me];
-    if (finished && player) {
-      const bests = recordBests(
-        this.store,
-        state.trackId,
-        player.kartType,
-        state.engineClass,
-        player.race.lapTimes,
-        raceTime(state, player.race.finishTick),
-      );
-      this.hud.bestNote = [
-        bests.newBestRace && 'New best race time!',
-        bests.newBestLap && 'New best lap!',
-      ]
-        .filter(Boolean)
-        .join(' ');
+    if (finished) {
+      this.recordUpdate = recordFinish(this.store, state, me);
       this.resultsTimer = window.setTimeout(this.showResults, RESULTS_DELAY_MS);
     }
   }

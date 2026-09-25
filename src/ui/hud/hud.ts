@@ -1,8 +1,9 @@
+import { items } from '../../content/items';
 import { positionOf } from '../../sim/race';
 import { raceTime } from '../../sim/raceFlow';
 import type { ItemId, KartItem, SimEvent, SimState } from '../../sim/types';
 import { formatTime, ordinal } from './format';
-import { ITEM_NAMES, ITEM_ORDER, itemIcon } from './icons';
+import { itemIcon, itemName } from './icons';
 import { Minimap } from './minimap';
 import './hud.css';
 
@@ -33,7 +34,6 @@ export class Hud {
   private readonly screenFlash = div('hud-flash');
   private centreUntil = 0;
   private readonly shown = new Map<HTMLElement, string>();
-  bestNote = '';
 
   constructor() {
     this.timer.append(this.timerMain, this.lastLap);
@@ -135,7 +135,8 @@ export class Hud {
     let item: ItemId | null = null;
     let rolling = false;
     if (slot.roulette) {
-      item = ITEM_ORDER[Math.floor(now / 90) % ITEM_ORDER.length] ?? 'mushroom';
+      const all = items.ids();
+      item = all[Math.floor(now / 90) % all.length] ?? null;
       rolling = true;
     } else if (slot.held) {
       item = slot.held;
@@ -145,7 +146,7 @@ export class Hud {
     // Key hint while an item is ready (QA round 2: players didn't know how to use it).
     const hint = item && !rolling ? '<span class="hud-item-key"></span>' : '';
     this.set(this.item, item ? itemIcon(item) + hint : '');
-    this.item.title = item && !rolling ? ITEM_NAMES[item] : '';
+    this.item.title = item && !rolling ? itemName(item) : '';
   }
 
   private flash(text: string, now: number, ms: number): void {

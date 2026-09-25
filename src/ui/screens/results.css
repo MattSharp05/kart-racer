@@ -20,8 +20,22 @@
   color: var(--color-gold);
 }
 
-.menus .best {
+.menus .records {
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+
+.menus .records .new-record {
+  margin: 0 0 2px;
+  font-size: 18px;
+  color: var(--color-mint);
+}
+
+.menus .records .record {
   margin: 0;
+}
+
+.menus .records .record.new {
   color: var(--color-mint);
 }
 
@@ -33,5 +47,13 @@
 
   .menus .results li {
     padding: 0;
+  }
+
+  .menus .records {
+    font-size: 12px;
+  }
+
+  .menus .records .new-record {
+    font-size: 14px;
   }
 }

@@ -14,6 +14,26 @@ export class MemoryStore implements KeyValueStore {
   }
 }
 
+/**
+ * A store preloaded with a scenario's saved data (MK-44): those keys, and everything written, stay
+ * in memory; other keys read through to `base`. So a test profile never overwrites the real one.
+ */
+export class OverlayStore implements KeyValueStore {
+  private readonly overlay = new MemoryStore();
+  constructor(
+    private readonly base: KeyValueStore,
+    seed: Record<string, string>,
+  ) {
+    for (const [key, value] of Object.entries(seed)) this.overlay.set(key, value);
+  }
+  get(key: string): string | null {
+    return this.overlay.get(key) ?? this.base.get(key);
+  }
+  set(key: string, value: string): void {
+    this.overlay.set(key, value);
+  }
+}
+
 /** localStorage when it works (private mode and some embeds throw), otherwise in-memory. */
 export function browserStore(): KeyValueStore {
   try {

@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { testOval } from '../../src/sim/data/tracks/testOval';
+import { testOval } from '../../src/content/tracks/test-oval/sim';
 import { trackGeometry } from '../../src/sim/track';
 import { getState, loadScenario, setInput, step } from './helpers';
 

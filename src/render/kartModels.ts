@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { racerViews } from '../content/racers/render';
 import type { KartId } from '../sim/data/karts';
 
 /**
@@ -39,32 +40,18 @@ export interface KartModelFactory {
   create(kartId: KartId, colours?: Partial<KartColours>): KartModel;
 }
 
-export const KART_COLOURS: Record<KartId, KartColours> = {
-  maple: { body: 0xe63946, accent: 0xf1faee, driver: 0xffd6a5 },
-  pixie: { body: 0xffc300, accent: 0xff70a6, driver: 0xffe5ec },
-  boulder: { body: 0x2b59c3, accent: 0x14213d, driver: 0xc9ada7 },
-  swoop: { body: 0x2a9d8f, accent: 0xe9c46a, driver: 0xffddd2 },
-};
-
-/** Extra paint jobs for when the same kart appears more than once in a race. */
-const ALTERNATE_BODIES: Record<KartId, number[]> = {
-  maple: [0x9d0208, 0xf77f00],
-  pixie: [0xc77dff, 0x80ed99],
-  boulder: [0x6c757d, 0x3a0ca3],
-  swoop: [0x06d6a0, 0x118ab2],
-};
-
 /** Colours for the `repeat`-th copy of a kart in a race (0 = the standard paint). */
 export function alternateColours(kartId: KartId, repeat: number): Partial<KartColours> {
   if (repeat === 0) return {};
-  const options = ALTERNATE_BODIES[kartId];
+  const options = racerViews.get(kartId).alternateBodies;
   const body = options[(repeat - 1) % options.length];
   return body === undefined ? {} : { body };
 }
 
 export const SPARKS_PER_WHEEL = 6;
 
-interface Shape {
+/** A kart's proportions (m); each racer's `render.ts` sets its own. */
+export interface KartShape {
   chassis: [width: number, height: number, length: number];
   chassisY: number;
   frontRadius: number;
@@ -77,60 +64,17 @@ interface Shape {
   driverZ: number;
 }
 
-const SHAPES: Record<KartId, Shape> = {
-  maple: {
-    chassis: [1.3, 0.45, 2.1],
-    chassisY: 0.45,
-    frontRadius: 0.32,
-    rearRadius: 0.32,
-    frontZ: -0.75,
-    rearZ: 0.75,
-    wheelX: 0.72,
-    driverY: 1.05,
-    driverZ: 0.25,
-  },
-  pixie: {
-    chassis: [1.05, 0.35, 1.8],
-    chassisY: 0.38,
-    frontRadius: 0.26,
-    rearRadius: 0.28,
-    frontZ: -0.7,
-    rearZ: 0.72,
-    wheelX: 0.66,
-    driverY: 0.9,
-    driverZ: 0.2,
-  },
-  boulder: {
-    chassis: [1.45, 0.6, 2.0],
-    chassisY: 0.55,
-    frontRadius: 0.33,
-    rearRadius: 0.38,
-    frontZ: -0.72,
-    rearZ: 0.66,
-    wheelX: 0.7,
-    driverY: 1.2,
-    driverZ: 0.3,
-  },
-  swoop: {
-    chassis: [1.2, 0.32, 2.1],
-    chassisY: 0.36,
-    frontRadius: 0.29,
-    rearRadius: 0.3,
-    frontZ: -0.8,
-    rearZ: 0.74,
-    wheelX: 0.72,
-    driverY: 0.88,
-    driverZ: 0.3,
-  },
-};
-
 const lambert = (color: number) => new THREE.MeshLambertMaterial({ color });
 
-/** Distinct silhouettes from primitives: shared layout, per-kart proportions and details. */
+/**
+ * Distinct silhouettes from primitives: shared layout, per-kart proportions and details (from each
+ * racer's `src/content/racers/<id>/render.ts`).
+ */
 export class PrimitiveKartFactory implements KartModelFactory {
   create(kartId: KartId, colours: Partial<KartColours> = {}): KartModel {
-    const palette = { ...KART_COLOURS[kartId], ...colours };
-    const shape = SHAPES[kartId];
+    const view = racerViews.get(kartId);
+    const palette = { ...view.colours, ...colours };
+    const shape = view.shape;
     const root = new THREE.Group();
     const body = new THREE.Group();
     root.add(body);
@@ -144,7 +88,7 @@ export class PrimitiveKartFactory implements KartModelFactory {
     driver.position.set(0, shape.driverY, shape.driverZ);
     body.add(driver);
 
-    this.addDetails(kartId, body, shape, palette);
+    view.details({ body, shape, palette, lambert });
     const { wheels, frontWheels } = this.addWheels(body, shape);
     const sparks = this.addSparks(body, shape);
     const flame = this.addFlame(body, shape);
@@ -153,57 +97,7 @@ export class PrimitiveKartFactory implements KartModelFactory {
     return { root, body, wheels, frontWheels, sparks, flame, wheelRadius: shape.rearRadius, drone };
   }
 
-  private addDetails(kartId: KartId, body: THREE.Group, shape: Shape, palette: KartColours) {
-    const accent = lambert(palette.accent);
-    const [w, h, l] = shape.chassis;
-    const top = shape.chassisY + h / 2;
-    switch (kartId) {
-      case 'maple': {
-        const nose = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.3, 0.5), lambert(palette.body));
-        nose.position.set(0, shape.chassisY - 0.05, -1.2);
-        const stripe = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.02, l * 0.9), accent);
-        stripe.position.set(0, top + 0.01, 0);
-        body.add(nose, stripe);
-        break;
-      }
-      case 'pixie': {
-        // Pointy nose cone and a little bow on the driver.
-        const nose = new THREE.Mesh(new THREE.ConeGeometry(0.35, 0.8, 12), lambert(palette.body));
-        nose.rotation.x = -Math.PI / 2;
-        // Tip at −1.45 m = the physics footprint's front edge.
-        nose.position.set(0, shape.chassisY, -1.05);
-        const bow = new THREE.Mesh(new THREE.TorusGeometry(0.12, 0.05, 8, 16), accent);
-        bow.position.set(0, shape.driverY + 0.35, shape.driverZ);
-        body.add(nose, bow);
-        break;
-      }
-      case 'boulder': {
-        // Heavy front bumper and a roll cage.
-        const bumper = new THREE.Mesh(new THREE.BoxGeometry(w + 0.1, 0.25, 0.25), accent);
-        bumper.position.set(0, shape.chassisY - 0.1, -1.3);
-        const cage = new THREE.Mesh(new THREE.TorusGeometry(0.5, 0.06, 8, 16, Math.PI), accent);
-        cage.position.set(0, top, shape.driverZ + 0.35);
-        body.add(bumper, cage);
-        break;
-      }
-      case 'swoop': {
-        // Rear wing on two posts, and a fin.
-        const wing = new THREE.Mesh(new THREE.BoxGeometry(w + 0.2, 0.06, 0.35), accent);
-        wing.position.set(0, top + 0.45, 0.85);
-        for (const x of [-0.4, 0.4]) {
-          const post = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.45, 0.06), accent);
-          post.position.set(x, top + 0.22, 0.85);
-          body.add(post);
-        }
-        const nose = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.2, 0.6), lambert(palette.body));
-        nose.position.set(0, shape.chassisY - 0.05, -1.15);
-        body.add(wing, nose);
-        break;
-      }
-    }
-  }
-
-  private addWheels(body: THREE.Group, shape: Shape) {
+  private addWheels(body: THREE.Group, shape: KartShape) {
     const material = lambert(0x222222);
     const wheels: THREE.Object3D[] = [];
     const frontWheels: THREE.Object3D[] = [];
@@ -224,7 +118,7 @@ export class PrimitiveKartFactory implements KartModelFactory {
     return { wheels, frontWheels };
   }
 
-  private addSparks(body: THREE.Group, shape: Shape): THREE.Group[] {
+  private addSparks(body: THREE.Group, shape: KartShape): THREE.Group[] {
     return [-shape.wheelX, shape.wheelX].map((x) => {
       const cluster = new THREE.Group();
       cluster.position.set(x, 0.12, shape.rearZ + shape.rearRadius + 0.1);
@@ -238,7 +132,7 @@ export class PrimitiveKartFactory implements KartModelFactory {
     });
   }
 
-  private addFlame(body: THREE.Group, shape: Shape): THREE.Mesh {
+  private addFlame(body: THREE.Group, shape: KartShape): THREE.Mesh {
     const flame = new THREE.Mesh(
       new THREE.ConeGeometry(0.28, 1.2, 12),
       new THREE.MeshBasicMaterial({ color: 0xffb703, transparent: true, opacity: 0.85 }),

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { autopilotInput } from './autopilot';
-import { testOval } from './data/tracks/testOval';
+import { testOval } from '../content/tracks/test-oval/sim';
 import { rngRange, seedRng } from './rng';
 import { TrackGeometry } from './splineTrack';
 import { step } from './step';
