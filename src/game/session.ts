@@ -1,16 +1,22 @@
 import { PlayerInput } from '../input/playerInput';
 import { scenarios } from '../scenarios';
 import { attractMode } from '../scenarios/menus';
+import { isOnlineScenario } from '../scenarios/online';
 import { sunnyRace } from '../scenarios/race';
-import type { MenuScreen, ScenarioView } from '../scenarios/registry';
+import type { MenuScreen, OnlineScenario, ScenarioView } from '../scenarios/registry';
 import { isKartId, KART_IDS, type KartId } from '../sim/data/karts';
 import type { EngineClass } from '../sim/tuning';
+import { createRace } from '../sim/race/createRace';
+import { step } from '../sim/step';
 import { NEUTRAL_INPUT, type InputFrame, type ItemId, type SimState } from '../sim/types';
 import { showErrorBanner } from '../ui/errorBanner';
 import { Game } from './game';
 import type { LaunchParams } from './launchParams';
+import { OnlineRace, type OnlineLaunch } from './online';
 
 export const DEFAULT_SEED = 1;
+/** Room of an online scenario opened without `&room=`. */
+export const DEFAULT_ROOM = 'local';
 const AI_RACERS = 7;
 const ITEM_IDS: string[] = ['mushroom', 'banana', 'green', 'red', 'star', 'lightning'];
 
@@ -23,6 +29,8 @@ export interface Launch {
   screen?: MenuScreen;
   /** The kart this device drives (MK-38). */
   localKartId: number;
+  /** An online scenario (MK-46): host or join its race over `?net=local`. */
+  online?: OnlineLaunch;
 }
 
 /** `localKartId` when this device drives no kart (spectating). */
@@ -36,6 +44,8 @@ export function localKartOf(state: SimState): number {
 /** Resolves the starting state from the URL (`?scenario=`, `&seed=`, `&item=`, `&kart=`). */
 export function resolveLaunch(params: LaunchParams): Launch {
   const launch = initialState(params);
+  // Online, the host's race comes from its options (see `onlineLaunch`), not this state.
+  if (launch.online) return launch;
   const player = launch.state.karts[launch.localKartId];
   if (params.item) {
     if (player && ITEM_IDS.includes(params.item)) player.item.held = params.item as ItemId;
@@ -53,6 +63,13 @@ function initialState(params: LaunchParams): Launch {
     const scenario = scenarios.get(params.scenario);
     if (scenario) {
       const setup = scenario.setup(params.seed ?? scenario.defaultSeed);
+      if (setup.online) return onlineLaunch(scenario.name, setup.online, params);
+      if (params.net || params.role) {
+        showErrorBanner(
+          `"${scenario.name}" isn't an online scenario. Online scenarios:`,
+          onlineNames(),
+        );
+      }
       const localKartId = localKartOf(setup.state);
       return {
         state: setup.state,
@@ -72,6 +89,34 @@ function initialState(params: LaunchParams): Launch {
   return { state, screen: 'title', localKartId: localKartOf(state) };
 }
 
+function onlineNames(): string[] {
+  return scenarios
+    .list()
+    .filter(isOnlineScenario)
+    .map((s) => s.name);
+}
+
+/**
+ * An online scenario (MK-46): the host's race with the URL's `&laps=`, `&role=` (default host),
+ * `&room=` and `&netsim=`. A client shows the race as a placeholder, driving nothing, until the
+ * host's Start says which kart is its own.
+ */
+function onlineLaunch(scenario: string, online: OnlineScenario, params: LaunchParams): Launch {
+  const race = params.laps ? { ...online.race, laps: params.laps } : online.race;
+  const netsim = params.netsim ?? online.netsim;
+  const role = params.role ?? 'host';
+  const state = createRace(race);
+  const hostKart = localKartOf(state);
+  return {
+    state,
+    scenario,
+    view: 'chase',
+    follow: hostKart,
+    localKartId: role === 'host' ? hostKart : NO_LOCAL_KART,
+    online: { role, room: params.room ?? DEFAULT_ROOM, race, ...(netsim ? { netsim } : {}) },
+  };
+}
+
 /** A local race against the AI. */
 export interface RaceConfig {
   seed: number;
@@ -81,8 +126,8 @@ export interface RaceConfig {
 
 /**
  * A race session (MK-35): the Game plus the local player's input wiring. The local player drives
- * kart `localKartId` (MK-38), the first `local` kart of the loaded state. v2 adds online
- * host/client sessions here.
+ * kart `localKartId` (MK-38), the first `local` kart of the loaded state. Online (MK-46), an
+ * `OnlineRace` steps the game instead of the local sim (`goOnline`).
  */
 export class RaceSession {
   readonly game: Game;
@@ -91,6 +136,8 @@ export class RaceSession {
   playerInput: InputFrame = NEUTRAL_INPUT;
   /** The kart this device drives: camera, HUD, sound, results and controls all follow it. */
   localKartId: number;
+  /** The online race this session plays, if any (MK-46). */
+  online: OnlineRace | null = null;
 
   constructor(initial: SimState) {
     this.localKartId = localKartOf(initial);
@@ -107,8 +154,24 @@ export class RaceSession {
     return inputs;
   }
 
+  /**
+   * Plays `launch` online from the loaded placeholder state: the host or client steps the game from
+   * now on. `onLocalKart` runs when a client learns its kart (follow it with the camera).
+   */
+  goOnline(launch: OnlineLaunch, onLocalKart: (kartId: number) => void = () => undefined): void {
+    this.leaveOnline();
+    const online = new OnlineRace(launch, (kartId) => {
+      this.localKartId = kartId;
+      onLocalKart(kartId);
+    });
+    this.online = online;
+    this.localKartId = online.localKartId;
+    this.game.stepper = online.stepper;
+  }
+
   /** Swaps in a new state (menu background, race). The caller resumes the sim. */
   load(state: SimState): void {
+    this.leaveOnline();
     this.localKartId = localKartOf(state);
     this.game.reset(state);
   }
@@ -125,8 +188,16 @@ export class RaceSession {
     );
   }
 
-  /** Leaves the current race (quit to title). Local races just freeze; online ones will disconnect. */
+  /** Leaves the current race (quit to title). Local races just freeze; online ones disconnect. */
   stop(): void {
     this.game.pause();
+    this.leaveOnline();
+  }
+
+  /** Ends the online race, if any, and goes back to local stepping. */
+  leaveOnline(): void {
+    this.online?.close();
+    this.online = null;
+    this.game.stepper = step;
   }
 }
