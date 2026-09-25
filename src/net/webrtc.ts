@@ -1,4 +1,4 @@
-import { BaseTransport } from '../transport';
+import { BaseTransport } from './transport';
 
 /** Public STUN only; no TURN in v2 (ADR 0006). */
 export const ICE_SERVERS: RTCIceServer[] = [
