@@ -1,3 +1,4 @@
+import { items } from '../content/items';
 import { isKartId, type KartId } from '../sim/data/karts';
 import { DT, type EngineClass } from '../sim/tuning';
 import type {
@@ -54,8 +55,10 @@ const STEER_UNIT = 127;
 const MAX_INPUT_AGE = 0xff;
 
 const PHASES: readonly RacePhase[] = ['free', 'countdown', 'racing', 'finished'];
-const ITEMS: readonly ItemId[] = ['mushroom', 'banana', 'green', 'red', 'star', 'lightning'];
-const HITS: readonly HitKind[] = ['banana', 'green', 'red', 'star', 'lightning', 'squash'];
+/** Items by index: every registered item (`src/content/items/`), so both peers need the same build. */
+const itemIds = (): readonly ItemId[] => items.ids();
+/** Hit kinds by index: the items, then squash. */
+const hitKinds = (): readonly HitKind[] => [...items.ids(), 'squash'];
 const TRICKS: readonly KartState['trick'][] = ['none', 'ready', 'done'];
 const ENGINE_CLASSES: readonly EngineClass[] = [50, 100, 150];
 /** Snapshot layout: type u8, tick u32, then the ack u32. */
@@ -426,7 +429,7 @@ function writeKart(w: ByteWriter, k: KartState): void {
   for (const time of race.lapTimes) w.u16(Math.round(time / DT));
   if (race.finishTick !== undefined) w.u32(race.finishTick);
   if (race.throttleSince !== undefined) w.u32(race.throttleSince);
-  w.u8(k.item.held === null ? 0 : ITEMS.indexOf(k.item.held) + 1);
+  w.u8(k.item.held === null ? 0 : itemIds().indexOf(k.item.held) + 1);
   const ai = k.ai;
   if (ai) {
     let aiMask = 0;
@@ -468,7 +471,7 @@ function readKart(r: ByteReader, k: KartState): void {
   if (flags2 & 16) k.race.throttleSince = r.u32();
   else delete k.race.throttleSince;
   const held = r.u8();
-  k.item.held = held === 0 ? null : (ITEMS[held - 1] ?? null);
+  k.item.held = held === 0 ? null : (itemIds()[held - 1] ?? null);
   const ai = k.ai;
   if (ai) {
     const aiMask = r.u8();
@@ -690,10 +693,10 @@ function writeEvent(w: ByteWriter, event: SimEvent): void {
         w.u8(PHASES.indexOf(value as RacePhase));
         break;
       case 'item':
-        w.u8(ITEMS.indexOf(value as ItemId));
+        w.u8(itemIds().indexOf(value as ItemId));
         break;
       case 'hit':
-        w.u8(HITS.indexOf(value as HitKind));
+        w.u8(hitKinds().indexOf(value as HitKind));
         break;
       case 'u8[]': {
         const list = value as number[];
@@ -730,10 +733,10 @@ function readEvent(r: ByteReader): SimEvent {
         event[name] = PHASES[r.u8()];
         break;
       case 'item':
-        event[name] = ITEMS[r.u8()];
+        event[name] = itemIds()[r.u8()];
         break;
       case 'hit':
-        event[name] = HITS[r.u8()];
+        event[name] = hitKinds()[r.u8()];
         break;
       case 'u8[]':
         event[name] = Array.from({ length: r.u8() }, () => r.u8());

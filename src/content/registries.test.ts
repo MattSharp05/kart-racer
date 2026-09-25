@@ -7,6 +7,7 @@ import { createSimState } from '../sim/state';
 import { step } from '../sim/step';
 import { getTrack } from '../sim/track';
 import { scenarios } from '../scenarios';
+import { applySnapshot, decodeMessage, encodeEvents, encodeSnapshot, MSG } from '../net/protocol';
 import { NEUTRAL_INPUT, type SimEvent } from '../sim/types';
 import { items, ODDS_ROWS, registerItem, type ItemContent } from './items';
 import { itemViews } from './items/render';
@@ -148,5 +149,24 @@ describe('a test-only item registered from a test file', () => {
       used = result.events.some((e) => e.type === 'itemUsed' && e.kartId === 1);
     }
     expect(used).toBe(true);
+  });
+
+  it('survives the online protocol (held item, use and hit events)', () => {
+    const state = scenarios.get('ai-holding-green')!.setup(1).state;
+    state.karts[1]!.item.held = 'test-dummy';
+    const snapshot = decodeMessage(encodeSnapshot(state, 0, []));
+    if (snapshot.type !== MSG.snapshot) throw new Error('not a snapshot');
+    const copy = applySnapshot(
+      scenarios.get('ai-holding-green')!.setup(1).state,
+      0,
+      snapshot.bytes,
+    );
+    expect(copy.karts[1]!.item.held).toBe('test-dummy');
+
+    const events = [
+      { seq: 1, tick: 5, event: { type: 'itemUsed', kartId: 1, item: 'test-dummy' } },
+      { seq: 2, tick: 6, event: { type: 'kartHit', kartId: 0, by: 1, kind: 'test-dummy' } },
+    ] satisfies { seq: number; tick: number; event: SimEvent }[];
+    expect(decodeMessage(encodeEvents(events))).toEqual({ type: MSG.event, events });
   });
 });
