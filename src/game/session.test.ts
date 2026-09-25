@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { NEUTRAL_INPUT } from '../sim/types';
 import { parseLaunchParams } from './launchParams';
+import { NETSIM_PRESETS } from '../scenarios/online';
 import { RaceSession, resolveLaunch } from './session';
 
 // The real controls listen on `window`; unit tests run in Node.
@@ -82,5 +83,58 @@ describe('RaceSession', () => {
     session.stop();
     session.game.frame(1);
     expect(session.game.state.tick).toBe(0);
+  });
+});
+
+describe('online scenarios (MK-46)', () => {
+  it('host the race by default, in the local room', () => {
+    const launch = resolveLaunch(parseLaunchParams('?scenario=online-race-2p'));
+    expect(launch).toMatchObject({ scenario: 'online-race-2p', localKartId: 0 });
+    expect(launch.online).toMatchObject({ role: 'host', room: 'local' });
+    expect(launch.online?.race.racers.map((r) => r.controller)).toEqual([
+      'local',
+      'remote',
+      'ai',
+      'ai',
+      'ai',
+      'ai',
+      'ai',
+      'ai',
+    ]);
+  });
+
+  it('join as a client driving nothing until the host says which kart', () => {
+    const launch = resolveLaunch(
+      parseLaunchParams('?scenario=online-race-4p&net=local&role=client&room=r&laps=1'),
+    );
+    expect(launch.localKartId).toBe(-1);
+    expect(launch.online).toMatchObject({ role: 'client', room: 'r', race: { laps: 1 } });
+    expect(launch.state.race.laps).toBe(1);
+    expect(launch.online?.race.racers.filter((r) => r.controller === 'remote')).toHaveLength(3);
+  });
+
+  it('take the preset network, unless the URL sets one', () => {
+    expect(resolveLaunch(parseLaunchParams('?scenario=net-bad')).online?.netsim).toEqual(
+      NETSIM_PRESETS.bad,
+    );
+    expect(
+      resolveLaunch(parseLaunchParams('?scenario=net-bad&netsim=40,0,0')).online?.netsim,
+    ).toEqual({ lagMs: 20, jitterMs: 0, loss: 0 });
+    expect(resolveLaunch(parseLaunchParams('?scenario=online-race-2p')).online?.netsim).toBe(
+      undefined,
+    );
+  });
+
+  it('goOnline steps the game through the online race; stop goes back to the local sim', () => {
+    const launch = resolveLaunch(parseLaunchParams('?scenario=online-race-2p&room=session-a'));
+    const session = new RaceSession(launch.state);
+    session.goOnline(launch.online!);
+    expect(session.online?.info().role).toBe('host');
+    session.game.stepTicks(5);
+    expect(session.game.state.tick).toBe(0); // waiting for the client
+    session.stop();
+    expect(session.online).toBeNull();
+    session.game.stepTicks(5);
+    expect(session.game.state.tick).toBe(5);
   });
 });

@@ -25,6 +25,19 @@ export function parseNetConditions(text: string | null | undefined): NetConditio
   return { lagMs: lag, jitterMs: jitter, loss: Math.min(1, lossPercent / 100) };
 }
 
+/**
+ * One direction of a link whose round trip is `roundTrip` (the game's `&netsim=<rtt>,<jitter>,
+ * <loss%>`, MK-46): half the lag and jitter each way, and a loss per direction that compounds to
+ * the round-trip loss. Apply it on both ends.
+ */
+export function oneWayOf(roundTrip: NetConditions): NetConditions {
+  return {
+    lagMs: roundTrip.lagMs / 2,
+    jitterMs: roundTrip.jitterMs / 2,
+    loss: 1 - Math.sqrt(1 - roundTrip.loss),
+  };
+}
+
 export interface LoopbackOptions {
   conditions?: NetConditions;
   /** Random source for jitter and loss (seed it in tests). */
