@@ -6,6 +6,7 @@ import { oddsRow, oddsTable, pickItem } from '../sim/items/odds';
 import { createSimState } from '../sim/state';
 import { step } from '../sim/step';
 import { getTrack } from '../sim/track';
+import { scenarios } from '../scenarios';
 import { NEUTRAL_INPUT, type SimEvent } from '../sim/types';
 import { items, ODDS_ROWS, registerItem, type ItemContent } from './items';
 import { itemViews } from './items/render';
@@ -135,5 +136,17 @@ describe('a test-only item registered from a test file', () => {
     expect(state.karts[0]!.item.held).toBeNull();
     expect(state.karts[0]!.boostTimer).toBeGreaterThan(1);
     expect(events).toContainEqual({ type: 'itemUsed', kartId: 0, item: 'test-dummy' });
+  });
+
+  it('is used by an AI driver that holds it', () => {
+    let state = scenarios.get('ai-holding-green')!.setup(1).state;
+    state.karts[1]!.item.held = 'test-dummy';
+    let used = false;
+    for (let i = 0; i < 60 * 10 && !used; i += 1) {
+      const result = step(state, [NEUTRAL_INPUT]);
+      state = result.state;
+      used = result.events.some((e) => e.type === 'itemUsed' && e.kartId === 1);
+    }
+    expect(used).toBe(true);
   });
 });
