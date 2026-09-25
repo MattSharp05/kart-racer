@@ -85,16 +85,20 @@ test.describe('rooms', () => {
   });
 
   test('a 5th player is refused with "Room is full"', async ({ context }) => {
+    // Five 3D pages at once: slow on CI's software GL.
+    test.setTimeout(120_000);
     const host = await open(context);
     const code = await createRoom(host);
+    // The joiners only need their lobby (the room link opens it without waiting on the 3D scene).
     for (let i = 0; i < 3; i += 1) {
-      const guest = await open(context, `/?room=${code}&net=local&paused=1`);
-      await expect(players(guest)).toHaveCount(i + 2);
+      const guest = await context.newPage();
+      await guest.goto(`/?room=${code}&net=local&paused=1`);
+      await expect(players(guest)).toHaveCount(i + 2, { timeout: 20_000 });
     }
     await expect(players(host)).toHaveCount(4);
-    const fifth = await open(context);
-    await joinWithCode(fifth, code);
-    await expect(fifth.getByRole('alert')).toHaveText('Room is full');
+    const fifth = await context.newPage();
+    await fifth.goto(`/?room=${code}&net=local&paused=1`);
+    await expect(fifth.getByRole('alert')).toHaveText('Room is full', { timeout: 20_000 });
     await expect(players(host)).toHaveCount(4);
   });
 
