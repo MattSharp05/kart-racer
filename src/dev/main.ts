@@ -13,13 +13,14 @@ function qrImageUrl(url: string): string {
 }
 
 function renderScenario(scenario: Scenario): HTMLElement {
-  return renderLink(scenario.name, scenarioUrl(scenario.name), scenario.description);
+  const item = renderLink(scenario.name, scenarioUrl(scenario.name), scenario.description);
+  item.dataset.scenario = scenario.name;
+  return item;
 }
 
 function renderLink(name: string, url: string, descriptionText: string): HTMLElement {
   const item = document.createElement('li');
   item.className = 'scenario';
-  item.dataset.scenario = name;
 
   const text = document.createElement('div');
   const link = document.createElement('a');
