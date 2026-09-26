@@ -77,6 +77,8 @@ export class RoomFlow {
   private readonly started = new Set<string>();
   /** The start this device is racing (or showing the results of), if any (MK-55). */
   private racing: string | null = null;
+  /** The code of the room this device was last in: Rejoin comes back to it (MK-70). */
+  private lastCode: string | null = null;
   /** Laps of the host's races, if the launch set them (`&laps=`). */
   private laps: number | undefined;
 
@@ -203,6 +205,7 @@ export class RoomFlow {
     if (attempt !== this.attempt) return room.leave();
     if (room.ended) return this.showOnline(ROOM_ERROR_MESSAGES[room.ended]);
     this.room = room;
+    this.lastCode = room.code;
     room.onEnded((reason) => {
       this.room = null;
       this.lobby.onRoomEnded?.();
@@ -212,6 +215,16 @@ export class RoomFlow {
     if (room.isHost) void room.update({ lobby: defaultSettings(this.content()) });
     room.onChange(() => this.checkStart(room));
     this.showLobby(room);
+  }
+
+  /**
+   * Rejoin after losing a race (MK-70): back to the room's lobby for the next race, or, if this
+   * device lost the room too, joining it again by its code (the host re-admits it in the lobby).
+   */
+  rejoin(): void {
+    if (this.room) this.backToLobby();
+    else if (this.lastCode) void this.join(this.lastCode);
+    else this.showOnline();
   }
 
   /** Back to the room's lobby after a race (with why, if it didn't happen), or Online if it's gone. */

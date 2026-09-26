@@ -28,7 +28,7 @@ export type RoomError = 'not-found' | 'full' | 'host-left' | 'code-taken' | 'una
 export const ROOM_ERROR_MESSAGES: Record<RoomError, string> = {
   'not-found': 'Room not found',
   full: 'Room is full',
-  'host-left': 'Host left the room',
+  'host-left': 'Host left — room closed',
   'code-taken': 'That room code is already in use',
   unavailable: "Couldn't reach the online service. Check your connection and try again.",
 };

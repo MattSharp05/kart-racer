@@ -1,0 +1,7 @@
+/* Connection lost (MK-70). */
+.connection-lost-message {
+  margin: 0;
+  max-width: 34ch;
+  font-weight: 400;
+  text-align: center;
+}

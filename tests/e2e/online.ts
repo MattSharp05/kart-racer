@@ -149,12 +149,17 @@ export function freshRoomCode(prefix = 'F'): string {
 /**
  * A room of `n` pages through the lobby (MK-47/MK-55): the host creates it, the others join and
  * ready up, and the host starts. Resolves once every page's race has started (running in real
- * time: pause the pages to step them). `laps` shortens the host's races (`&laps=`).
+ * time: pause the pages to step them). `laps` shortens the host's races (`&laps=`); `racers[i]` is
+ * the racer page i (a client) picks before Ready.
  */
 export async function openLobby(
   context: BrowserContext,
   n: number,
-  { laps, names }: { laps?: number; names?: string[] } = {},
+  {
+    laps,
+    names,
+    racers,
+  }: { laps?: number; names?: string[]; racers?: (string | undefined)[] } = {},
 ): Promise<LobbyRoom> {
   const code = freshRoomCode();
   const nicknames = names ?? ['Hosty', 'Ann', 'Bob', 'Cleo'].slice(0, n);
@@ -200,6 +205,8 @@ export async function openLobby(
       await client.waitForFunction(() => window.__game?.ready === true);
     }
     await expect(client.locator('.lobby-players li')).toHaveCount(i + 1, { timeout: 10_000 });
+    const racer = racers?.[i];
+    if (racer) await client.getByRole('combobox', { name: 'Racer' }).selectOption(racer);
     await client.getByRole('button', { name: 'Ready' }).click();
     clients.push(client);
   }
