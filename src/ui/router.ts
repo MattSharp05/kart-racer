@@ -16,6 +16,8 @@ export interface ScreenHandle {
   onKey?(e: KeyboardEvent): void;
   /** Re-read outside state (e.g. the M key toggled sound). */
   refresh?(): void;
+  /** The screen is going away (another screen shows, or racing): free what it holds (MK-51). */
+  dispose?(): void;
 }
 
 /** Builds a screen into its (empty) panel. */
@@ -78,7 +80,7 @@ export class Router {
   hide(): void {
     this.current = 'none';
     this.stack = [];
-    this.handle = undefined;
+    this.unmount();
     this.host.close();
   }
 
@@ -94,10 +96,16 @@ export class Router {
   private mount(name: ScreenName, props: unknown): void {
     const factory = factories.get(name);
     if (!factory) throw new Error(`Unknown screen "${name}"`);
-    this.handle = undefined;
+    this.unmount();
     this.current = name;
     const panel = this.host.open(name);
     this.handle = (factory as ScreenFactory<unknown>)(panel, props);
+  }
+
+  private unmount(): void {
+    const handle = this.handle;
+    this.handle = undefined;
+    handle?.dispose?.();
   }
 }
 

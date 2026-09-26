@@ -7,6 +7,7 @@ import {
   type LobbySettings,
 } from '../../net/lobbyState';
 import { MAX_ROOM_PLAYERS, type RoomMember } from '../../net/room';
+import { createRacerPicker, type RacerPicker } from '../components/racerPicker';
 import { registerScreen } from '../router';
 import { button, heading, row } from './common';
 import './lobby.css';
@@ -100,8 +101,41 @@ registerScreen('lobby', (panel, props) => {
   cc.setAttribute('aria-label', 'Engine class');
   const items = button('', () => props.onSettings({ ...current(), itemsOn: !current().itemsOn }));
   items.className = 'lobby-items';
-  const racer = select('Racer', props.racers, (id) => props.onRacer(id));
-  racer.select.classList.add('lobby-racer');
+  // This player's racer: the racer select (MK-51) opens over the lobby, which keeps updating.
+  let picker: { overlay: HTMLElement; picker: RacerPicker } | undefined;
+  const closePicker = () => {
+    picker?.picker.dispose();
+    picker?.overlay.remove();
+    picker = undefined;
+    racer.focus();
+  };
+  const openPicker = () => {
+    if (picker) return;
+    const choice = createRacerPicker({
+      initial: self()?.racer ?? '',
+      onChoose: (id) => {
+        props.onRacer(id);
+        closePicker();
+      },
+    });
+    const overlay = row(
+      'lobby-racer-overlay',
+      row(
+        'lobby-racer-panel',
+        heading('h2', 'Choose your racer'),
+        choice.element,
+        row('actions', button('Back', closePicker), button('Choose', choice.choose, 'primary')),
+      ),
+    );
+    overlay.setAttribute('role', 'dialog');
+    overlay.setAttribute('aria-modal', 'true');
+    overlay.setAttribute('aria-label', 'Choose your racer');
+    panel.append(overlay);
+    picker = { overlay, picker: choice };
+    choice.focus();
+  };
+  const racer = button('', openPicker, 'lobby-racer');
+  racer.setAttribute('aria-haspopup', 'dialog');
 
   const ready = button('Ready', () => props.onReady(!self()?.ready));
   ready.className = 'primary lobby-ready';
@@ -137,7 +171,10 @@ registerScreen('lobby', (panel, props) => {
     items.textContent = `Items: ${settings.itemsOn ? 'On' : 'Off'}`;
     items.setAttribute('aria-pressed', String(settings.itemsOn));
     items.disabled = !room.isHost;
-    if (me && content.racerIds.includes(me.racer)) racer.select.value = me.racer;
+    const mine = props.racers.find((r) => r.id === me?.racer);
+    racer.textContent = `Racer: ${mine?.name ?? '…'}`;
+    racer.dataset.racer = mine?.id ?? '';
+    racer.setAttribute('aria-label', `Racer: ${mine?.name ?? 'none'}. Change`);
     ready.textContent = me?.ready ? '✓ Ready' : 'Ready';
     ready.setAttribute('aria-pressed', String(me?.ready === true));
     ready.hidden = room.isHost;
@@ -169,14 +206,17 @@ registerScreen('lobby', (panel, props) => {
       'lobby-body',
       row('lobby-share', code, linkText, shareButton(room.code, link, linkText)),
       row('lobby-list', count, list, message, waiting),
-      row('lobby-settings', track.label, cc, items, racer.label),
+      row('lobby-settings', track.label, cc, items, racer),
     ),
     row('actions', button('Leave room', onLeave), ready, start),
   );
   return {
     onKey: (e) => {
-      if (e.key === 'Escape') onLeave();
+      if (picker) {
+        if (!picker.picker.onKey(e) && e.key === 'Escape') closePicker();
+      } else if (e.key === 'Escape') onLeave();
     },
+    dispose: () => picker?.picker.dispose(),
   };
 });
 

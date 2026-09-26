@@ -18,7 +18,7 @@ import { NET } from '../net/config';
 import { DT } from '../sim/tuning';
 import type { SoundControl } from '../ui/screens/common';
 import { HowToPlay } from '../ui/screens/howToPlay';
-import '../ui/screens/kartSelect';
+import '../ui/screens/racerSelect';
 import '../ui/screens/nickname';
 import '../ui/screens/onlineResults';
 import { createPauseButton } from '../ui/screens/pause';
@@ -231,8 +231,8 @@ export class Flow {
         game.setAutopilot(launch.localKartId, true);
         this.showSettings();
         break;
-      case 'kartSelect':
-        this.showKartSelect();
+      case 'racerSelect':
+        this.showRacerSelect();
         break;
       case 'ccSelect':
         this.focusLineupKart(this.chosenKart, true);
@@ -274,7 +274,7 @@ export class Flow {
   private showTitleScreen(): void {
     const profile = readProfile(this.store);
     this.screens.show('title', {
-      onPlay: this.showKartSelect,
+      onPlay: this.showRacerSelect,
       onOnline: () => this.rooms.showOnline(),
       onHowToPlay: this.openHowToPlay,
       onSettings: this.showSettings,
@@ -305,21 +305,24 @@ export class Flow {
     });
   };
 
-  private readonly showKartSelect = (): void => {
+  private readonly showRacerSelect = (): void => {
     this.rooms.leave();
     this.onlineSince = 0;
     if (this.screens.current !== 'ccSelect') this.load(sunnyLineup(DEFAULT_SEED), 'lineup');
     this.pauseButton.hidden = true;
     this.session.game.resume();
     this.focusLineupKart(this.chosenKart, true);
-    this.screens.show('kartSelect', {
+    this.screens.show('racerSelect', {
       initial: this.chosenKart,
       onChange: (kart) => this.focusLineupKart(kart),
       onChoose: (kart) => {
         this.chosenKart = kart;
+        // Remembered straight away (MK-51), even if the player backs out of the cc select.
+        writePrefs(this.store, { kart, engineClass: this.chosenCc });
         this.showCcSelect();
       },
       onBack: this.showTitle,
+      isPaused: () => this.session.game.paused,
     });
   };
 
@@ -331,7 +334,7 @@ export class Flow {
         writePrefs(this.store, { kart: this.chosenKart, engineClass: this.chosenCc });
         this.startRace();
       },
-      onBack: this.showKartSelect,
+      onBack: this.showRacerSelect,
     });
   };
 
@@ -497,7 +500,7 @@ export class Flow {
       rows,
       ...(this.recordUpdate ? { records: recordLines(this.recordUpdate) } : {}),
       onAgain: this.startRace,
-      onChangeKart: this.showKartSelect,
+      onChangeKart: this.showRacerSelect,
       onMenu: this.showTitle,
     });
   };

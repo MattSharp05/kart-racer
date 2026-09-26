@@ -62,7 +62,7 @@ test.describe('touch controls', () => {
     await enterNickname(page);
     await page.locator('.how-to-play button').click();
     await page.locator('.menu-title button.primary').click();
-    await page.locator('.menu-kartSelect button.primary').click();
+    await page.locator('.menu-racerSelect button.primary').click();
     await page.locator('.menu-ccSelect button', { hasText: '100' }).click();
     await expect(page.locator('.touch-controls')).toBeVisible();
     // Hit-test the centre of each control the way a finger would: nothing (such as an emptied

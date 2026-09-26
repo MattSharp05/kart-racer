@@ -38,6 +38,15 @@ const ccButton = (page: Page, cc: number) =>
   page.getByRole('button', { name: `${cc}cc`, exact: true });
 const SYNC = { timeout: 1000 };
 
+/** Picks a racer through the lobby's racer select (MK-51). */
+async function pickRacer(page: Page, id: string): Promise<void> {
+  await page.locator('.lobby-racer').click();
+  await page.locator(`.lobby-racer-overlay .racer-card[data-racer="${id}"]`).click();
+  await page.locator('.lobby-racer-overlay button.primary').click();
+  await expect(page.locator('.lobby-racer-overlay')).toHaveCount(0);
+  await expect(page.locator('.lobby-racer')).toHaveAttribute('data-racer', id, SYNC);
+}
+
 test.describe('lobby', () => {
   test.beforeEach(({ isMobile }) => {
     test.skip(isMobile, 'multi-page rooms run on the desktop projects (BroadcastChannel)');
@@ -72,8 +81,8 @@ test.describe('lobby', () => {
     await expect(guest.locator('.lobby-items')).toHaveText('Items: Off', SYNC);
 
     // Racers: the host picks Pixie, the guest Boulder; each shows in both lists.
-    await host.getByRole('combobox', { name: 'Racer' }).selectOption('pixie');
-    await guest.getByRole('combobox', { name: 'Racer' }).selectOption('boulder');
+    await pickRacer(host, 'pixie');
+    await pickRacer(guest, 'boulder');
     await expect(players(host).nth(1)).toContainText('Boulder');
     await expect(players(guest).first()).toContainText('Pixie');
 
@@ -192,5 +201,32 @@ test.describe('lobby on a small phone', () => {
       };
     });
     expect(result).toEqual({ inside: true, scrolls: false, small: 0 });
+  });
+
+  test('the racer select opens over the lobby, fits 667×375, and Esc closes it (MK-51)', async ({
+    page,
+  }) => {
+    await page.goto(`/?scenario=online-lobby&room=${freshCode()}&paused=1`);
+    await page.waitForFunction(() => window.__game?.ready === true);
+    await page.locator('.lobby-racer').click();
+    const overlay = page.locator('.lobby-racer-overlay');
+    await expect(overlay.locator('.racer-card')).not.toHaveCount(0);
+    await expect(overlay.locator('.racer-preview')).toHaveCount(1);
+    const result = await overlay.locator('.lobby-racer-panel').evaluate((el) => {
+      const r = el.getBoundingClientRect();
+      const small = [...el.querySelectorAll('button')]
+        .map((b) => b.getBoundingClientRect())
+        .filter((b) => b.width > 0 && (b.width < 44 || b.height < 44));
+      return {
+        inside: r.top >= 0 && r.left >= 0 && r.bottom <= innerHeight && r.right <= innerWidth,
+        small: small.length,
+      };
+    });
+    expect(result).toEqual({ inside: true, small: 0 });
+    // Esc closes the racer select, not the room.
+    await page.keyboard.press('Escape');
+    await expect(overlay).toHaveCount(0);
+    await expect(page.locator('.racer-preview')).toHaveCount(0);
+    await expect(page.locator('.menu-lobby')).toBeVisible();
   });
 });

@@ -5,7 +5,7 @@ import type { SimState } from '../sim/types';
 export type ScenarioView = 'chase' | 'overview' | 'lineup';
 export type MenuScreen =
   | 'title'
-  | 'kartSelect'
+  | 'racerSelect'
   | 'ccSelect'
   | 'paused'
   | 'howToPlay'
