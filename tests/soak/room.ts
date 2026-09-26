@@ -4,8 +4,9 @@ import { netInfo, roomUrl, stepAll, type Room, type RoomOptions } from '../e2e/o
 /**
  * `openRoom` for the bad network (MK-73): the pages load paused, and the host is stepped while the
  * clients wait for their Start. A paused host never repeats a Start the simulated network lost
- * (it repeats them as it ticks), so under 8 % loss a plain paused `openRoom` of 4 can wait forever.
- * The host's first few ticks run the countdown, as they would anyway.
+ * (it repeats them as it ticks), so under 8 % loss a plain paused `openRoom` of 4 can wait forever
+ * (MK-83 moves this into `openRoom`). The host's first few ticks run the countdown, as they would
+ * anyway.
  */
 export async function openBadRoom(
   context: BrowserContext,

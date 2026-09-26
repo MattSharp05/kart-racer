@@ -32,6 +32,7 @@ _Created by MK-1/MK-3/MK-4 — keep this list current._
 - `pnpm lint` · `pnpm typecheck` · `pnpm format`
 - `pnpm test` — unit (Vitest) · `pnpm test:perf` — perf budgets (`*.perf.test.ts`), run alone so timings are stable
 - `pnpm test:e2e` — Playwright (all projects) · `pnpm test:visual` — screenshot tests (chromium, run in CI's Docker image) · `scripts/update-visual-baselines.sh` — regenerate baselines locally with Docker
+- `pnpm test:soak` — opt-in netcode runs (MK-73): 10-race browser soak at `net-bad` + 4×-throttled phone check per track; run alone, in CI's Playwright image · `pnpm net:sweep` — netcode tuning sweep (`scripts/netSweep.lab.ts`, minutes of CPU)
 - `pnpm check` — everything CI runs (lint, typecheck, unit, build, e2e)
 
 ## Structure

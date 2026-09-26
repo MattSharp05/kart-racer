@@ -55,6 +55,8 @@ export interface NetInfo {
   lastSnapshotTick: number;
   /** Why the race ended for this device (host left, room full, version…), or null. */
   ended: string | null;
+  /** The host's final standings once every person has finished (MK-55), else null. */
+  results: RaceStanding[] | null;
 }
 
 /**
@@ -107,6 +109,7 @@ export class OnlineRace {
       rttMs: client?.stats.rttMs ?? 0,
       lastSnapshotTick: client ? client.snapshotTick : this.lastSnapshotTick,
       ended: this.ended ?? client?.ended ?? null,
+      results: this.results(),
     };
   }
 
