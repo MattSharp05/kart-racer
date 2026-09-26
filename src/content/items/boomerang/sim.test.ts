@@ -100,13 +100,11 @@ describe('Boomerang (MK-69)', () => {
     // Back: the thrower swerves hard left the whole time; it still comes back to them.
     const swerve = { throttle: 1, steer: -1 };
     let caughtAt: { x: number; z: number } | undefined;
-    let events: SimEvent[] = [];
     for (let i = 0; i < LIFE_TICKS && !caughtAt; i += 1) {
       const before = flying(state)[0];
       const next = run(state, 1, swerve);
       state = next.state;
-      events = next.events;
-      if (catches(events).length) caughtAt = before?.position;
+      if (catches(next.events).length) caughtAt = before?.position;
       else expect(flying(state)).toHaveLength(1);
     }
     expect(caughtAt).toBeDefined();
@@ -166,7 +164,7 @@ describe('Boomerang (MK-69)', () => {
   });
 
   it('without a catch there is no second throw', () => {
-    let { state } = throwIt(pad());
+    const { state } = throwIt(pad());
     // The thrower vanishes far away: it can't be caught, and is gone within 4 s.
     state.karts[0]!.position = { x: -500, y: 0, z: 500 };
     // Spawned with age 0, it lives LIFE_TICKS ticks.
@@ -177,7 +175,7 @@ describe('Boomerang (MK-69)', () => {
   });
 
   it('a caught first throw only refills an empty slot', () => {
-    let { state } = throwIt(pad());
+    const { state } = throwIt(pad());
     state.karts[0]!.item = { ...state.karts[0]!.item, held: 'banana', uses: 1 };
     const caught = run(state, LIFE_TICKS, { throttle: 1 });
     expect(catches(caught.events)).toHaveLength(1);
