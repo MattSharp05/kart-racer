@@ -4,6 +4,7 @@ import { step } from '../sim/step';
 import type { InputFrame, SimEvent, SimState } from '../sim/types';
 import { raceFromSetup } from './client';
 import { raceSetupOf } from './host';
+import { handToAi } from '../sim/race/takeover';
 import {
   applySnapshot,
   decodeMessage,
@@ -147,6 +148,25 @@ describe('net protocol (ADR 0005)', () => {
     expect(packet.length).toBeLessThan(600);
   });
 
+  it('carries a kart handed to the AI (MK-70): the copy hands it over too, and its AI memory follows', () => {
+    let state = handToAi(midRace(), 2);
+    for (let tick = 0; tick < 120; tick += 1) state = step(state, []).state;
+    const kart = state.karts[2]!;
+    expect(kart.controller).toBe('ai');
+    kart.ai!.stuckTime = 0.5;
+    const packet = encodeSnapshot(state, 0, []);
+    const msg = decodeAs(packet, MSG.snapshot);
+    // The client's copy still thinks kart 2 is a person's.
+    const copy = createRace(OPTIONS);
+    expect(copy.karts[2]!.controller).toBe('remote');
+    applySnapshot(copy, msg.tick, msg.bytes);
+    expect(copy.karts[2]!.controller).toBe('ai');
+    expect(copy.karts[2]!.ai).toMatchObject({ skill: kart.ai!.skill, stuckTime: 0.5 });
+    // The rest of the karts decode in step (the stream stayed aligned) and nobody else changed.
+    expect(copy.karts.map((k) => k.controller)).toEqual(state.karts.map((k) => k.controller));
+    expect(encodeSnapshot(copy, 0, [])).toEqual(packet);
+  });
+
   it('round-trips every kind of race event', () => {
     const events: SimEvent[] = [
       { type: 'phaseChanged', phase: 'racing' },
@@ -187,7 +207,7 @@ describe('net protocol (ADR 0005)', () => {
     expect(msg.events).toEqual(netEvents);
   });
 
-  it.each<ByeReason>(['left', 'ended', 'kicked', 'version'])('round-trips Bye (%s)', (reason) => {
+  it.each<ByeReason>(['left', 'ended', 'kicked', 'version', 'dropped'])('round-trips Bye (%s)', (reason) => {
     expect(decodeMessage(encodeBye(reason))).toEqual({ type: MSG.bye, reason });
   });
 
