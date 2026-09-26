@@ -13,7 +13,8 @@ export class Synth {
   readonly master: GainNode;
   readonly sfx: GainNode;
   readonly music: GainNode;
-  private noise: AudioBuffer;
+  /** One second of fixed white noise (bursts and the rumble loop play it). */
+  readonly noise: AudioBuffer;
 
   constructor() {
     this.ctx = new AudioContext();

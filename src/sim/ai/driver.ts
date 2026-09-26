@@ -1,6 +1,7 @@
 import { kartPhysics } from '../kartStats';
 import { clamp, wrapAngleDelta } from '../math';
-import type { TrackGeometry } from '../splineTrack';
+import { inRange, type TrackGeometry } from '../splineTrack';
+import { surfaceEffect } from '../surfaces';
 import { DT, tuning, type EngineClass } from '../tuning';
 import { NEUTRAL_INPUT, type AiState, type InputFrame, type KartState } from '../types';
 import { lineOffsetAt } from './racingLine';
@@ -47,8 +48,13 @@ export function aiInput(
     racing && wantsDrift(kart, ai, geometry, line, here, speed, top, engineClass, error);
   if (drift && !kart.driftHeld) steer = error > 0 ? -1 : 1; // full lock on the press picks the side
   const curvature = maxCurvatureAhead(geometry, line, here, cfg.brakeHorizon);
+  // On a slippery surface ahead (ice), corners are planned with its grip, so the AI slows before it.
+  const grip =
+    curvature > 1e-4
+      ? minGripAhead(geometry, line, here, cfg.brakeHorizon) ** cfg.lowGripCaution
+      : 1;
   const cornerSpeed =
-    curvature > 1e-4 ? Math.sqrt((cfg.cornerGrip * ai.skill) / curvature) : Infinity;
+    curvature > 1e-4 ? Math.sqrt((cfg.cornerGrip * ai.skill * grip) / curvature) : Infinity;
   // AI cruises a little below top speed (90–95% by skill) so a good player can beat it.
   const cruise = top * (tuning.ai.cruiseBase + tuning.ai.cruiseSkill * ai.skill);
   const target = Math.min(cruise, cornerSpeed);
@@ -124,6 +130,33 @@ function aimError(
   const desired = Math.atan2(-(target.x - kart.position.x), -(target.z - kart.position.z));
   return wrapAngleDelta(desired - kart.heading);
 }
+
+/**
+ * Lowest surface grip (`sim/surfaces.ts`, 1 = road) on the racing line over the next `horizon`
+ * metres, from the track's surface zones (MK-59: ice).
+ */
+export function minGripAhead(
+  geometry: TrackGeometry,
+  line: readonly number[],
+  s: number,
+  horizon: number,
+): number {
+  const zones = geometry.def.surfaceZones;
+  let grip = 1;
+  if (!zones.length) return grip;
+  for (let d = 0; d <= horizon; d += GRIP_STEP) {
+    const t = ((((s + d) / geometry.length) % 1) + 1) % 1;
+    const lateral = lineOffsetAt(line, t);
+    for (const zone of zones) {
+      if (!inRange(t, zone) || lateral < zone.lateralMin || lateral > zone.lateralMax) continue;
+      grip = Math.min(grip, surfaceEffect(zone.type).grip ?? 1);
+    }
+  }
+  return grip;
+}
+
+/** Spacing of the surface checks along the line ahead, m. */
+const GRIP_STEP = 6;
 
 /** Largest curvature (1/m) of the racing line over the next `horizon` metres. */
 export function maxCurvatureAhead(

@@ -8,21 +8,26 @@ import { createSplineTrackMesh } from './trackMesh';
 const WALL_HEIGHT = 1.2;
 const WALL_THICKNESS = 1;
 
+/** Per-frame update of a track's moving scenery: the tick (fractional) and the camera position. */
+export type TrackViewUpdate = (ticks: number, camera: THREE.Vector3) => void;
+
 /**
  * Builds the visuals for a track: generated from spline data in the track's theme (MK-49), or the
- * flat walled test pad.
+ * flat walled test pad. Returns the per-frame update for tracks with moving scenery (MK-59).
  */
-export function createTrackView(scene: THREE.Scene, track: TrackDef): void {
+export function createTrackView(scene: THREE.Scene, track: TrackDef): TrackViewUpdate | undefined {
   if (track.kind === 'spline') {
     const geometry = trackGeometry(track);
     const theme = trackTheme(track);
     scene.add(createSplineTrackMesh(geometry, theme.palette));
     // A track's own `render.ts` (MK-58) may draw its scenery instead of the theme's set.
     const view = trackViews.has(track.id) ? trackViews.get(track.id) : undefined;
-    scene.add(view?.scenery?.(geometry, theme) ?? createScenery(geometry, theme.scenery));
+    const scenery = view?.scenery?.(geometry, theme) ?? createScenery(geometry, theme.scenery);
+    scene.add(scenery);
     if (theme.night) scene.add(createNightLamps(geometry));
     applyTheme(scene, theme);
-    return;
+    const update = view?.update;
+    return update ? (ticks, camera) => update(scenery, ticks, camera) : undefined;
   }
   const size = track.halfSize * 2;
 
@@ -65,6 +70,7 @@ export function createTrackView(scene: THREE.Scene, track: TrackDef): void {
     if (rotate) wall.rotation.y = Math.PI / 2;
     scene.add(wall);
   }
+  return undefined;
 }
 
 /** Points the camera straight down at the whole track (overview/debug scenarios). Returns true. */

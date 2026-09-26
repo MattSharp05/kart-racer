@@ -34,10 +34,54 @@ const lambert = (color: number) => new THREE.MeshLambertMaterial({ color });
 const glow = (color: number, night: boolean) =>
   night ? new THREE.MeshBasicMaterial({ color }) : lambert(color);
 
-/** A boxy traffic kart with glowing lamps at night. */
+/** A rolling ball's shadow: this dark, and this much wider than the ball. */
+const BALL_SHADOW = { opacity: 0.35, scale: 1.3 };
+
+/** Speed along its path of a mover, m/s (constant: open paths only move while active). */
+function moverSpeed(def: MoverHazard): number {
+  const { path } = def;
+  const segments = def.activeFraction === undefined ? path.length : path.length - 1;
+  let length = 0;
+  for (let i = 0; i < segments; i += 1) {
+    const a = path[i];
+    const b = path[(i + 1) % path.length];
+    if (a && b) length += Math.hypot(b.x - a.x, b.y - a.y, b.z - a.z);
+  }
+  return length / (def.period * (def.activeFraction ?? 1));
+}
+
+/** A ball of `colour` resting on the origin, with a round shadow under it (MK-59: snowballs). */
+function rollingBall(def: MoverHazard, radius: number, colour: number): THREE.Object3D {
+  const group = new THREE.Group();
+  group.userData.speed = moverSpeed(def);
+  const ball = new THREE.Mesh(
+    new THREE.IcosahedronGeometry(radius, 1),
+    new THREE.MeshLambertMaterial({ color: colour, flatShading: true }),
+  );
+  ball.name = 'ball';
+  ball.position.y = radius;
+  const shadow = new THREE.Mesh(
+    new THREE.CircleGeometry(radius * BALL_SHADOW.scale, 16),
+    new THREE.MeshBasicMaterial({
+      color: 0x000000,
+      transparent: true,
+      opacity: BALL_SHADOW.opacity,
+      depthWrite: false,
+      polygonOffset: true,
+      polygonOffsetFactor: -2,
+    }),
+  );
+  shadow.rotation.x = -Math.PI / 2;
+  shadow.position.y = 0.08;
+  group.add(ball, shadow);
+  return group;
+}
+
+/** A boxy traffic kart with glowing lamps at night, or a rolling ball (`rolling`). */
 export const moverView: HazardView<MoverHazard> = {
   id: 'mover',
   create(def, night) {
+    if (def.rolling !== undefined) return rollingBall(def, def.radius, def.rolling);
     const group = new THREE.Group();
     const size = def.radius * 2;
     const body = new THREE.Mesh(
@@ -58,9 +102,15 @@ export const moverView: HazardView<MoverHazard> = {
     group.add(body, cab, lamps);
     return group;
   },
-  update(object, _def, pose) {
+  update(object, def, pose, _camera, ticks) {
     object.position.set(pose.x, pose.y, pose.z);
     object.rotation.y = pose.heading;
+    object.visible = pose.amount > 0;
+    const ball = def.rolling !== undefined ? object.getObjectByName('ball') : undefined;
+    if (ball) {
+      // Rolls forwards (heading 0 faces −Z, so forwards is a turn about −X): 1 rad per radius.
+      ball.rotation.x = -((ticks * DT * (object.userData.speed as number)) / def.radius);
+    }
     return undefined;
   },
 };
