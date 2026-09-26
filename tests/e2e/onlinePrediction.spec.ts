@@ -30,9 +30,9 @@ async function hud(page: Page) {
 }
 
 test.describe('online client prediction under lag', () => {
-  test("the client's HUD position and lap match the host's at the finish", async ({ browser }) => {
+  test("the client's HUD position and lap match the host's at the finish", async ({ context }) => {
     test.setTimeout(150_000);
-    const room = await openRoom(browser, 2, { laps: 1, netsim: NETSIM });
+    const room = await openRoom(context, 2, { laps: 1, netsim: NETSIM });
     const [host, client] = room.pages as [Page, Page];
     const kartId = (await netInfo(client))!.kartId;
     await autopilotAll(room.pages);
@@ -74,7 +74,6 @@ test.describe('online client prediction under lag', () => {
       (id) => (hostState.karts[id]!.race.finishTick ?? Infinity) <= seen,
     );
     expect(clientState.positions.slice(0, finished.length)).toEqual(finished);
-    await room.context.close();
   });
 
   test('?netdebug=1 shows RTT, loss, snapshot age, re-simulation and corrections', async ({

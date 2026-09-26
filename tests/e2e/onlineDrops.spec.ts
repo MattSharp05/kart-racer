@@ -172,10 +172,10 @@ test.describe('drops and rejoin', () => {
   });
 
   test('online-drop: the client vanishes 10 s in; the host hands its kart to the AI, the client sees "Connection lost"', async ({
-    browser,
+    context,
   }) => {
     test.setTimeout(240_000);
-    const { host, clients, pages } = await openRoom(browser, 2, { scenario: 'online-drop' });
+    const { host, clients, pages } = await openRoom(context, 2, { scenario: 'online-drop' });
     const client = clients[0]!;
     await autopilotAll(pages);
     const goTick = (await state(host)).race.goTick;
