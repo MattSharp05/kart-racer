@@ -166,6 +166,12 @@ body.touch .hud-item-key::after {
   stroke-width: 1;
 }
 
+.hud-dot.human {
+  fill: #fff;
+  stroke: var(--color-navy);
+  stroke-width: 1.5;
+}
+
 .hud-dot.you {
   fill: var(--color-gold);
   stroke: #000;

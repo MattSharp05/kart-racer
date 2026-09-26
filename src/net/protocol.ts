@@ -22,7 +22,7 @@ import { ByteReader, ByteWriter } from './bytes';
  * copy of the race, so fields that never change during a race (kart type, AI personality) are only
  * sent once, in Start.
  */
-export const PROTOCOL_VERSION = 2;
+export const PROTOCOL_VERSION = 3;
 
 export const MSG = {
   start: 1,
@@ -32,6 +32,7 @@ export const MSG = {
   bye: 5,
   ping: 6,
   pong: 7,
+  results: 8,
 } as const;
 
 /** Position x/z resolution: 1/64 m (±512 m in an int16; max error 0.8 cm). */
@@ -152,8 +153,30 @@ export interface PingMessage {
   time: number;
 }
 
+/** One kart's place in the host's final standings (MK-55). */
+export interface RaceStanding {
+  kartId: number;
+  /** The tick it crossed the line; absent for AI still racing when the race ended. */
+  finishTick?: number;
+}
+
+/**
+ * Host → client with each snapshot once the race has ended (every human finished): the host's
+ * standings, frozen at that tick, so every device shows the same results (MK-55).
+ */
+export interface ResultsMessage {
+  type: typeof MSG.results;
+  standings: RaceStanding[];
+}
+
 export type NetMessage =
-  StartMessage | InputMessage | SnapshotMessage | EventMessage | ByeMessage | PingMessage;
+  | StartMessage
+  | InputMessage
+  | SnapshotMessage
+  | EventMessage
+  | ByeMessage
+  | PingMessage
+  | ResultsMessage;
 
 // --- Encoding ---------------------------------------------------------------------------------
 
@@ -222,6 +245,13 @@ export function encodePing(type: typeof MSG.ping | typeof MSG.pong, time: number
   return new ByteWriter().u8(type).f64(time).bytes();
 }
 
+/** Standings leader first; a finish tick of 0 means "not finished" (the race starts at tick 0). */
+export function encodeResults(standings: readonly RaceStanding[]): Uint8Array {
+  const w = new ByteWriter().u8(MSG.results).u8(standings.length);
+  for (const { kartId, finishTick } of standings) w.u8(kartId).u32(finishTick ?? 0);
+  return w.bytes();
+}
+
 /** Decodes any message. Throws on unknown types and truncated or malformed packets. */
 export function decodeMessage(bytes: Uint8Array): NetMessage {
   const r = new ByteReader(bytes);
@@ -259,6 +289,15 @@ export function decodeMessage(bytes: Uint8Array): NetMessage {
     case MSG.ping:
     case MSG.pong:
       return { type, time: r.f64() };
+    case MSG.results: {
+      const count = r.u8();
+      const standings = Array.from({ length: count }, (): RaceStanding => {
+        const kartId = r.u8();
+        const finishTick = r.u32();
+        return finishTick > 0 ? { kartId, finishTick } : { kartId };
+      });
+      return { type, standings };
+    }
     default:
       throw new Error(`Unknown message type ${type}`);
   }

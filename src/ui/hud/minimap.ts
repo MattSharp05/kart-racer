@@ -5,7 +5,10 @@ const NS = 'http://www.w3.org/2000/svg';
 const SIZE = 100;
 const PAD = 8;
 
-/** Top-down outline of the track with a dot per kart; the player's dot is bigger and yellow. */
+/**
+ * Top-down outline of the track with a dot per kart; the player's dot is bigger and yellow, and the
+ * other people's (online, MK-55) are white with a ring, so they stand out from the AI.
+ */
 export class Minimap {
   readonly root = document.createElementNS(NS, 'svg');
   private readonly dots: SVGCircleElement[] = [];
@@ -59,10 +62,11 @@ export class Minimap {
       return;
     }
     this.root.style.display = '';
-    // Player last so it's drawn on top.
-    const order = [...state.karts].sort(
-      (a, b) => (a.id === youId ? 1 : 0) - (b.id === youId ? 1 : 0),
-    );
+    // People (online players have nicknames; offline scenarios' parked karts don't) over the AI,
+    // and the player last so it's drawn on top.
+    const rank = (kart: SimState['karts'][number]) =>
+      kart.id === youId ? 2 : kart.controller !== 'ai' && kart.name !== undefined ? 1 : 0;
+    const order = [...state.karts].sort((a, b) => rank(a) - rank(b));
     order.forEach((kart, i) => {
       let dot = this.dots[i];
       if (!dot) {
@@ -73,8 +77,9 @@ export class Minimap {
       const [x, y] = this.toMap(kart.position.x, kart.position.z);
       dot.setAttribute('cx', x.toFixed(1));
       dot.setAttribute('cy', y.toFixed(1));
-      dot.setAttribute('r', kart.id === youId ? '4.5' : '3');
-      dot.setAttribute('class', kart.id === youId ? 'hud-dot you' : 'hud-dot');
+      const kind = (['ai', 'human', 'you'] as const)[rank(kart)];
+      dot.setAttribute('r', kind === 'you' ? '4.5' : kind === 'human' ? '3.8' : '3');
+      dot.setAttribute('class', kind === 'ai' ? 'hud-dot' : `hud-dot ${kind}`);
     });
     for (const extra of this.dots.splice(order.length)) extra.remove();
   }

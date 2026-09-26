@@ -3,6 +3,7 @@ if (new URLSearchParams(location.search).get('spike') === 'net')
   await import('./net/spike/main').then((spike) => spike.run());
 import { Flow } from './game/flow';
 import { parseLaunchParams } from './game/launchParams';
+import { playerColour } from './game/results';
 import { RaceSession, resolveLaunch } from './game/session';
 import { browserStore, OverlayStore } from './game/storage';
 import { installTestApi } from './game/testApi';
@@ -33,6 +34,7 @@ const world = new World(canvas, game, {
     params.reducedMotion || window.matchMedia('(prefers-reduced-motion: reduce)').matches,
   aiDebug: params.aiDebug,
   poseFilter: () => session.online?.smoother,
+  playerColour: (kartId) => playerColour(session.online?.launch.colours, kartId),
 });
 const flow = new Flow(session, world, store, {
   backend: launch.localRooms ? localRoomBackend() : supabaseRoomBackend(),

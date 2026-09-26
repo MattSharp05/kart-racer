@@ -4,12 +4,15 @@ import './pause.css';
 
 export interface PauseProps {
   onResume: () => void;
-  onRestart: () => void;
+  /** Absent online (MK-55): the race is everyone's, so it can't restart. */
+  onRestart?: () => void;
   onQuit: () => void;
   onHowToPlay?: () => void;
   /** Opens Settings (MK-43); Back returns to this menu with the race still paused. */
   onSettings?: () => void;
   sound?: SoundControl;
+  /** A line under the heading: online, "Race continues" (the menu doesn't stop the race, MK-55). */
+  note?: string;
 }
 
 declare module '../router' {
@@ -20,7 +23,8 @@ declare module '../router' {
 
 /**
  * Pause menu (MK-25): Resume (or Esc), Restart, How to play, Settings (MK-43), Quit and the
- * sound toggle (it stays here as the in-race mute button).
+ * sound toggle (it stays here as the in-race mute button). Online (MK-55) it has no Restart and a
+ * "Race continues" note: the race goes on underneath.
  */
 registerScreen('paused', (panel, handlers) => {
   const resume = button('Resume', handlers.onResume, 'primary');
@@ -28,12 +32,19 @@ registerScreen('paused', (panel, handlers) => {
   actions.className = 'actions column';
   actions.append(
     resume,
-    button('Restart race', handlers.onRestart),
+    ...(handlers.onRestart ? [button('Restart race', handlers.onRestart)] : []),
     ...(handlers.onHowToPlay ? [button('How to play', handlers.onHowToPlay)] : []),
     ...(handlers.onSettings ? [button('⚙ Settings', handlers.onSettings, 'settings-button')] : []),
     button('Quit to title', handlers.onQuit),
   );
-  panel.append(heading('h2', 'Paused'), actions);
+  panel.append(heading('h2', 'Paused'));
+  if (handlers.note) {
+    const note = document.createElement('p');
+    note.className = 'pause-note';
+    note.textContent = handlers.note;
+    panel.append(note);
+  }
+  panel.append(actions);
   const refresh = appendSoundToggle(actions, handlers.sound);
   resume.focus();
   return {

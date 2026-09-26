@@ -86,12 +86,20 @@ describe('client render smoothing over loopback (MK-45)', () => {
     expect(worst).toBeLessThan(0.5);
     expect(worst).toBeLessThanOrEqual(worstRaw);
 
-    // Race events (hits on our kart included) only come from the host; our own item uses are the
-    // one exception, played at once from the prediction (and then not again from the host).
+    // Race events (hits on our kart included) only come from the host; our own item uses are one
+    // exception, played at once from the prediction (and then not again from the host). The
+    // countdown is the other (MK-55): it's a function of the tick, so it plays on this race's own
+    // ticks, and each beat only once.
     const own = (e: SimEvent) =>
       (e.type === 'itemUsed' || e.type === 'star') && e.kartId === kartId;
-    expect(predictedEvents.filter((e) => HOST_EVENTS.has(e.type) && !own(e))).toEqual([]);
+    const beat = (e: SimEvent) => e.type === 'countdown' || e.type === 'go';
+    expect(predictedEvents.filter((e) => HOST_EVENTS.has(e.type) && !own(e) && !beat(e))).toEqual(
+      [],
+    );
     expect(hostEvents.filter(own)).toEqual([]);
+    const beats = [...predictedEvents, ...hostEvents].filter(beat);
+    const names = beats.map((e) => (e.type === 'countdown' ? e.value : e.type));
+    expect(names.sort()).toEqual([1, 2, 3, 'go']);
     expect(hostEvents.some((e) => e.type === 'lap')).toBe(true);
   }, 60_000);
 });

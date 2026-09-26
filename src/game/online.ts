@@ -3,6 +3,7 @@ import { NET } from '../net/config';
 import { OnlineHost } from '../net/host';
 import { ConditionedTransport, type NetConditions } from '../net/netsim';
 import { localRaceLinks, type RaceLinks } from '../net/raceLinks';
+import type { RaceStanding } from '../net/protocol';
 import { NetSmoother } from '../net/smoothing';
 import type { Transport } from '../net/transport';
 import type { CreateRaceOptions } from '../sim/race/createRace';
@@ -24,6 +25,8 @@ export interface OnlineLaunch {
   netsim?: NetConditions;
   /** Where the links come from (default: `?net=local` tabs in room `room`); the lobby's (MK-47). */
   links?: RaceLinks;
+  /** Each human's colour by kart id (the lobby's, MK-55): name tags and results. */
+  colours?: readonly string[];
 }
 
 /** What `__game.net()` reports (tests, and the netdebug overlay in MK-45). */
@@ -97,6 +100,14 @@ export class OnlineRace {
       lastSnapshotTick: client ? client.snapshotTick : this.lastSnapshotTick,
       ended: this.ended ?? client?.ended ?? null,
     };
+  }
+
+  /**
+   * The host's final standings (MK-55): frozen when every human has finished, the same on every
+   * device. Null while the race runs (or before a client hears them).
+   */
+  results(): RaceStanding[] | null {
+    return this.host?.results ?? this.client?.results ?? null;
   }
 
   /** What the `?netdebug=1` overlay shows (MK-45). */

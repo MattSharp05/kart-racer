@@ -16,6 +16,7 @@ import type { SoundControl } from '../ui/screens/common';
 import { HowToPlay } from '../ui/screens/howToPlay';
 import '../ui/screens/kartSelect';
 import '../ui/screens/nickname';
+import '../ui/screens/onlineResults';
 import { createPauseButton } from '../ui/screens/pause';
 import '../ui/screens/results';
 import '../ui/screens/settings';
@@ -28,8 +29,9 @@ import {
   saveProfile,
   type Profile,
 } from './profile';
+import { standingsOf } from '../net/host';
 import type { OnlineLaunch } from './online';
-import { recordFinish, recordLines, resultLines } from './results';
+import { onlineResultLines, recordFinish, recordLines, resultLines } from './results';
 import { RoomFlow, type RoomService } from './roomFlow';
 import { DEFAULT_SEED, localKartOf, type Launch, type RaceSession } from './session';
 import { readPrefs, writePrefs } from './storage/prefs';
@@ -46,6 +48,8 @@ const ENGINE_CLASSES = [50, 100, 150] as const;
 const DEFAULT_ROOM_NICKNAME = 'Player';
 /** An online race that hasn't started after this long goes back to the lobby, ms (MK-47). */
 const ONLINE_CONNECT_TIMEOUT_MS = 20_000;
+/** The pause menu's line in an online race, which the menu doesn't stop (MK-55). */
+const ONLINE_PAUSE_NOTE = 'Race continues';
 
 /**
  * The screen flow (MK-35): title → kart select → cc select → race ⇄ pause → results → (again,
@@ -70,6 +74,8 @@ export class Flow {
   private readonly rooms: RoomFlow;
   /** When this device's online race began connecting (`performance.now()`), 0 when not racing online. */
   private onlineSince = 0;
+  /** What the online results screen shows (live or final, and how many finished), to redraw it when that changes. */
+  private shownResults = '';
 
   constructor(
     private readonly session: RaceSession,
@@ -111,6 +117,7 @@ export class Flow {
         onRacer: (racer) => {
           if (isKartId(racer)) this.chosenKart = racer;
         },
+        onLobby: () => this.leaveOnlineRace(),
       },
     );
 
@@ -126,7 +133,8 @@ export class Flow {
     // Phones: landscape only. Portrait shows a prompt and pauses the game until rotated back.
     this.rotatePrompt = new RotatePrompt(
       () => {
-        if (game.paused) return false;
+        // Online the race goes on for everyone else (MK-55): the prompt covers it but can't stop it.
+        if (game.paused || session.online) return false;
         game.pause();
         return true;
       },
@@ -143,6 +151,8 @@ export class Flow {
         followId: world.followId,
       });
       session.controls.touch.setActive(menu === 'none' && !this.rotatePrompt.shown);
+      // A menu over a running online race: the kart coasts rather than steering with menu keys.
+      session.inputEnabled = menu === 'none';
       this.watchOnlineRace();
     };
   }
@@ -193,6 +203,9 @@ export class Flow {
       case 'paused':
         this.pauseButton.hidden = false;
         this.pauseRace();
+        break;
+      case 'onlineResults':
+        this.previewOnlineResults(launch.role !== 'client');
         break;
       default:
         if (launch.state.phase === 'finished') {
@@ -313,7 +326,8 @@ export class Flow {
     this.world.reset('chase', localKartOf(state));
     this.session.goOnline(launch, (kartId) => this.world.reset('chase', kartId));
     this.session.game.resume();
-    this.pauseButton.hidden = true;
+    // Online the pause menu doesn't stop the race (MK-55).
+    this.pauseButton.hidden = false;
     this.onlineSince = performance.now();
   };
 
@@ -323,10 +337,19 @@ export class Flow {
    */
   private watchOnlineRace(): void {
     const online = this.session.online;
-    if (!this.onlineSince || !online || this.screens.current !== 'none') return;
+    if (!this.onlineSince || !online) return;
+    const screen = this.screens.current;
+    if (screen === 'onlineResults') {
+      // The host's final standings arrived, or another kart finished: redraw the results.
+      if (this.resultsKey() !== this.shownResults) this.showResults();
+      return;
+    }
+    if (screen !== 'none' && screen !== 'paused') return;
     const net = online.info();
     const host = net.role === 'host';
     if (net.ended) {
+      // The race was over (everyone finished) when the host moved on: the results still show.
+      if (this.session.game.state.phase === 'finished') return;
       this.abortOnlineRace(host ? undefined : 'The host ended the race.');
     } else if (!net.started && performance.now() - this.onlineSince > ONLINE_CONNECT_TIMEOUT_MS) {
       this.abortOnlineRace(
@@ -346,18 +369,21 @@ export class Flow {
   private leaveOnlineRace(): void {
     if (!this.onlineSince) return;
     this.onlineSince = 0;
+    this.pauseButton.hidden = true;
     this.load(attractMode(DEFAULT_SEED + this.raceCount), 'chase');
     this.session.game.setAutopilot(this.session.localKartId, true);
     this.session.game.resume();
   }
 
+  /** The pause menu. Online (MK-55) it doesn't stop the race, and there's no restart. */
   private readonly pauseRace = (): void => {
     const game = this.session.game;
     if (this.screens.current !== 'none' || game.state.phase === 'finished') return;
-    game.pause();
+    const online = this.session.online !== null;
+    if (!online) game.pause();
     this.screens.show('paused', {
       onResume: this.resumeRace,
-      onRestart: this.startRace,
+      ...(online ? { note: ONLINE_PAUSE_NOTE } : { onRestart: this.startRace }),
       onQuit: this.showTitle,
       onHowToPlay: this.openHowToPlay,
       onSettings: this.showSettings,
@@ -367,10 +393,11 @@ export class Flow {
 
   private readonly resumeRace = (): void => {
     this.screens.hide();
-    this.session.game.resume();
+    if (!this.session.online) this.session.game.resume();
   };
 
   private readonly showResults = (): void => {
+    if (this.session.online) return this.showOnlineResults();
     const rows = resultLines(this.session.game.state, this.session.localKartId);
     this.pauseButton.hidden = true;
     this.screens.show('results', {
@@ -380,6 +407,66 @@ export class Flow {
       onChangeKart: this.showKartSelect,
       onMenu: this.showTitle,
     });
+  };
+
+  /**
+   * The room's results (MK-55): the host's final standings once every person has finished (live
+   * standings until then). The host picks Race again or Next track; the others wait and follow.
+   */
+  private showOnlineResults(): void {
+    const online = this.session.online;
+    if (!online) return;
+    const standings = online.results();
+    const host = online.launch.role === 'host';
+    const inRoom = this.rooms.room !== null;
+    this.pauseButton.hidden = true;
+    this.shownResults = this.resultsKey();
+    this.screens.show('onlineResults', {
+      rows: onlineResultLines(
+        this.session.game.state,
+        standings,
+        this.session.localKartId,
+        online.launch.colours,
+      ),
+      final: standings !== null,
+      host,
+      inRoom,
+      ...(host && inRoom ? { onAgain: this.raceAgain, onNextTrack: this.nextTrack } : {}),
+      onLeave: this.showTitle,
+    });
+  }
+
+  /**
+   * The `online-results` scenario (MK-55): a finished race's standings as the host (or a client)
+   * sees them. There's no room, so the buttons go back to the title.
+   */
+  private previewOnlineResults(host: boolean): void {
+    const state = this.session.game.state;
+    this.screens.show('onlineResults', {
+      rows: onlineResultLines(state, standingsOf(state), this.session.localKartId),
+      final: true,
+      host,
+      inRoom: true,
+      ...(host ? { onAgain: this.showTitle, onNextTrack: this.showTitle } : {}),
+      onLeave: this.showTitle,
+    });
+  }
+
+  /** What the online results depend on: the host's final standings, else who has finished. */
+  private resultsKey(): string {
+    if (this.session.online?.results()) return 'final';
+    return `live:${this.session.game.state.karts.filter((k) => k.race.finishTick !== undefined).length}`;
+  }
+
+  /** Host: the same race settings again, everyone in the room racing (MK-55). */
+  private readonly raceAgain = (): void => {
+    this.rooms.raceAgain();
+  };
+
+  /** Host: back to the lobby to pick the next track; the others follow (MK-55). */
+  private readonly nextTrack = (): void => {
+    this.leaveOnlineRace();
+    this.rooms.nextTrack();
   };
 
   /** Replaces the running state (menu background) and rebuilds the karts. */

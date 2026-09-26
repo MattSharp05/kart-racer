@@ -4,7 +4,14 @@ import type { SimState } from '../sim/types';
 
 export type ScenarioView = 'chase' | 'overview' | 'lineup';
 export type MenuScreen =
-  'title' | 'kartSelect' | 'ccSelect' | 'paused' | 'howToPlay' | 'settings' | 'nickname';
+  | 'title'
+  | 'kartSelect'
+  | 'ccSelect'
+  | 'paused'
+  | 'howToPlay'
+  | 'settings'
+  | 'nickname'
+  | 'onlineResults';
 
 export interface ScenarioSetup {
   state: SimState;

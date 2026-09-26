@@ -38,6 +38,8 @@ export interface LobbyLaunch {
   /** Host creates a room (with `code` if given), client joins `code`. */
   role: NetRole;
   code?: string;
+  /** `&laps=`: the host's races are this many laps (short races for tests and QA). */
+  laps?: number;
 }
 
 /** What the lobby offers (MK-47), and how the game takes part in it. */
@@ -53,6 +55,8 @@ export interface LobbyHooks {
   onRoomEnded?: () => void;
   /** The player picked a racer (remembered for next time). */
   onRacer?: (racer: string) => void;
+  /** The host went back to the lobby after the race (Next track, MK-55): stop the race here. */
+  onLobby?: () => void;
 }
 
 /** Shown in the lobby when the host's start didn't reach the room. */
@@ -71,6 +75,10 @@ export class RoomFlow {
   private attempt = 0;
   /** Starts already handed to `onRace` (so a presence echo never starts a race twice). */
   private readonly started = new Set<string>();
+  /** The start this device is racing (or showing the results of), if any (MK-55). */
+  private racing: string | null = null;
+  /** Laps of the host's races, if the launch set them (`&laps=`). */
+  private laps: number | undefined;
 
   /**
    * @param player What this device shows the room (nickname, colour, racer).
@@ -95,7 +103,8 @@ export class RoomFlow {
   }
 
   /** Opens a launch's room: create it (host) or join its code (client). */
-  launch({ role, code }: LobbyLaunch): void {
+  launch({ role, code, laps }: LobbyLaunch): void {
+    this.laps = laps;
     if (role === 'host') void this.create(code);
     else if (code) void this.join(code);
     else this.showOnline();
@@ -118,8 +127,31 @@ export class RoomFlow {
     return `${window.location.origin}${window.location.pathname}?${params}`;
   }
 
+  /** This device hosts its room: it picks what comes after a race (MK-55). */
+  get isHost(): boolean {
+    return this.room?.isHost === true;
+  }
+
+  /** Host, after a race: the same settings again, with everyone in the room now (MK-55). */
+  raceAgain(): void {
+    if (this.room?.isHost) void this.startRace(this.room);
+  }
+
+  /**
+   * Host, after a race: back to the lobby to pick the next track (MK-55). Clearing `start` tells
+   * everyone still on the results to follow.
+   */
+  nextTrack(): void {
+    const room = this.room;
+    if (!room?.isHost) return;
+    this.racing = null;
+    room.update({ start: undefined }).catch(() => undefined);
+    this.showLobby(room);
+  }
+
   /** Leaves the room (or stops creating or joining one). */
   leave(): void {
+    this.racing = null;
     this.attempt += 1;
     this.room?.leave();
     this.room = null;
@@ -184,6 +216,7 @@ export class RoomFlow {
 
   /** Back to the room's lobby after a race (with why, if it didn't happen), or Online if it's gone. */
   backToLobby(message?: string): void {
+    this.racing = null;
     if (this.room) this.showLobby(this.room, message);
     else this.showOnline(message);
   }
@@ -236,10 +269,20 @@ export class RoomFlow {
     }
   }
 
-  /** Client: a new start from the host that seats this device runs its race. */
+  /**
+   * Client: a new start from the host that seats this device runs its race (also Race again, MK-55).
+   * The host clearing its start after a race (Next track) brings this device back to the lobby.
+   */
   private checkStart(room: Room): void {
     const start = room.host?.start;
-    if (room.isHost || this.room !== room || !start || this.started.has(start.id)) return;
+    if (room.isHost || this.room !== room) return;
+    if (!start && this.racing) {
+      this.racing = null;
+      this.lobby.onLobby?.();
+      this.showLobby(room);
+      return;
+    }
+    if (!start || this.started.has(start.id)) return;
     this.started.add(start.id);
     // Joined after that start: stay in the lobby.
     if (kartOf(start, room.selfId) < 0) return;
@@ -247,6 +290,7 @@ export class RoomFlow {
   }
 
   private race(room: Room, start: LobbyStart): void {
+    this.racing = start.id;
     const content = this.content();
     const clientKart = (clientId: string) => {
       const kart = kartOf(start, clientId);
@@ -258,8 +302,12 @@ export class RoomFlow {
     this.lobby.onRace?.({
       role: room.isHost ? 'host' : 'client',
       room: room.code,
-      race: raceOptions(settingsOf(room.members, content), start, room.selfId, content),
+      race: {
+        ...raceOptions(settingsOf(room.members, content), start, room.selfId, content),
+        ...(this.laps ? { laps: this.laps } : {}),
+      },
       links,
+      colours: start.slots.map((slot) => slot.colour ?? ''),
     });
   }
 
