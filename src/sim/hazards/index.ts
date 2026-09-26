@@ -57,7 +57,7 @@ export function updateHazards(
     if (!kind.contact) continue;
     const pose = kind.pose(hazard, state.tick);
     for (const kart of state.karts) {
-      if (isRespawning(kart)) continue;
+      if (isRespawning(kart) || kart.position.y - pose.y > tuning.hazards.clearance) continue;
       const contact = kind.contact(hazard, pose, kart.position, tuning.hazards.kartRadius);
       if (!contact) continue;
       applyContact(kart, contact, contact.effect ?? hazard.effect ?? kind.defaultEffect, events);

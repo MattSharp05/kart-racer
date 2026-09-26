@@ -105,6 +105,17 @@ describe('track hazards (MK-49)', () => {
     }
   });
 
+  it('a kart flying high over a hazard clears it', () => {
+    // Just before the crusher closes (at ~2.32 s of its 4 s cycle), with a kart under it.
+    const at = (y: number) => {
+      const start = race([{ position: { ...HAZARD_TEST.crusher, y }, heading: 0 }]);
+      start.tick = 130;
+      return hazardHits(run(start, 20).events);
+    };
+    expect(at(0)).toHaveLength(1);
+    expect(at(tuning.hazards.clearance + 5)).toEqual([]);
+  });
+
   it('the spinning bar bumps a parked kart out of its way (no spin-out)', () => {
     const { x, z } = HAZARD_TEST.spinner;
     const start = race([{ position: { x: x + 4, y: 0, z } }]);

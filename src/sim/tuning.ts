@@ -123,6 +123,8 @@ export const tuning = {
   hazards: {
     /** A kart touches a hazard when its centre comes within this of the hazard's collider, m. */
     kartRadius: 1,
+    /** Karts flying more than this above a hazard's base clear it (e.g. off a ramp), m. */
+    clearance: 2.5,
     /** Bumped karts bounce off at this fraction of their speed into the hazard. */
     bumpBounce: 0.5,
     /** Minimum push-back speed of a bump, m/s (so a stopped kart is still shoved clear). */
