@@ -7,14 +7,29 @@ import {
   NEUTRAL_INPUT,
   type InputFrame,
   type ItemId,
+  type KartState,
   type SimEvent,
   type SimState,
 } from '../types';
+import { updateEffects } from './effects';
+import { updateItemEntities } from './entities';
 import { oddsRow, pickItem } from './odds';
 
-/** Items the roulette can hand out: every registered item (`src/content/items/`), in order. */
+/**
+ * Items the roulette can hand out: every registered item (`src/content/items/`) but test-only
+ * ones, in order.
+ */
 export function availableItems(): ItemId[] {
-  return items.ids();
+  return items
+    .list()
+    .filter((item) => !item.testOnly)
+    .map((item) => item.id);
+}
+
+/** Puts `item` in the kart's slot with all its uses (MK-52). */
+export function giveItem(kart: KartState, item: ItemId): void {
+  kart.item.held = item;
+  kart.item.uses = items.get(item).uses ?? 1;
 }
 
 /** Each item's per-tick `update`, in item order, once per distinct function. */
@@ -36,7 +51,9 @@ export function updateItems(
     if (box.kind === 'itemBox') box.respawnTimer = countDown(box.respawnTimer, dt);
   }
 
+  updateEffects(state, dt, events);
   for (const update of itemUpdates()) update(state, dt, events);
+  updateItemEntities(state, dt, events);
 
   for (const kart of state.karts) {
     kart.spinTimer = countDown(kart.spinTimer, dt);
@@ -60,18 +77,27 @@ export function updateItems(
         const odds = oddsRow(positionOf(state, kart.id), state.karts.length);
         const item = pickItem(odds, rngFloat(state), availableItems());
         if (item) {
-          slot.held = item;
+          giveItem(kart, item);
           events.push({ type: 'itemGranted', kartId: kart.id, item });
         }
       }
     }
 
-    // Use on press (not hold), only once the roulette has finished.
+    if (slot.held !== null && slot.roulette === 0) {
+      items.get(slot.held).onHoldTick?.(kart, state, dt, events);
+    }
+
+    // Use on press (not hold), only once the roulette has finished. The slot empties on the last
+    // use (a slot set without `uses`, as scenarios do, counts as one use).
     const pressed = (inputs[kart.id]?.item ?? false) && !slot.buttonHeld;
     slot.buttonHeld = inputs[kart.id]?.item ?? false;
     if (pressed && slot.held !== null && slot.roulette === 0) {
       const item = slot.held;
-      slot.held = null;
+      if (slot.uses > 1) slot.uses -= 1;
+      else {
+        slot.held = null;
+        slot.uses = 0;
+      }
       items.get(item).onUse(kart, state, events, inputs[kart.id] ?? NEUTRAL_INPUT);
       events.push({ type: 'itemUsed', kartId: kart.id, item });
     }

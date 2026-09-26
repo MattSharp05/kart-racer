@@ -1,3 +1,4 @@
+import { items } from '../../content/items';
 import { clamp, forwardFromHeading, wrapAngleDelta } from '../math';
 import { positionOf } from '../race';
 import { rngRange } from '../rng';
@@ -106,6 +107,16 @@ export function aiSteerOffset(
   return 0;
 }
 
+/** What an item's `aiUse` hook gets to decide with (MK-52). */
+export interface AiItemContext {
+  ai: AiState;
+  geometry: TrackGeometry;
+  /** Curvature of the racing line over the next `metres` (small = a straight). */
+  straightAhead: (metres: number) => number;
+  /** Signed metres along the lap from `fromS` to `toS` (positive = ahead). */
+  aheadMetres: (fromS: number, toS: number) => number;
+}
+
 /**
  * Whether the AI uses its item this tick (MK-21), and how. Each new item gets a seeded thinking
  * delay (shorter for aggressive drivers); then it waits for the right moment:
@@ -147,6 +158,24 @@ export function aiItemInput(
   const giveUp = (ai.itemHeld ?? 0) > cfg.itemGiveUp;
   const use = (extra: Partial<InputFrame> = {}): Partial<InputFrame> => ({ item: true, ...extra });
 
+  const input = itemTactic(item, kart, ai, state, geometry, straightAhead, giveUp, use);
+  // A multi-use item (MK-52) stays in the slot: think again before each use.
+  if (input.item && kart.item.uses > 1) ai.itemDelay = undefined;
+  return input;
+}
+
+/** When to use each item (the MVP items here; later items bring an `aiUse` hook). */
+function itemTactic(
+  item: string,
+  kart: KartState,
+  ai: AiState,
+  state: SimState,
+  geometry: TrackGeometry,
+  straightAhead: (metres: number) => number,
+  giveUp: boolean,
+  use: (extra?: Partial<InputFrame>) => Partial<InputFrame>,
+): Partial<InputFrame> {
+  const cfg = tuning.ai;
   switch (item) {
     case 'star':
     case 'lightning':
@@ -184,8 +213,18 @@ export function aiItemInput(
     }
     case 'red':
       return positionOf(state, kart.id) > 1 || giveUp ? use() : {};
-    default:
-      // Items without their own tactic here (content added later, ADR 0007): use after the delay.
-      return use();
+    default: {
+      // Items added later (ADR 0007) bring their own tactic; without one, use after the delay.
+      const aiUse = items.get(item).aiUse;
+      if (!aiUse) return use();
+      const decision = aiUse(kart, state, {
+        ai,
+        geometry,
+        straightAhead,
+        aheadMetres: (fromS, toS) => aheadMetres(geometry, fromS, toS),
+      });
+      if (decision === false) return giveUp ? use() : {};
+      return use(decision === true ? {} : decision);
+    }
   }
 }

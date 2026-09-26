@@ -1,5 +1,6 @@
 import { basicScenarios } from './basics';
 import { drivingScenarios } from './driving';
+import { itemScenarios } from './items';
 import { menuScenarios } from './menus';
 import { onlineScenarios } from './online';
 import { raceScenarios } from './race';
@@ -13,6 +14,7 @@ scenarios.register(
   ...drivingScenarios,
   ...trackScenarios,
   ...raceScenarios,
+  ...itemScenarios,
   ...menuScenarios,
   ...onlineScenarios,
 );

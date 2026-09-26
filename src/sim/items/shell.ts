@@ -1,4 +1,4 @@
-import { clamp, forwardFromHeading } from '../math';
+import { clamp, forwardFromHeading, type Vec3 } from '../math';
 import { positionOf } from '../race';
 import { getTrack, trackGeometry } from '../track';
 import { tuning } from '../tuning';
@@ -45,8 +45,16 @@ export function fireShell(
   });
 }
 
-/** Turns `shell.direction` towards the point (x, z), at most `maxTurn` radians. */
-function steerTowards(shell: ShellEntity, x: number, z: number, maxTurn: number): void {
+/**
+ * Turns `shell.direction` towards the point (x, z), at most `maxTurn` radians. Shared with the
+ * general item entities (MK-52).
+ */
+export function steerTowards(
+  shell: { position: Vec3; direction: { x: number; z: number } },
+  x: number,
+  z: number,
+  maxTurn: number,
+): void {
   const want = Math.atan2(z - shell.position.z, x - shell.position.x);
   const have = Math.atan2(shell.direction.z, shell.direction.x);
   let delta = want - have;

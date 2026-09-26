@@ -1,0 +1,12 @@
+/* Item screen overlays (MK-52): each item styles its own class on top of these. */
+.hud-screen-effects {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.hud-screen-effect {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}

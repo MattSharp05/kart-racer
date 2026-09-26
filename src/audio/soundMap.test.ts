@@ -32,10 +32,12 @@ const EXAMPLES = {
   launch: { type: 'launch', kartId: 0 },
   trick: { type: 'trick', kartId: 0 },
   land: { type: 'land', kartId: 0, airTime: 1 },
+  // Silent unless the item's view registers a sound for the fx (see `content/items/framework.test.ts`).
+  itemFx: { type: 'itemFx', kartId: 0, item: 'mushroom', fx: 'nothing' },
 } satisfies { [K in SimEvent['type']]: Extract<SimEvent, { type: K }> };
 
 /** Events that are deliberately silent (something else already makes the sound, or nothing to hear). */
-const SILENT = new Set(['phaseChanged', 'checkpoint', 'positionChange', 'boost']);
+const SILENT = new Set(['phaseChanged', 'checkpoint', 'positionChange', 'boost', 'itemFx']);
 
 describe('event → sound mapping', () => {
   it('covers every SimEvent type', () => {

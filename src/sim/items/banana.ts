@@ -2,7 +2,7 @@ import { add, forwardFromHeading, lerp, scale } from '../math';
 import { getTrack, groundAt } from '../track';
 import { tuning } from '../tuning';
 import type { BananaEntity, InputFrame, KartState, SimEvent, SimState } from '../types';
-import { hitKart } from './hit';
+import { tryHit } from './hit';
 
 /** Next unused entity id (deterministic: one more than the highest so far). */
 export function nextEntityId(state: SimState): number {
@@ -58,8 +58,8 @@ export function updateBananas(state: SimState, dt: number, events: SimEvent[]): 
       const dz = kart.position.z - banana.position.z;
       if (Math.hypot(dx, dz) > tuning.bananaRadius) continue;
       if (Math.abs(kart.position.y - banana.position.y) > 2) continue;
-      // Invulnerable karts pass straight through without using it up.
-      if (hitKart(kart, banana.ownerId, 'banana', events)) {
+      // Invulnerable karts pass straight through without using it up; a shield (MK-52) uses it up.
+      if (tryHit(kart, banana.ownerId, 'banana', events) !== 'immune') {
         gone.add(banana.id);
         break;
       }

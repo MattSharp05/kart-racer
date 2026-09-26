@@ -1,4 +1,5 @@
 import type { SoundId } from './soundMap';
+import { soundRecipe } from './soundRegistry';
 
 /** MIDI note → Hz. */
 const hz = (note: number) => 440 * Math.pow(2, (note - 69) / 12);
@@ -164,6 +165,9 @@ export class Synth {
         return n(84, 0.12, { at: 0.07 });
       case 'land':
         return this.whoosh(0.2, { volume: 0.35 * v, from: 160, to: 80, q: 0.8 });
+      default:
+        // Sounds registered by content (MK-52).
+        return soundRecipe(id)?.(this, v, pitch);
     }
   }
 }
