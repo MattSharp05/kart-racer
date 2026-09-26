@@ -83,7 +83,14 @@
   font-weight: 400;
 }
 
-.lobby-waiting:empty {
+.lobby-message {
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-gold);
+}
+
+.lobby-waiting:empty,
+.lobby-message:empty {
   display: none;
 }
 

@@ -133,6 +133,12 @@ test.describe('lobby', () => {
       onHost.karts.map((k) => k.split(':')[0]),
     );
     expect(onGuest.net).toMatchObject({ role: 'client', kartId: 1, players: 2 });
+
+    // The host leaving mid-race ends it for the guest: back to Online with why, race stopped.
+    await host.close();
+    await expect(guest.locator('.menu-online')).toBeVisible({ timeout: 10_000 });
+    await expect(guest.getByRole('alert')).toHaveText('Host left the room');
+    expect(await guest.evaluate(() => window.__game!.net())).toBeNull();
   });
 
   test('Start is disabled until every player is ready, and again if one un-readies', async ({

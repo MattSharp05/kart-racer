@@ -29,6 +29,8 @@ export interface LobbyProps {
   room: LobbyRoom;
   /** The room link to share (`/?room=CODE`). */
   link: string;
+  /** Why the last race didn't happen (shown until the next change). */
+  message?: string;
   /** Tracks the host can pick and racers everyone can pick, in menu order. */
   tracks: readonly LobbyChoice[];
   racers: readonly LobbyChoice[];
@@ -107,6 +109,11 @@ registerScreen('lobby', (panel, props) => {
   const waiting = document.createElement('p');
   waiting.className = 'lobby-waiting';
   waiting.setAttribute('aria-live', 'polite');
+  const message = document.createElement('p');
+  message.className = 'lobby-message';
+  // Only an alert when there's something to say (an empty alert clashes with the error banner's).
+  if (props.message) message.setAttribute('role', 'alert');
+  message.textContent = props.message ?? '';
 
   const render = () => {
     const me = self();
@@ -152,7 +159,7 @@ registerScreen('lobby', (panel, props) => {
     row(
       'lobby-body',
       row('lobby-share', code, linkText, shareButton(room.code, link, linkText)),
-      row('lobby-list', count, list, waiting),
+      row('lobby-list', count, list, message, waiting),
       row('lobby-settings', track.label, cc, items, racer.label),
     ),
     row('actions', button('Leave room', onLeave), ready, start),

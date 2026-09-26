@@ -40,11 +40,23 @@ export interface LobbyLaunch {
   code?: string;
 }
 
-/** What the lobby offers (MK-47): the menu tracks and the racers, from the content registries. */
-export interface LobbyMenu {
+/** What the lobby offers (MK-47), and how the game takes part in it. */
+export interface LobbyHooks {
+  /** The menu tracks and the racers, from the content registries. */
   tracks: readonly LobbyChoice[];
   racers: readonly LobbyChoice[];
+  /** Runs a started race. */
+  onRace?: (launch: OnlineLaunch) => void;
+  /** The host's start couldn't reach the room: stop the race and come back to the lobby. */
+  onStartFailed?: (message: string) => void;
+  /** The room ended (host left) while this device may be racing: stop the race. */
+  onRoomEnded?: () => void;
+  /** The player picked a racer (remembered for next time). */
+  onRacer?: (racer: string) => void;
 }
+
+/** Shown in the lobby when the host's start didn't reach the room. */
+export const START_FAILED_MESSAGE = "Couldn't start the race. Try again.";
 
 /**
  * The online screens (MK-40): Online (create or join) → Join (type a code) → Lobby (code, link,
@@ -63,18 +75,14 @@ export class RoomFlow {
   /**
    * @param player What this device shows the room (nickname, colour, racer).
    * @param onExit Back from the Online screen (to the title).
-   * @param menu The lobby's tracks and racers.
-   * @param onRace Runs a started race (MK-47).
-   * @param onRacer The player picked a racer in the lobby (remembered for next time).
+   * @param lobby The lobby's menus and what to do when a race starts or can't (MK-47).
    */
   constructor(
     private readonly screens: Router,
     private readonly rooms: RoomService,
     private readonly player: () => MemberInfo,
     private readonly onExit: () => void,
-    private readonly menu: LobbyMenu = { tracks: [], racers: [] },
-    private readonly onRace: (launch: OnlineLaunch) => void = () => undefined,
-    private readonly onRacer: (racer: string) => void = () => undefined,
+    private readonly lobby: LobbyHooks = { tracks: [], racers: [] },
   ) {
     window.addEventListener('pagehide', () => this.leave());
     // Back to a page from the back/forward cache: the room was left on pagehide, so the lobby (or
@@ -165,6 +173,7 @@ export class RoomFlow {
     this.room = room;
     room.onEnded((reason) => {
       this.room = null;
+      this.lobby.onRoomEnded?.();
       this.showOnline(ROOM_ERROR_MESSAGES[reason]);
     });
     // The host's first settings (best effort: everyone shows the defaults until they arrive).
@@ -173,15 +182,22 @@ export class RoomFlow {
     this.showLobby(room);
   }
 
-  private showLobby(room: Room): void {
+  /** Back to the room's lobby after a race (with why, if it didn't happen), or Online if it's gone. */
+  backToLobby(message?: string): void {
+    if (this.room) this.showLobby(this.room, message);
+    else this.showOnline(message);
+  }
+
+  private showLobby(room: Room, message?: string): void {
     this.screens.show('lobby', {
       room,
       link: this.link(room.code),
-      tracks: this.menu.tracks,
-      racers: this.menu.racers,
+      tracks: this.lobby.tracks,
+      racers: this.lobby.racers,
+      ...(message ? { message } : {}),
       onSettings: (settings: LobbySettings) => void room.update({ lobby: settings }),
       onRacer: (racer) => {
-        this.onRacer(racer);
+        this.lobby.onRacer?.(racer);
         void room.update({ racer });
       },
       onReady: (ready) => void room.update({ ready }),
@@ -195,8 +211,8 @@ export class RoomFlow {
 
   private content(): LobbyContent {
     return {
-      trackIds: this.menu.tracks.map((t) => t.id),
-      racerIds: this.menu.racers.map((r) => r.id),
+      trackIds: this.lobby.tracks.map((t) => t.id),
+      racerIds: this.lobby.racers.map((r) => r.id),
     };
   }
 
@@ -212,7 +228,12 @@ export class RoomFlow {
     this.started.add(start.id);
     // Links open before the others hear of the start, so none of their joins are missed.
     this.race(room, start);
-    await room.update({ start });
+    try {
+      await room.update({ start });
+    } catch {
+      // Nobody heard of the start: don't leave the host alone on the grid.
+      if (this.room === room) this.lobby.onStartFailed?.(START_FAILED_MESSAGE);
+    }
   }
 
   /** Client: a new start from the host that seats this device runs its race. */
@@ -234,7 +255,7 @@ export class RoomFlow {
     const links = this.rooms.local
       ? localRaceLinks(`lobby-${room.code}-${start.id}`, room.selfId, clientKart)
       : webRtcRaceLinks(room.signaling(start.id), clientKart);
-    this.onRace({
+    this.lobby.onRace?.({
       role: room.isHost ? 'host' : 'client',
       room: room.code,
       race: raceOptions(settingsOf(room.members, content), start, room.selfId, content),
