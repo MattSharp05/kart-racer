@@ -23,6 +23,7 @@
     "vitest.config.ts",
     "vitest.perf.config.ts",
     "vitest.lab.config.ts",
+    "vitest.netsoak.config.ts",
     "playwright.config.ts",
     "playwright.soak.config.ts",
     "scripts/**/*.ts",
