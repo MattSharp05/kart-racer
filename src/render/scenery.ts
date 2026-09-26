@@ -51,6 +51,16 @@ const ROCK_COUNT = 40;
 const HILL_COUNT = 14;
 /** Keep scenery at least this far outside the walls, m. */
 const CLEARANCE = 6;
+/** Hills keep this far from the track centreline beyond their own radius, m. */
+const HILL_CLEARANCE = 15;
+const HILL_STEP = 10;
+
+/** Distance from (x, z) to the nearest point of the track centreline, m. */
+function distanceToTrack(geometry: TrackGeometry, { x, z }: { x: number; z: number }): number {
+  let best = Infinity;
+  for (const s of geometry.samples) best = Math.min(best, Math.hypot(s.x - x, s.z - z));
+  return best;
+}
 
 /** Whether a point is clear of the track, its walls and any drivable infield. */
 function clearOfTrack(geometry: TrackGeometry, x: number, z: number): boolean {
@@ -166,14 +176,17 @@ export function createScenery(geometry: TrackGeometry, setId = SUNNY_THEME.scene
   const ring = bounds.getSize(new THREE.Vector3()).length() * 0.75;
   for (let i = 0; i < HILL_COUNT; i += 1) {
     const angle = (i / HILL_COUNT) * Math.PI * 2 + rand() * 0.3;
-    const distance = ring * (0.9 + rand() * 0.4);
-    dummy.position.set(
-      centre.x + Math.cos(angle) * distance,
-      -2,
-      centre.z + Math.sin(angle) * distance,
-    );
+    let distance = ring * (0.9 + rand() * 0.4);
     dummy.scale.set(60 + rand() * 60, 25 + rand() * 30, 60 + rand() * 60);
     dummy.rotation.set(0, rand() * Math.PI, 0);
+    // On long, narrow tracks the ring can reach the road: move such hills out until clear.
+    const reach = Math.max(dummy.scale.x, dummy.scale.z) + HILL_CLEARANCE;
+    const at = () => ({
+      x: centre.x + Math.cos(angle) * distance,
+      z: centre.z + Math.sin(angle) * distance,
+    });
+    while (distanceToTrack(geometry, at()) < reach) distance += HILL_STEP;
+    dummy.position.set(at().x, -2, at().z);
     dummy.updateMatrix();
     hills.setMatrixAt(i, dummy.matrix);
   }
