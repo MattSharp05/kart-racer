@@ -1,6 +1,7 @@
 import { computeRacingLine } from '../../../sim/ai/racingLine';
 import { TrackGeometry, type SplinePoint, type SplineTrackDef } from '../../../sim/splineTrack';
 import type { TrackContent } from '..';
+import { SUNNY_THEME } from '../theme';
 
 /** Default road width, m. */
 const W = 16;
@@ -157,4 +158,5 @@ export default {
   name: 'Sunny Circuit',
   order: 10,
   def: sunnyCircuit,
+  theme: SUNNY_THEME,
 } satisfies TrackContent;

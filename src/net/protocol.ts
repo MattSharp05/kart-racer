@@ -57,8 +57,8 @@ const MAX_INPUT_AGE = 0xff;
 const PHASES: readonly RacePhase[] = ['free', 'countdown', 'racing', 'finished'];
 /** Items by index: every registered item (`src/content/items/`), so both peers need the same build. */
 const itemIds = (): readonly ItemId[] => items.ids();
-/** Hit kinds by index: the items, then squash. */
-const hitKinds = (): readonly HitKind[] => [...items.ids(), 'squash'];
+/** Hit kinds by index: the items, then squash, then track hazards. */
+const hitKinds = (): readonly HitKind[] => [...items.ids(), 'squash', 'hazard'];
 const TRICKS: readonly KartState['trick'][] = ['none', 'ready', 'done'];
 const ENGINE_CLASSES: readonly EngineClass[] = [50, 100, 150];
 /** Snapshot layout: type u8, tick u32, then the ack u32. */

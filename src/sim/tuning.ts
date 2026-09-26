@@ -107,6 +107,35 @@ export const tuning = {
   rampLaunch: 0.28,
   /** A grounded kart stays glued to the ground over drops up to this per tick, m. */
   groundSnap: 0.15,
+  // --- Surfaces & hazards (MK-49) ---
+  surfaces: {
+    /** Ice: sideways grip (and drift grip) × this, so karts slide much further. */
+    iceGrip: 0.15,
+    /** Sand: top speed as a fraction of road top speed. */
+    sandSpeed: 0.7,
+    /** Sand: while drifting, the kart's yaw wobbles by up to this, rad/s… */
+    sandWobble: 0.5,
+    /** …this many times a second. */
+    sandWobbleHz: 3,
+    /** Conveyor belt speed: karts on it are carried this fast along the belt, m/s. */
+    conveyorSpeed: 6,
+  },
+  hazards: {
+    /** A kart touches a hazard when its centre comes within this of the hazard's collider, m. */
+    kartRadius: 1,
+    /** Karts flying more than this above a hazard's base clear it (e.g. off a ramp), m. */
+    clearance: 2.5,
+    /** Bumped karts bounce off at this fraction of their speed into the hazard. */
+    bumpBounce: 0.5,
+    /** Minimum push-back speed of a bump, m/s (so a stopped kart is still shoved clear). */
+    bumpMinSpeed: 3,
+    /** Crushers squash karts under them once this far down (0 = up, 1 = closed). */
+    crusherSquashAt: 0.8,
+    /** Crusher cycle: share of the period spent dropping and rising (the rest is open/closed). */
+    crusherMoveFraction: 0.1,
+    /** A squashed kart spins out this many times as long as an item hit. */
+    squashSpinFactor: 1.5,
+  },
   // --- Respawn (MK-13) ---
   /** Being carried back to the track takes this long, s. */
   respawnSeconds: 1.5,
