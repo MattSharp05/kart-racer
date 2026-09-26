@@ -264,10 +264,10 @@ export class OnlineHost {
       ...this.peers
         .filter((peer) => this.state.karts[peer.kartId]?.controller !== 'ai')
         .map((peer) => ({
-        kartId: peer.kartId,
-        age: peer.lastInputTick === 0 ? tick : tick - peer.lastInputTick,
-        input: peer.lastInput,
-      })),
+          kartId: peer.kartId,
+          age: peer.lastInputTick === 0 ? tick : tick - peer.lastInputTick,
+          input: peer.lastInput,
+        })),
     ];
     const events =
       this.recentEvents.length > 0

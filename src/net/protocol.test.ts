@@ -207,9 +207,12 @@ describe('net protocol (ADR 0005)', () => {
     expect(msg.events).toEqual(netEvents);
   });
 
-  it.each<ByeReason>(['left', 'ended', 'kicked', 'version', 'dropped'])('round-trips Bye (%s)', (reason) => {
-    expect(decodeMessage(encodeBye(reason))).toEqual({ type: MSG.bye, reason });
-  });
+  it.each<ByeReason>(['left', 'ended', 'kicked', 'version', 'dropped'])(
+    'round-trips Bye (%s)',
+    (reason) => {
+      expect(decodeMessage(encodeBye(reason))).toEqual({ type: MSG.bye, reason });
+    },
+  );
 
   it('round-trips ping and pong', () => {
     expect(decodeMessage(encodePing(MSG.ping, 1234.5678))).toEqual({

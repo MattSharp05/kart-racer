@@ -17,7 +17,10 @@ function onlineRace(): SimState {
     racers: [
       { kartId: 'maple', controller: 'local', name: 'Host' },
       { kartId: 'pixie', controller: 'remote', name: 'Sam' },
-      ...Array.from({ length: 6 }, () => ({ kartId: 'boulder' as const, controller: 'ai' as const })),
+      ...Array.from({ length: 6 }, () => ({
+        kartId: 'boulder' as const,
+        controller: 'ai' as const,
+      })),
     ],
     engineClass: 100,
     itemsOn: false,
