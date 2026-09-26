@@ -22,7 +22,7 @@ export const MAGNET_BONUS_FAR = 0.12;
 export const MAGNET_BONUS_NEAR = 0.35;
 /**
  * It also turns you towards the target, at most this fast (rad/s, at full closeness), when it's
- * within `MAGNET_STEER_CONE` rad of where you're heading (never while drifting).
+ * within `MAGNET_STEER_CONE` rad of where you're heading (not while drifting, airborne or spinning).
  */
 export const MAGNET_STEER = 0.6;
 export const MAGNET_STEER_CONE = Math.PI / 3;
@@ -33,7 +33,10 @@ export const MAGNET_CONTACT = 0.3;
 const TARGET = 0;
 const FACTOR = 1;
 
-/** The kart a magnet on `kart` pulls towards, with its distance (m); none within range. */
+/**
+ * The kart a magnet on `kart` pulls towards (the nearest still racing ahead), with its distance
+ * (m); none within range.
+ */
 export function magnetTarget(
   kart: KartState,
   state: SimState,
@@ -45,6 +48,8 @@ export function magnetTarget(
   let best: { id: number; distance: number } | undefined;
   for (const other of state.karts) {
     if (other.id === kart.id || other.respawnTimer > 0) continue;
+    // Finished karts (on autopilot) are out of the race: nothing to chase or take.
+    if (other.race.finishTick !== undefined) continue;
     const dx = other.position.x - kart.position.x;
     const dz = other.position.z - kart.position.z;
     const distance = Math.hypot(dx, dz);
@@ -103,7 +108,7 @@ function pull(
     effect.ticksLeft = 0;
     return;
   }
-  if (!isDrifting(kart) && kart.grounded) {
+  if (!isDrifting(kart) && kart.grounded && kart.spinTimer === 0) {
     const desired = Math.atan2(
       -(target.position.x - kart.position.x),
       -(target.position.z - kart.position.z),

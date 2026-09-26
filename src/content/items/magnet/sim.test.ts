@@ -146,6 +146,13 @@ describe('Magnet (MK-68)', () => {
     expect(events.some((e) => e.type === 'kartHit')).toBe(false);
   });
 
+  it('ignores karts that have finished', () => {
+    const state = pair(10);
+    expect(magnetTarget(state.karts[0]!, state)?.id).toBe(1);
+    state.karts[1]!.race.finishTick = 100;
+    expect(magnetTarget(state.karts[0]!, state)).toBeUndefined();
+  });
+
   it("doesn't take an item still in the roulette", () => {
     const state = touching();
     state.karts[1]!.item = { ...state.karts[1]!.item, held: null, roulette: 1 };
