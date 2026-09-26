@@ -241,9 +241,10 @@ export class OnlineClient {
     this.ended = 'left';
   }
 
-  /** Ticks the client runs ahead of the newest snapshot: a full RTT plus a buffer. */
+  /** Ticks the client runs ahead of the newest snapshot: a full RTT plus a buffer, capped. */
   leadTicks(): number {
-    return Math.ceil(this.rttMs / 1000 / DT) + tuning.net.inputDelayTicks + this.extraLead;
+    const lead = Math.ceil(this.rttMs / 1000 / DT) + tuning.net.inputDelayTicks + this.extraLead;
+    return Math.min(NET.maxLeadTicks, lead);
   }
 
   private simulate(state: SimState): { state: SimState; events: SimEvent[] } {

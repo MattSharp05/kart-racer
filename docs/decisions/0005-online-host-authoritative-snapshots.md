@@ -62,3 +62,39 @@ Prototype: `src/net/spike/` (`?spike=net`). Host runs the sim with 2 humans + 6 
 | Own-kart prediction at snapshot ticks vs host                 | ≤ 6 cm (one 29 cm case next to a hit)                                                                                                                        |
 | What the player saw vs host, excluding host-decided spin-outs | P50 7 mm, P99 < 12 cm, max < 0.5 m. A hit the client didn't foresee shows up to ~5 m off until the snapshot arrives: render smoothing is the polish ticket's |
 | Snapshot size, 8 karts + items                                | 454 B avg, 527 B max (lap times now sent as u16 ticks: exact)                                                                                                |
+
+## Tuning (MK-73, 2026-09-26)
+
+Measured with the netcode lab (`src/net/netLab.ts`): a 4-player room (host + 3 clients + 4 AI) over loopback with a virtual clock, every client drawing through its `NetSmoother` as the game does, 30 s of racing, 2 seeds, 3 clients each. `net-good` = 80 ms RTT, 10 ms jitter, 1 % loss; `net-bad` = 200 ms, 50 ms, 8 %. "Jump" is how far a drawn kart moves in one frame beyond its own motion (what reads as a teleport or rubber band); "vs truth" is the drawn position against the host's at the same tick. Re-run with `pnpm net:sweep` (`FRAME=2` for 30 fps clients).
+
+| `net-bad`, 60 fps         | own jump p99 / max | others' jump p99 / max | others vs truth p50 / p99     | re-sim ticks/snapshot | late inputs          | down / up           |
+| ------------------------- | ------------------ | ---------------------- | ----------------------------- | --------------------- | -------------------- | ------------------- |
+| **Chosen defaults**       | 4 cm / 0.29 m      | 14 cm / **0.36 m**     | 6 cm / 1.36 m                 | 4.1                   | 6.3                  | 9.3 / 1.8 KB/s      |
+| Snap at 3 m (was)         | 4 cm / 0.29 m      | 13 cm / **3.21 m**     | 5 cm / 1.33 m                 | 4.1                   | 6.3                  | same                |
+| Input delay 2 ticks (was) | 4 cm / 0.29 m      | 15 cm / 0.47 m         | 6 cm / 1.58 m                 | 4.4                   | 6.3                  | same                |
+| Input delay 0             | 5 cm / 0.29 m      | 13 cm / 0.36 m         | 5 cm / 1.20 m                 | 3.9                   | 7.2 (12.5 at 30 fps) | same                |
+| Smoothing 0.1 s / 0.25 s  | 5 / 3 cm           | 18 / 12 cm             | 1.21 / 1.67 m p99             | 4.1                   | 6.3                  | same                |
+| Snapshots 30 Hz           | 4 cm / 0.29 m      | 12 cm / 0.37 m         | 5 cm / 1.23 m                 | 2.9 (×30/s)           | 7.0                  | **14.0** / 1.8 KB/s |
+| Snapshots 15 Hz           | 5 cm / 0.74 m      | 21 cm / 0.71 m         | own corrections **2.3 m p99** | 4.9                   | 6.3                  | 7.0 / 1.8 KB/s      |
+| Remote karts interpolated | 4 cm / 0.29 m      | 29 cm / 3.41 m         | **9.3 m / 12.5 m**            | 4.1                   | 6.3                  | same                |
+
+**Chosen** (`sim/tuning.ts` → `net`, each with its reason in a comment):
+
+- **Snap distance 3 m → 8 m.** At `net-bad` a predicted kart is corrected by 3–7 m now and then: another player steered while their input was on its way, or used an item no client can foresee (a lightning strike moved every kart ~5 m at once in the lab). Snapping drew those as 3–6 m teleports; blending them over the smoothing time keeps every drawn kart under 1 m per frame (max ~0.8 m) across the 10-race soak. The largest correction in 10 full races was ~6 m, so 5 m would still have snapped some. Respawns (tens of metres) still snap.
+- **Input delay 2 → 1 tick.** The late inputs at the host are the same (6.3 per client in 30 s at 60 fps, 8.5 vs 8.2 at 30 fps); one tick less lead means less to re-simulate and other players' karts predicted closer to where they are (p99 1.36 m vs 1.58 m). 0 ticks raises late inputs by half on a 30 fps client (12.5; its inputs leave in pairs). Real lag spikes still add up to `NET.maxExtraLeadTicks` (4) on top: kept, 2 made own corrections spikier.
+- **New: the lead is capped at 36 ticks (`NET.maxLeadTicks`, 600 ms).** A client whose CPU falls behind (CI's software-GL runner; a busy phone) spiralled: its pongs waited behind its frames, the RTT it measured grew, its lead grew with it (RTT 2.9 s, 186 ticks ahead of the snapshot in CI), every reconcile re-simulated the whole lead, and the page froze for 20+ s at a time. This was the root of the real-time `onlinePrediction` "?netdebug=1" spec's flakiness on main too. With the cap, a reconcile re-simulates at most the lead, the client recovers, and past ~550 ms RTT the host holds its late inputs instead. In CI's image with 4 parallel workers that spec went from 0/8 to 8/8.
+- **Kept: smoothing 0.15 s** (the middle of the trade-off: 0.1 s makes other players' karts jump ~25 % more per frame, 0.2–0.25 s draws them further off the truth for longer), **20 Hz snapshots** (30 Hz re-simulates the same ticks per second for +50 % bandwidth; 15 Hz halves bandwidth but the client's clock easing, tuned for 3-tick intervals, then corrects its own kart by metres: other rates need `NET.tickDrift*` retuned first, MK-84), and **remote karts predicted** (interpolated ones are always smooth but drawn 6 m (good) to 10 m (bad) behind where they are, which reads as lag in a race).
+
+**Soak:** 10 full 1-lap races at `net-bad` with 4 players (`src/net/soak*.test.ts`, in CI on every push): every client ends with the host's standings, finish ticks and lap times, and no drawn kart jumps ≥ 1 m in a frame. The same in real browsers (`pnpm test:soak`, 4 pages over BroadcastChannel): see the MK-73 Test report.
+
+**Bandwidth per client:** 9.3–9.7 KB/s down, 1.8 KB/s up at 20 Hz (4 players, items on).
+
+**Phone CPU (`pnpm test:soak` → `onlinePhone.spec.ts`):** one client of a 4-player room at `net-bad` on a Pixel 7 landscape profile, CPU throttled 4× (DevTools "mid-range mobile"), 20 s of racing per track. A GPU-less machine draws WebGL with SwiftShader on the CPU and throttling multiplies the time the page waits for it, so the real frame rate there only measures SwiftShader (~10 fps unthrottled); the check times each part of a frame's main-thread work instead. The stepped pages ran slower than real time, so the client saw ~400 ms RTT and re-simulated more than `net-bad` needs: a pessimistic case.
+
+| Track (4× CPU) | tick (×60/s) | snapshot (×20/s) | draw (JS, per frame) | sim + net | frame at 30 fps | CPU frame rate |
+| -------------- | ------------ | ---------------- | -------------------- | --------- | --------------- | -------------- |
+| Sunny Circuit  | 2.46 ms      | 13.5 ms          | 3.9 ms (p95 7.4)     | 417 ms/s  | 17.8 of 33.3 ms | 149 fps        |
+| Dune Canyon    | 2.73 ms      | 10.0 ms          | 4.1 ms (p95 7.4)     | 363 ms/s  | 16.2 of 33.3 ms | 155 fps        |
+| Frostpeak Pass | 2.23 ms      | 10.0 ms          | 4.9 ms (p95 8.5)     | 335 ms/s  | 16.1 of 33.3 ms | 136 fps        |
+
+Frostpeak Pass is the heaviest to draw; every track leaves a mid-range phone's CPU about half of each 30 fps frame spare. The GPU side (fill rate, ~85 draw calls) and real Wi-Fi/4G links are checked on real devices in MK-73's QA.
