@@ -2,6 +2,7 @@ import { countDown } from '../math';
 import { positionOf } from '../race';
 import { tuning } from '../tuning';
 import type { KartState, SimEvent, SimState } from '../types';
+import { isIntangible } from './effects';
 import { hitKart, tryHit } from './hit';
 
 /** Star (MK-20): 6 s of speed, immunity, and knocking over anyone you touch. */
@@ -39,12 +40,13 @@ export function updateStarLightning(state: SimState, dt: number, events: SimEven
     kart.shrinkTimer = countDown(kart.shrinkTimer, dt);
   }
   for (const kart of state.karts) {
-    if (kart.respawnTimer > 0) continue;
+    // A phased kart (MK-66) can't knock anyone over, nor be run over.
+    if (kart.respawnTimer > 0 || isIntangible(kart)) continue;
     const starred = kart.starTimer > 0;
     const fullSize = kart.shrinkTimer === 0;
     if (!starred && !fullSize) continue;
     for (const other of state.karts) {
-      if (other.id === kart.id || other.respawnTimer > 0) continue;
+      if (other.id === kart.id || other.respawnTimer > 0 || isIntangible(other)) continue;
       const d = Math.hypot(other.position.x - kart.position.x, other.position.z - kart.position.z);
       if (starred && d <= tuning.starHitRadius) hitKart(other, kart.id, 'star', events);
       else if (fullSize && other.shrinkTimer > 0 && d <= tuning.squashRadius) {

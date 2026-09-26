@@ -6,6 +6,11 @@ export interface IncomingHit {
   /** The kart it came from (−1 = none). */
   by: number;
   kind: HitKind;
+  /**
+   * A crushing hit (a crusher coming down, MK-62): shields can't stop it, so an effect that only
+   * guards against items and bumps lets it through.
+   */
+  crush?: boolean;
 }
 
 /**
@@ -32,6 +37,14 @@ export interface EffectContent {
    * well, set `effect.ticksLeft = 0`; it expires (and `onExpire` runs) on the next tick.
    */
   onHit?(kart: KartState, effect: KartEffect, hit: IncomingHit, events: SimEvent[]): boolean;
+  /**
+   * While it lasts the kart is a ghost to other karts and to item entities (Phase, MK-66): no
+   * kart-vs-kart bumps, shells, bananas and item entities pass through it (and aren't used up),
+   * and it can't knock others over (star, squash). Walls, hazards and item boxes still apply.
+   */
+  intangible?: boolean;
+  /** While it lasts the kart's top speed is multiplied by this (Phase's small boost, MK-66). */
+  speedFactor?: number;
   /** When it runs out or is ended with `endEffect`. */
   onExpire?(kart: KartState, effect: KartEffect, state: SimState, events: SimEvent[]): void;
 }
@@ -107,4 +120,21 @@ export function effectsBlockHit(kart: KartState, hit: IncomingHit, events: SimEv
     if (itemEffects.get(effect.kind).onHit?.(kart, effect, hit, events)) return true;
   }
   return false;
+}
+
+/** Whether one of the kart's effects makes it intangible (`EffectContent.intangible`). */
+export function isIntangible(kart: KartState): boolean {
+  for (const effect of kart.effects) {
+    if (effect.ticksLeft > 0 && itemEffects.get(effect.kind).intangible) return true;
+  }
+  return false;
+}
+
+/** The product of the kart's effects' `speedFactor`s (1 = none). */
+export function effectsSpeedFactor(kart: KartState): number {
+  let factor = 1;
+  for (const effect of kart.effects) {
+    if (effect.ticksLeft > 0) factor *= itemEffects.get(effect.kind).speedFactor ?? 1;
+  }
+  return factor;
 }

@@ -10,6 +10,8 @@ import {
 } from './kartModels';
 import type { KartState } from '../sim/types';
 import { createHeadlights } from './headlights';
+import { itemEffects } from '../content/items/registries';
+import { itemViews } from '../content/items/views';
 
 const MAX_WHEEL_TURN = 0.45;
 /** How far the body leans outward and yaws into a drift, radians. */
@@ -32,6 +34,58 @@ function lerpAngle(a: number, b: number, t: number): number {
   if (delta > Math.PI) delta -= Math.PI * 2;
   if (delta < -Math.PI) delta += Math.PI * 2;
   return a + delta * t;
+}
+
+/** How see-through the kart's effects draw it (MK-66: `ItemView.kartOpacity`; 1 = solid). */
+function effectsOpacity(kart: KartState, tick: number): number {
+  let opacity = 1;
+  for (const effect of kart.effects) {
+    if (!itemEffects.has(effect.kind)) continue;
+    const item = itemEffects.get(effect.kind).item;
+    const view = itemViews.has(item) ? itemViews.get(item) : undefined;
+    const o = view?.kartOpacity?.(effect, tick);
+    if (o !== undefined) opacity = Math.min(opacity, o);
+  }
+  return opacity;
+}
+
+/** A mesh material's own look, kept when it's first made see-through. */
+interface SolidLook {
+  opacity: number;
+  transparent: boolean;
+  depthWrite: boolean;
+}
+
+/**
+ * Draws a kart model at `opacity` (1 = as modelled). The first time, each mesh gets its own copy
+ * of its material (models may share them), remembering its solid look to restore.
+ */
+function setOpacity(root: THREE.Object3D, opacity: number): void {
+  const was = root.userData.opacity as number | undefined;
+  if (was === opacity || (opacity === 1 && was === undefined)) return;
+  root.userData.opacity = opacity;
+  // Switching between solid and see-through changes how materials draw: recompile them then only.
+  const flip = (was ?? 1) < 1 !== opacity < 1;
+  root.traverse((node) => {
+    if (!(node instanceof THREE.Mesh) || Array.isArray(node.material)) return;
+    let material = node.material as THREE.Material;
+    let solid = node.userData.solidLook as SolidLook | undefined;
+    if (!solid) {
+      material = material.clone();
+      node.material = material;
+      solid = {
+        opacity: material.opacity,
+        transparent: material.transparent,
+        depthWrite: material.depthWrite,
+      };
+      node.userData.solidLook = solid;
+    }
+    const ghost = opacity < 1;
+    material.opacity = solid.opacity * opacity;
+    material.transparent = ghost || solid.transparent;
+    material.depthWrite = !ghost && solid.depthWrite;
+    if (flip) material.needsUpdate = true;
+  });
 }
 
 /** A drawn kart pose; a `KartPoseFilter` moves it in place. */
@@ -130,6 +184,7 @@ export class KartRenderer {
     model.drone.visible = kart.respawnTimer > 0;
     if (model.drone.visible) model.drone.rotation.y = tick * 0.3;
     model.body.visible = kart.invulnerableTimer <= 0 || Math.floor(tick / 5) % 2 === 0;
+    setOpacity(model.root, effectsOpacity(kart, tick));
 
     // Star (MK-20): a rainbow glow around the kart. Lightning: shrink to half size.
     const aura = starAura(model);

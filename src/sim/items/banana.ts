@@ -2,6 +2,7 @@ import { add, forwardFromHeading, lerp, scale } from '../math';
 import { getTrack, groundAt } from '../track';
 import { tuning } from '../tuning';
 import type { BananaEntity, InputFrame, KartState, SimEvent, SimState } from '../types';
+import { isIntangible } from './effects';
 import { tryHit } from './hit';
 
 /** Next unused entity id (deterministic: one more than the highest so far). */
@@ -54,6 +55,8 @@ export function updateBananas(state: SimState, dt: number, events: SimEvent[]): 
     if (banana.flightTimer > 0) continue;
     for (const kart of state.karts) {
       if (kart.id === banana.ownerId && banana.ownerImmune > 0) continue;
+      // A phased kart (MK-66) drives through without using it up.
+      if (isIntangible(kart)) continue;
       const dx = kart.position.x - banana.position.x;
       const dz = kart.position.z - banana.position.z;
       if (Math.hypot(dx, dz) > tuning.bananaRadius) continue;

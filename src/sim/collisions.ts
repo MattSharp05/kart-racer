@@ -1,4 +1,5 @@
 import { cancelDrift, isDrifting } from './drift';
+import { isIntangible } from './items/effects';
 import { kartPhysics } from './kartStats';
 import { forwardFromHeading, type Vec3 } from './math';
 import { tuning } from './tuning';
@@ -92,6 +93,8 @@ export function resolveKartCollisions(
       const a = karts[i];
       const b = karts[j];
       if (!a || !b) continue;
+      // A phased kart (MK-66) passes through other karts.
+      if (isIntangible(a) || isIntangible(b)) continue;
       undoTunnelling(a, b, positionsBefore);
       const hit = contact(a, b);
       if (!hit) continue;

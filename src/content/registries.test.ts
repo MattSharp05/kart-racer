@@ -62,6 +62,8 @@ describe('content registries', () => {
       'lightning',
       'turbo-trio',
       'oil-slick',
+      'bubble-shield',
+      'phase',
     ]);
     expect(
       items
