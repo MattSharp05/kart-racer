@@ -7,14 +7,16 @@ import type { AiState, KartState } from '../types';
 import { curvatureAlong } from './curvature';
 
 /** Odd multipliers that spread the inputs of the route roll over the 32-bit seed. */
-const HASH = { kart: 0x9e3779b1, lap: 0x85ebca77, route: 0xc2b2ae3d, personality: 0x27d4eb2f };
+const HASH = { kart: 0x9e3779b1, route: 0xc2b2ae3d, personality: 0x27d4eb2f };
 /** Personality values are rounded to this many steps per unit before hashing. */
 const HASH_PRECISION = 1000;
 
 /**
  * Deterministic 0..1 for a driver, a lap and a route (the same race always makes the same calls,
  * and on every JS engine: integer hashing into the sim's seeded RNG). The driver's seeded
- * personality goes in, so the calls differ from race to race.
+ * personality goes in, so the calls differ from race to race. The lap moves the driver's roll on by
+ * `tuning.ai.routeLapStride` rather than re-rolling (MK-71): each driver still takes a route on its
+ * share of laps, but spread over the race instead of by luck.
  */
 export function routeRoll(kart: KartState, ai: AiState, lap: number, index: number): number {
   const personality =
@@ -22,10 +24,10 @@ export function routeRoll(kart: KartState, ai: AiState, lap: number, index: numb
     Math.round(ai.skill * HASH_PRECISION);
   const seed =
     Math.imul(kart.id + 1, HASH.kart) ^
-    Math.imul(lap + 1, HASH.lap) ^
     Math.imul(index + 1, HASH.route) ^
     Math.imul(personality, HASH.personality);
-  return rngFloat({ rngState: seedRng(seed >>> 0) });
+  const roll = rngFloat({ rngState: seedRng(seed >>> 0) }) + lap * tuning.ai.routeLapStride;
+  return roll - Math.floor(roll);
 }
 
 /**

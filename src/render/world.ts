@@ -49,6 +49,8 @@ export interface WorldOptions {
   poseFilter?: () => KartPoseFilter | null | undefined;
   /** The colour of a person's name tag, by kart id (online, MK-55). */
   playerColour?: (kartId: number) => string;
+  /** `&quality=low` (MK-71): start in, and keep, adaptive quality's lowest setting. */
+  lowQuality?: boolean;
 }
 
 /** A name tag's colour when the options don't say. */
@@ -121,6 +123,7 @@ export class World {
       this.lowQualityHooks.forEach((hook) => hook(lowQuality));
       this.markChanged();
     });
+    if (options.lowQuality) this.quality.forceLow();
   }
 
   /** A new state was loaded: rebuild the karts and switch camera to follow kart `follow`. */

@@ -39,6 +39,8 @@ export interface LaunchParams {
   laps?: number;
   /** Show the netcode debug overlay (the overlay is MK-45). */
   netdebug: boolean;
+  /** `&quality=low` (MK-71): render at adaptive quality's lowest setting from the start. */
+  lowQuality?: boolean;
   /**
    * `&lb=mock|offline` (MK-56): a stand-in leaderboard backend (made-up boards, or a lost
    * connection) instead of Supabase. Tests and QA links; never touches the real board.
@@ -72,6 +74,7 @@ export function parseLaunchParams(search: string): LaunchParams {
     ...(room ? { room } : {}),
     ...(netsim ? { netsim: oneWayOf(netsim) } : {}),
     ...(Number.isInteger(laps) && laps > 0 ? { laps } : {}),
+    ...(params.get('quality') === 'low' ? { lowQuality: true } : {}),
     ...(lb === 'mock' || lb === 'offline' ? { lb } : {}),
     paused: flag('paused'),
     tune: flag('tune'),

@@ -242,6 +242,12 @@ export const tuning = {
     /** It goes back to the racing line this far before the route's end (rejoined the road), m. */
     routeEndMargin: 8,
     /**
+     * A driver's route roll moves on by this each lap (MK-71), so its calls spread evenly over a
+     * 3-lap race: at a 35% chance every driver takes the route once or twice, never 0 or 3 times
+     * (independent rolls let a lucky kart save a shortcut every lap and leave the field 15%+ apart).
+     */
+    routeLapStride: 1 / 3,
+    /**
      * The driver that takes over a dropped online player's kart (MK-70): a fixed mid-pack
      * personality, not a seeded one, so the host and every client hand the kart over identically.
      */

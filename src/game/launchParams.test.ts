@@ -56,6 +56,13 @@ describe('ai-debug flag (MK-15)', () => {
   });
 });
 
+describe('quality flag (MK-71)', () => {
+  it('reads &quality=low, and leaves it out otherwise', () => {
+    expect(parseLaunchParams('?scenario=track-cog-works&quality=low').lowQuality).toBe(true);
+    expect(parseLaunchParams('?scenario=track-cog-works').lowQuality).toBeUndefined();
+  });
+});
+
 describe('leaderboard param (MK-56)', () => {
   it('reads &lb=mock and &lb=offline, and ignores anything else', () => {
     expect(parseLaunchParams('?scenario=leaderboard&lb=mock').lb).toBe('mock');

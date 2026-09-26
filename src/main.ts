@@ -34,6 +34,7 @@ const world = new World(canvas, game, {
   reducedMotion:
     params.reducedMotion || window.matchMedia('(prefers-reduced-motion: reduce)').matches,
   aiDebug: params.aiDebug,
+  ...(params.lowQuality ? { lowQuality: true } : {}),
   poseFilter: () => session.online?.smoother,
   playerColour: (kartId) => playerColour(session.online?.launch.colours, kartId),
 });
