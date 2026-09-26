@@ -21,8 +21,14 @@ function puddle(): THREE.Object3D {
     return mesh;
   };
   flat(new THREE.CircleGeometry(SLICK_RADIUS, 24), '#14121c', 0.92, 0);
-  flat(new THREE.RingGeometry(SLICK_RADIUS * 0.45, SLICK_RADIUS * 0.6, 24), '#5e3c99', 0.55, 0.005);
-  flat(new THREE.RingGeometry(SLICK_RADIUS * 0.6, SLICK_RADIUS * 0.72, 24), '#2a9d8f', 0.45, 0.005);
+  flat(
+    new THREE.RingGeometry(SLICK_RADIUS * 0.35, SLICK_RADIUS * 0.52, 24),
+    '#b15cff',
+    0.85,
+    0.005,
+  );
+  flat(new THREE.RingGeometry(SLICK_RADIUS * 0.52, SLICK_RADIUS * 0.68, 24), '#2ec4b6', 0.8, 0.005);
+  flat(new THREE.RingGeometry(SLICK_RADIUS * 0.68, SLICK_RADIUS * 0.8, 24), '#ffd23f', 0.6, 0.005);
   for (const [x, z, r] of [
     [1.7, 0.4, 0.25],
     [-1.2, -1.3, 0.2],

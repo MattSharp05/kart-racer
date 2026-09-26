@@ -23,7 +23,7 @@ test('oil slick puddle, seen from the AI behind (paused)', async ({ page }) => {
   await setInput(page, 0, { throttle: 1, item: true });
   await step(page, 1);
   await setInput(page, 0, { throttle: 1 });
-  await step(page, 10);
+  await step(page, 3);
   await frame(page);
   await expect(page).toHaveScreenshot('oil-slick-puddle.png');
 });
