@@ -320,24 +320,25 @@ export const tuning = {
   net: {
     /**
      * A correction from a snapshot is blended out over this long, s, so karts never teleport.
-     * 0.15 is the middle of the trade-off: at `net-bad`, 0.1 s makes the own kart's per-frame
-     * jumps 25 % bigger (p99 5 cm) and 0.2–0.25 s keep karts drawn off the truth 15–25 % longer.
+     * 0.15 is the middle of the trade-off at `net-bad`: 0.1 s makes per-frame jumps bigger (other
+     * players' karts p99 18 cm vs 14 cm) and 0.2–0.25 s draws karts further off the truth for
+     * longer (others p99 1.5–1.7 m vs 1.36 m).
      */
     smoothingSeconds: 0.15,
     /**
      * Corrections bigger than this snap at once (respawns, hits the client didn't foresee), m. Was
-     * 3: at `net-bad` a predicted kart is corrected by 3–7 m now and then (another player steered
+     * 3: at `net-bad` a predicted kart is corrected by 3–6 m now and then (another player steered
      * while their input was on its way, or used an item nobody could foresee: a lightning strike
      * moves every kart ~5 m), and snapping drew those karts teleporting. Blending them keeps every
-     * drawn kart under 0.8 m per frame over 10 full races (`net/soak.ts`).
+     * drawn kart under 1 m per frame (max ~0.8 m) over 10 full races (`net/soak.ts`).
      */
     snapDistance: 8,
     /**
      * Ticks the client runs ahead beyond a full RTT, so its inputs reach the host in time. Was 2:
-     * 1 gives the same late inputs at the host (only while the RTT estimate settles, ~6 per race at
-     * `net-bad`, 60 or 30 fps), and one tick less lead means less to re-simulate and other
-     * players' karts predicted 10 % closer to where they really are. 0 doubles the late inputs on
-     * a 30 fps phone. Real lag spikes add up to `NET.maxExtraLeadTicks` on top.
+     * 1 gives the same late inputs at the host (6.3 per client in 30 s at `net-bad`; 8.5 vs 8.2 on
+     * a 30 fps client), and one tick less lead means less to re-simulate and other players' karts
+     * predicted closer to where they really are (p99 1.36 m vs 1.58 m). 0 raises late inputs by
+     * half on a 30 fps client. Real lag spikes add up to `NET.maxExtraLeadTicks` on top.
      */
     inputDelayTicks: 1,
     /**
