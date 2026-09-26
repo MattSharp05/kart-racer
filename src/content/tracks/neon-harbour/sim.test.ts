@@ -46,8 +46,8 @@ function aimAt(x: number, z: number) {
 const hazardHits = (events: SimEvent[], kartId = 0) =>
   events.filter((e) => e.type === 'kartHit' && e.kartId === kartId && e.kind === 'hazard');
 
-/** Whether a vehicle's pose is up on the street (not driving back underneath it). */
-const onStreet = (pose: { y: number }) => pose.y > -tuning.hazards.clearance;
+/** Whether a vehicle is out on the street (not gone between its passes). */
+const onStreet = (pose: { amount: number }) => pose.amount > 0;
 
 describe('Neon Harbour data', () => {
   it('is registered as a real (menu) track with a night theme', () => {
@@ -111,13 +111,12 @@ describe('Neon Harbour traffic', () => {
     expect(a.state).toEqual(b.state);
   });
 
-  it('drives towards the racers along its lane on the city street, and back under it', () => {
+  it('drives towards the racers along its lane on the city street, then is gone for a while', () => {
     for (const vehicle of TRAFFIC_MOVERS) {
       const lanes = TRAFFIC_LANES.map((lateral) => city.z - lateral);
       let up = 0;
       for (let tick = 0; tick < PERIOD_TICKS; tick += 1) {
         const pose = hazardPose(vehicle, tick);
-        expect(pose.amount).toBe(1);
         if (!onStreet(pose)) continue;
         up += 1;
         // In one of the two lanes, within the city block, facing east (+X): oncoming.
@@ -126,8 +125,9 @@ describe('Neon Harbour traffic', () => {
         expect(pose.x).toBeLessThan(trafficX.sink + TRAFFIC.ramp);
         if (pose.y === 0) expect(Math.abs(pose.heading + Math.PI / 2)).toBeLessThan(0.01);
       }
-      // Up on the street for a good part of its loop.
+      // Out on the street for a good part of its period, and gone for the rest.
       expect(up / PERIOD_TICKS).toBeGreaterThan(0.4);
+      expect(up / PERIOD_TICKS).toBeLessThan(0.6);
     }
   });
 
@@ -145,30 +145,27 @@ describe('Neon Harbour traffic', () => {
     }
   });
 
-  it('a vehicle driving into a parked kart spins it out; driving back underneath, it never hits', () => {
+  it('a vehicle driving into a parked kart spins it out, and only a vehicle out on the street hits', () => {
     const lane = TRAFFIC_LANES[0];
     let s = kartOnTrack(1, 'neon-harbour', NEON_HARBOUR.tAt(160, city.z), { lateral: lane });
     let hits = 0;
-    let underneath = 0;
     for (let i = 0; i < PERIOD_TICKS; i += 1) {
       const result = step(s, [NEUTRAL_INPUT]);
       s = result.state;
       const kart = s.karts[0]!;
-      const poses = TRAFFIC_MOVERS.map((vehicle) => hazardPose(vehicle, s.tick));
-      const over = (p: { x: number; z: number }) =>
-        Math.hypot(p.x - kart.position.x, p.z - kart.position.z) < 3;
-      if (poses.some((p) => !onStreet(p) && over(p))) underneath += 1;
       for (const hit of hazardHits(result.events)) {
         expect(hit).toBeDefined();
         hits += 1;
-        // Only ever hit by a vehicle up on the street, right there.
-        expect(poses.some((p) => onStreet(p) && over(p))).toBe(true);
+        // Hit by a vehicle you can see, right there: its roof is above the road.
+        const hitter = TRAFFIC_MOVERS.map((vehicle) => hazardPose(vehicle, s.tick)).find(
+          (p) => onStreet(p) && Math.hypot(p.x - kart.position.x, p.z - kart.position.z) < 4,
+        );
+        expect(hitter).toBeDefined();
+        expect(hitter!.y).toBeGreaterThan(-TRAFFIC.depth);
         expect(kart.spinTimer).toBeGreaterThan(0);
       }
     }
     expect(hits).toBeGreaterThan(0);
-    // The loop does pass right under the kart's spot, harmlessly.
-    expect(underneath).toBeGreaterThan(0);
   });
 
   it('neon-harbour-traffic: holding W gets you hit; changing lanes misses', () => {

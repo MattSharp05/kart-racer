@@ -138,23 +138,27 @@ const warehouseGap = (x: number, z0: number, z1: number) => {
   return { from: Math.min(a, b), to: Math.max(a, b), side: 'right' as const };
 };
 
-/** Traffic: speed (m/s), how many vehicles per lane, and how deep they drive under the street, m. */
-export const TRAFFIC = { speed: 9, perLane: 2, depth: 3.5, ramp: 6 };
+/**
+ * Traffic: speed (m/s) and how many vehicles per lane; each comes up a ramp out of the street from
+ * `depth` m down (its roof level with the road), over `ramp` m, and goes back down one.
+ */
+export const TRAFFIC = { speed: 9, perLane: 2, depth: 1.4, ramp: 6 };
 /** The two lanes (lateral offset from the street's centreline: its z is `CITY.z − lateral`). */
 export const TRAFFIC_LANES = [-4, 4] as const;
 /** Where traffic comes up out of the street (west) and goes back under it (east), world x. */
 const TRAFFIC_X = { rise: 118, sink: 205 };
 
-/** Vehicle sizes: collider radius, m. */
+/** Vehicles: collider radius, m. */
 const CAR = { radius: 1.5 };
 const TRUCK = { radius: 1.9 };
 
 /**
- * One lane's closed loop: out of the street at its west end, east along the lane (towards the
- * racers: oncoming), back under the street at its east end, and west again underground, out of
- * sight and out of reach (deeper than `tuning.hazards.clearance`).
+ * One lane's path: up out of the street at its west end, east along the lane (towards the racers:
+ * oncoming), and back down under the street at its east end. An open path: in between, the vehicle
+ * is gone (out of sight and out of reach) for as long as driving back west underneath would take,
+ * so it only ever touches a kart when you can see it.
  */
-function laneLoop(lateral: number): Vec3[] {
+function lanePath(lateral: number): Vec3[] {
   // Heading west, a kart's right is north (−Z): lateral +4 is z − 4.
   const z = CITY.z - lateral;
   const { depth, ramp } = TRAFFIC;
@@ -166,17 +170,17 @@ function laneLoop(lateral: number): Vec3[] {
   ];
 }
 
-function loopLength(path: Vec3[]): number {
-  return path.reduce((sum, a, i) => {
-    const b = path[(i + 1) % path.length] ?? a;
+function pathLength(path: Vec3[]): number {
+  return path.slice(1).reduce((sum, b, i) => {
+    const a = path[i] ?? b;
     return sum + Math.hypot(b.x - a.x, b.y - a.y, b.z - a.z);
   }, 0);
 }
 
 /**
- * The traffic: 2 vehicles per lane, evenly spaced round the lane's loop, all at the same speed.
- * The second lane runs half a spacing behind the first, so beside every vehicle the other lane is
- * clear for half a spacing either way: there is always a gap.
+ * The traffic: 2 vehicles per lane, evenly spaced in time, all at the same speed. The second lane
+ * runs half a spacing behind the first, so beside every vehicle the other lane is clear for half a
+ * spacing either way: there is always a gap.
  */
 function traffic(): MoverHazard[] {
   const vehicles: { lane: number; slot: number; body: number; truck?: boolean }[] = [
@@ -185,16 +189,18 @@ function traffic(): MoverHazard[] {
     { lane: 1, slot: 0, body: 0x2a9df4, truck: true },
     { lane: 1, slot: 1, body: 0x9b5de5 },
   ];
+  // Out of sight for as long as driving back to the start underneath would take.
+  const hidden = TRAFFIC_X.sink - TRAFFIC_X.rise + 2 * TRAFFIC.ramp;
   return vehicles.map(({ lane, slot, body, truck }) => {
-    const path = laneLoop(TRAFFIC_LANES[lane] ?? 0);
-    const period = loopLength(path) / TRAFFIC.speed;
-    const phase = (slot + lane / 2) / TRAFFIC.perLane;
+    const path = lanePath(TRAFFIC_LANES[lane] ?? 0);
+    const street = pathLength(path);
     return {
       kind: 'mover',
       path,
-      period,
+      period: (street + hidden) / TRAFFIC.speed,
+      activeFraction: street / (street + hidden),
       radius: truck ? TRUCK.radius : CAR.radius,
-      phase,
+      phase: (slot + lane / 2) / TRAFFIC.perLane,
       vehicle: truck ? { body, truck } : { body },
     };
   });

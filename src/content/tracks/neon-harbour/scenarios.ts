@@ -43,7 +43,7 @@ export function trafficPassTick(vehicle: MoverHazard, x: number): number {
   for (let tick = 0; tick < period; tick += 1) {
     const now = hazardPose(vehicle, tick);
     const next = hazardPose(vehicle, tick + 1);
-    if (now.y > -0.5 && now.x < x && next.x >= x) return tick + 1;
+    if (now.amount > 0 && now.x < x && next.x >= x) return tick + 1;
   }
   throw new Error('Neon Harbour traffic never passes x');
 }
