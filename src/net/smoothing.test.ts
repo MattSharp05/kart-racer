@@ -54,18 +54,20 @@ describe('CorrectionSmoother', () => {
   });
 
   it('snaps corrections above the snap threshold (respawns, unforeseen hits)', () => {
+    const snap = tuning.net.snapDistance;
     const smoother = new CorrectionSmoother();
-    smoother.correct([{ kartId: 0, dx: 3.2, dy: 0, dz: 0, dHeading: 0 }], 10);
+    smoother.correct([{ kartId: 0, dx: snap + 0.2, dy: 0, dz: 0, dHeading: 0 }], 10);
     expect(smoother.offsetSize(0)).toBe(0);
     // Just under the threshold blends.
-    smoother.correct([{ kartId: 0, dx: 2.9, dy: 0, dz: 0, dHeading: 0 }], 10);
-    expect(smoother.offsetSize(0)).toBeCloseTo(2.9);
+    smoother.correct([{ kartId: 0, dx: snap - 0.1, dy: 0, dz: 0, dHeading: 0 }], 10);
+    expect(smoother.offsetSize(0)).toBeCloseTo(snap - 0.1);
     // A big one clears what was still being blended, too.
-    smoother.correct([{ kartId: 0, dx: 0, dy: 0, dz: 5, dHeading: 0 }], 11);
+    smoother.correct([{ kartId: 0, dx: 0, dy: 0, dz: snap + 2, dHeading: 0 }], 11);
     expect(drawn(smoother, 0, 11)).toEqual(pose());
     // …and so does an offset that adds up past it.
-    smoother.correct([{ kartId: 1, dx: 2, dy: 0, dz: 0, dHeading: 0 }], 12);
-    smoother.correct([{ kartId: 1, dx: 2, dy: 0, dz: 0, dHeading: 0 }], 13);
+    const half = snap * 0.6;
+    smoother.correct([{ kartId: 1, dx: half, dy: 0, dz: 0, dHeading: 0 }], 12);
+    smoother.correct([{ kartId: 1, dx: half, dy: 0, dz: 0, dHeading: 0 }], 13);
     expect(smoother.offsetSize(1)).toBe(0);
   });
 

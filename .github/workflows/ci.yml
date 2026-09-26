@@ -27,6 +27,7 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm test
       - run: pnpm test:perf
+      - run: pnpm test:netsoak
       - run: pnpm build
       - run: pnpm check:bundle
 

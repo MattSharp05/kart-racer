@@ -12,6 +12,14 @@ export const NET = {
   inputRedundancy: 6,
   /** Extra lead the client adds, one tick at a time, when the host reports its input was late. */
   maxExtraLeadTicks: 4,
+  /**
+   * The most the client runs ahead of the newest snapshot, ticks (600 ms: an RTT of ~550 ms plus
+   * the input delay and extra lead). Every reconcile re-simulates the lead, so without a cap a
+   * client whose CPU falls behind spirals (MK-73): its pongs wait, the RTT it measures grows, the
+   * lead and the replays grow with it, and it falls further behind (seen in CI: RTT 2.9 s, 186 ticks
+   * ahead, the page frozen for 20+ s). Past this the host holds our late inputs instead.
+   */
+  maxLeadTicks: 36,
   /** Snapshots in a row with our input on time before the extra lead drops a tick (2 s). */
   extraLeadDecaySnapshots: 40,
   /** The client eases 1 tick per snapshot towards its target tick; further off than this, it jumps. */

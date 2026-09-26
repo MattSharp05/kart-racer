@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { step } from '../sim/step';
 import type { InputFrame } from '../sim/types';
 import { OnlineClient } from './client';
+import { NET } from './config';
 import { OnlineHost } from './host';
 import { createLoopbackPair, parseNetConditions } from './netsim';
 import {
@@ -301,5 +302,30 @@ describe('OnlineClient prediction for the player (MK-45)', () => {
     expect(owned(client.state!)).toBe(0); // the next snapshot took it back
     expect(owned(host.state)).toBe(0);
     expect(later.filter((e) => e.type === 'itemUsed' || e.type === 'kartHit')).toEqual([]);
+  });
+});
+
+describe('OnlineClient lead cap (MK-73)', () => {
+  it('never runs more than NET.maxLeadTicks ahead, however large the RTT', () => {
+    // 1.5 s each way: a 3 s round trip, like a client whose CPU fell behind and whose pongs wait.
+    const { host, clients, clock } = onlineRace({
+      clients: 1,
+      conditions: parseNetConditions('1500,0,0'),
+    });
+    const client = clients[0]!;
+    let mostReplayed = 0;
+    for (let i = 0; i < 20 * 60; i += 1) {
+      host.tick(scriptedInput(host.state.karts[0], host.state.tick, 0));
+      client.tick(scriptedInput(client.state?.karts[CLIENT_KART], client.state?.tick ?? 0, 1));
+      clock.advance(TICK_MS);
+      mostReplayed = Math.max(mostReplayed, client.stats.lastReplayTicks);
+    }
+    expect(client.stats.rttMs).toBeGreaterThan(2500);
+    expect(client.leadTicks()).toBe(NET.maxLeadTicks);
+    // A reconcile re-simulates at most the lead (plus the clock's easing).
+    expect(mostReplayed).toBeLessThanOrEqual(NET.maxLeadTicks + NET.maxTickDrift);
+    expect(client.state!.tick - client.snapshotTick).toBeLessThanOrEqual(
+      NET.maxLeadTicks + NET.maxTickDrift,
+    );
   });
 });

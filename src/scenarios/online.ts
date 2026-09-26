@@ -1,5 +1,7 @@
 import { oneWayOf, type NetConditions } from '../net/netsim';
 import { KART_IDS } from '../sim/data/karts';
+import { duneCanyon } from '../content/tracks/dune-canyon/sim';
+import { frostpeakPass } from '../content/tracks/frostpeak-pass/sim';
 import { sunnyCircuit } from '../content/tracks/sunny-circuit/sim';
 import { createRace, type CreateRaceOptions, type RacerSlot } from '../sim/race/createRace';
 import { DT } from '../sim/tuning';
@@ -34,17 +36,26 @@ export const NETSIM_PRESETS = {
  * The host's race: kart 0 is the host, karts 1..players-1 the clients, the rest AI. The players are
  * "Player 1…n" (the lobby gives them their nicknames; name tags show them, MK-55).
  */
-function onlineRaceOptions(seed: number, players: number): CreateRaceOptions {
+function onlineRaceOptions(
+  seed: number,
+  players: number,
+  trackId: string = sunnyCircuit.id,
+): CreateRaceOptions {
   const racers = Array.from({ length: KARTS_PER_RACE }, (_, i): RacerSlot => ({
     kartId: KART_IDS[i % KART_IDS.length] ?? 'maple',
     controller: i === 0 ? 'local' : i < players ? 'remote' : 'ai',
     ...(i < players ? { name: `Player ${i + 1}` } : {}),
   }));
-  return { trackId: sunnyCircuit.id, racers, engineClass: 100, itemsOn: true, seed };
+  return { trackId, racers, engineClass: 100, itemsOn: true, seed };
 }
 
-function onlineRace(seed: number, players: number, netsim?: NetConditions): ScenarioSetup {
-  const race = onlineRaceOptions(seed, players);
+function onlineRace(
+  seed: number,
+  players: number,
+  netsim?: NetConditions,
+  trackId?: string,
+): ScenarioSetup {
+  const race = onlineRaceOptions(seed, players, trackId);
   return {
     state: createRace(race),
     view: 'chase',
@@ -189,4 +200,13 @@ export const onlineScenarios: Scenario[] = [
     defaultSeed: 1,
     setup: (seed) => onlineRace(seed, 2, NETSIM_PRESETS.bad),
   },
+  // The phone perf check (MK-73): a full room on the bad network, on each real track (Frostpeak
+  // Pass is the heaviest to draw: snowfall, rolling snowballs, ~85 draw calls).
+  ...[sunnyCircuit, duneCanyon, frostpeakPass].map((track): Scenario => ({
+    name: `net-bad-4p-${track.id}`,
+    group: ONLINE_GROUP,
+    description: `4-player online race on ${track.name} over the bad simulated network (200 ms RTT, 50 ms jitter, 8 % loss): open the host link, then the client link in 3 more windows.`,
+    defaultSeed: 1,
+    setup: (seed) => onlineRace(seed, 4, NETSIM_PRESETS.bad, track.id),
+  })),
 ];

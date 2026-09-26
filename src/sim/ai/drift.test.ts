@@ -89,5 +89,5 @@ describe('rubber-banding', () => {
       return Math.max(...times) - Math.min(...times);
     };
     expect(spread(true)).toBeLessThan(spread(false));
-  });
+  }, 60_000); // Two 8-kart 3-lap races: ~11 s of CPU, up to 20+ s on CI's 2-core runner.
 });

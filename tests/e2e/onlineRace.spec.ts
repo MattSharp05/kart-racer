@@ -93,6 +93,9 @@ test.describe('/dev Online group', () => {
   test('lists the online scenarios with host and client links that join one room', async ({
     context,
   }) => {
+    // Two pages race in real time with software GL until they're paused: 28 s of the default 30 s
+    // on a busy CI runner (MK-73), so give it room.
+    test.setTimeout(60_000);
     const dev = await context.newPage();
     await dev.goto('/dev.html');
     const group = dev.locator('section', { has: dev.getByRole('heading', { name: 'Online' }) });
