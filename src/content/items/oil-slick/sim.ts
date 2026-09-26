@@ -45,7 +45,7 @@ export default {
   name: 'Oil Slick',
   order: 120,
   // Front and mid (1st place … 8th place); balanced in MK-72 (each row sums to 1).
-  odds: [0.12, 0.09, 0.07, 0.05, 0.02, 0, 0, 0],
+  odds: [0.08, 0.07, 0.06, 0.04, 0.02, 0, 0, 0],
   onUse: (kart, state) => {
     // On the road under where it lands, even when dropped mid-air (like a banana).
     const slick = spawnEntity(state, 'oil-slick', kart);

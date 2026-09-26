@@ -68,7 +68,7 @@ describe('item framework (MK-52)', () => {
   it('the MVP columns of the odds table; only listed items have odds', () => {
     const mvp = ['mushroom', 'banana', 'green', 'red', 'star', 'lightning'];
     // MK-72 balanced all 14 items so each row sums to 1: the MVP columns shrank to make room for
-    // the 8 new items, and Lightning (behind 34% of all hits in the balance run) was halved.
+    // the 8 new items, and Lightning (behind 34% of all hits in the first balance run) was cut.
     const withOdds = [
       ...mvp,
       'turbo-trio',
@@ -84,14 +84,14 @@ describe('item framework (MK-52)', () => {
     // Columns: mushroom banana green red star lightning; rows: 1st … 8th place.
     expect(table.map((row) => mvp.map((id) => row[id]).join(' '))).toMatchInlineSnapshot(`
       [
-        "0.1 0.28 0.24 0 0 0",
-        "0.18 0.16 0.18 0.1 0 0",
-        "0.18 0.1 0.13 0.17 0 0",
-        "0.17 0.06 0.1 0.2 0 0",
-        "0.15 0 0.06 0.18 0.07 0.02",
-        "0.15 0 0 0.16 0.11 0.04",
-        "0.13 0 0 0.14 0.15 0.06",
-        "0.1 0 0 0.12 0.18 0.08",
+        "0.14 0.28 0.24 0 0 0",
+        "0.2 0.16 0.18 0.1 0 0",
+        "0.19 0.1 0.13 0.17 0 0",
+        "0.18 0.06 0.1 0.2 0 0",
+        "0.15 0 0.06 0.17 0.07 0.03",
+        "0.15 0 0 0.15 0.11 0.05",
+        "0.13 0 0 0.13 0.15 0.07",
+        "0.1 0 0 0.11 0.18 0.09",
       ]
     `);
     for (const row of table) {

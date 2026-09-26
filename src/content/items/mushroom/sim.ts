@@ -8,6 +8,6 @@ export default {
   name: 'Mushroom',
   order: 10,
   // 1st place … 8th place.
-  odds: [0.1, 0.18, 0.18, 0.17, 0.15, 0.15, 0.13, 0.1],
+  odds: [0.14, 0.2, 0.19, 0.18, 0.15, 0.15, 0.13, 0.1],
   onUse: (kart, _state, events) => applyBoost(kart, tuning.mushroomSeconds, events),
 } satisfies ItemContent;

@@ -120,13 +120,13 @@ describe('content registries', () => {
     expect(Object.keys(itemFolderScenarios).sort()).toEqual(withScenarios);
   });
 
-  it('assemble odds rows of odds from the items’ own odds', () => {
+  it('assemble odds rows from the items’ own odds', () => {
     expect(oddsTable()).toHaveLength(ODDS_ROWS);
     for (const row of oddsTable()) {
       expect(Object.values(row).every((w) => w >= 0)).toBe(true);
       expect(Object.values(row).reduce((a, b) => a + b, 0)).toBeGreaterThan(0);
     }
-    expect(oddsRow(1, 8)).toMatchObject({ banana: 0.28, green: 0.24, mushroom: 0.1 });
+    expect(oddsRow(1, 8)).toMatchObject({ banana: 0.28, green: 0.24, mushroom: 0.14 });
   });
 });
 
