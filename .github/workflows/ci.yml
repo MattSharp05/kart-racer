@@ -54,6 +54,8 @@ jobs:
 
   e2e:
     # One job per Playwright project, in parallel (they used to run one after another: ~20 min).
+    # The multi-page online specs have their own `*-online` projects and jobs (MK-80), so they
+    # run one at a time on a runner of their own instead of starving each other and the rest.
     name: E2E (${{ matrix.project }})
     needs: [checks, changes]
     if: needs.changes.outputs.app == 'true'
@@ -63,8 +65,10 @@ jobs:
       matrix:
         include:
           - { project: desktop-chrome, browser: chromium }
+          - { project: desktop-chrome-online, browser: chromium }
           - { project: pixel-landscape, browser: chromium }
           - { project: desktop-webkit, browser: webkit }
+          - { project: desktop-webkit-online, browser: webkit }
           - { project: iphone-landscape, browser: webkit }
           - { project: ipad, browser: webkit }
     steps:
