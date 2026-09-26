@@ -112,6 +112,14 @@ test('after a personal best: "Submitted — you\'re #N", and See leaderboard sho
   const status = page.locator('.menu-results .leaderboard-status');
   await expect(status).toHaveText(/^Submitted — you're #\d+$/);
   const rank = (await status.textContent())?.match(/#(\d+)/)?.[1] ?? '';
+  // With the records and this line, the results still fit (phones included).
+  const fits = await page
+    .locator('.menu-results')
+    .evaluate(
+      (el) =>
+        el.getBoundingClientRect().bottom <= innerHeight && el.scrollHeight <= el.clientHeight + 1,
+    );
+  expect(fits).toBe(true);
 
   await page.getByRole('button', { name: 'See leaderboard' }).click();
   await expect(tab(page, 'Sunny Circuit')).toHaveAttribute('aria-selected', 'true');
