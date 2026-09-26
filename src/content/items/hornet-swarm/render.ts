@@ -3,8 +3,10 @@ import { hz } from '../../../audio/synth';
 import { ItemEntityRenderer } from '../../../render/entities';
 import type { ItemView } from '../views';
 
-/** Hornets fly this high above the road (the entity renderer already lifts models 0.4 m). */
-const FLY_HEIGHT = 0.5;
+/** Hornets fly this high above the road (the entity renderer already lifts models 0.4 m)… */
+const FLY_HEIGHT = 0.6;
+/** …and are drawn this much bigger than life, so they read at racing distance. */
+const SIZE = 1.5;
 
 /**
  * A small striped hornet facing −Z (the renderer turns it to its travel direction): a yellow body
@@ -14,6 +16,7 @@ const FLY_HEIGHT = 0.5;
 function hornet(): THREE.Object3D {
   const group = new THREE.Group();
   group.position.y = FLY_HEIGHT;
+  group.scale.setScalar(SIZE);
   const solid = (geometry: THREE.BufferGeometry, color: string) =>
     new THREE.Mesh(
       geometry,
@@ -63,13 +66,13 @@ export default {
   id: 'hornet-swarm',
   // Three hornets in a V.
   icon: [
-    [32, 20],
-    [16, 42],
-    [48, 42],
+    [32, 19],
+    [15, 44],
+    [49, 44],
   ]
     .map(
       ([x, y]) =>
-        `<g transform="translate(${x} ${y})"><ellipse cx="-4" cy="-8" rx="6" ry="4" fill="#e8f6ff" stroke="#9ab" stroke-width="1"/><ellipse cx="4" cy="-8" rx="6" ry="4" fill="#e8f6ff" stroke="#9ab" stroke-width="1"/><ellipse rx="10" ry="7" fill="#ffc300" stroke="#1b1b1b" stroke-width="2"/><path d="M-3-6.5v13M3-6.5v13" stroke="#1b1b1b" stroke-width="3"/><circle cx="-11" r="4" fill="#1b1b1b"/><path d="M10 0l5 0" stroke="#1b1b1b" stroke-width="2"/></g>`,
+        `<g transform="translate(${x} ${y}) scale(1.2)"><ellipse cx="-4" cy="-8" rx="6" ry="4" fill="#e8f6ff" stroke="#9ab" stroke-width="1"/><ellipse cx="4" cy="-8" rx="6" ry="4" fill="#e8f6ff" stroke="#9ab" stroke-width="1"/><ellipse rx="10" ry="7" fill="#ffc300" stroke="#1b1b1b" stroke-width="2"/><path d="M-3-6.5v13M3-6.5v13" stroke="#1b1b1b" stroke-width="3"/><circle cx="-11" r="4" fill="#1b1b1b"/><path d="M10 0l5 0" stroke="#1b1b1b" stroke-width="2"/></g>`,
     )
     .join(''),
   useSound: 'hornet-swarm.use',
