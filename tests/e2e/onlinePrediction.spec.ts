@@ -6,7 +6,11 @@ import { autopilotAll, netInfo, openRoom, stepAll } from './online';
 
 /** The ticket's lag: 150 ms round trip, 30 ms jitter, 5 % loss. */
 const NETSIM = '150,30,5';
-const BATCH = 300;
+/**
+ * Ticks between checks for the client's finish on the host. Short (1 s): the client's results
+ * screen covers its HUD 2.5 s after the finish, so the host must notice the finish well before that.
+ */
+const BATCH = 60;
 /** A 1-lap race is ~62 s; give it plenty. */
 const MAX_TICKS = 60 * 100;
 /** Real-time stepping (see `StepAllOptions.paceMs`): 3 ticks per 50 ms. */
