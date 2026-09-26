@@ -314,16 +314,37 @@ export const tuning = {
   /** A kart further than this past a wall line is on its far side (e.g. a shortcut), not in it, m. */
   wallMaxPenetration: 3,
   // --- Online (MK-45): how a client shows the predicted race. Protocol constants: net/config.ts ---
+  // Defaults tuned in MK-73 with the netcode lab (`net/netLab.ts`: a 4-player room over loopback at
+  // `net-good` 80/10/1 % and `net-bad` 200/50/8 %, 60 and 30 fps clients); the numbers and the
+  // rejected options are in ADR 0005 → "Tuning (MK-73)".
   net: {
-    /** A correction from a snapshot is blended out over this long, s, so karts never teleport. */
+    /**
+     * A correction from a snapshot is blended out over this long, s, so karts never teleport.
+     * 0.15 is the middle of the trade-off: at `net-bad`, 0.1 s makes the own kart's per-frame
+     * jumps 25 % bigger (p99 5 cm) and 0.2–0.25 s keep karts drawn off the truth 15–25 % longer.
+     */
     smoothingSeconds: 0.15,
-    /** Corrections bigger than this snap at once (respawns, hits the client didn't foresee), m. */
-    snapDistance: 3,
-    /** Ticks the client runs ahead beyond a full RTT, so its inputs reach the host in time. */
-    inputDelayTicks: 2,
+    /**
+     * Corrections bigger than this snap at once (respawns, hits the client didn't foresee), m. Was
+     * 3: at `net-bad` a predicted kart is corrected by 3–7 m now and then (another player steered
+     * while their input was on its way, or used an item nobody could foresee: a lightning strike
+     * moves every kart ~5 m), and snapping drew those karts teleporting. Blending them keeps every
+     * drawn kart under 0.8 m per frame over 10 full races (`net/soak.ts`).
+     */
+    snapDistance: 8,
+    /**
+     * Ticks the client runs ahead beyond a full RTT, so its inputs reach the host in time. Was 2:
+     * 1 gives the same late inputs at the host (only while the RTT estimate settles, ~6 per race at
+     * `net-bad`, 60 or 30 fps), and one tick less lead means less to re-simulate and other
+     * players' karts predicted 10 % closer to where they really are. 0 doubles the late inputs on
+     * a 30 fps phone. Real lag spikes add up to `NET.maxExtraLeadTicks` on top.
+     */
+    inputDelayTicks: 1,
     /**
      * How other players' karts are drawn: `predict` (their last known input, like the rest of the
-     * race) or `interpolate` (the host's snapshots, `interpolationSeconds` in the past).
+     * race) or `interpolate` (the host's snapshots, `interpolationSeconds` in the past). Predict:
+     * interpolated karts are always smooth but drawn 6 m (`net-good`) to 10 m (`net-bad`) behind
+     * where they are (the lead plus the delay), against 2–6 cm for predicted ones.
      */
     remoteKarts: 'predict' as RemoteKartMode,
     /** How far behind the newest snapshot interpolated remote karts are drawn, s. */
