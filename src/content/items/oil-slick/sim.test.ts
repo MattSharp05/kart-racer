@@ -4,6 +4,7 @@ import { createSimState } from '../../../sim/state';
 import { step } from '../../../sim/step';
 import { applyEffect, getEffect, hasEffect } from '../../../sim/items/effects';
 import { spawnEntity } from '../../../sim/items/entities';
+import { giveItem } from '../../../sim/items';
 import { forwardFromHeading, wrapAngleDelta } from '../../../sim/math';
 import { trackGeometry } from '../../../sim/track';
 import { tuning } from '../../../sim/tuning';
@@ -182,6 +183,24 @@ describe('Oil Slick (MK-65)', () => {
     const t = geometry.project(you.position).t + 8 / geometry.length;
     follower.position = geometry.pointAt(t, 0);
     expect(oilSlick.aiUse(you, state, ctx)).toBe(false);
+  });
+
+  it('lands on the road when dropped mid-air', () => {
+    let state = padKart();
+    const kart = state.karts[0]!;
+    kart.position = { ...kart.position, y: 3 };
+    kart.grounded = false;
+    giveItem(kart, 'oil-slick');
+    state = run(state, 1, { item: true }).state;
+    expect(slicks(state)[0]!.position.y).toBe(0);
+  });
+
+  it('ends the slide when the kart is being respawned (the drone sets its heading)', () => {
+    let state = padKart();
+    applyEffect(state.karts[0]!, 'oil-slick', SLIDE_TICKS, state, []);
+    state.karts[0]!.respawnTimer = 1;
+    state = run(state, 1).state;
+    expect(hasEffect(state.karts[0]!, 'oil-slick')).toBe(false);
   });
 
   it('is deterministic', () => {

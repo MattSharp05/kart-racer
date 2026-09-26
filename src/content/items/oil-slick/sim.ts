@@ -4,6 +4,7 @@ import { applyEffect, effectsBlockHit, hasEffect } from '../../../sim/items/effe
 import { spawnEntity, touchKarts } from '../../../sim/items/entities';
 import { canBeHit } from '../../../sim/items/hit';
 import { forwardFromHeading, wrapAngleDelta } from '../../../sim/math';
+import { getTrack, groundAt } from '../../../sim/track';
 import { DT, tuning } from '../../../sim/tuning';
 import type { KartState, SimEvent } from '../../../sim/types';
 
@@ -46,7 +47,10 @@ export default {
   // Front and mid (1st place … 8th place); relative weights, the balance pass (MK-72) tunes them.
   odds: [0.2, 0.15, 0.12, 0.1, 0.05, 0, 0, 0],
   onUse: (kart, state) => {
-    spawnEntity(state, 'oil-slick', kart);
+    // On the road under where it lands, even when dropped mid-air (like a banana).
+    const slick = spawnEntity(state, 'oil-slick', kart);
+    const ground = groundAt(getTrack(state.trackId), slick.position);
+    if (ground.surface !== 'out') slick.position = { ...slick.position, y: ground.height };
   },
   // AI: drop it when someone is close behind.
   aiUse: (kart, state, { geometry, aheadMetres }) => {
@@ -78,7 +82,11 @@ export default {
         effect.data = [x, z, 0, right < 0 ? -1 : 1];
         cancelDrift(kart, events);
       },
-      onTick: (kart, effect, _state, dt) => slide(kart, effect.data, dt),
+      onTick: (kart, effect, _state, dt) => {
+        // Off the edge: the pickup drone puts it back facing the right way, grip restored.
+        if (kart.respawnTimer > 0) effect.ticksLeft = 0;
+        else slide(kart, effect.data, dt);
+      },
     },
   ],
   entities: [
