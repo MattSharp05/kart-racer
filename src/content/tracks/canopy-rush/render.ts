@@ -1,9 +1,8 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { clearOfTrack, distanceToTrack, random, scenerySets } from '../../../render/scenery';
-import { swayDeckFrame } from '../../../sim/hazards/sway';
-import type { SwayHazard } from '../../../sim/hazards/types';
-import { insidePolygon, type TrackGeometry } from '../../../sim/splineTrack';
+import { hazardHidesRoad } from '../../../render/hazards';
+import { insidePolygon, type TrackGeometry, type TrackSample } from '../../../sim/splineTrack';
 import { DT } from '../../../sim/tuning';
 import type { TrackView } from '../render';
 import { CANOPY_RUSH } from './sim';
@@ -155,7 +154,15 @@ function scenery(geometry: TrackGeometry): THREE.Object3D {
   group.add(embankments(geometry));
   group.add(ruins(rand, dummy));
   group.add(waterfall(geometry));
-  group.add(sunShafts(geometry, rand));
+  const shafts = sunShafts(geometry, rand);
+  group.add(shafts);
+  const streaks = group.getObjectByName('waterfall-streaks') as THREE.InstancedMesh;
+  group.userData.moving = {
+    shafts,
+    spots: shafts.userData.spots,
+    streaks,
+    scatter: streaks.userData.scatter,
+  } satisfies Moving;
   return group;
 }
 
@@ -267,20 +274,14 @@ function hills(
  * bridges, which hang over the drop. One draw.
  */
 function embankments(geometry: TrackGeometry): THREE.Object3D {
-  const decks = (geometry.def.hazards ?? []).filter(
-    (hazard): hazard is SwayHazard => hazard.kind === 'sway',
-  );
-  const onDeck = (x: number, z: number) =>
-    decks.some((deck) => {
-      const frame = swayDeckFrame(deck, { x, y: 0, z });
-      return frame.u > -0.01 && frame.u < 1.01 && Math.abs(frame.across) < deck.halfWidth + 1;
-    });
+  const hazards = geometry.def.hazards ?? [];
+  const onDeck = (s: TrackSample) => hazardHidesRoad(hazards, s);
   const positions: number[] = [];
   const n = geometry.samples.length;
   for (let i = 0; i < n; i += 1) {
     const a = geometry.sample(i);
     const b = geometry.sample(i + 1);
-    if ((a.y < 0.2 && b.y < 0.2) || onDeck(a.x, a.z) || onDeck(b.x, b.z)) continue;
+    if ((a.y < 0.2 && b.y < 0.2) || onDeck(a) || onDeck(b)) continue;
     for (const side of [-1, 1]) {
       const la = side * geometry.wallOffset(a.width);
       const lb = side * geometry.wallOffset(b.width);
@@ -415,7 +416,7 @@ function ruins(rand: () => number, dummy: THREE.Object3D): THREE.Object3D {
 /** The cliff the waterfall drops off (world x, z), and its height, m. */
 const CLIFF = { x0: -66, x1: -21, z0: -30, z1: 26, height: 24 };
 /** The stream from the waterfall's pool, east across the road under the jump. */
-const STREAM = { z: 15, half: 4, x1: 42 };
+const STREAM = { z: CANOPY_RUSH.jumpZ - 7, half: 4, x1: 42 };
 /** Falling-water streaks on the waterfall, and how fast they fall, m/s. */
 const STREAKS = { count: 40, speed: 14 };
 
@@ -485,6 +486,14 @@ function waterfall(geometry: TrackGeometry): THREE.Object3D {
     STREAKS.count,
   );
   streaks.name = 'waterfall-streaks';
+  // A fixed scatter (a hash, not Math.random), so screenshots are stable.
+  streaks.userData.scatter = Array.from({ length: STREAKS.count }, (_, i) => {
+    const h = (n: number) => {
+      const v = Math.sin((i + 1) * 12.9898 + n * 78.233) * 43758.5453;
+      return v - Math.floor(v);
+    };
+    return { start: h(1), across: (h(2) * 2 - 1) * (STREAM.half - 0.4) };
+  });
   streaks.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
   // The streaks move every frame: bound the whole waterfall once, so it's culled off screen.
   streaks.boundingSphere = new THREE.Sphere(
@@ -507,7 +516,7 @@ function riverDistance(x: number, z: number): number {
 }
 
 /** Sun shafts: tall soft planes of light through the canopy, turned to face the camera. One draw. */
-function sunShafts(geometry: TrackGeometry, rand: () => number): THREE.Object3D {
+function sunShafts(geometry: TrackGeometry, rand: () => number): THREE.InstancedMesh {
   const canvas = document.createElement('canvas');
   canvas.width = 32;
   canvas.height = 128;
@@ -561,48 +570,41 @@ function sunShafts(geometry: TrackGeometry, rand: () => number): THREE.Object3D 
 }
 
 /** Per frame: sun shafts turn to face the camera; the waterfall's streaks fall with the tick. */
+/** Scratch object reused every frame (no garbage per frame). */
+const scratch = new THREE.Object3D();
+
+/** The moving parts of the scenery, found once in `scenery()`. */
+interface Moving {
+  shafts: THREE.InstancedMesh;
+  spots: { x: number; z: number; width: number; height: number }[];
+  streaks: THREE.InstancedMesh;
+  /** Each streak's start height (0..1 of the fall) and sideways offset on the sheet, m. */
+  scatter: { start: number; across: number }[];
+}
+
 function update(scenery: THREE.Object3D, ticks: number, camera: THREE.Vector3): void {
-  const dummy = new THREE.Object3D();
-  const shafts = scenery.getObjectByName('sun-shafts');
-  if (shafts instanceof THREE.InstancedMesh) {
-    const spots = shafts.userData.spots as {
-      x: number;
-      z: number;
-      width: number;
-      height: number;
-    }[];
-    spots.forEach((spot, i) => {
-      dummy.position.set(spot.x, 0, spot.z);
-      // Upright, turned about the vertical to face the camera, leaning a little with the sun.
-      dummy.rotation.set(0, Math.atan2(camera.x - spot.x, camera.z - spot.z), 0.18);
-      dummy.scale.set(spot.width, spot.height, 1);
-      dummy.updateMatrix();
-      shafts.setMatrixAt(i, dummy.matrix);
-    });
-    shafts.instanceMatrix.needsUpdate = true;
-  }
-  const streaks = scenery.getObjectByName('waterfall-streaks');
-  if (streaks instanceof THREE.InstancedMesh) {
-    const seconds = ticks * DT;
-    for (let i = 0; i < STREAKS.count; i += 1) {
-      // A fixed scatter (a hash, not Math.random), so screenshots are stable.
-      const h = (n: number) => {
-        const v = Math.sin((i + 1) * 12.9898 + n * 78.233) * 43758.5453;
-        return v - Math.floor(v);
-      };
-      const fallen = (h(1) * CLIFF.height + seconds * STREAKS.speed) % CLIFF.height;
-      dummy.position.set(
-        CLIFF.x1 + 0.3,
-        CLIFF.height - fallen,
-        STREAM.z + (h(2) * 2 - 1) * (STREAM.half - 0.4),
-      );
-      dummy.rotation.set(0, 0, 0);
-      dummy.scale.set(1, 1, 1);
-      dummy.updateMatrix();
-      streaks.setMatrixAt(i, dummy.matrix);
-    }
-    streaks.instanceMatrix.needsUpdate = true;
-  }
+  const moving = scenery.userData.moving as Moving | undefined;
+  if (!moving) return;
+  const { shafts, spots, streaks, scatter } = moving;
+  spots.forEach((spot, i) => {
+    scratch.position.set(spot.x, 0, spot.z);
+    // Upright, turned about the vertical to face the camera, leaning a little with the sun.
+    scratch.rotation.set(0, Math.atan2(camera.x - spot.x, camera.z - spot.z), 0.18);
+    scratch.scale.set(spot.width, spot.height, 1);
+    scratch.updateMatrix();
+    shafts.setMatrixAt(i, scratch.matrix);
+  });
+  shafts.instanceMatrix.needsUpdate = true;
+  const seconds = ticks * DT;
+  scratch.rotation.set(0, 0, 0);
+  scratch.scale.set(1, 1, 1);
+  scatter.forEach(({ start, across }, i) => {
+    const fallen = (start * CLIFF.height + seconds * STREAKS.speed) % CLIFF.height;
+    scratch.position.set(CLIFF.x1 + 0.3, CLIFF.height - fallen, STREAM.z + across);
+    scratch.updateMatrix();
+    streaks.setMatrixAt(i, scratch.matrix);
+  });
+  streaks.instanceMatrix.needsUpdate = true;
 }
 
 export default {

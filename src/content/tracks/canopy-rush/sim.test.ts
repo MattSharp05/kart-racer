@@ -199,6 +199,61 @@ describe('Canopy Rush swaying bridges', () => {
   });
 });
 
+describe('Canopy Rush respawns', () => {
+  it('karts falling off a bridge together are all put back on its deck, spread across it', () => {
+    const racers = Array.from({ length: 8 }, (_, i) => ({
+      kartId: KART_IDS[i % KART_IDS.length]!,
+      controller: 'local' as const,
+    }));
+    let s = createRace({
+      trackId: 'canopy-rush',
+      racers,
+      engineClass: 150,
+      itemsOn: false,
+      seed: 1,
+    });
+    while (s.phase !== 'racing') s = step(s, []).state;
+    const t = geometry.project(midSpan(bridges.b1)).t;
+    for (const kart of s.karts) {
+      kart.lastSafeT = t;
+      const off = geometry.pointAt(t, geometry.wallOffset(CANOPY_RUSH.bridgeWidth) + 4);
+      kart.position = { ...off, y: off.y - 6 };
+      kart.grounded = false;
+    }
+    s = step(s, []).state;
+    const start = tAt(bridges.b1.from.x, bridges.b1.from.z);
+    for (const kart of s.karts) {
+      expect(kart.respawnTimer).toBeGreaterThan(0);
+      const at = geometry.project(kart.position);
+      expect(at.t).toBeCloseTo(start, 3);
+      expect(Math.abs(at.lateral)).toBeLessThanOrEqual(CANOPY_RUSH.bridgeWidth / 2);
+    }
+    // Lowered onto the deck, nobody falls again.
+    const events: SimEvent[] = [];
+    for (let i = 0; i < 120; i += 1) {
+      const result = step(s, []);
+      s = result.state;
+      events.push(...result.events);
+    }
+    expect(events.filter((e) => e.type === 'respawn')).toHaveLength(0);
+  });
+
+  it('driving off the edge of the ruins floor, you fall for a moment before being put back', () => {
+    const state = scenarios.get('canopy-shortcut')!.setup(1).state;
+    const kart = state.karts[0]!;
+    // On the ruins floor by its west edge, heading west off it at 10 m/s.
+    kart.position = { x: 53, y: CANOPY_RUSH.floorY, z: -60 };
+    kart.heading = Math.PI / 2;
+    kart.velocity = { x: -10, y: 0, z: 0 };
+    kart.grounded = true;
+    const { events } = run(state, 20, () => ({ throttle: 1 }));
+    // Off the floor within a few ticks, but not "fallen" straight away though the road is far above.
+    expect(respawns(events)).toHaveLength(0);
+    const later = run(state, 60, () => ({ throttle: 1 }));
+    expect(respawns(later.events)).toHaveLength(1);
+  });
+});
+
 describe('Canopy Rush ruins shortcut', () => {
   const info = routeInfos(geometry)[0]!;
 
@@ -285,6 +340,41 @@ describe('Canopy Rush ruins shortcut', () => {
       expect(run.state.karts[0]!.race.nextCheckpoint).toBe(0);
     }
     expect((road.ticks - ruins.ticks) * DT).toBeGreaterThan(2);
+  });
+
+  it('an AI that ends up in the ruins without choosing them follows them back to the road', () => {
+    const saved = RUINS_ROUTE.aiChance;
+    RUINS_ROUTE.aiChance = 0;
+    try {
+      let s = createRace({
+        trackId: 'canopy-rush',
+        racers: [{ kartId: 'maple', controller: 'ai' }],
+        engineClass: 150,
+        itemsOn: false,
+        seed: 1,
+      });
+      while (s.phase !== 'racing') s = step(s, []).state;
+      const kart = s.karts[0]!;
+      // Knocked down onto the landing plaza, facing down the ruins.
+      kart.position = { x: 68, y: CANOPY_RUSH.floorY, z: -80 };
+      kart.heading = Math.PI;
+      kart.velocity = { x: 0, y: 0, z: 15 };
+      kart.grounded = true;
+      const events: SimEvent[] = [];
+      let rejoined = false;
+      for (let i = 0; i < 60 * 12 && !rejoined; i += 1) {
+        const result = step(s, []);
+        s = result.state;
+        events.push(...result.events);
+        // Back on the road on the jungle floor, where the ruins rejoin it.
+        const k = s.karts[0]!;
+        rejoined = geometry.project(k.position).surface !== 'out' && k.position.z > 150;
+      }
+      expect(respawns(events)).toHaveLength(0);
+      expect(rejoined).toBe(true);
+    } finally {
+      RUINS_ROUTE.aiChance = saved;
+    }
   });
 
   it('an AI takes the ruins on some laps, not all: seeded by its personality and the lap', () => {

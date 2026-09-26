@@ -4,6 +4,7 @@ import { inRange, type TrackGeometry } from '../splineTrack';
 import { surfaceEffect } from '../surfaces';
 import { DT, tuning, type EngineClass } from '../tuning';
 import { NEUTRAL_INPUT, type AiState, type InputFrame, type KartState } from '../types';
+import { curvatureAlong } from './curvature';
 import { lineOffsetAt } from './racingLine';
 import { aiRoute, routeAim } from './routes';
 
@@ -43,35 +44,32 @@ export function aiInput(
 
   // On another route round part of the lap (MK-61): follow it instead of the racing line.
   const route = racing ? aiRoute(kart, ai, geometry) : undefined;
+  let steer: number;
+  let drift = false;
+  let cornerSpeed = Infinity;
   if (route) {
     ai.drifting = false;
     const aim = routeAim(kart, route, lookAhead, cfg.brakeHorizon);
-    const routeSteer = clamp(-aim.error * cfg.steerGain, -1, 1);
-    const routeCorner =
-      aim.curvature > 1e-4 ? Math.sqrt((cfg.cornerGrip * ai.skill) / aim.curvature) : Infinity;
-    const routeTarget = Math.min(cruise, routeCorner);
-    if (speed > routeTarget + 2) return { ...NEUTRAL_INPUT, brake: 0.6, steer: routeSteer };
-    return { ...NEUTRAL_INPUT, throttle: speed > routeTarget ? 0 : 1, steer: routeSteer };
+    steer = clamp(-aim.error * cfg.steerGain, -1, 1);
+    if (aim.curvature > 1e-4) cornerSpeed = Math.sqrt((cfg.cornerGrip * ai.skill) / aim.curvature);
+  } else {
+    const error = aimError(kart, geometry, line, ai, lookAhead);
+    steer = clamp(-error * cfg.steerGain, -1, 1);
+
+    // Corner speed: v = sqrt(grip / curvature) for the tightest bit of line ahead.
+    const here = geometry.project(kart.position).s;
+
+    // Drifting (MK-15): hop into a drift for tight corners, hold it for a mini-turbo.
+    drift = racing && wantsDrift(kart, ai, geometry, line, here, speed, top, engineClass, error);
+    if (drift && !kart.driftHeld) steer = error > 0 ? -1 : 1; // full lock on the press picks the side
+    const curvature = maxCurvatureAhead(geometry, line, here, cfg.brakeHorizon);
+    // On a slippery surface ahead (ice), corners are planned with its grip, so the AI slows before it.
+    const grip =
+      curvature > 1e-4
+        ? minGripAhead(geometry, line, here, cfg.brakeHorizon) ** cfg.lowGripCaution
+        : 1;
+    if (curvature > 1e-4) cornerSpeed = Math.sqrt((cfg.cornerGrip * ai.skill * grip) / curvature);
   }
-
-  const error = aimError(kart, geometry, line, ai, lookAhead);
-  let steer = clamp(-error * cfg.steerGain, -1, 1);
-
-  // Corner speed: v = sqrt(grip / curvature) for the tightest bit of line ahead.
-  const here = geometry.project(kart.position).s;
-
-  // Drifting (MK-15): hop into a drift for tight corners, hold it for a mini-turbo.
-  const drift =
-    racing && wantsDrift(kart, ai, geometry, line, here, speed, top, engineClass, error);
-  if (drift && !kart.driftHeld) steer = error > 0 ? -1 : 1; // full lock on the press picks the side
-  const curvature = maxCurvatureAhead(geometry, line, here, cfg.brakeHorizon);
-  // On a slippery surface ahead (ice), corners are planned with its grip, so the AI slows before it.
-  const grip =
-    curvature > 1e-4
-      ? minGripAhead(geometry, line, here, cfg.brakeHorizon) ** cfg.lowGripCaution
-      : 1;
-  const cornerSpeed =
-    curvature > 1e-4 ? Math.sqrt((cfg.cornerGrip * ai.skill * grip) / curvature) : Infinity;
   const target = Math.min(cruise, cornerSpeed);
   if (speed > target + 2 && !drift) return { ...NEUTRAL_INPUT, brake: 0.6, steer };
   if (speed > target) return { ...NEUTRAL_INPUT, steer, drift };
@@ -180,19 +178,8 @@ export function maxCurvatureAhead(
   s: number,
   horizon: number,
 ): number {
-  const step = 6;
-  let max = 0;
-  const point = (d: number) => {
+  return curvatureAlong((d) => {
     const t = (s + d) / geometry.length;
     return geometry.pointAt(t, lineOffsetAt(line, t));
-  };
-  for (let d = 0; d < horizon; d += step) {
-    const a = point(d);
-    const b = point(d + step);
-    const c = point(d + 2 * step);
-    const h1 = Math.atan2(b.x - a.x, b.z - a.z);
-    const h2 = Math.atan2(c.x - b.x, c.z - b.z);
-    max = Math.max(max, Math.abs(wrapAngleDelta(h2 - h1)) / step);
-  }
-  return max;
+  }, horizon);
 }

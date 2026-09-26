@@ -1,7 +1,6 @@
 import * as THREE from 'three';
 import { SUNNY_THEME, type TrackTheme } from '../content/tracks/theme';
-import { swayDeckFrame } from '../sim/hazards/sway';
-import type { SwayHazard } from '../sim/hazards/types';
+import { hazardHidesRoad } from './hazards';
 import {
   inRange,
   type TrackGeometry,
@@ -56,6 +55,13 @@ class MeshBuilder {
     }
   }
 
+  triangle(a: THREE.Vector3, b: THREE.Vector3, c: THREE.Vector3, colour: THREE.Color) {
+    for (const v of [a, b, c]) {
+      this.positions.push(v.x, v.y, v.z);
+      this.colours.push(colour.r, colour.g, colour.b);
+    }
+  }
+
   build(): THREE.BufferGeometry {
     const geometry = new THREE.BufferGeometry();
     geometry.setAttribute('position', new THREE.Float32BufferAttribute(this.positions, 3));
@@ -82,17 +88,6 @@ function curvature(geometry: TrackGeometry, i: number): number {
 }
 
 /**
- * Whether a sample lies on one of the track's swaying decks (MK-61): those draw their own deck
- * (`render/hazards/sway.ts`), so the road isn't drawn under them.
- */
-function onSwayDeck(decks: readonly SwayHazard[], sample: TrackSample): boolean {
-  return decks.some((deck) => {
-    const frame = swayDeckFrame(deck, sample);
-    return frame.u >= 0 && frame.u <= 1 && Math.abs(frame.across) <= deck.halfWidth;
-  });
-}
-
-/**
  * Builds road, grass verges, kerbs, walls and the start line for a spline track (ADR 0003), in the
  * track theme's palette (MK-49).
  */
@@ -113,9 +108,7 @@ export function createSplineTrackMesh(
   const walls = new MeshBuilder();
   const n = geometry.samples.length;
   const grassOuter = geometry.def.offroadWidth;
-  const decks = (geometry.def.hazards ?? []).filter(
-    (hazard): hazard is SwayHazard => hazard.kind === 'sway',
-  );
+  const hazards = geometry.def.hazards ?? [];
 
   for (let i = 0; i < n; i += 1) {
     const a = geometry.sample(i);
@@ -123,8 +116,9 @@ export function createSplineTrackMesh(
     const half = (s: TrackSample) => s.width / 2;
     const wallA = half(a) + grassOuter;
     const wallB = half(b) + grassOuter;
-    // Swaying decks draw themselves (walls: a deck has none, so there's nothing else to draw).
-    if (decks.length && onSwayDeck(decks, a) && onSwayDeck(decks, b)) continue;
+    // Hazards that draw their own surface here (MK-61: a rope bridge's swaying deck) replace the
+    // road, verges and walls (a deck has none).
+    if (hazards.length && hazardHidesRoad(hazards, a) && hazardHidesRoad(hazards, b)) continue;
 
     // Grass verges (left and right), then road on top.
     ground.quad(
@@ -239,7 +233,7 @@ export function createSplineTrackMesh(
     const at = (v: THREE.Vector2) => new THREE.Vector3(v.x, cut.y + LIFT.grass, v.y);
     for (const [i = 0, j = 0, k = 0] of THREE.ShapeUtils.triangulateShape(outline, [])) {
       const [p1, p2, p3] = [outline[i], outline[j], outline[k]];
-      if (p1 && p2 && p3) ground.quad(at(p1), at(p2), at(p3), at(p3), colour);
+      if (p1 && p2 && p3) ground.triangle(at(p1), at(p2), at(p3), colour);
     }
   }
 

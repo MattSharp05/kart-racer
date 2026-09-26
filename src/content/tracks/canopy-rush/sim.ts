@@ -24,6 +24,9 @@ const TRUNK = { x: 45, z: -227, radius: 45 };
 const FAR = { x: 150, z: 118, radius: 45 };
 const HOME = { x: 35, z: 128, radius: 35 };
 
+/** The waterfall jump's lip on the start straight (world z). */
+const JUMP_LIP_Z = 22;
+
 const p = (x: number, z: number, y = FLOOR_Y, width = W): SplinePoint => ({ x, y, z, width });
 
 /** Points round a circle, angles in radians (0 = +X, π/2 = +Z), both ends excluded, y from y0 to y1. */
@@ -81,7 +84,7 @@ const points: SplinePoint[] = [
   p(0, 52),
   // The waterfall jump: up to a lip over the stream, then a flat landing.
   p(0, 34),
-  p(0, 22, 2.2),
+  p(0, JUMP_LIP_Z, 2.2),
   p(0, 20.5),
   p(0, 4),
   // The climb up the buttress root.
@@ -220,7 +223,7 @@ const RUINS_PATH: Vec3[] = [
   { x: 50, y: FLOOR_Y, z: 163 },
 ];
 
-export const RUINS_ROUTE: TrackRoute = { path: RUINS_PATH, halfWidth: 14, aiChance: 0.35 };
+export const RUINS_ROUTE: TrackRoute = { path: RUINS_PATH, halfWidth: 20, aiChance: 0.35 };
 
 /** The two openings the ruins need: off the platform's right side, and back onto the road. */
 const gap = (x0: number, z0: number, x1: number, z1: number, side: 'left' | 'right') => ({
@@ -243,6 +246,8 @@ export const canopyRush: SplineTrackDef = {
   ],
   // No checkpoint between the drop and the ruins' end: `routes` carries progress through the ruins.
   checkpoints: [0, tAt(-9, -85), tAt(TRUNK.x, TRUNK.z - TRUNK.radius), tAt(176, -12), tAt(196, 72)],
+  // The waterfall jump: the ramp ends at its lip, which throws karts over the stream.
+  ramps: [{ from: tAt(0, 34), to: tAt(0, JUMP_LIP_Z) }],
   shortcuts: [{ y: FLOOR_Y, polygon: [...RUINS_FLOOR], surface: 'road' }],
   routes: [RUINS_ROUTE],
   respawnPoints: [BRIDGES.b1, BRIDGES.b2, BRIDGES.b3].map((bridge) => ({
@@ -272,8 +277,8 @@ export const CANOPY_RUSH = {
   floorY: FLOOR_Y,
   canopyY: CANOPY_Y,
   topY: TOP_Y,
-  /** The waterfall jump's lip (world z on leg A). */
-  jumpZ: 21,
+  /** The waterfall jump's lip (world z on the start straight). */
+  jumpZ: JUMP_LIP_Z,
   /** Lap length, m. */
   length: geometry.length,
   tAt,

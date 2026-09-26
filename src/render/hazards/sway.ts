@@ -1,6 +1,8 @@
 import * as THREE from 'three';
-import { swaySpan } from '../../sim/hazards/sway';
+import { swayDeckFrame, swaySpan } from '../../sim/hazards/sway';
 import type { HazardPose, SwayHazard } from '../../sim/hazards/types';
+import type { Vec3 } from '../../sim/math';
+import { tuning } from '../../sim/tuning';
 import type { HazardView } from './views';
 
 /** How a swaying deck looks (MK-61: a rope bridge). Lengths in m, angles in rad. */
@@ -22,13 +24,20 @@ const DECK = {
   shift: 0.6,
   /** Small lift so the planks sit on the road's level without z-fighting its ends. */
   lift: 0.03,
+  /** The deck covers the road this far past its edges (so no sliver of road shows at them). */
+  cover: 0.5,
 };
+
+/** Scratch objects reused every frame (no garbage per frame). */
+const dummy = new THREE.Object3D();
 
 const COLOURS = { plankA: 0xa47449, plankB: 0x8c5f38, post: 0x5e3f22, rope: 0xd9c38f };
 
 /** One instanced mesh of boxes per deck: planks, then posts, then rope spans. */
 interface DeckParts {
   boxes: THREE.InstancedMesh;
+  /** The hand-ropes' post tops of the left and right edges, updated in place each frame. */
+  tops: [THREE.Vector3[], THREE.Vector3[]];
   planks: number;
   posts: number;
   ropes: number;
@@ -95,12 +104,20 @@ export const swayView: HazardView<SwayHazard> = {
     group.add(boxes);
     group.position.set(def.from.x, def.from.y, def.from.z);
     group.rotation.y = Math.atan2(-(def.to.x - def.from.x), -(def.to.z - def.from.z));
-    group.userData.parts = { boxes, planks, posts, ropes, length } satisfies DeckParts;
+    const tops = (): THREE.Vector3[] =>
+      Array.from({ length: postRows + 1 }, () => new THREE.Vector3());
+    group.userData.parts = {
+      boxes,
+      tops: [tops(), tops()],
+      planks,
+      posts,
+      ropes,
+      length,
+    } satisfies DeckParts;
     return group;
   },
   update(object, def, pose) {
-    const { boxes, planks, posts, length } = object.userData.parts as DeckParts;
-    const dummy = new THREE.Object3D();
+    const { boxes, tops, planks, posts, length } = object.userData.parts as DeckParts;
     const place = (index: number) => {
       dummy.updateMatrix();
       boxes.setMatrixAt(index, dummy.matrix);
@@ -116,7 +133,6 @@ export const swayView: HazardView<SwayHazard> = {
       place(i);
     }
     const rows = posts / 2;
-    const tops: THREE.Vector3[][] = [[], []];
     for (let row = 0; row < rows; row += 1) {
       const along = (row / (rows - 1)) * length;
       const s = section(def, pose, along, length);
@@ -129,7 +145,7 @@ export const swayView: HazardView<SwayHazard> = {
         dummy.scale.set(DECK.postSize * scale, height, DECK.postSize * scale);
         place(planks + row * 2 + k);
         const top = onSection(s, side * def.halfWidth, DECK.lift + DECK.ropeHeight);
-        tops[k]?.push(new THREE.Vector3(top.x, top.y, -along));
+        tops[k]?.[row]?.set(top.x, top.y, -along);
       }
     }
     for (const [k, side] of tops.entries()) {
@@ -147,5 +163,14 @@ export const swayView: HazardView<SwayHazard> = {
     }
     boxes.instanceMatrix.needsUpdate = true;
     return undefined;
+  },
+  hidesRoad(def, point: Vec3) {
+    const deck = swayDeckFrame(def, point);
+    return (
+      deck.u >= 0 &&
+      deck.u <= 1 &&
+      Math.abs(deck.across) <= def.halfWidth + DECK.cover &&
+      Math.abs(point.y - deck.y) <= tuning.hazards.clearance
+    );
   },
 };

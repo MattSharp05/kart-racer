@@ -8,6 +8,7 @@ import type {
   RotatorHazard,
   ZoneEffectHazard,
 } from '../../sim/hazards/types';
+import type { Vec3 } from '../../sim/math';
 import { DT } from '../../sim/tuning';
 import { createHeadlights } from '../headlights';
 
@@ -30,6 +31,11 @@ export interface HazardView<D extends HazardDef = HazardDef> {
     camera: THREE.Vector3,
     ticks: number,
   ): number | undefined;
+  /**
+   * Whether it draws its own surface over the road at `point` (a point on the road), so the track
+   * mesh leaves the road out there (MK-61: a swaying rope bridge's deck).
+   */
+  hidesRoad?(def: D, point: Vec3): boolean;
 }
 
 const lambert = (color: number) => new THREE.MeshLambertMaterial({ color });

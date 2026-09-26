@@ -239,8 +239,6 @@ export const tuning = {
     routeCapture: 4,
     /** It goes back to the racing line this far before the route's end (rejoined the road), m. */
     routeEndMargin: 8,
-    /** Spacing of the route-curvature checks ahead, m. */
-    routeCurvatureStep: 6,
     /**
      * The driver that takes over a dropped online player's kart (MK-70): a fixed mid-pack
      * personality, not a seeded one, so the host and every client hand the kart over identically.

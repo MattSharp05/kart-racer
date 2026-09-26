@@ -34,13 +34,15 @@ export function updateRespawns(
 
     const ground = groundAt(track, kart.position);
     const p = geometry.project(kart.position);
-    if (kart.grounded && ground.surface !== 'out') {
-      kart.lastSafeT = routeProgress(geometry, kart.position, p)?.t ?? p.t;
-    }
+    const route = routeProgress(geometry, kart.position, p);
+    if (kart.grounded && ground.surface !== 'out') kart.lastSafeT = route?.t ?? p.t;
     kart.outTime = ground.surface === 'out' ? kart.outTime + dt : 0;
     // Fallen = well below the ground under it: the road, or a lower floor off it (MK-61: ruins).
+    // Over a route the road may be far above, so only the time off every surface counts there.
     const floor = ground.surface === 'out' ? p.groundY : ground.height;
-    const fell = kart.position.y < floor - tuning.fallDepth || kart.outTime > tuning.outSeconds;
+    const below =
+      !(route && ground.surface === 'out') && kart.position.y < floor - tuning.fallDepth;
+    const fell = below || kart.outTime > tuning.outSeconds;
     const asked = inputs[kart.id]?.respawn === true && kart.respawnCooldown <= 0;
     if (fell || asked) startRespawn(state, kart, track, events);
   }
@@ -58,8 +60,11 @@ function startRespawn(state: SimState, kart: KartState, track: SplineTrackDef, e
       isRespawning(other) &&
       Math.abs(geometry.project(other.position).t - t) * geometry.length < 6,
   ).length;
-  const lateral =
+  const spread =
     nearby === 0 ? 0 : (nearby % 2 ? 1 : -1) * Math.ceil(nearby / 2) * tuning.respawnSpacing;
+  // Never out past the road's edge (MK-61: a narrow bridge with a drop either side).
+  const room = Math.max(0, geometry.project(geometry.pointAt(t)).width / 2 - tuning.kartHalfWidth);
+  const lateral = Math.min(room, Math.max(-room, spread));
   const target = geometry.pointAt(t, lateral);
 
   kart.position = { ...target, y: target.y + tuning.respawnLift };
