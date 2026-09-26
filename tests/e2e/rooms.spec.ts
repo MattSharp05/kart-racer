@@ -90,7 +90,7 @@ test.describe('rooms', () => {
 
     await host.getByRole('button', { name: 'Leave room' }).click();
     await expect(guest.locator('.menu-online')).toBeVisible();
-    await expect(guest.getByRole('alert')).toHaveText('Host left the room');
+    await expect(guest.getByRole('alert')).toHaveText('Host left — room closed');
   });
 
   test('a room link on first launch asks for a nickname, then joins', async ({ context }) => {

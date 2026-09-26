@@ -27,7 +27,15 @@ export interface OnlineLaunch {
   links?: RaceLinks;
   /** Each human's colour by kart id (the lobby's, MK-55): name tags and results. */
   colours?: readonly string[];
+  /**
+   * Test and QA scenarios (`online-drop`, MK-70): a client vanishes at this tick of its race, as a
+   * phone losing its network would: its links close without a Bye, so the host drops it by timeout.
+   */
+  vanishAtTick?: number;
 }
+
+/** Why this device can't go on in its online race (MK-70). */
+export type RaceLoss = 'dropped' | 'host-lost';
 
 /** What `__game.net()` reports (tests, and the netdebug overlay in MK-45). */
 export interface NetInfo {
@@ -108,6 +116,22 @@ export class OnlineRace {
    */
   results(): RaceStanding[] | null {
     return this.host?.results ?? this.client?.results ?? null;
+  }
+
+  /** Other players' karts handed to the AI since the last call (MK-70): the toast's news. */
+  takeDrops(): number[] {
+    return this.host?.takeDrops() ?? this.client?.takeDrops() ?? [];
+  }
+
+  /**
+   * Whether this client lost its race (MK-70): the host dropped it (`dropped`), or it hasn't heard
+   * from the host for 5 s (`host-lost`). Null on the host, and while all is well.
+   */
+  lost(): RaceLoss | null {
+    const client = this.client;
+    if (!client) return null;
+    if (client.ended === 'dropped') return 'dropped';
+    return client.hostLost ? 'host-lost' : null;
   }
 
   /** What the `?netdebug=1` overlay shows (MK-45). */
@@ -201,7 +225,12 @@ export class OnlineRace {
       );
       this.onLocalKart(client.kartId);
     };
+    const vanishAt = this.launch.vanishAtTick;
     return (state: SimState, inputs: InputFrame[]): StepResult => {
+      if (vanishAt !== undefined && (client.state?.tick ?? 0) >= vanishAt) {
+        // Gone without a word (the `online-drop` scenario): the links just stop.
+        this.links.forEach((link) => link.close());
+      }
       const cosmetic = client.tick(inputs[client.kartId] ?? NEUTRAL_INPUT);
       // Until the first snapshot the placeholder race stands still; host events wait for it.
       if (!client.state) return { state, events: [] };

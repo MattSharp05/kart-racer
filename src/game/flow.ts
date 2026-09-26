@@ -12,6 +12,10 @@ import { Hud } from '../ui/hud/hud';
 import { RotatePrompt } from '../ui/rotatePrompt';
 import { Router } from '../ui/router';
 import '../ui/screens/ccSelect';
+import '../ui/screens/connectionLost';
+import { showToast } from '../ui/toast';
+import { NET } from '../net/config';
+import { DT } from '../sim/tuning';
 import type { SoundControl } from '../ui/screens/common';
 import { HowToPlay } from '../ui/screens/howToPlay';
 import '../ui/screens/kartSelect';
@@ -30,7 +34,7 @@ import {
   type Profile,
 } from './profile';
 import { standingsOf } from '../net/host';
-import type { OnlineLaunch } from './online';
+import type { OnlineLaunch, RaceLoss } from './online';
 import { onlineResultLines, recordFinish, recordLines, resultLines } from './results';
 import { RoomFlow, type RoomService } from './roomFlow';
 import { DEFAULT_SEED, localKartOf, type Launch, type RaceSession } from './session';
@@ -50,6 +54,20 @@ const DEFAULT_ROOM_NICKNAME = 'Player';
 const ONLINE_CONNECT_TIMEOUT_MS = 20_000;
 /** The pause menu's line in an online race, which the menu doesn't stop (MK-55). */
 const ONLINE_PAUSE_NOTE = 'Race continues';
+/** Seconds away (tab hidden) after which the host has dropped this client (MK-70). */
+const DROP_AFTER_SECONDS = NET.dropAfterTicks * DT;
+/** Shown when an online client's page goes to the background (MK-70). */
+export const AWAY_WARNING = `Come back within ${DROP_AFTER_SECONDS} s or the AI takes over your kart`;
+/** Why the Connection lost screen shows (MK-70). */
+const LOSS_MESSAGES: Record<RaceLoss, string> = {
+  dropped: 'You were away too long, so the AI took over your kart. Rejoin to race the next one.',
+  'host-lost': 'Lost the connection to the host.',
+};
+
+/** The toast when a player drops and the AI takes their kart (MK-70). */
+export function dropMessage(name: string | undefined): string {
+  return `${name ?? 'A player'} disconnected — AI takes over`;
+}
 
 /**
  * The screen flow (MK-35): title → kart select → cc select → race ⇄ pause → results → (again,
@@ -76,6 +94,8 @@ export class Flow {
   private onlineSince = 0;
   /** What the online results screen shows (live or final, and how many finished), to redraw it when that changes. */
   private shownResults = '';
+  /** When this page went to the background (`performance.now()`), or -1 while it's visible. */
+  private hiddenAt = -1;
 
   constructor(
     private readonly session: RaceSession,
@@ -115,11 +135,19 @@ export class Flow {
         onStartFailed: (message) => this.abortOnlineRace(message),
         onRoomEnded: () => this.leaveOnlineRace(),
         onRacer: (racer) => {
-          if (isKartId(racer)) this.chosenKart = racer;
+          if (!isKartId(racer)) return;
+          this.chosenKart = racer;
+          // Kept for next time, so a player who drops and rejoins keeps their pick (MK-70).
+          writePrefs(this.store, { kart: racer, engineClass: this.chosenCc });
         },
         onLobby: () => this.leaveOnlineRace(),
       },
     );
+
+    // Leaving the page mid-race says goodbye at once (MK-70): the host hands the kart to the AI (a
+    // client), or the room's clients see the host leave (the host), without waiting for a timeout.
+    window.addEventListener('pagehide', () => this.session.online?.close());
+    document.addEventListener('visibilitychange', () => this.onVisibility());
 
     this.pauseButton = createPauseButton(() => this.pauseRace());
     window.addEventListener('keydown', (e) => {
@@ -337,8 +365,19 @@ export class Flow {
    */
   private watchOnlineRace(): void {
     const online = this.session.online;
-    if (!this.onlineSince || !online) return;
+    if (!online) return;
+    // Players who dropped (MK-70): everyone hears about it; the AI drives their kart now. Online
+    // scenarios too (they race without a room, so the rest of this is the lobby's).
+    for (const kartId of online.takeDrops()) {
+      if (kartId !== this.session.localKartId) {
+        showToast(dropMessage(this.session.game.state.karts[kartId]?.name));
+      }
+    }
     const screen = this.screens.current;
+    const racing = screen === 'none' || screen === 'paused';
+    const lost = online.lost();
+    if (racing && lost && !this.raceOver()) return this.showConnectionLost(lost);
+    if (!this.onlineSince) return;
     if (screen === 'onlineResults') {
       // The host's final standings arrived, or another kart finished: redraw the results.
       if (this.resultsKey() !== this.shownResults) this.showResults();
@@ -349,7 +388,7 @@ export class Flow {
     const host = net.role === 'host';
     if (net.ended) {
       // The race was over (everyone finished) when the host moved on: the results still show.
-      if (this.session.game.state.phase === 'finished' || online.results()) return;
+      if (this.raceOver()) return;
       this.abortOnlineRace(host ? undefined : 'The host ended the race.');
     } else if (!net.started && performance.now() - this.onlineSince > ONLINE_CONNECT_TIMEOUT_MS) {
       this.abortOnlineRace(
@@ -358,6 +397,48 @@ export class Flow {
           : "Couldn't reach the host. Try again.",
       );
     }
+  }
+
+  /**
+   * This client lost its race (MK-70): the host dropped it or went quiet. The race here stops (the
+   * AI drives the kart on the host); Rejoin goes back to the room for the next race.
+   */
+  private showConnectionLost(loss: RaceLoss): void {
+    if (this.onlineSince) this.leaveOnlineRace();
+    else this.session.stop(); // an online scenario: no lobby race to leave, just stop here
+    this.pauseButton.hidden = true;
+    this.screens.show('connectionLost', {
+      message: LOSS_MESSAGES[loss],
+      onRejoin: () => this.rooms.rejoin(),
+      onLeave: this.showTitle,
+    });
+  }
+
+  /**
+   * A client's page going to the background mid-race (MK-70, phones): it stops ticking and sending,
+   * so the host drops it after 3 s. Warn when it goes; when it comes back after longer than that,
+   * the host has dropped it, whether or not the host's Bye got through.
+   */
+  private onVisibility(): void {
+    const online = this.session.online;
+    const racing =
+      online?.launch.role === 'client' &&
+      !online.lost() &&
+      !online.info().ended &&
+      !this.raceOver();
+    if (document.visibilityState === 'hidden') {
+      this.hiddenAt = performance.now();
+      if (racing) showToast(AWAY_WARNING);
+      return;
+    }
+    const awaySeconds = this.hiddenAt < 0 ? 0 : (performance.now() - this.hiddenAt) / 1000;
+    this.hiddenAt = -1;
+    if (racing && awaySeconds > DROP_AFTER_SECONDS) this.showConnectionLost('dropped');
+  }
+
+  /** Whether this device's online race is over (everyone finished, or the host's results are in). */
+  private raceOver(): boolean {
+    return this.session.game.state.phase === 'finished' || this.session.online?.results() != null;
   }
 
   private abortOnlineRace(message?: string): void {
