@@ -1,0 +1,49 @@
+/* Online and Join (MK-40). */
+.online-intro {
+  margin: 0;
+  font-weight: 400;
+}
+
+.online-status {
+  margin: 0;
+  max-width: 32ch;
+}
+
+.online-status.error {
+  color: var(--color-gold);
+}
+
+.online-status.busy {
+  font-weight: 400;
+}
+
+.menus .room-code-input {
+  width: 6.2ch;
+  padding: 6px 12px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--color-cream);
+  color: var(--color-navy);
+  font:
+    700 clamp(32px, 9vh, 48px) / 1.1 ui-monospace,
+    'SF Mono',
+    Menlo,
+    monospace;
+  letter-spacing: 0.15em;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.menus .room-code-input::placeholder {
+  color: rgb(29 53 87 / 0.35);
+}
+
+.menus .room-code-input:focus-visible {
+  outline: 4px solid var(--color-mint);
+  outline-offset: 3px;
+}
+
+.menus button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}

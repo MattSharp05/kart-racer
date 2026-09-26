@@ -21,6 +21,11 @@ export interface ScenarioSetup {
   storage?: Record<string, string>;
   /** An online race (MK-46): `state` is `createRace(online.race)`, played over `?net=local`. */
   online?: OnlineScenario;
+  /**
+   * Open a room over this state (MK-40): `&role=host` (default) creates one, with `&room=` as its
+   * code if given; `&role=client&room=CODE` joins it.
+   */
+  lobby?: boolean;
 }
 
 /** The online part of a scenario: the race the host runs, and a default simulated network. */

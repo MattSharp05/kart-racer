@@ -14,6 +14,7 @@ import { showErrorBanner } from '../ui/errorBanner';
 import { Game } from './game';
 import type { LaunchParams } from './launchParams';
 import { OnlineRace, type OnlineLaunch } from './online';
+import type { LobbyLaunch } from './roomFlow';
 
 export const DEFAULT_SEED = 1;
 /** Room of an online scenario opened without `&room=`. */
@@ -33,6 +34,10 @@ export interface Launch {
   storage?: Record<string, string>;
   /** An online scenario (MK-46): host or join its race over `?net=local`. */
   online?: OnlineLaunch;
+  /** Straight into a room (MK-40): `/?room=CODE`, or the `online-lobby` scenario. */
+  lobby?: LobbyLaunch;
+  /** Rooms over BroadcastChannel, not Supabase (`&net=local`; online scenarios default to it). */
+  localRooms: boolean;
 }
 
 /** `localKartId` when this device drives no kart (spectating). */
@@ -66,7 +71,8 @@ function initialState(params: LaunchParams): Launch {
     if (scenario) {
       const setup = scenario.setup(params.seed ?? scenario.defaultSeed);
       if (setup.online) return onlineLaunch(scenario.name, setup.online, params);
-      if (params.net || params.role) {
+      // `&net=local` alone is fine anywhere: it also picks the room backend (MK-40).
+      if (params.role && !isOnlineScenario(scenario)) {
         showErrorBanner(
           `"${scenario.name}" isn't an online scenario. Online scenarios:`,
           onlineNames(),
@@ -81,6 +87,8 @@ function initialState(params: LaunchParams): Launch {
         localKartId,
         ...(setup.screen ? { screen: setup.screen } : {}),
         ...(setup.storage ? { storage: setup.storage } : {}),
+        ...(setup.lobby ? { lobby: lobbyLaunch(params.role ?? 'host', params.room) } : {}),
+        localRooms: params.net === 'local' || isOnlineScenario(scenario),
       };
     }
     showErrorBanner(
@@ -89,7 +97,20 @@ function initialState(params: LaunchParams): Launch {
     );
   }
   const state = attractMode(params.seed ?? DEFAULT_SEED);
-  return { state, screen: 'title', localKartId: localKartOf(state) };
+  return {
+    state,
+    screen: 'title',
+    localKartId: localKartOf(state),
+    // A room link, `/?room=CODE` (MK-40), opens straight into joining that room.
+    ...(params.room ? { lobby: lobbyLaunch('client', params.room) } : {}),
+    localRooms: params.net === 'local',
+  };
+}
+
+/** A room from the URL; codes are upper case (links typed by hand may not be). */
+function lobbyLaunch(role: LobbyLaunch['role'], room: string | undefined): LobbyLaunch {
+  const code = room?.trim().toUpperCase();
+  return { role, ...(code ? { code } : {}) };
 }
 
 function onlineNames(): string[] {
@@ -116,6 +137,7 @@ function onlineLaunch(scenario: string, online: OnlineScenario, params: LaunchPa
     view: 'chase',
     follow: hostKart,
     localKartId: role === 'host' ? hostKart : NO_LOCAL_KART,
+    localRooms: true,
     online: { role, room: params.room ?? DEFAULT_ROOM, race, ...(netsim ? { netsim } : {}) },
   };
 }

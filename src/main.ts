@@ -6,6 +6,8 @@ import { parseLaunchParams } from './game/launchParams';
 import { RaceSession, resolveLaunch } from './game/session';
 import { browserStore, OverlayStore } from './game/storage';
 import { installTestApi } from './game/testApi';
+import { localRoomBackend } from './net/roomBackendLocal';
+import { supabaseRoomBackend } from './net/roomBackendSupabase';
 import { World } from './render/world';
 import { getTrack } from './sim/track';
 import { NetDebugOverlay } from './ui/netDebug';
@@ -32,7 +34,10 @@ const world = new World(canvas, game, {
   aiDebug: params.aiDebug,
   poseFilter: () => session.online?.smoother,
 });
-const flow = new Flow(session, world, store);
+const flow = new Flow(session, world, store, {
+  backend: launch.localRooms ? localRoomBackend() : supabaseRoomBackend(),
+  local: launch.localRooms,
+});
 
 installTestApi(
   game,

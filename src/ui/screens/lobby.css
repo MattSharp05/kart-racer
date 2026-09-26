@@ -1,0 +1,85 @@
+/* Lobby (MK-40): code and share on the left, players on the right (stacked on narrow screens). */
+.lobby-body {
+  display: grid;
+  grid-template-columns: auto minmax(200px, 1fr);
+  gap: clamp(10px, 3vw, 28px);
+  align-items: start;
+}
+
+.lobby-share,
+.lobby-list {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+}
+
+.room-code {
+  margin: 0;
+  font:
+    700 clamp(40px, 12vh, 64px) / 1 ui-monospace,
+    'SF Mono',
+    Menlo,
+    monospace;
+  letter-spacing: 0.12em;
+  color: var(--color-gold);
+}
+
+.room-link {
+  margin: 0;
+  max-width: 24ch;
+  font-size: 13px;
+  font-weight: 400;
+  overflow-wrap: anywhere;
+  user-select: all;
+}
+
+.lobby-count {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 400;
+}
+
+.lobby-players {
+  display: grid;
+  gap: 4px;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  text-align: left;
+}
+
+.lobby-players li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 10px;
+  border-radius: 10px;
+  background: rgb(255 255 255 / 0.1);
+}
+
+.player-dot {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px rgb(255 255 255 / 0.7);
+}
+
+.player-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.player-tag {
+  font-size: 12px;
+  color: var(--color-gold);
+}
+
+@media (max-width: 480px) {
+  .lobby-body {
+    grid-template-columns: 1fr;
+  }
+}

@@ -138,3 +138,27 @@ describe('online scenarios (MK-46)', () => {
     expect(session.game.state.tick).toBe(5);
   });
 });
+
+describe('room launches (MK-40)', () => {
+  it('a room link joins that room, code upper-cased, over Supabase unless net=local', () => {
+    const launch = resolveLaunch(parseLaunchParams('?room=k7qx'));
+    expect(launch).toMatchObject({ screen: 'title', lobby: { role: 'client', code: 'K7QX' } });
+    expect(launch.localRooms).toBe(false);
+    expect(resolveLaunch(parseLaunchParams('?room=K7QX&net=local')).localRooms).toBe(true);
+    expect(resolveLaunch(parseLaunchParams('')).lobby).toBeUndefined();
+  });
+
+  it('online-lobby creates a room by default, joins with role=client, and uses local rooms', () => {
+    const host = resolveLaunch(parseLaunchParams('?scenario=online-lobby'));
+    expect(host).toMatchObject({ screen: 'title', lobby: { role: 'host' }, localRooms: true });
+    expect(host.lobby?.code).toBeUndefined();
+    const client = resolveLaunch(parseLaunchParams('?scenario=online-lobby&role=client&room=test'));
+    expect(client.lobby).toEqual({ role: 'client', code: 'TEST' });
+  });
+
+  it('an online race scenario is not a lobby', () => {
+    expect(resolveLaunch(parseLaunchParams('?scenario=online-race-2p&room=r')).lobby).toBe(
+      undefined,
+    );
+  });
+});

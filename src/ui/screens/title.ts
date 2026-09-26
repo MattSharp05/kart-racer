@@ -1,9 +1,11 @@
 import { registerScreen } from '../router';
-import { button, heading } from './common';
+import { button, heading, row } from './common';
 import './title.css';
 
 export interface TitleProps {
   onPlay: () => void;
+  /** Online rooms (MK-40). */
+  onOnline?: () => void;
   onHowToPlay?: () => void;
   /** Opens Settings (MK-43), which holds the sound toggle. */
   onSettings?: () => void;
@@ -19,12 +21,14 @@ declare module '../router' {
 }
 
 /**
- * Title screen (MK-25): logo, Play, How to play and Settings (MK-43) over the attract race, plus
- * the player's name chip (MK-42).
+ * Title screen (MK-25): logo, Play and Online (MK-40), How to play and Settings (MK-43) over the
+ * attract race, plus the player's name chip (MK-42).
  */
-registerScreen('title', (panel, { onPlay, onHowToPlay, onSettings, player, onEditName }) => {
+registerScreen('title', (panel, props) => {
+  const { onPlay, onOnline, onHowToPlay, onSettings, player, onEditName } = props;
   const play = button('Play', onPlay, 'primary');
-  panel.append(heading('h1', 'Kart Racer', 'logo'), play);
+  const online = onOnline ? [button('Online', onOnline, 'online')] : [];
+  panel.append(heading('h1', 'Kart Racer', 'logo'), row('actions', play, ...online));
   if (player && onEditName) panel.append(nameChip(player, onEditName));
   if (onHowToPlay) panel.append(button('How to play', onHowToPlay, 'secondary'));
   if (onSettings) panel.append(button('⚙ Settings', onSettings, 'secondary settings-button'));
