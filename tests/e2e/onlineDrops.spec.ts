@@ -142,7 +142,7 @@ test.describe('drops and rejoin', () => {
       "A race is on. You'll be in the next one.",
     );
     // …with the racer he picked before.
-    await expect(back.getByRole('combobox', { name: 'Racer' })).toHaveValue('boulder');
+    await expect(back.locator('.lobby-racer')).toHaveAttribute('data-racer', 'boulder');
 
     // …and in the next one when the host races again.
     await host.getByRole('button', { name: 'Race again' }).click();

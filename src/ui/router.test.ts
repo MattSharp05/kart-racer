@@ -27,12 +27,14 @@ function fakeHost() {
 const mounted: string[] = [];
 let refreshes = 0;
 const keys: string[] = [];
+const disposed: string[] = [];
 for (const name of ['test-a', 'test-b', 'test-c'] as const) {
   registerScreen(name, (_panel, props) => {
     mounted.push(`${name}:${props.label}`);
     return {
       refresh: () => (refreshes += 1),
       onKey: (e) => keys.push(`${name}:${e.key}`),
+      dispose: () => disposed.push(`${name}:${props.label}`),
     };
   });
 }
@@ -119,5 +121,19 @@ describe('screen router (MK-37)', () => {
     const router = new Router(fakeHost().host);
     // @ts-expect-error: not a registered screen name
     expect(() => router.show('nope', {})).toThrow(/Unknown screen "nope"/);
+  });
+
+  it('disposes a screen once when another shows, on back() and on hide() (MK-51)', () => {
+    disposed.length = 0;
+    const router = new Router(fakeHost().host);
+    router.show('test-a', { label: 'one' });
+    expect(disposed).toEqual([]);
+    router.show('test-b', { label: 'two' });
+    expect(disposed).toEqual(['test-a:one']);
+    router.back();
+    expect(disposed).toEqual(['test-a:one', 'test-b:two']);
+    router.hide();
+    router.hide();
+    expect(disposed).toEqual(['test-a:one', 'test-b:two', 'test-a:one']);
   });
 });

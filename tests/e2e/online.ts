@@ -219,7 +219,12 @@ export async function openLobby(
     }
     await expect(client.locator('.lobby-players li')).toHaveCount(i + 1, { timeout: 10_000 });
     const racer = racers?.[i];
-    if (racer) await client.getByRole('combobox', { name: 'Racer' }).selectOption(racer);
+    if (racer) {
+      // The lobby's racer select (MK-51).
+      await client.locator('.lobby-racer').click();
+      await client.locator(`.lobby-racer-overlay .racer-card[data-racer="${racer}"]`).click();
+      await client.locator('.lobby-racer-overlay button.primary').click();
+    }
     await client.getByRole('button', { name: 'Ready' }).click();
     clients.push(client);
   }
