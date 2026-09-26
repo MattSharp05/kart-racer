@@ -158,6 +158,24 @@ export function aiItemInput(
   const giveUp = (ai.itemHeld ?? 0) > cfg.itemGiveUp;
   const use = (extra: Partial<InputFrame> = {}): Partial<InputFrame> => ({ item: true, ...extra });
 
+  const input = itemTactic(item, kart, ai, state, geometry, straightAhead, giveUp, use);
+  // A multi-use item (MK-52) stays in the slot: think again before each use.
+  if (input.item && kart.item.uses > 1) ai.itemDelay = undefined;
+  return input;
+}
+
+/** When to use each item (the MVP items here; later items bring an `aiUse` hook). */
+function itemTactic(
+  item: string,
+  kart: KartState,
+  ai: AiState,
+  state: SimState,
+  geometry: TrackGeometry,
+  straightAhead: (metres: number) => number,
+  giveUp: boolean,
+  use: (extra?: Partial<InputFrame>) => Partial<InputFrame>,
+): Partial<InputFrame> {
+  const cfg = tuning.ai;
   switch (item) {
     case 'star':
     case 'lightning':

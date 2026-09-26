@@ -66,6 +66,8 @@ export interface EntityContext {
   spec: RegisteredEntitySpec;
   /** Removes another entity by id at the end of the tick (this one: return true instead). */
   remove(id: number): void;
+  /** Whether an entity is already gone this tick (removed or used up). */
+  isGone(id: number): boolean;
 }
 
 /** A collision rule: checked after the entity moves; returns true when the entity is used up. */
@@ -191,9 +193,9 @@ export function touchKarts(
  * Collision rule: knocks out a shell, a landed banana or another entity with this rule that it
  * touches (both vanish, like two shells).
  */
-export const blockItems: CollisionRule = (entity, { state, spec, remove }) => {
+export const blockItems: CollisionRule = (entity, { state, spec, remove, isGone }) => {
   const other = state.entities.find((e) => {
-    if (e.id === entity.id) return false;
+    if (e.id === entity.id || isGone(e.id)) return false;
     const solid =
       e.kind === 'shell' ||
       (e.kind === 'banana' && e.flightTimer === 0) ||
@@ -304,10 +306,11 @@ export function updateItemEntities(state: SimState, dt: number, events: SimEvent
   if (list.length === 0) return;
   const gone = new Set<number>();
   const remove = (id: number) => gone.add(id);
+  const isGone = (id: number) => gone.has(id);
   for (const entity of list) {
     if (gone.has(entity.id)) continue;
     const spec = entitySpecs.get(entity.spec);
-    const ctx: EntityContext = { state, events, dt, spec, remove };
+    const ctx: EntityContext = { state, events, dt, spec, remove, isGone };
     entity.age += 1;
     if (
       entity.age > spec.lifeTicks ||

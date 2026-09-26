@@ -120,16 +120,47 @@ describe('item framework (MK-52)', () => {
   });
 
   it('a shield effect blocks one hit, then ends', () => {
-    let state = createSimState({ seed: 1 });
+    let state = itemFrameworkTest(1); // (invulnerability counts down on spline tracks)
     applyEffect(state.karts[0]!, 'test-kit-shield', SHIELD_TICKS, state, [], { data: [1] });
     const events: SimEvent[] = [];
     expect(hitKart(state.karts[0]!, 1, 'green', events)).toBe(false);
     expect(state.karts[0]!.spinTimer).toBe(0);
     expect(events).toEqual([{ type: 'itemFx', kartId: 0, item: 'test-kit', fx: 'pop' }]);
+    // Briefly invulnerable after the block, so the same hazard can't hit on the next tick.
+    expect(state.karts[0]!.invulnerableTimer).toBe(tuning.blockedHitInvulnerableSeconds);
     state = run(state, 1).state;
     expect(hasEffect(state.karts[0]!, 'test-kit-shield')).toBe(false);
+    state = run(state, 60).state;
     expect(hitKart(state.karts[0]!, 1, 'green', [])).toBe(true);
     expect(state.karts[0]!.spinTimer).toBeGreaterThan(0);
+  });
+
+  it('a shielded kart uses up a banana it drives into, and is not hit again next tick', () => {
+    const state = createSimState({ seed: 1, karts: [{}, {}] });
+    applyEffect(state.karts[0]!, 'test-kit-shield', SHIELD_TICKS, state, [], { data: [1] });
+    state.entities.push({
+      id: 50,
+      kind: 'banana',
+      position: { x: 0, y: 0, z: 0 },
+      from: { x: 0, y: 0, z: 0 },
+      flightTimer: 0,
+      ownerId: 1,
+      ownerImmune: 0,
+    });
+    const { state: after, events } = run(state, 2);
+    expect(after.entities.some((e) => e.id === 50)).toBe(false);
+    expect(after.karts[0]!.spinTimer).toBe(0);
+    expect(after.karts[0]!.invulnerableTimer).toBeGreaterThan(0);
+    expect(events.filter((e) => e.type === 'itemFx')).toHaveLength(1);
+  });
+
+  it('lightning spares a kart whose shield blocks it', () => {
+    let state = createSimState({ seed: 1, karts: [{}, {}, {}] });
+    applyEffect(state.karts[1]!, 'test-kit-shield', SHIELD_TICKS, state, [], { data: [1] });
+    giveItem(state.karts[0]!, 'lightning');
+    state = run(state, 1, { item: true }).state;
+    expect(state.karts[1]!.shrinkTimer).toBe(0);
+    expect(state.karts[2]!.shrinkTimer).toBeGreaterThan(0);
   });
 
   it('a homing entity turns toward its target and hits it', () => {
@@ -233,6 +264,19 @@ describe('item framework (MK-52)', () => {
 });
 
 describe('AI item-use hook (MK-52)', () => {
+  it('an AI driver thinks again between the uses of a multi-use item', () => {
+    let state = scenarios.get('ai-holding-green')!.setup(1).state;
+    giveItem(state.karts[1]!, 'test-kit');
+    const usedAt: number[] = [];
+    for (let tick = 1; tick <= 60 * 20 && usedAt.length < 2; tick += 1) {
+      const result = step(state, [NEUTRAL_INPUT]);
+      state = result.state;
+      if (result.events.some((e) => e.type === 'itemUsed' && e.kartId === 1)) usedAt.push(tick);
+    }
+    expect(usedAt).toHaveLength(2);
+    expect(usedAt[1]! - usedAt[0]!).toBeGreaterThanOrEqual(60 * tuning.ai.itemDelayMin);
+  });
+
   let wanted = false;
   const waiter: ItemContent = {
     id: 'test-waiter',
