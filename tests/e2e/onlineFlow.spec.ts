@@ -28,10 +28,17 @@ async function raceToTheEnd(pages: Page[]): Promise<void> {
     hostState = await state(host);
   }
   expect(hostState.phase).toBe('finished');
-  // A few more snapshots, so every client has the host's results; then real time again (the
-  // results screen opens on a timer).
+  // A few more snapshots, so every client has the host's results.
   await stepAll(pages, 30);
-  for (const page of pages) await page.evaluate(() => window.__game!.resume());
+  // The results screen opens on a real-time timer after each player's finish. The pages stay
+  // paused: four software-GL pages running at once in CI can starve each other's room heartbeats.
+  await Promise.all(
+    pages.map((page) =>
+      expect(page.locator('.menu-onlineResults')).toBeVisible({ timeout: 15_000 }),
+    ),
+  );
+  // A stepped frame lets each page redraw its results with the host's final standings.
+  await stepAll(pages, 3, { render: true });
 }
 
 /** The final results as shown, one string per row, without this page's "(you)". */
@@ -120,7 +127,7 @@ test.describe('online race flow', () => {
   });
 
   test("pausing on a client opens its menu but doesn't stop anyone's race", async ({ context }) => {
-    test.setTimeout(120_000);
+    test.setTimeout(240_000);
     const { pages, clients } = await openLobby(context, 3);
     const pauser = clients[0]!;
     await pauser.getByRole('button', { name: 'Pause' }).click();
