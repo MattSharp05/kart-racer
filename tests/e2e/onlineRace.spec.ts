@@ -37,9 +37,9 @@ async function resultRows(page: Page): Promise<string[]> {
 }
 
 test.describe('online race over BroadcastChannel', () => {
-  test('host and client race start to finish with matching results', async ({ browser }) => {
+  test('host and client race start to finish with matching results', async ({ context }) => {
     test.setTimeout(120_000);
-    const room = await openRoom(browser, 2, { laps: 1 });
+    const room = await openRoom(context, 2, { laps: 1 });
     const [host, client] = room.pages as [Page, Page];
     expect(await netInfo(host)).toMatchObject({ role: 'host', kartId: 0, started: true });
     expect(await netInfo(client)).toMatchObject({ role: 'client', kartId: 1 });
@@ -68,27 +68,24 @@ test.describe('online race over BroadcastChannel', () => {
     expect(results(clientState).slice(0, hostResults.length)).toEqual(hostResults);
     // …and so is what each player sees on the results screen.
     expect(await resultRows(client)).toEqual(await resultRows(host));
-    await room.context.close();
   });
 
-  test('the countdown waits until every player has joined', async ({ browser }) => {
-    const room = await openRoom(browser, 1, { scenario: 'online-race-2p' });
+  test('the countdown waits until every player has joined', async ({ context }) => {
+    const room = await openRoom(context, 1, { scenario: 'online-race-2p' });
     const host = room.host;
     await stepAll([host], 60);
     expect((await state(host)).tick).toBe(0); // waiting for the second player
     expect(await netInfo(host)).toMatchObject({ players: 1, expectedPlayers: 2, started: false });
-    await room.context.close();
   });
 
-  test('&netsim adds lag to the link', async ({ browser }) => {
+  test('&netsim adds lag to the link', async ({ context }) => {
     // Simulated lag is real time (it delays packets with timers), so this one runs unpaused and
     // measures the RTT; it asserts nothing about gameplay.
-    const room = await openRoom(browser, 2, { scenario: 'net-bad', paused: false });
+    const room = await openRoom(context, 2, { scenario: 'net-bad', paused: false });
     // Pings go out every 0.5 s: wait for a few round trips.
     await expect
       .poll(() => netInfo(room.clients[0]!).then((net) => net?.rttMs ?? 0), { timeout: 10_000 })
       .toBeGreaterThan(150);
-    await room.context.close();
   });
 });
 
