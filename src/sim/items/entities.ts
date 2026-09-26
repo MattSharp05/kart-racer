@@ -3,7 +3,7 @@ import { forwardFromHeading } from '../math';
 import { positionOf } from '../race';
 import { getTrack, trackGeometry } from '../track';
 import { tuning } from '../tuning';
-import type { ItemEntity, KartState, SimEvent, SimState } from '../types';
+import type { ItemEntity, ItemId, KartState, SimEvent, SimState } from '../types';
 import { nextEntityId } from './banana';
 import { isIntangible } from './effects';
 import { hitKart } from './hit';
@@ -333,4 +333,26 @@ export function updateItemEntities(state: SimState, dt: number, events: SimEvent
     if (spec.collide.some((rule) => rule(entity, ctx))) gone.add(entity.id);
   }
   if (gone.size) state.entities = state.entities.filter((e) => !gone.has(e.id));
+}
+
+/**
+ * The items chasing kart `kartId` right now (MK-67), for the HUD's incoming warning: red shells
+ * and homing item entities with it as their target, one id per item, in the order found.
+ */
+export function homingOn(state: SimState, kartId: number): ItemId[] {
+  const found: ItemId[] = [];
+  for (const e of state.entities) {
+    if ((e.kind !== 'shell' && e.kind !== 'item') || e.targetId !== kartId) continue;
+    if (e.ownerId === kartId) continue;
+    let item: ItemId;
+    if (e.kind === 'shell') item = e.colour;
+    else {
+      if (!entitySpecs.has(e.spec)) continue;
+      const spec = entitySpecs.get(e.spec);
+      if (spec.movement.type !== 'homing') continue;
+      item = spec.item;
+    }
+    if (!found.includes(item)) found.push(item);
+  }
+  return found;
 }

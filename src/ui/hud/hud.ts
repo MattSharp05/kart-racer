@@ -1,5 +1,6 @@
 import { hazardWarning, trackHazards } from '../../sim/hazards';
 import { availableItems } from '../../sim/items';
+import { homingOn } from '../../sim/items/entities';
 import { positionOf } from '../../sim/race';
 import { raceTime } from '../../sim/raceFlow';
 import { getTrack } from '../../sim/track';
@@ -35,6 +36,8 @@ export class Hud {
   private readonly wrongWay = div('hud-wrong-way');
   /** A hazard about to start, e.g. "SANDSTORM!" (MK-58). */
   private readonly hazard = div('hud-hazard-warning');
+  /** Something homing on you (a red shell, hornets…), next to the item slot (MK-67). */
+  private readonly incoming = div('hud-incoming');
   private readonly minimap = new Minimap();
   private readonly screenFlash = div('hud-flash');
   private readonly screenEffects = new ScreenEffects();
@@ -44,10 +47,12 @@ export class Hud {
   constructor() {
     this.timer.append(this.timerMain, this.lastLap);
     this.wrongWay.textContent = 'WRONG WAY';
+    this.incoming.hidden = true;
     this.root.append(
       this.lap,
       this.timer,
       this.item,
+      this.incoming,
       this.position,
       this.centre,
       this.wrongWay,
@@ -139,6 +144,7 @@ export class Hud {
     if (now > this.centreUntil) this.show(this.centre, false);
 
     this.updateItem(kart.item, now);
+    this.updateIncoming(state, kart.id);
     this.minimap.update(state, kart.id);
     this.screenEffects.update(kart, now);
   }
@@ -163,6 +169,19 @@ export class Hud {
       item && !rolling && slot.uses > 1 ? `<span class="hud-item-uses">×${slot.uses}</span>` : '';
     this.set(this.item, item ? itemIcon(item) + hint + uses : '');
     this.item.title = item && !rolling ? itemName(item) : '';
+  }
+
+  /** The incoming warning: the icon of each item chasing the kart, with a blinking "!". */
+  private updateIncoming(state: SimState, kartId: number): void {
+    const chasing = homingOn(state, kartId);
+    this.incoming.dataset.items = chasing.join(' ');
+    this.set(
+      this.incoming,
+      chasing.length
+        ? `<span class="hud-incoming-alert">!</span>${chasing.map(itemIcon).join('')}`
+        : '',
+    );
+    this.show(this.incoming, chasing.length > 0);
   }
 
   private flash(text: string, now: number, ms: number): void {

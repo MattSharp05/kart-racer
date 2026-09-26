@@ -4,6 +4,7 @@ import { itemViews, registerItemView, type ItemRenderer } from './views';
 import banana from './banana/render';
 import bubbleShield from './bubble-shield/render';
 import green from './green/render';
+import hornetSwarm from './hornet-swarm/render';
 import lightning from './lightning/render';
 import mushroom from './mushroom/render';
 import oilSlick from './oil-slick/render';
@@ -20,6 +21,7 @@ for (const view of [
   banana,
   bubbleShield,
   green,
+  hornetSwarm,
   lightning,
   mushroom,
   oilSlick,
