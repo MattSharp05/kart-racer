@@ -32,6 +32,12 @@ export interface ItemView {
   sounds?: Record<string, SoundRecipe>;
   /** A model for one of its entities, placed and turned by `ItemEntityRenderer` (default: a ball). */
   entityModel?(entity: ItemEntity): THREE.Object3D;
+  /**
+   * Called every frame after `ItemEntityRenderer` places an entity's model, to animate its parts
+   * from the entity's state (MK-69: a boomerang spins with its `age`, so a paused frame is the same
+   * every time). Leave the model's own position and turn alone: the renderer sets them.
+   */
+  animateEntity?(model: THREE.Object3D, entity: ItemEntity): void;
   /** A model drawn around a kart with one of its effects (a shield bubble), by `ItemEntityRenderer`. */
   effectModel?(effect: KartEffect): THREE.Object3D;
   /**
