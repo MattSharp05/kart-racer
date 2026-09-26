@@ -25,8 +25,14 @@ test('the host sees all 8 karts, the people highlighted, and picks what is next'
   await expect(rows.last()).toContainText('—');
   await expect(page.getByRole('button', { name: 'Race again' })).toBeEnabled();
   await expect(page.getByRole('button', { name: 'Next track' })).toBeEnabled();
-  // No leaderboard screen yet: no button for it.
-  await expect(page.getByRole('button', { name: 'View leaderboard' })).toHaveCount(0);
+  // The track's leaderboard (MK-56), and Back to the results. No backend here: unavailable.
+  await page.getByRole('button', { name: 'View leaderboard' }).click();
+  await expect(page.locator('.menu-leaderboard .track-tabs [aria-selected="true"]')).toHaveText(
+    'Sunny Circuit',
+  );
+  await expect(page.locator('.leaderboard-body')).toHaveAttribute('data-state', 'offline');
+  await page.getByRole('button', { name: 'Back' }).click();
+  await expect(page.locator('.menu-onlineResults')).toBeVisible();
   await page.getByRole('button', { name: 'Leave' }).click();
   await expect(page.locator('.menu-title')).toBeVisible();
 });

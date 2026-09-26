@@ -25,6 +25,13 @@ create table if not exists public.records (
   unique (track_id, engine_class, device_id)
 );
 
+-- How a row looks on the board (MK-56): the racer driven for race_ms, and the player's colour.
+-- Cosmetic, so a bad value is stored as null rather than rejecting the time.
+alter table public.records add column if not exists racer text
+  check (racer ~ '^[a-z0-9-]{1,32}$');
+alter table public.records add column if not exists colour text
+  check (colour ~ '^[a-z]{1,16}$');
+
 create index if not exists records_board on public.records (track_id, engine_class, race_ms, created_at);
 
 -- Every submission a device made in the last hour: submit_record() allows 5 a minute.
@@ -48,12 +55,15 @@ create policy "records are public" on public.records for select using (true);
 
 revoke all on public.track_limits, public.records, public.record_submissions from anon, authenticated;
 grant select on public.track_limits to anon, authenticated;
-grant select (id, track_id, engine_class, nickname, race_ms, best_lap_ms, created_at)
+grant select (id, track_id, engine_class, nickname, race_ms, best_lap_ms, created_at, racer, colour)
   on public.records to anon, authenticated;
 
 -- Submits a finished race. Returns {"status": "new" | "improved" | "kept" | "rejected",
 -- "reason"?: text}: "kept" means the device's row was already faster (its nickname and best lap
 -- still update). Rejections are returned, not raised, so the rate-limit log survives them.
+-- `p_racer` and `p_colour` (MK-56) only change how the row looks.
+-- The MK-48 version had no racer or colour: dropped so a 7-argument call isn't ambiguous.
+drop function if exists public.submit_record(text, integer, text, uuid, integer, integer, integer);
 create or replace function public.submit_record(
   p_track_id text,
   p_engine_class integer,
@@ -61,7 +71,9 @@ create or replace function public.submit_record(
   p_device_id uuid,
   p_laps integer,
   p_race_ms integer,
-  p_best_lap_ms integer
+  p_best_lap_ms integer,
+  p_racer text default null,
+  p_colour text default null
 ) returns jsonb
 language plpgsql
 security definer
@@ -77,6 +89,8 @@ declare
   limits public.track_limits;
   existing public.records;
   recent integer;
+  v_racer text := case when p_racer ~ '^[a-z0-9-]{1,32}$' then p_racer end;
+  v_colour text := case when p_colour ~ '^[a-z]{1,16}$' then p_colour end;
 begin
   if p_device_id is null then
     return jsonb_build_object('status', 'rejected', 'reason', 'device');
@@ -117,8 +131,10 @@ begin
     where track_id = p_track_id and engine_class = p_engine_class and device_id = p_device_id
     for update;
   if not found then
-    insert into public.records (track_id, engine_class, nickname, device_id, race_ms, best_lap_ms)
-      values (p_track_id, p_engine_class, p_nickname, p_device_id, p_race_ms, p_best_lap_ms);
+    insert into public.records
+      (track_id, engine_class, nickname, device_id, race_ms, best_lap_ms, racer, colour)
+      values (p_track_id, p_engine_class, p_nickname, p_device_id, p_race_ms, p_best_lap_ms,
+        v_racer, v_colour);
     return jsonb_build_object('status', 'new');
   end if;
   if p_race_ms < existing.race_ms then
@@ -126,20 +142,24 @@ begin
       nickname = p_nickname,
       race_ms = p_race_ms,
       best_lap_ms = least(existing.best_lap_ms, p_best_lap_ms),
+      racer = v_racer,
+      colour = coalesce(v_colour, existing.colour),
       created_at = now()
     where id = existing.id;
     return jsonb_build_object('status', 'improved');
   end if;
   update public.records set
     nickname = p_nickname,
-    best_lap_ms = least(existing.best_lap_ms, p_best_lap_ms)
+    best_lap_ms = least(existing.best_lap_ms, p_best_lap_ms),
+    colour = coalesce(v_colour, existing.colour)
   where id = existing.id;
   return jsonb_build_object('status', 'kept');
 end;
 $$;
 
 -- A board: the top 20 by race time, the caller's own row (wherever it ranks) and how many rows
--- there are. {"total": n, "top": [{"rank", "nickname", "race_ms", "best_lap_ms", "you"}],
+-- there are. {"total": n, "top": [{"rank", "nickname", "race_ms", "best_lap_ms", "racer",
+-- "colour", "you"}],
 -- "you": {…} | null}. Equal times share a rank.
 create or replace function public.get_board(
   p_track_id text,
@@ -158,6 +178,8 @@ as $$
       nickname,
       race_ms,
       best_lap_ms,
+      racer,
+      colour,
       coalesce(device_id = p_device_id, false) as you
     from public.records
     where track_id = p_track_id and engine_class = p_engine_class
@@ -172,9 +194,11 @@ as $$
   );
 $$;
 
-revoke all on function public.submit_record(text, integer, text, uuid, integer, integer, integer) from public;
+revoke all on function
+  public.submit_record(text, integer, text, uuid, integer, integer, integer, text, text) from public;
 revoke all on function public.get_board(text, integer, uuid) from public;
-grant execute on function public.submit_record(text, integer, text, uuid, integer, integer, integer)
+grant execute on function
+  public.submit_record(text, integer, text, uuid, integer, integer, integer, text, text)
   to anon, authenticated;
 grant execute on function public.get_board(text, integer, uuid) to anon, authenticated;
 

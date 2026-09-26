@@ -13,6 +13,7 @@ import { RotatePrompt } from '../ui/rotatePrompt';
 import { Router } from '../ui/router';
 import '../ui/screens/ccSelect';
 import '../ui/screens/connectionLost';
+import '../ui/screens/leaderboard';
 import { showToast } from '../ui/toast';
 import { NET } from '../net/config';
 import { DT } from '../sim/tuning';
@@ -30,13 +31,14 @@ import {
   clearProfile,
   colourHex,
   DEFAULT_COLOUR,
+  deviceId,
   readProfile,
   saveProfile,
   type Profile,
 } from './profile';
 import { standingsOf } from '../net/host';
 import type { OnlineLaunch, RaceLoss } from './online';
-import { supabaseLeaderboard, submitFinish } from '../records/leaderboard';
+import { Leaderboard, supabaseLeaderboard, submitFinish } from '../records/leaderboard';
 import { onlineResultLines, recordFinish, recordLines, resultLines } from './results';
 import { RoomFlow, type RoomService } from './roomFlow';
 import { DEFAULT_SEED, localKartOf, type Launch, type RaceSession } from './session';
@@ -101,13 +103,14 @@ export class Flow {
   private resultsTimer: number | undefined;
   /** What the local player's finish did to the track records, for the results screen. */
   private recordUpdate: RecordUpdate | undefined;
-  /** The global leaderboard (MK-48): personal bests from ranked races go to it. */
-  private readonly leaderboard = supabaseLeaderboard();
   /**
    * Whether the race running now counts for the leaderboard: one started from the menus or a
-   * room. Nothing on a page opened from a scenario link (dev and QA) ever does.
+   * room. Nothing on a page opened from a scenario link (dev and QA) ever does, except against a
+   * test backend (`?lb=mock`, MK-56), which never reaches the real board.
    */
   private ranked = false;
+  /** This race's leaderboard submit: your rank once a personal best is in (MK-56). */
+  private submitted: Promise<number | null> | undefined;
   private scenarioPage = false;
   private readonly rooms: RoomFlow;
   /** When this device's online race began connecting (`performance.now()`), 0 when not racing online. */
@@ -122,6 +125,8 @@ export class Flow {
     private readonly world: World,
     private readonly store: KeyValueStore,
     rooms: RoomService,
+    /** The global leaderboard (MK-48): personal bests from ranked races go to it. */
+    private readonly leaderboard: Leaderboard = supabaseLeaderboard(),
   ) {
     const game = session.game;
     const prefs = readPrefs(store);
@@ -263,7 +268,15 @@ export class Flow {
       case 'onlineResults':
         this.previewOnlineResults(launch.role !== 'client');
         break;
+      case 'leaderboard':
+        // Over the title, so Back lands there (MK-56).
+        game.setAutopilot(launch.localKartId, true);
+        this.showTitleScreen();
+        this.showLeaderboard(this.chosenTrack, this.chosenCc);
+        break;
       default:
+        // A race from a scenario link counts against a test leaderboard only (`?lb=mock`).
+        this.ranked = this.leaderboard.test;
         if (launch.state.phase === 'finished') {
           this.resultsTimer = window.setTimeout(this.showResults, LAUNCH_RESULTS_DELAY_MS);
         }
@@ -296,6 +309,7 @@ export class Flow {
       onOnline: () => this.rooms.showOnline(),
       onHowToPlay: this.openHowToPlay,
       onSettings: this.showSettings,
+      onLeaderboards: () => this.showLeaderboard(this.chosenTrack, this.chosenCc),
       ...(profile && {
         player: { nickname: profile.nickname, colour: colourHex(profile.colour) },
         onEditName: () => this.showNickname(() => this.showTitleScreen(), profile),
@@ -388,7 +402,7 @@ export class Flow {
     this.raceCount += 1;
     this.screens.hide();
     this.beforeLoad();
-    this.ranked = !this.scenarioPage;
+    this.ranked = !this.scenarioPage || this.leaderboard.test;
     this.session.startRace({
       seed: DEFAULT_SEED + this.raceCount,
       engineClass: this.chosenCc,
@@ -407,7 +421,7 @@ export class Flow {
   private readonly startOnlineRace = (launch: OnlineLaunch): void => {
     this.screens.hide();
     this.beforeLoad();
-    this.ranked = !this.scenarioPage;
+    this.ranked = !this.scenarioPage || this.leaderboard.test;
     const state = createRace(launch.race);
     this.session.load(state);
     this.world.reset('chase', localKartOf(state));
@@ -536,6 +550,39 @@ export class Flow {
     if (!this.session.online) this.session.game.resume();
   };
 
+  /**
+   * The leaderboards (MK-56) over the current screen, opening on this track and class; Back
+   * returns to that screen.
+   */
+  private showLeaderboard(track: string, engineClass: number): void {
+    this.screens.show('leaderboard', {
+      tracks: menuTracks(),
+      engineClasses: ENGINE_CLASSES,
+      track,
+      engineClass,
+      load: (trackId, cc) => this.leaderboard.board(trackId, cc, deviceId(this.store)),
+      onBack: () => this.screens.back(),
+    });
+  }
+
+  /** The leaderboard of the race on screen (results). */
+  private readonly showRaceLeaderboard = (): void => {
+    const { trackId, engineClass } = this.session.game.state;
+    this.showLeaderboard(trackId, engineClass);
+  };
+
+  /**
+   * Submits the local finish to the leaderboard; resolves to your rank on the board once a
+   * personal best is saved, else null.
+   */
+  private async submitAndRank(state: SimState, kartId: number): Promise<number | null> {
+    const { trackId, engineClass } = state;
+    const outcome = await submitFinish(this.leaderboard, this.store, state, kartId);
+    if (outcome !== 'saved') return null;
+    const board = await this.leaderboard.board(trackId, engineClass, deviceId(this.store));
+    return board?.you?.rank ?? null;
+  }
+
   private readonly showResults = (): void => {
     if (this.session.online) return this.showOnlineResults();
     const rows = resultLines(this.session.game.state, this.session.localKartId);
@@ -543,6 +590,8 @@ export class Flow {
     this.screens.show('results', {
       rows,
       ...(this.recordUpdate ? { records: recordLines(this.recordUpdate) } : {}),
+      ...(this.submitted ? { submitted: this.submitted } : {}),
+      onLeaderboard: this.showRaceLeaderboard,
       onAgain: this.startRace,
       onChangeKart: this.showRacerSelect,
       onMenu: this.showTitle,
@@ -572,6 +621,7 @@ export class Flow {
       host,
       inRoom,
       ...(host && inRoom ? { onAgain: this.raceAgain, onNextTrack: this.nextTrack } : {}),
+      onLeaderboard: this.showRaceLeaderboard,
       onLeave: this.showTitle,
     });
   }
@@ -588,6 +638,7 @@ export class Flow {
       host,
       inRoom: true,
       ...(host ? { onAgain: this.showTitle, onNextTrack: this.showTitle } : {}),
+      onLeaderboard: this.showRaceLeaderboard,
       onLeave: this.showTitle,
     });
   }
@@ -619,6 +670,7 @@ export class Flow {
   private beforeLoad(): void {
     window.clearTimeout(this.resultsTimer);
     this.recordUpdate = undefined;
+    this.submitted = undefined;
     this.ranked = false;
   }
 
@@ -635,7 +687,7 @@ export class Flow {
     const finished = events.find((e) => e.type === 'finish' && e.kartId === me);
     if (finished) {
       this.recordUpdate = recordFinish(this.store, state, me);
-      if (this.ranked) void submitFinish(this.leaderboard, this.store, state, me);
+      if (this.ranked) this.submitted = this.submitAndRank(state, me);
       this.resultsTimer = window.setTimeout(this.showResults, RESULTS_DELAY_MS);
     }
   }

@@ -39,6 +39,14 @@
   color: var(--color-mint);
 }
 
+/* "Submitted — you're #N" (MK-56): its line is kept while the submit is out, so nothing jumps. */
+.menus .leaderboard-status {
+  min-height: 1.3em;
+  margin: 0;
+  font-size: 15px;
+  color: var(--color-mint);
+}
+
 /* Short landscape phones: tighten the list so nothing scrolls. */
 @media (max-height: 430px) {
   .menus .results {
@@ -49,7 +57,8 @@
     padding: 0;
   }
 
-  .menus .records {
+  .menus .records,
+  .menus .leaderboard-status {
     font-size: 12px;
   }
 

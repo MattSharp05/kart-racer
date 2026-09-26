@@ -56,6 +56,14 @@ describe('ai-debug flag (MK-15)', () => {
   });
 });
 
+describe('leaderboard param (MK-56)', () => {
+  it('reads &lb=mock and &lb=offline, and ignores anything else', () => {
+    expect(parseLaunchParams('?scenario=leaderboard&lb=mock').lb).toBe('mock');
+    expect(parseLaunchParams('?lb=offline').lb).toBe('offline');
+    expect(parseLaunchParams('?lb=real')).not.toHaveProperty('lb');
+  });
+});
+
 describe('online params (MK-46)', () => {
   it('reads net, role, room, laps and netdebug', () => {
     expect(

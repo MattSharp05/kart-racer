@@ -20,6 +20,10 @@ export interface BoardRow {
   nickname: string;
   raceMs: number;
   bestLapMs: number;
+  /** The racer driven for `raceMs` (MK-56); absent for rows from before it was kept. */
+  racer?: string;
+  /** The player's profile colour id (MK-56), e.g. `teal`. */
+  colour?: string;
   /** This device's row. */
   you: boolean;
 }
@@ -42,6 +46,10 @@ export interface LeaderboardEntry {
   laps: number;
   raceTime: number;
   bestLap: number;
+  /** The racer driven (MK-56). */
+  racer?: string;
+  /** The player's colour id (MK-56). */
+  colour?: string;
 }
 
 /**
@@ -84,8 +92,14 @@ export class Leaderboard {
   /** Set once the server says there's no leaderboard: nothing is sent again this page load. */
   private missing = false;
 
-  /** `rpc` is null when the game has no Supabase settings (local builds, CI). */
-  constructor(private readonly rpc: RpcCall | null) {}
+  /**
+   * `rpc` is null when the game has no Supabase settings (local builds, CI). `test`: a stand-in
+   * backend (`?lb=mock`, MK-56) that never reaches the real board, so scenario races count too.
+   */
+  constructor(
+    private readonly rpc: RpcCall | null,
+    readonly test = false,
+  ) {}
 
   /** Whether it may talk to the server at all (configured, and not found missing). */
   get enabled(): boolean {
@@ -102,6 +116,8 @@ export class Leaderboard {
       p_laps: entry.laps,
       p_race_ms: toMs(entry.raceTime),
       p_best_lap_ms: toMs(entry.bestLap),
+      p_racer: entry.racer ?? null,
+      p_colour: entry.colour ?? null,
     });
     if (result === undefined) return 'unavailable';
     const status = (result as { status?: unknown } | null)?.status;
@@ -136,7 +152,7 @@ export class Leaderboard {
 function parseRow(value: unknown): BoardRow | null {
   if (typeof value !== 'object' || value === null) return null;
   const row = value as Record<string, unknown>;
-  const { rank, nickname, race_ms: raceMs, best_lap_ms: bestLapMs, you } = row;
+  const { rank, nickname, race_ms: raceMs, best_lap_ms: bestLapMs, racer, colour, you } = row;
   if (
     typeof rank !== 'number' ||
     typeof nickname !== 'string' ||
@@ -145,7 +161,15 @@ function parseRow(value: unknown): BoardRow | null {
   ) {
     return null;
   }
-  return { rank, nickname, raceMs, bestLapMs, you: you === true };
+  return {
+    rank,
+    nickname,
+    raceMs,
+    bestLapMs,
+    ...(typeof racer === 'string' ? { racer } : {}),
+    ...(typeof colour === 'string' ? { colour } : {}),
+    you: you === true,
+  };
 }
 
 /** The board from `get_board()`'s JSON; null if it isn't one. */
@@ -253,6 +277,8 @@ export function finishedEntry(
     laps: state.race.laps,
     raceTime: raceTime(state, finishTick),
     bestLap: Math.min(...kart.race.lapTimes),
+    racer: kart.kartType,
+    colour: profile.colour,
   };
 }
 
@@ -281,7 +307,12 @@ export async function submitFinish(
   const best = candidates.sort((a, b) => a.raceTime - b.raceTime)[0];
   if (!best) return 'skipped';
   // Sent under today's nickname, and saved first in case the page closes mid-request.
-  const send = { ...best, nickname: entry.nickname, deviceId: entry.deviceId };
+  const send = {
+    ...best,
+    nickname: entry.nickname,
+    deviceId: entry.deviceId,
+    ...(entry.colour !== undefined ? { colour: entry.colour } : {}),
+  };
   writeMemory(store, trackId, engineClass, { ...memory, pending: send });
   const outcome = await leaderboard.submit(send);
   if (outcome === 'unavailable') return outcome;
