@@ -30,9 +30,9 @@ async function hud(page: Page) {
 }
 
 test.describe('online client prediction under lag', () => {
-  test("the client's HUD position and lap match the host's at the finish", async ({ browser }) => {
+  test("the client's HUD position and lap match the host's at the finish", async ({ context }) => {
     test.setTimeout(150_000);
-    const room = await openRoom(browser, 2, { laps: 1, netsim: NETSIM });
+    const room = await openRoom(context, 2, { laps: 1, netsim: NETSIM });
     const [host, client] = room.pages as [Page, Page];
     const kartId = (await netInfo(client))!.kartId;
     await autopilotAll(room.pages);
@@ -74,16 +74,15 @@ test.describe('online client prediction under lag', () => {
       (id) => (hostState.karts[id]!.race.finishTick ?? Infinity) <= seen,
     );
     expect(clientState.positions.slice(0, finished.length)).toEqual(finished);
-    await room.context.close();
   });
 
   test('?netdebug=1 shows RTT, loss, snapshot age, re-simulation and corrections', async ({
-    browser,
+    context,
   }) => {
     // Two real-time, software-rendered pages on a busy CI runner: the RTT alone can take 15 s to
     // settle, which leaves too little of the default 30 s for the rest.
     test.setTimeout(60_000);
-    const room = await openRoom(browser, 2, { netsim: NETSIM, netdebug: true, paused: false });
+    const room = await openRoom(context, 2, { netsim: NETSIM, netdebug: true, paused: false });
     const [host, client] = room.pages as [Page, Page];
     const overlay = client.getByTestId('net-debug');
     // Pings go out every 0.5 s: wait until the RTT is measured (at least the simulated 150 ms; two
@@ -95,6 +94,5 @@ test.describe('online client prediction under lag', () => {
     await expect(overlay).toContainText('correction');
     await expect(host.getByTestId('net-debug')).toContainText('net host');
     await expect(host.getByTestId('net-debug')).toContainText('kart 1: late inputs');
-    await room.context.close();
   });
 });

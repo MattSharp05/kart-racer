@@ -4,6 +4,11 @@ const PORT = 4173;
 /**
  * Online specs (MK-46) run on the desktop projects only: BroadcastChannel links pages of one
  * browser, and the phone/tablet projects add nothing to netcode coverage.
+ *
+ * They run in their own projects, one test at a time (MK-80): each is 2–4 software-GL pages racing
+ * in real time, and two of them side by side on a 2–4 core CI runner starved each other's pages
+ * (lost heartbeats, overlays that never updated, 300 s timeouts). CI runs each `*-online` project
+ * as its own job, so they don't share the runner with the rest of the suite either.
  */
 const ONLINE_SPECS = /[\\/]online[^\\/]*\.spec\.ts$/i;
 
@@ -18,8 +23,20 @@ export default defineConfig({
     trace: 'retain-on-failure',
   },
   projects: [
-    { name: 'desktop-chrome', use: { ...devices['Desktop Chrome'] } },
-    { name: 'desktop-webkit', use: { ...devices['Desktop Safari'] } },
+    { name: 'desktop-chrome', use: { ...devices['Desktop Chrome'] }, testIgnore: ONLINE_SPECS },
+    {
+      name: 'desktop-chrome-online',
+      use: { ...devices['Desktop Chrome'] },
+      testMatch: ONLINE_SPECS,
+      workers: 1,
+    },
+    { name: 'desktop-webkit', use: { ...devices['Desktop Safari'] }, testIgnore: ONLINE_SPECS },
+    {
+      name: 'desktop-webkit-online',
+      use: { ...devices['Desktop Safari'] },
+      testMatch: ONLINE_SPECS,
+      workers: 1,
+    },
     {
       name: 'iphone-landscape',
       use: { ...devices['iPhone 15 landscape'] },
