@@ -27,6 +27,7 @@
     "check:bundle": "node scripts/check-bundle-size.mjs",
     "test:sql": "scripts/test-sql.sh",
     "item-balance": "vitest run -c vitest.lab.config.ts scripts/itemBalance.lab.ts --silent=false",
+    "racer-balance": "vitest run -c vitest.lab.config.ts scripts/racerBalance.lab.ts --silent=false",
     "track-limits": "vitest run -c vitest.lab.config.ts scripts/track-limits.lab.ts --silent=false --reporter=dot"
   },
   "dependencies": {
