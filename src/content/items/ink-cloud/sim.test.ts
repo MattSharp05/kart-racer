@@ -133,11 +133,19 @@ describe('Ink Cloud (MK-68)', () => {
     expect(drive(nudged)).not.toBeCloseTo(drive(clean), 3);
   });
 
-  it('AI: uses it in the back half of the field', () => {
+  it('AI: uses it in the back half of the field; never from 1st, even having given up', () => {
     const state = field();
     const aiUse = inkCloud.aiUse!;
-    expect(aiUse(state.karts[2]!, state)).toBe(true);
-    expect(aiUse(state.karts[1]!, state)).toBe(false);
+    const ctx = (giveUp: boolean) => ({ giveUp }) as Parameters<typeof aiUse>[2];
+    expect(aiUse(state.karts[2]!, state, ctx(false))).toBe(true);
+    expect(aiUse(state.karts[1]!, state, ctx(false))).toBe(false);
+    // Kart 1 leads: nobody ahead to ink.
+    expect(aiUse(state.karts[1]!, state, ctx(true))).toBe(false);
+    // 2nd of 5: front half, but it has given up waiting.
+    const five = createSimState({ seed: 1, karts: [{}, {}, {}, {}, {}] });
+    five.positions = [0, 1, 2, 3, 4];
+    expect(aiUse(five.karts[1]!, five, ctx(false))).toBe(false);
+    expect(aiUse(five.karts[1]!, five, ctx(true))).toBe(true);
   });
 
   it('is deterministic (the noise comes from the seeded RNG)', () => {

@@ -2,11 +2,14 @@ import { KART_IDS, type KartId } from '../sim/data/karts';
 import { lineOffsetAt } from '../sim/ai/racingLine';
 import { sunnyCircuit } from '../content/tracks/sunny-circuit/sim';
 import { forwardFromHeading } from '../sim/math';
+import { allAiRace, raceTrackIds } from '../sim/items/balance';
 import { createRace, raceSetupRng, type RacerSlot } from '../sim/race/createRace';
+import { raceTime } from '../sim/raceFlow';
+import { step } from '../sim/step';
 import { trackGeometry } from '../sim/track';
 import { rngInt, rngPick } from '../sim/rng';
 import { DT, tuning, type EngineClass } from '../sim/tuning';
-import type { SimState } from '../sim/types';
+import { NEUTRAL_INPUT, type SimState } from '../sim/types';
 import { recordStorage } from '../game/storage/records';
 import type { Scenario } from './registry';
 
@@ -145,6 +148,23 @@ function finalStraight(seed: number): SimState {
       lapStartTick: -Math.round(48 / DT),
       lapTimes: [52.4, 49.8],
     };
+  }
+  return state;
+}
+
+/** `race-all-items` skips this far into the race (s after GO), so items are already flying. */
+export const ALL_ITEMS_SKIP_SECONDS = 20;
+
+/**
+ * The item balance race (MK-72): 8 AI with items on, on race track `(seed − 1) mod 6` (seed 1 =
+ * the first), fast-forwarded `ALL_ITEMS_SKIP_SECONDS` into the race. Nobody is yours to drive.
+ */
+export function allItemsRace(seed: number): SimState {
+  const trackIds = raceTrackIds();
+  const trackId = trackIds[(((seed - 1) % trackIds.length) + trackIds.length) % trackIds.length];
+  let state = allAiRace(seed, trackId ?? sunnyCircuit.id);
+  while (state.phase !== 'racing' || raceTime(state) < ALL_ITEMS_SKIP_SECONDS) {
+    state = step(state, [NEUTRAL_INPUT]).state;
   }
   return state;
 }
@@ -356,6 +376,16 @@ export const raceScenarios: Scenario[] = [
       'Spectate: the camera follows the first AI racer while you sit out (autopilot parks you).',
     defaultSeed: 1,
     setup: (seed) => ({ state: sunnyRace(seed, { karts: 8, ai: true }), follow: 1 }),
+  },
+  {
+    name: 'race-all-items',
+    group: 'Race',
+    description: `Watch 8 AI race with all 14 items (MK-72), fast-forwarded ${ALL_ITEMS_SKIP_SECONDS} s in; the camera follows 4th place. Seed 1–6 picks the track (Sunny, Dune, Frostpeak, Neon, Canopy, Cog).`,
+    defaultSeed: 1,
+    setup: (seed) => {
+      const state = allItemsRace(seed);
+      return { state, follow: state.positions[3] ?? 0 };
+    },
   },
   {
     name: 'race-local-kart-3',

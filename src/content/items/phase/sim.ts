@@ -1,7 +1,8 @@
 import type { ItemContent } from '..';
+import { entitySpecs } from '../registries';
 import { applyEffect } from '../../../sim/items/effects';
-import { DT } from '../../../sim/tuning';
-import type { KartState, SimState } from '../../../sim/types';
+import { DT, tuning } from '../../../sim/tuning';
+import type { Entity, KartState, SimState } from '../../../sim/types';
 import type { AiItemContext } from '../../../sim/ai/items';
 
 /** Ticks per second (the sim runs at 60 Hz). */
@@ -11,8 +12,10 @@ const S = Math.round(1 / DT);
 export const PHASE_TICKS = 3 * S;
 /** The small speed boost while phased: top speed × this. */
 export const PHASE_SPEED = 1.1;
-/** AI: phase when a kart or an item on the track is this close ahead, m. */
+/** AI: phase when a kart or an item on the track is this close ahead, m… */
 export const PHASE_AI_RANGE = 20;
+/** …and within this many metres of the kart's own line sideways (in its way, MK-72). */
+export const PHASE_AI_LATERAL = 3;
 
 /**
  * Phase (MK-66): for 3 s the kart turns ghostly and a little faster. It passes through karts and
@@ -24,11 +27,14 @@ export default {
   id: 'phase',
   name: 'Phase',
   order: 180,
-  // Back positions (1st place … 8th place); relative weights, the balance pass (MK-72) tunes them.
-  odds: [0, 0, 0, 0, 0.05, 0.1, 0.15, 0.2],
+  // Back positions (1st place … 8th place); balanced in MK-72 (each row sums to 1).
+  odds: [0, 0, 0, 0, 0.04, 0.08, 0.1, 0.11],
   onUse: (kart, state, events) => applyEffect(kart, 'phase', PHASE_TICKS, state, events),
-  // AI: phase through whatever is just ahead.
-  aiUse: (kart, state, ctx) => somethingAhead(kart, state, ctx),
+  // AI: phase through whatever is just ahead in its way. Having given up, on a straight (its speed
+  // boost still helps), never into a bend where it's wasted (MK-72).
+  aiUse: (kart, state, ctx) =>
+    somethingAhead(kart, state, ctx) ||
+    (ctx.giveUp && ctx.straightAhead(tuning.ai.straightLookAhead) < tuning.ai.straightCurvature),
   effects: [
     {
       id: 'phase',
@@ -40,22 +46,39 @@ export default {
   ],
 } satisfies ItemContent;
 
-/** Whether another kart, or an item entity on the track, is within `PHASE_AI_RANGE` m ahead. */
+/**
+ * Whether another kart, or someone else's item entity on the track, is within `PHASE_AI_RANGE` m
+ * ahead and `PHASE_AI_LATERAL` m of the kart sideways: something it would run into.
+ */
 function somethingAhead(
   kart: KartState,
   state: SimState,
   { geometry, aheadMetres }: AiItemContext,
 ): boolean {
-  const myS = geometry.project(kart.position).s;
+  const here = geometry.project(kart.position);
   const ahead = (p: { x: number; z: number; y: number }) => {
     const dx = p.x - kart.position.x;
     const dz = p.z - kart.position.z;
     if (dx * dx + dz * dz > PHASE_AI_RANGE * PHASE_AI_RANGE) return false;
-    const d = aheadMetres(myS, geometry.project(p).s);
+    const there = geometry.project(p);
+    if (Math.abs(there.lateral - here.lateral) > PHASE_AI_LATERAL) return false;
+    const d = aheadMetres(here.s, there.s);
     return d > 0 && d <= PHASE_AI_RANGE;
   };
   return (
     state.karts.some((other) => other.id !== kart.id && ahead(other.position)) ||
-    state.entities.some((e) => e.kind !== 'itemBox' && ahead(e.position))
+    state.entities.some(
+      (e) => e.kind !== 'itemBox' && !harmlessToOwner(e, kart) && ahead(e.position),
+    )
   );
+}
+
+/**
+ * Whether `e` is the kart's own and can't hit it yet (MK-72): a shell just fired, or a boomerang
+ * on its way out or back. Once the owner's grace is over, its own banana or shell is a threat too.
+ */
+function harmlessToOwner(e: Exclude<Entity, { kind: 'itemBox' }>, kart: KartState): boolean {
+  if (e.ownerId !== kart.id) return false;
+  if (e.kind !== 'item') return e.ownerImmune > 0;
+  return e.returning === 1 || e.age <= entitySpecs.get(e.spec).ownerImmuneTicks;
 }

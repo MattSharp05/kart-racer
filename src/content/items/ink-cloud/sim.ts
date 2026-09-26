@@ -61,16 +61,19 @@ export default {
   id: 'ink-cloud',
   name: 'Ink Cloud',
   order: 200,
-  // Mid and back (1st place … 8th place); relative weights, the balance pass (MK-72) tunes them.
-  odds: [0, 0, 0.04, 0.08, 0.1, 0.1, 0.1, 0.08],
+  // Mid and back (1st place … 8th place); balanced in MK-72 (each row sums to 1).
+  odds: [0, 0, 0.03, 0.06, 0.07, 0.08, 0.08, 0.07],
   onUse: (kart, state, events) => {
     for (const target of inkTargets(kart, state)) {
       applyEffect(target, 'ink-cloud', INK_TICKS, state, events, { by: kart.id, data: [0, 0] });
       events.push({ type: 'itemFx', kartId: target.id, item: 'ink-cloud', fx: 'splat' });
     }
   },
-  // AI: when in the back half of the field.
-  aiUse: (kart, state) => positionOf(state, kart.id) > state.karts.length / 2,
+  // AI: when in the back half of the field; having given up, from anywhere but 1st (no one to ink).
+  aiUse: (kart, state, ctx) => {
+    const place = positionOf(state, kart.id);
+    return place > state.karts.length / 2 || (ctx.giveUp && place > 1);
+  },
   effects: [
     {
       id: 'ink-cloud',

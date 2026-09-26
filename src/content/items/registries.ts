@@ -20,8 +20,9 @@ export interface ItemContent {
   /** Dev/test items (the MK-52 worked example): never handed out, only given by scenarios. */
   testOnly?: boolean;
   /**
-   * Chance weight in each odds row (`ODDS_ROWS` numbers, 1st place first). Weights are relative:
-   * the roulette divides by the row's total (the MVP rows alone sum to 1).
+   * Chance in each odds row (`ODDS_ROWS` numbers, 1st place first). Across every handed-out item
+   * each row sums to 1 (MK-72, unit-tested), so a new item takes its share from the others; the
+   * roulette still divides by the row's total, so an item left out renormalises the rest.
    */
   odds: readonly number[];
   /**
@@ -36,7 +37,8 @@ export interface ItemContent {
   /**
    * AI drivers: whether to use it now, once their seeded thinking time is over (default: at once).
    * `true` presses the button, an object presses it with those inputs too (e.g. `{ throttle: 0 }`
-   * to drop behind); after `ai.itemGiveUp` seconds the AI uses it anyway.
+   * to drop behind). After `ai.itemGiveUp` s `ctx.giveUp` is set: settle for any sensible moment
+   * (a hook that still says no is overruled after `ai.itemForceUse` s, MK-72).
    */
   aiUse?(kart: KartState, state: SimState, ctx: AiItemContext): boolean | Partial<InputFrame>;
   /** Timed kart effects this item applies (`sim/items/effects.ts`); ids are global. */

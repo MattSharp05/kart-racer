@@ -91,8 +91,8 @@ export default {
   id: 'hornet-swarm',
   name: 'Hornet Swarm',
   order: 160,
-  // Mid and back (1st place … 8th place); relative weights, the balance pass (MK-72) tunes them.
-  odds: [0, 0, 0.05, 0.1, 0.12, 0.12, 0.1, 0.08],
+  // Mid and back (1st place … 8th place); balanced in MK-72 (each row sums to 1).
+  odds: [0, 0, 0.04, 0.07, 0.1, 0.11, 0.09, 0.09],
   onUse: (kart, state) => {
     const forward = forwardFromHeading(kart.heading);
     hornetTargets(kart, state).forEach((targetId, i) => {
@@ -103,10 +103,12 @@ export default {
       spawnEntity(state, 'hornet-swarm', kart, { direction, targetId });
     });
   },
-  // AI: when 1–3 karts are within 60 m ahead (and it isn't leading).
-  aiUse: (kart, state, { geometry, aheadMetres }) => {
-    // From 1st the hornets have no one to chase (they go by race position).
+  // AI: when 1–3 karts are within 60 m ahead, or having given up (never while leading).
+  aiUse: (kart, state, { geometry, aheadMetres, giveUp }) => {
+    // From 1st the hornets have no one to chase (they go by race position): even having given up,
+    // it waits (MK-72).
     if (positionOf(state, kart.id) === 1) return false;
+    if (giveUp) return true;
     const myS = geometry.project(kart.position).s;
     const ahead = state.karts.filter((other) => {
       if (other.id === kart.id) return false;

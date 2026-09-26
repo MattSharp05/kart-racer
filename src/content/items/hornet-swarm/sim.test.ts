@@ -284,6 +284,15 @@ describe('Hornet Swarm (MK-67)', () => {
       expect(decide(state)).toBe(false);
     });
 
+    it('having given up, fires with nobody near, but still never from 1st (MK-72)', () => {
+      const state = aiHolding();
+      for (const id of [0, 2, 3]) state.karts[id]!.position = geometry.pointAt(0.5, 0);
+      state.karts[1]!.ai!.itemHeld = tuning.ai.itemGiveUp;
+      expect(decide(structuredClone(state))).toBe(true);
+      state.positions = [1, 3, 2, 0];
+      expect(decide(state)).toBe(false);
+    });
+
     it('holds it with 4 karts within 60 m ahead', () => {
       const state = aiHolding();
       const extra = structuredClone(state.karts[3]!);

@@ -23,11 +23,12 @@ export default {
   id: 'bubble-shield',
   name: 'Bubble Shield',
   order: 140,
-  // Front and mid (1st place … 8th place); relative weights, the balance pass (MK-72) tunes them.
-  odds: [0.15, 0.15, 0.12, 0.1, 0.06, 0, 0, 0],
+  // Front and mid (1st place … 8th place); balanced in MK-72 (each row sums to 1).
+  odds: [0.18, 0.14, 0.1, 0.07, 0.04, 0, 0, 0],
   onUse: (kart, state, events) => applyEffect(kart, 'bubble-shield', SHIELD_TICKS, state, events),
   // AI: raise it when a projectile is coming, or straight away when leading.
-  aiUse: (kart, state) => positionOf(state, kart.id) === 1 || projectileIncoming(kart, state),
+  aiUse: (kart, state, { giveUp }) =>
+    giveUp || positionOf(state, kart.id) === 1 || projectileIncoming(kart, state),
   effects: [
     {
       id: 'bubble-shield',

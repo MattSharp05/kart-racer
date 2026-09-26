@@ -291,8 +291,16 @@ export const tuning = {
     greenAngle: (10 * Math.PI) / 180,
     /** …or this far to the side when close, m. */
     greenLateral: 1.5,
-    /** Use a held item anyway after this long, s (so nothing is hoarded forever). */
+    /**
+     * Held this long, s, the AI stops waiting for the ideal moment: the MVP items are used, and an
+     * item's `aiUse` hook is told (`giveUp`) so it can settle for any sensible moment (MK-72).
+     */
     itemGiveUp: 12,
+    /**
+     * Last resort (MK-72): an item whose hook still says no is used anyway after this long, s, so
+     * an AI's slot never stays jammed (and it can pick up boxes again).
+     */
+    itemForceUse: 30,
     /** Drift towards an item box within this distance ahead when the slot is empty, m. */
     boxSeekRange: 35,
     /** Look for bananas this far ahead to dodge, m, and pass them this far to the side. */
