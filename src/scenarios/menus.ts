@@ -65,13 +65,6 @@ export const menuScenarios: Scenario[] = [
     setup: (seed) => ({ state: attractMode(seed), screen: 'nickname' }),
   },
   {
-    name: 'menu-kart-select',
-    group: 'Menus',
-    description: 'Kart select: ← → to browse, Enter to choose.',
-    defaultSeed: 1,
-    setup: (seed) => ({ state: sunnyLineup(seed), view: 'lineup', screen: 'kartSelect' }),
-  },
-  {
     name: 'menu-cc-select',
     group: 'Menus',
     description: 'Engine class select (50 / 100 / 150cc).',

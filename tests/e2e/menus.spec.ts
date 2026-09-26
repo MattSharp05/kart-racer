@@ -8,9 +8,9 @@ test('title → kart select → engine class → race with 8 karts', async ({ pa
   await enterNickname(page);
   await page.locator('.how-to-play button').click();
   await page.locator('.menu-title button.primary').click();
-  await expect(page.locator('.menu-kartSelect')).toBeVisible();
+  await expect(page.locator('.menu-racerSelect')).toBeVisible();
   await page.keyboard.press('ArrowRight');
-  await page.locator('.menu-kartSelect button.primary').click();
+  await page.locator('.menu-racerSelect button.primary').click();
   await expect(page.locator('.menu-ccSelect')).toBeVisible();
   await page.locator('.menu-ccSelect button', { hasText: '150' }).click();
   await expect(page.locator('.menus .menu-panel')).toHaveCount(0);
@@ -117,7 +117,8 @@ test.describe('menus QA round 2 (MK-25)', () => {
   for (const name of [
     'first-launch',
     'menu-title',
-    'menu-kart-select',
+    'racer-select',
+    'racer-select-full',
     'menu-cc-select',
     'menu-paused',
     'settings',

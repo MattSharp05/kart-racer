@@ -1,0 +1,9 @@
+/* Racer select (MK-51): wider than the other menus so the details and a 5-card row sit side by side. */
+.menu-panel.menu-racerSelect {
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  box-sizing: border-box;
+  width: min(100%, 780px);
+  max-width: none;
+  /* Darker than the other menus: the turntable, not the lineup behind, is the preview. */
+  background: rgb(0 0 0 / 0.72);
+}
