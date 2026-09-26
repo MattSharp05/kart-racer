@@ -98,8 +98,9 @@ export class OnlineHost {
   readonly setup: RaceSetup;
   readonly peers: RemotePeer[] = [];
   /**
-   * The final standings, frozen when the race ended here (every human finished; MK-55), or null
-   * while it runs. Sent with every snapshot from then on, so every device shows the same results.
+   * The final standings, frozen when the race ended here (every human still connected finished;
+   * MK-55), or null while it runs. Sent with every snapshot from then on, so every device shows
+   * the same results.
    */
   results: RaceStanding[] | null = null;
   private lastLocalInput: InputFrame = NEUTRAL_INPUT;
@@ -174,10 +175,23 @@ export class OnlineHost {
     }
     const { state, events } = step(this.state, inputs);
     this.state = state;
-    if (!this.results && state.phase === 'finished') this.results = standingsOf(state);
+    if (!this.results && this.raceOver()) this.results = standingsOf(state);
     this.recordEvents(events);
     if (state.tick % NET.snapshotEveryTicks === 0) this.broadcast();
     return events;
+  }
+
+  /**
+   * Whether the race is over for the room: the sim ended it (every person finished), or everyone
+   * still here has, and the karts of players who left coast on unfinished (until drops hand them
+   * to the AI) — so one quitter can't keep the room from its results.
+   */
+  private raceOver(): boolean {
+    const { phase, karts } = this.state;
+    if (phase === 'finished') return true;
+    if (phase !== 'racing') return false;
+    const here = [this.localKartId, ...this.peers.filter((p) => p.connected).map((p) => p.kartId)];
+    return here.every((kartId) => karts[kartId]?.race.finishTick !== undefined);
   }
 
   /** Ends the race for everyone (the host leaving ends the room, ADR 0005). */

@@ -85,4 +85,33 @@ describe('online race flow over loopback (MK-55)', () => {
       expect(played.slice(1)).toEqual(expected?.slice(1));
     }
   });
+
+  it("doesn't wait for a player who left: results come once everyone still here finished", () => {
+    const { host, clients, clock } = onlineRace({
+      clients: 2,
+      conditions: parseNetConditions('30,0,0'),
+    });
+    const [stayer, quitter] = clients as [(typeof clients)[0], (typeof clients)[0]];
+    for (let ticks = 0; !host.results; ticks += 1) {
+      if (ticks > 120 * HZ) throw new Error('No results: the room waited for the quitter');
+      host.tick(scriptedInput(host.state.karts[0], host.state.tick, 0));
+      stayer.tick(scriptedInput(stayer.state?.karts[1], stayer.state?.tick ?? 0, 1));
+      // Kart 2's player quits 10 s into the race; the kart coasts from then on.
+      if (ticks === 10 * HZ) quitter.leave();
+      else if (ticks < 10 * HZ) {
+        quitter.tick(scriptedInput(quitter.state?.karts[2], quitter.state?.tick ?? 0, 2));
+      }
+      clock.advance(TICK_MS);
+    }
+    expect(host.state.phase).toBe('racing'); // the quitter's kart never finished
+    const finished = (kartId: number) =>
+      host.results?.find((s) => s.kartId === kartId)?.finishTick !== undefined;
+    expect([finished(0), finished(1), finished(2)]).toEqual([true, true, false]);
+    for (let i = 0; i < HZ; i += 1) {
+      host.tick(scriptedInput(host.state.karts[0], host.state.tick, 0));
+      stayer.tick(scriptedInput(stayer.state?.karts[1], stayer.state?.tick ?? 0, 1));
+      clock.advance(TICK_MS);
+    }
+    expect(stayer.results).toEqual(host.results);
+  });
 });

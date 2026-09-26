@@ -349,7 +349,7 @@ export class Flow {
     const host = net.role === 'host';
     if (net.ended) {
       // The race was over (everyone finished) when the host moved on: the results still show.
-      if (this.session.game.state.phase === 'finished') return;
+      if (this.session.game.state.phase === 'finished' || online.results()) return;
       this.abortOnlineRace(host ? undefined : 'The host ended the race.');
     } else if (!net.started && performance.now() - this.onlineSince > ONLINE_CONNECT_TIMEOUT_MS) {
       this.abortOnlineRace(
