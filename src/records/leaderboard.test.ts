@@ -53,7 +53,15 @@ describe('Leaderboard (MK-48)', () => {
       p_laps: 3,
       p_race_ms: 125432,
       p_best_lap_ms: 40000,
+      p_racer: null,
+      p_colour: null,
     });
+  });
+
+  it('sends the racer and colour when it has them (MK-56)', async () => {
+    const rpc = vi.fn<RpcCall>().mockResolvedValue({ status: 'new' });
+    await new Leaderboard(rpc).submit({ ...ENTRY, racer: 'maple', colour: 'teal' });
+    expect(rpc.mock.calls[0]![1]).toMatchObject({ p_racer: 'maple', p_colour: 'teal' });
   });
 
   it.each([
@@ -115,6 +123,21 @@ describe('Leaderboard (MK-48)', () => {
     expect(board?.you?.rank).toBe(1);
   });
 
+  it("reads a row's racer and colour, and leaves them out when null (MK-56)", () => {
+    const row = { rank: 3, nickname: 'Cy', race_ms: 1, best_lap_ms: 1, you: false };
+    const board = parseBoard({
+      total: 2,
+      top: [
+        { ...row, racer: 'swoop', colour: 'pink' },
+        { ...row, racer: null, colour: null },
+      ],
+      you: null,
+    });
+    expect(board?.top[0]).toMatchObject({ racer: 'swoop', colour: 'pink' });
+    expect(board?.top[1]).not.toHaveProperty('racer');
+    expect(board?.top[1]).not.toHaveProperty('colour');
+  });
+
   it('parses an empty board, and refuses malformed ones', () => {
     expect(parseBoard({ total: 0, top: [], you: null })).toEqual({ total: 0, top: [], you: null });
     expect(parseBoard(null)).toBeNull();
@@ -157,6 +180,8 @@ describe('submitFinish (MK-48)', () => {
       p_engine_class: state.engineClass,
       p_nickname: 'Ace',
       p_laps: state.race.laps,
+      p_racer: kart.kartType,
+      p_colour: 'red',
       p_best_lap_ms: Math.round(Math.min(...kart.race.lapTimes) * 1000),
     });
     expect(args.p_device_id).toMatch(/^[0-9a-f-]{36}$/);

@@ -1,3 +1,4 @@
+import type { LeaderboardMode } from '../records/leaderboardMock';
 import { oneWayOf, parseNetConditions, type NetConditions } from '../net/netsim';
 
 /** Online roles (`&role=`): the authoritative host or a predicting client (ADR 0005). */
@@ -40,6 +41,11 @@ export interface LaunchParams {
   netdebug: boolean;
   /** `&quality=low` (MK-71): render at adaptive quality's lowest setting from the start. */
   lowQuality?: boolean;
+  /**
+   * `&lb=mock|offline` (MK-56): a stand-in leaderboard backend (made-up boards, or a lost
+   * connection) instead of Supabase. Tests and QA links; never touches the real board.
+   */
+  lb?: LeaderboardMode;
 }
 
 const TRUE_VALUES = ['1', 'true'];
@@ -57,6 +63,7 @@ export function parseLaunchParams(search: string): LaunchParams {
   const netsimText = params.get('netsim');
   const netsim = netsimText ? parseNetConditions(netsimText) : undefined;
   const laps = Number(params.get('laps') ?? '');
+  const lb = params.get('lb');
   return {
     ...(scenario ? { scenario } : {}),
     ...(seed !== undefined && Number.isFinite(seed) ? { seed } : {}),
@@ -68,6 +75,7 @@ export function parseLaunchParams(search: string): LaunchParams {
     ...(netsim ? { netsim: oneWayOf(netsim) } : {}),
     ...(Number.isInteger(laps) && laps > 0 ? { laps } : {}),
     ...(params.get('quality') === 'low' ? { lowQuality: true } : {}),
+    ...(lb === 'mock' || lb === 'offline' ? { lb } : {}),
     paused: flag('paused'),
     tune: flag('tune'),
     reducedMotion: flag('reduced-motion'),

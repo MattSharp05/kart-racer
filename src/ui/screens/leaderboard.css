@@ -1,0 +1,181 @@
+/* Leaderboards (MK-56): tabs over one board; the list scrolls inside the panel, your row stays put. */
+.menu-panel.menu-leaderboard {
+  grid-template-rows: auto auto minmax(0, 1fr);
+  justify-items: stretch;
+  box-sizing: border-box;
+  width: min(100%, 620px);
+  max-width: none;
+  /*
+   * A fixed height, capped by the screen less the overlay's padding, so the list takes the
+   * overflow. (The overlay's grid row grows with its content, so `max-height: 100%` can't cap it.)
+   */
+  height: min(
+    640px,
+    calc(100dvh - max(12px, env(safe-area-inset-top)) - max(12px, env(safe-area-inset-bottom)))
+  );
+  background: rgb(0 0 0 / 0.72);
+}
+
+.leaderboard-top {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.leaderboard-top h2 {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.leaderboard-tabs {
+  display: flex;
+  gap: 6px;
+  max-width: 100%;
+  /* Room for the focus ring inside the scroll box. */
+  padding: 6px;
+  box-sizing: border-box;
+  overflow: auto hidden;
+  scrollbar-width: none;
+}
+
+.menus .leaderboard-tabs button.tab {
+  flex: none;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.14);
+  color: #fff;
+  font-size: 14px;
+  box-shadow: none;
+}
+
+.menus .leaderboard-tabs button.tab[aria-selected='true'] {
+  background: var(--color-gold);
+  color: var(--color-navy);
+}
+
+.leaderboard-body {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto auto;
+  align-content: start;
+  width: 100%;
+  min-height: 0;
+}
+
+.leaderboard-body:not([data-state='board']) {
+  grid-template-rows: none;
+  align-content: center;
+}
+
+.leaderboard-message {
+  margin: 0;
+  font-size: 20px;
+}
+
+.leaderboard-note {
+  margin: 4px 0 0;
+  font-weight: 400;
+  font-size: 13px;
+  opacity: 0.8;
+}
+
+.leaderboard-list {
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.leaderboard-row {
+  display: grid;
+  grid-template-columns: 2.4em 22px minmax(0, 1fr) 5.6em 5.6em;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 8px;
+  font-size: 15px;
+  text-align: left;
+  font-variant-numeric: tabular-nums;
+}
+
+.leaderboard-head {
+  font-size: 12px;
+  opacity: 0.7;
+}
+
+.leaderboard-row .rank {
+  text-align: right;
+}
+
+.leaderboard-row .racer {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: rgb(255 255 255 / 0.2);
+  box-shadow: 0 0 0 2px rgb(255 255 255 / 0.6);
+}
+
+.leaderboard-row .name {
+  overflow: hidden;
+  color: var(--player-colour, #fff);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.leaderboard-row .time,
+.leaderboard-row .lap,
+.leaderboard-head span:nth-child(n + 4) {
+  text-align: right;
+}
+
+.leaderboard-row .lap {
+  opacity: 0.8;
+}
+
+.leaderboard-row.you {
+  border-radius: 8px;
+  background: rgb(255 214 64 / 0.22);
+  box-shadow: inset 0 0 0 2px var(--color-gold);
+}
+
+.leaderboard-row.pinned {
+  margin-top: 6px;
+}
+
+.leaderboard-total {
+  text-align: right;
+}
+
+/* Short landscape phones: tighter tabs and rows; the list takes what's left and scrolls. */
+@media (max-height: 430px) {
+  .menu-panel.menu-leaderboard {
+    gap: 4px;
+    padding-top: 8px;
+    padding-bottom: 8px;
+  }
+
+  .menu-leaderboard h2 {
+    font-size: 18px;
+  }
+
+  .leaderboard-tabs {
+    padding: 3px 6px;
+  }
+
+  .menus .leaderboard-tabs button.tab,
+  .menus .leaderboard-top button.back {
+    padding: 4px 10px;
+    font-size: 13px;
+  }
+
+  .leaderboard-row {
+    padding: 1px 8px;
+    font-size: 13px;
+  }
+
+  .leaderboard-total {
+    display: none;
+  }
+}

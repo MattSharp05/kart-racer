@@ -12,7 +12,8 @@ export type MenuScreen =
   | 'howToPlay'
   | 'settings'
   | 'nickname'
-  | 'onlineResults';
+  | 'onlineResults'
+  | 'leaderboard';
 
 export interface ScenarioSetup {
   state: SimState;

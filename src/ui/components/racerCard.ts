@@ -28,16 +28,24 @@ export function racerCard(racer: RacerContent, onPick: () => void): HTMLButtonEl
   card.dataset.racer = racer.id;
   card.setAttribute('role', 'radio');
   card.setAttribute('aria-checked', 'false');
-  const { body, accent } = racerViews.get(racer.id).colours;
-  const swatch = document.createElement('span');
-  swatch.className = 'racer-swatch';
-  swatch.style.background = `linear-gradient(135deg, ${css(body)} 62%, ${css(accent)} 62%)`;
+  const swatch = racerSwatch(racer.id);
   const name = document.createElement('span');
   name.className = 'racer-name';
   name.textContent = racer.name;
   card.append(swatch, name);
   card.addEventListener('click', onPick);
   return card;
+}
+
+/** A racer's paint as a small two-tone swatch (its icon in lists, MK-56); blank for an unknown id. */
+export function racerSwatch(racerId: string): HTMLSpanElement {
+  const swatch = document.createElement('span');
+  swatch.className = 'racer-swatch';
+  if (racerViews.has(racerId)) {
+    const { body, accent } = racerViews.get(racerId).colours;
+    swatch.style.background = `linear-gradient(135deg, ${css(body)} 62%, ${css(accent)} 62%)`;
+  }
+  return swatch;
 }
 
 /** The stat bars (1–5 pips each) for `stats`, as a `<dl>`. */
