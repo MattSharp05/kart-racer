@@ -1,23 +1,30 @@
 import * as THREE from 'three';
-import { inRange, type TrackGeometry, type TrackSample } from '../sim/splineTrack';
+import { SUNNY_THEME, type TrackTheme } from '../content/tracks/theme';
+import {
+  inRange,
+  type TrackGeometry,
+  type TrackSample,
+  type ZoneSurface,
+} from '../sim/splineTrack';
 
-const ROAD_COLOUR = new THREE.Color(0x6b6f76);
-const GRASS_COLOUR = new THREE.Color(0x6cbf52);
 const KERB_RED = new THREE.Color(0xd62828);
 const KERB_WHITE = new THREE.Color(0xf8f9fa);
-const WALL_A = new THREE.Color(0xf4a261);
-const WALL_B = new THREE.Color(0xe76f51);
 const LINE_DARK = new THREE.Color(0x222222);
 const LINE_LIGHT = new THREE.Color(0xffffff);
-const PAD_A = new THREE.Color(0xffb703);
-const PAD_B = new THREE.Color(0xfb8500);
 const RAMP_A = new THREE.Color(0xffd60a);
 const RAMP_B = new THREE.Color(0x1d1d1d);
-/** Deep grass on shortcuts: darker than the verges so it reads as slower. */
-const INFIELD_COLOUR = new THREE.Color(0x3f7d32);
-const PAD_STRIPE = 1.5;
 const RAMP_STRIPE = 1;
-const TERRAIN_COLOUR = 0x4f9a3d;
+/**
+ * How each surface zone is drawn: two stripe colours and the stripe length, m (MK-49 adds ice,
+ * sand and conveyors). Zones without an entry (offroad) aren't drawn.
+ */
+const ZONE_LOOKS: Partial<Record<ZoneSurface, { a: THREE.Color; b: THREE.Color; stripe: number }>> =
+  {
+    boostPad: { a: new THREE.Color(0xffb703), b: new THREE.Color(0xfb8500), stripe: 1.5 },
+    ice: { a: new THREE.Color(0xd8f3ff), b: new THREE.Color(0xb8e4f5), stripe: 3 },
+    sand: { a: new THREE.Color(0xe9c98f), b: new THREE.Color(0xdcb877), stripe: 4 },
+    conveyor: { a: new THREE.Color(0x3a3d42), b: new THREE.Color(0xf2c230), stripe: 1 },
+  };
 
 const WALL_HEIGHT = 1.2;
 const KERB_WIDTH = 0.9;
@@ -72,8 +79,22 @@ function curvature(geometry: TrackGeometry, i: number): number {
   return Math.abs(Math.asin(Math.max(-1, Math.min(1, cross)))) / 4;
 }
 
-/** Builds road, grass verges, kerbs, walls and the start line for a spline track (ADR 0003). */
-export function createSplineTrackMesh(geometry: TrackGeometry): THREE.Group {
+/**
+ * Builds road, grass verges, kerbs, walls and the start line for a spline track (ADR 0003), in the
+ * track theme's palette (MK-49).
+ */
+export function createSplineTrackMesh(
+  geometry: TrackGeometry,
+  palette: TrackTheme['palette'] = SUNNY_THEME.palette,
+): THREE.Group {
+  const colours = {
+    road: new THREE.Color(palette.road),
+    verge: new THREE.Color(palette.verge),
+    wallA: new THREE.Color(palette.wallA),
+    wallB: new THREE.Color(palette.wallB),
+    /** Deep grass on shortcuts: darker than the verges so it reads as slower. */
+    infield: new THREE.Color(palette.infield),
+  };
   const group = new THREE.Group();
   const ground = new MeshBuilder();
   const walls = new MeshBuilder();
@@ -93,21 +114,21 @@ export function createSplineTrackMesh(geometry: TrackGeometry): THREE.Group {
       offset(b, -wallB, LIFT.grass),
       offset(b, -half(b), LIFT.grass),
       offset(a, -half(a), LIFT.grass),
-      GRASS_COLOUR,
+      colours.verge,
     );
     ground.quad(
       offset(a, half(a), LIFT.grass),
       offset(b, half(b), LIFT.grass),
       offset(b, wallB, LIFT.grass),
       offset(a, wallA, LIFT.grass),
-      GRASS_COLOUR,
+      colours.verge,
     );
     ground.quad(
       offset(a, -half(a), LIFT.road),
       offset(b, -half(b), LIFT.road),
       offset(b, half(b), LIFT.road),
       offset(a, half(a), LIFT.road),
-      ROAD_COLOUR,
+      colours.road,
     );
 
     // Red/white kerbs on bends.
@@ -127,11 +148,12 @@ export function createSplineTrackMesh(geometry: TrackGeometry): THREE.Group {
       }
     }
 
-    // Boost pads: orange/yellow chevron stripes; ramps: yellow/black hazard stripes.
+    // Surface zones (boost pads: orange/yellow stripes…); ramps: yellow/black hazard stripes.
     const tA = a.s / geometry.length;
     for (const zone of geometry.def.surfaceZones) {
-      if (zone.type !== 'boostPad' || !inRange(tA, zone)) continue;
-      const colour = Math.floor(a.s / PAD_STRIPE) % 2 === 0 ? PAD_A : PAD_B;
+      const look = ZONE_LOOKS[zone.type];
+      if (!look || !inRange(tA, zone)) continue;
+      const colour = Math.floor(a.s / look.stripe) % 2 === 0 ? look.a : look.b;
       ground.quad(
         offset(a, zone.lateralMin, LIFT.pad),
         offset(b, zone.lateralMin, LIFT.pad),
@@ -152,7 +174,7 @@ export function createSplineTrackMesh(geometry: TrackGeometry): THREE.Group {
     }
 
     // Walls (skipped at gaps), striped so speed is readable.
-    const wallColour = Math.floor(a.s / WALL_STRIPE) % 2 === 0 ? WALL_A : WALL_B;
+    const wallColour = Math.floor(a.s / WALL_STRIPE) % 2 === 0 ? colours.wallA : colours.wallB;
     const t = a.s / geometry.length;
     for (const side of [-1, 1] as const) {
       if (!geometry.hasWall(t, side === 1 ? 'right' : 'left')) continue;
@@ -201,7 +223,7 @@ export function createSplineTrackMesh(geometry: TrackGeometry): THREE.Group {
       const centre = new THREE.Vector3(cx, cut.y + LIFT.grass, cz);
       const p1 = new THREE.Vector3(v.x, cut.y + LIFT.grass, v.z);
       const p2 = new THREE.Vector3(w.x, cut.y + LIFT.grass, w.z);
-      ground.quad(centre, p1, p2, centre, INFIELD_COLOUR);
+      ground.quad(centre, p1, p2, centre, colours.infield);
     });
   }
 
@@ -224,7 +246,7 @@ export function createSplineTrackMesh(geometry: TrackGeometry): THREE.Group {
   const centre = bounds.getCenter(new THREE.Vector3());
   const terrain = new THREE.Mesh(
     new THREE.PlaneGeometry(size.x + 400, size.z + 400),
-    new THREE.MeshLambertMaterial({ color: TERRAIN_COLOUR }),
+    new THREE.MeshLambertMaterial({ color: palette.terrain }),
   );
   terrain.rotation.x = -Math.PI / 2;
   terrain.position.set(centre.x, bounds.min.y - 0.05, centre.z);

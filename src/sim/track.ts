@@ -37,14 +37,26 @@ export function trackGeometry(track: SplineTrackDef): TrackGeometry {
 export interface GroundInfo {
   height: number;
   surface: Surface;
+  /** Conveyors: unit direction the belt runs (XZ). */
+  flow?: { x: number; z: number };
 }
 
 /** Ground height and surface under a position. */
 export function groundAt(track: TrackDef, position: Vec3): GroundInfo {
   if (track.kind === 'arena') return { height: track.groundHeight, surface: 'road' };
   const projection = trackGeometry(track).project(position);
-  if (projection.surface !== 'out')
-    return { height: projection.groundY, surface: projection.surface };
+  if (projection.surface !== 'out') {
+    const ground: GroundInfo = { height: projection.groundY, surface: projection.surface };
+    const angle = projection.zone?.flowAngle;
+    if (projection.surface === 'conveyor') {
+      // Rotate the driving direction towards the right-normal by `flowAngle`.
+      const { tangent, normal } = projection;
+      const cos = Math.cos(angle ?? 0);
+      const sin = Math.sin(angle ?? 0);
+      ground.flow = { x: tangent.x * cos + normal.x * sin, z: tangent.z * cos + normal.z * sin };
+    }
+    return ground;
+  }
   const cut = track.shortcuts?.find((c) => insidePolygon(position.x, position.z, c.polygon));
   if (cut) return { height: cut.y, surface: 'rough' };
   return { height: VOID_HEIGHT, surface: 'out' };

@@ -1,6 +1,7 @@
 import { createSimState } from '../sim/state';
 import { getTrack, trackGeometry } from '../sim/track';
 import { SUNNY_INFIELD, sunnyCircuit } from '../content/tracks/sunny-circuit/sim';
+import { HAZARD_TEST } from '../content/tracks/hazard-test/sim';
 import type { SplineTrackDef } from '../sim/splineTrack';
 import { nextEntityId } from '../sim/items/banana';
 import { tuning } from '../sim/tuning';
@@ -102,6 +103,85 @@ export function sunnyStart(seed: number) {
   const pole = sunnyCircuit.gridSlots?.[0] ?? { t: 0.99, lateral: 0 };
   return kartOnTrack(seed, 'sunny-circuit', pole.t, { lateral: pole.lateral });
 }
+
+/** A kart on the hazard test track's back straight (x = −45) at `z`, heading along it. */
+function hazardBackStraight(seed: number, z: number, speed = 0) {
+  return kartOnTrack(seed, 'hazard-test', HAZARD_TEST.tAt(-45, z), { speed });
+}
+
+/** Hazard test track scenarios (MK-49): one of each hazard kind and surface. */
+const hazardScenarios: Scenario[] = [
+  {
+    name: 'hazard-test',
+    group: 'Hazards',
+    description:
+      'Hazard test track (MK-49), on the start line. Hold W: oncoming traffic in your lane spins you out; then a crusher, a sandstorm on the bend, ice, sand, a conveyor and a spinning bar.',
+    defaultSeed: 1,
+    setup: (seed) => ({ state: kartOnTrack(seed, 'hazard-test', 0.005) }),
+  },
+  {
+    name: 'hazard-test-overview',
+    group: 'Hazards',
+    description: 'Top-down view of the hazard test track: every hazard and surface zone.',
+    defaultSeed: 1,
+    setup: (seed) => ({ state: kartOnTrack(seed, 'hazard-test', 0.005), view: 'overview' }),
+  },
+  {
+    name: 'hazard-crusher',
+    group: 'Hazards',
+    description:
+      'Parked 12 m before the crusher (it closes every 4 s). Time a run under it, or wait under it to get squashed.',
+    defaultSeed: 1,
+    setup: (seed) => {
+      // The start straight runs towards −Z; past the traffic kart's turning point.
+      const { x, z } = HAZARD_TEST.crusher;
+      return { state: kartOnTrack(seed, 'hazard-test', HAZARD_TEST.tAt(x, z + 12)) };
+    },
+  },
+  {
+    name: 'hazard-sandstorm',
+    group: 'Hazards',
+    description:
+      'Entering the first bend, where a sandstorm blows for 5 s out of every 10: the view closes in and grip drops.',
+    defaultSeed: 1,
+    setup: (seed) => ({
+      state: kartOnTrack(seed, 'hazard-test', HAZARD_TEST.tAt(45, -70), { speed: 15 }),
+    }),
+  },
+  {
+    name: 'hazard-spinner',
+    group: 'Hazards',
+    description: 'Before the spinning bar on the last bend: it knocks you back if you touch it.',
+    defaultSeed: 1,
+    setup: (seed) => ({ state: kartOnTrack(seed, 'hazard-test', HAZARD_TEST.tAt(-45, 60)) }),
+  },
+  {
+    name: 'surface-ice',
+    group: 'Hazards',
+    description: 'At 18 m/s, 15 m before a patch of ice: steer on it and the kart slides wide.',
+    defaultSeed: 1,
+    setup: (seed) => ({ state: hazardBackStraight(seed, HAZARD_TEST.ice.from - 15, 18) }),
+  },
+  {
+    name: 'surface-sand',
+    group: 'Hazards',
+    description: 'At top speed, 15 m before a sand patch: it slows you, and a drift on it wobbles.',
+    defaultSeed: 1,
+    setup: (seed) => ({
+      state: hazardBackStraight(seed, HAZARD_TEST.sand.from - 15, SUNNY_TOP_SPEED),
+    }),
+  },
+  {
+    name: 'surface-conveyor',
+    group: 'Hazards',
+    description:
+      'Stopped on a conveyor belt that runs across the road: it carries you to the right.',
+    defaultSeed: 1,
+    setup: (seed) => ({
+      state: hazardBackStraight(seed, (HAZARD_TEST.conveyor.from + HAZARD_TEST.conveyor.to) / 2),
+    }),
+  },
+];
 
 export const trackScenarios: Scenario[] = [
   {
@@ -427,4 +507,5 @@ export const trackScenarios: Scenario[] = [
       return { state };
     },
   },
+  ...hazardScenarios,
 ];

@@ -20,6 +20,7 @@ import {
 } from './drift';
 import { kartPhysics } from './kartStats';
 import { inRange } from './splineTrack';
+import { surfaceEffect } from './surfaces';
 import { groundAt, trackGeometry, type TrackDef } from './track';
 import { tuning, type EngineClass } from './tuning';
 import type { InputFrame, KartState, SimEvent } from './types';
@@ -78,6 +79,16 @@ export function steeringStrength(speed: number, topSpeed: number): number {
   return 1 + (tuning.steerAtTopSpeed - 1) * t;
 }
 
+/** What a kart update needs to know about the world besides the track (MK-49). */
+export interface KartEnv {
+  /** The tick being simulated (time-based surface effects). */
+  tick: number;
+  /** Sideways grip × this, from hazard zones such as a sandstorm (1 = none). */
+  grip: number;
+}
+
+const DEFAULT_ENV: KartEnv = { tick: 0, grip: 1 };
+
 /** Advances one kart by one tick. Mutates and returns `kart` (called on a cloned state). */
 export function updateKart(
   kart: KartState,
@@ -86,6 +97,7 @@ export function updateKart(
   track: TrackDef,
   dt: number,
   events: SimEvent[],
+  env: KartEnv = DEFAULT_ENV,
 ): KartState {
   const physics = kartPhysics(kart.kartType, engineClass);
   // Star: faster (MK-20). Shrunk by lightning: slower. AI rubber-banding (MK-15) scales it too.
@@ -101,6 +113,9 @@ export function updateKart(
 
   const driftPressed = input.drift && !kart.driftHeld;
   handleDriftButton(kart, input, forwardSpeed, topSpeed, events);
+  // The surface under the kart (MK-49: `sim/surfaces.ts`); in the air (or hopping) it's like road.
+  const under = kart.grounded ? groundAt(track, kart.position) : undefined;
+  const effect = surfaceEffect(under?.surface ?? 'road');
   if (driftPressed && !kart.grounded) tryTrick(kart, events);
   if (isDrifting(kart) && forwardSpeed < tuning.driftMinSpeed * topSpeed) {
     cancelDrift(kart, events);
@@ -111,6 +126,9 @@ export function updateKart(
   let yaw: number;
   if (isDrifting(kart)) {
     yaw = driftYawRate(kart, input) * physics.handling;
+    if (effect.wobble && effect.wobbleHz) {
+      yaw += effect.wobble * Math.sin(2 * Math.PI * effect.wobbleHz * env.tick * dt);
+    }
     chargeDrift(kart, input, dt, events);
   } else {
     const direction = forwardSpeed >= 0 ? 1 : -1;
@@ -127,10 +145,8 @@ export function updateKart(
   // Longitudinal speed along the new heading. Boosting raises the top speed and pulls towards it
   // hard, even without throttle (unless braking), and ignores the grass penalty.
   const boosting = kart.boostTimer > 0;
-  const surface = kart.grounded ? groundAt(track, kart.position).surface : 'road';
-  const grassSpeed =
-    surface === 'offroad' ? tuning.offroadSpeed : surface === 'rough' ? tuning.roughSpeed : 0;
-  // A star ignores the grass penalty, like a boost.
+  // Grass, sand…: a lower top speed. A star ignores it, like a boost.
+  const grassSpeed = effect.speed ?? 0;
   const onGrass = grassSpeed > 0 && kart.starTimer === 0;
   const newSpeed = boosting
     ? updateForwardSpeed(
@@ -153,7 +169,8 @@ export function updateKart(
   kart.boostTimer = Math.max(0, kart.boostTimer - dt);
 
   // Plus the remaining sideways slide, decaying with grip (low grip while drifting = outward slide).
-  const grip = isDrifting(kart) ? tuning.driftGrip : tuning.lateralGrip;
+  const grip =
+    (isDrifting(kart) ? tuning.driftGrip : tuning.lateralGrip) * (effect.grip ?? 1) * env.grip;
   const slide = scale(lateral, Math.exp(-grip * dt));
   const horizontal = add(scale(forward, newSpeed), slide);
 
@@ -162,6 +179,10 @@ export function updateKart(
   const wasGrounded = kart.grounded;
   let vy = kart.velocity.y - tuning.gravity * dt;
   let position = add(kart.position, scale(vec3(horizontal.x, vy, horizontal.z), dt));
+  if (effect.conveyor && under?.flow) {
+    // A conveyor carries the kart along with the belt (its speed adds to the kart's own).
+    position = add(position, scale(vec3(under.flow.x, 0, under.flow.z), effect.conveyor * dt));
+  }
   const ground = groundAt(track, position);
   // A grounded kart sticks to the ground over small drops (downhills); only a sudden drop
   // bigger than the snap distance (a ramp lip, a cliff) lets it fly.
