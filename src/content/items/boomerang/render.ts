@@ -6,24 +6,30 @@ import type { ItemView } from '../views';
 /** It flies this high above the road (the entity renderer already lifts models 0.4 m)… */
 const FLY_HEIGHT = 0.5;
 /** …drawn this much bigger than life, so it reads at racing distance… */
-const SIZE = 1.6;
-/** …spinning flat this much per sim tick (rad): about 2 turns a second. */
+const SIZE = 2;
+/** …leaning back this far from upright (rad), as a thrown boomerang flies, so it reads face-on… */
+const TILT = 0.35;
+/** …spinning this much per sim tick (rad): about 2 turns a second. */
 const SPIN_PER_TICK = 0.22;
 /** The name of the spinning part (`animateEntity` finds it). */
 const SPINNER = 'boomerang-spinner';
 
 /**
- * A wooden boomerang lying flat: two tapered arms meeting at an elbow, painted stripes near the
- * tips, spinning about its middle (`animateEntity`), with a fading swirl of trail behind it (the
- * renderer turns the model so +Z trails its travel direction).
+ * A wooden boomerang: two arms meeting at an elbow, painted stripes near the tips, spinning
+ * nearly upright about its middle (`animateEntity`) so the chase camera sees its face, with a fading
+ * swirl of rings behind it (the renderer turns the model so +Z trails its travel direction).
  */
 function boomerang(): THREE.Object3D {
   const group = new THREE.Group();
   group.position.y = FLY_HEIGHT;
   group.scale.setScalar(SIZE);
+  // Upright: the spin plane faces along the flight path (tilted back a little).
+  const tilt = new THREE.Group();
+  tilt.rotation.x = Math.PI / 2 - TILT;
+  group.add(tilt);
   const spinner = new THREE.Group();
   spinner.name = SPINNER;
-  group.add(spinner);
+  tilt.add(spinner);
   const wood = new THREE.MeshStandardMaterial({
     color: '#c8873e',
     roughness: 0.7,
@@ -58,7 +64,6 @@ function boomerang(): THREE.Object3D {
         side: THREE.DoubleSide,
       }),
     );
-    ring.rotation.x = -Math.PI / 2;
     ring.position.z = z;
     group.add(ring);
   });
@@ -70,9 +75,10 @@ export default {
   id: 'boomerang',
   // A boomerang with red-tipped arms and a curved arrow showing it comes back.
   icon:
-    '<path d="M14 50 L30 16 Q33 10 38 14 L41 17 Q43 21 39 25 L27 44 L50 38 Q56 37 57 43 L56 46 Q54 51 48 51 Z" fill="#c8873e" stroke="#5a3a1a" stroke-width="2.5" stroke-linejoin="round"/>' +
-    '<path d="M31 14 L40 22 M49 38 L55 49" stroke="#e63946" stroke-width="5" stroke-linecap="round"/>' +
-    '<path d="M50 12 Q60 20 56 30" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round"/><path d="M52 31 L56 31 L57 26" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>',
+    '<path d="M10 50 Q20 12 32 12 Q44 12 54 50" fill="none" stroke="#5a3a1a" stroke-width="13" stroke-linecap="round"/>' +
+    '<path d="M10 50 Q20 12 32 12 Q44 12 54 50" fill="none" stroke="#c8873e" stroke-width="8" stroke-linecap="round"/>' +
+    '<path d="M11 48 L13 41 M53 48 L51 41" stroke="#e63946" stroke-width="7" stroke-linecap="round"/>' +
+    '<path d="M22 40 Q32 30 42 40" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round"/><path d="M22 34 L22 40 L28 40" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>',
   useSound: 'boomerang.use',
   renderer: ItemEntityRenderer,
   sounds: {
