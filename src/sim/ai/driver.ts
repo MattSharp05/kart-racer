@@ -5,6 +5,7 @@ import { surfaceEffect } from '../surfaces';
 import { DT, tuning, type EngineClass } from '../tuning';
 import { NEUTRAL_INPUT, type AiState, type InputFrame, type KartState } from '../types';
 import { curvatureAlong } from './curvature';
+import { crusherSpeedLimit } from './hazards';
 import { lineOffsetAt } from './racingLine';
 import { aiRoute, routeAim } from './routes';
 
@@ -20,6 +21,8 @@ export function aiInput(
   line: readonly number[],
   engineClass: EngineClass,
   racing: boolean,
+  /** The sim tick, to time the track's crushers (MK-62); without it they're ignored. */
+  tick?: number,
 ): InputFrame {
   const cfg = tuning.ai;
 
@@ -70,7 +73,8 @@ export function aiInput(
         : 1;
     if (curvature > 1e-4) cornerSpeed = Math.sqrt((cfg.cornerGrip * ai.skill * grip) / curvature);
   }
-  const target = Math.min(cruise, cornerSpeed);
+  const crusher = racing && tick !== undefined ? crusherSpeedLimit(kart, tick, geometry) : Infinity;
+  const target = Math.min(cruise, cornerSpeed, crusher);
   if (speed > target + 2 && !drift) return { ...NEUTRAL_INPUT, brake: 0.6, steer };
   if (speed > target) return { ...NEUTRAL_INPUT, steer, drift };
   return { ...NEUTRAL_INPUT, throttle: 1, steer, drift };

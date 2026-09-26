@@ -2,10 +2,15 @@ import { tuning } from '../tuning';
 import { boxContact, cyclePhase, toBoxFrame } from './shapes';
 import type { HazardKind, PeriodicHazard } from './types';
 
+/** Where in its cycle (0..1) a crusher starts to drop: it's open before, moving or closed after. */
+function dropPhase(def: PeriodicHazard): number {
+  return 1 - def.closedFraction - 2 * tuning.hazards.crusherMoveFraction;
+}
+
 /** How closed a crusher is (0 = open, 1 = closed) at `phase` through its cycle. */
 export function crusherAmount(def: PeriodicHazard, phase: number): number {
   const move = tuning.hazards.crusherMoveFraction;
-  const closedFrom = 1 - def.closedFraction - 2 * move;
+  const closedFrom = dropPhase(def);
   if (phase < closedFrom) return 0;
   if (phase < closedFrom + move) return (phase - closedFrom) / move;
   if (phase < 1 - move) return 1;
@@ -37,6 +42,11 @@ const periodic: HazardKind<PeriodicHazard> = {
       radius,
     );
     return side && { ...side, effect: 'bump' };
+  },
+  // Seconds until it next starts to drop (0 while it's down or moving): its warning lamp (MK-62).
+  secondsUntilOn(def, ticks) {
+    const phase = cyclePhase(ticks, def.period, def.phase);
+    return Math.max(0, dropPhase(def) - phase) * def.period;
   },
 };
 

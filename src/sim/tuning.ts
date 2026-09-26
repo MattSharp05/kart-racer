@@ -133,6 +133,8 @@ export const tuning = {
     crusherSquashAt: 0.8,
     /** Crusher cycle: share of the period spent dropping and rising (the rest is open/closed). */
     crusherMoveFraction: 0.1,
+    /** A crusher's warning lamp lights this long before it starts to drop, s (MK-62). */
+    crusherWarningSeconds: 0.5,
     /** A squashed kart spins out this many times as long as an item hit. */
     squashSpinFactor: 1.5,
     /** A hazard with a HUD warning (a sandstorm) shows it this long before it switches on, s. */
@@ -306,6 +308,14 @@ export const tuning = {
     hazardDodgeSeconds: 3,
     hazardDodgeMargin: 2.2,
     hazardDodgeRange: 110,
+    /**
+     * Crushers (MK-62): the AI times the next one within `crusherLookAhead` m. If it would be under
+     * it while it's down (or moving), it slows to get there as it opens. It plans the crossing at
+     * `crusherPassSpeed` m/s at least, keeping `crusherMargin` m clear of its footprint.
+     */
+    crusherLookAhead: 60,
+    crusherPassSpeed: 10,
+    crusherMargin: 0.5,
   },
   // --- Race (MK-11, MK-12) ---
   raceLaps: 3,

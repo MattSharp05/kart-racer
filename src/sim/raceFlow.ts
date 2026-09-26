@@ -59,7 +59,7 @@ export function beforeMovement(
       const racing = state.phase === 'racing';
       kart.ai.speedScale = rubberBandScale(kart, state, geometry);
       kart.ai.steerOffset = racing ? aiSteerOffset(kart, kart.ai, state, geometry, line) : 0;
-      const drive = aiInput(kart, kart.ai, geometry, line, state.engineClass, racing);
+      const drive = aiInput(kart, kart.ai, geometry, line, state.engineClass, racing, state.tick);
       const here = geometry.project(kart.position).s;
       const items = racing
         ? aiItemInput(kart, kart.ai, state, geometry, line, DT, (m) =>

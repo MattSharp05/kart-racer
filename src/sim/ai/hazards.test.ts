@@ -5,12 +5,14 @@ import {
   TRAFFIC_MOVERS,
   neonHarbour,
 } from '../../content/tracks/neon-harbour/sim';
+import { CRUSHERS_START_TICK } from '../../content/tracks/cog-works/scenarios';
+import { COG_WORKS, PISTONS, cogWorks } from '../../content/tracks/cog-works/sim';
 import { sunnyCircuit } from '../../content/tracks/sunny-circuit/sim';
 import { kartOnTrack } from '../../scenarios/tracks';
 import { hazardPose } from '../hazards';
 import { trackGeometry } from '../track';
-import { tuning } from '../tuning';
-import { hazardDodgeOffset } from './hazards';
+import { DT, tuning } from '../tuning';
+import { crusherSpeedLimit, hazardDodgeOffset } from './hazards';
 
 const harbour = trackGeometry(neonHarbour);
 const line = neonHarbour.aiLine ?? [];
@@ -75,6 +77,55 @@ describe('AI hazard dodge (MK-60)', () => {
   it('is deterministic: a pure function of the kart, the tick and the track', () => {
     const kart = kartInCity(190, TRAFFIC_LANES[0]);
     const results = [0, 1, 2].map(() => hazardDodgeOffset(kart, ai, 1234, harbour, line));
+    expect(new Set(results).size).toBe(1);
+  });
+});
+
+describe('AI crusher timing (MK-62)', () => {
+  const works = trackGeometry(cogWorks);
+  const top = tuning.topSpeed[150];
+  /** A kart at top speed `metres` before the first piston, in the middle of the gauntlet. */
+  const kartBefore = (metres: number, speed = top) =>
+    kartOnTrack(
+      1,
+      'cog-works',
+      COG_WORKS.tAt(COG_WORKS.pistonX[0], COG_WORKS.gauntletZ) - metres / COG_WORKS.length,
+      { speed },
+    ).karts[0]!;
+  /** Whether the first piston is down or moving at any tick in `from`..`to`. */
+  const busy = (from: number, to: number) =>
+    Array.from({ length: to - from + 1 }, (_, i) => hazardPose(PISTONS[0]!, from + i).amount).some(
+      (a) => a > 0,
+    );
+
+  it('does nothing on a track without crushers', () => {
+    const kart = kartOnTrack(1, 'sunny-circuit', 0.1, { speed: 20 }).karts[0]!;
+    expect(crusherSpeedLimit(kart, 0, trackGeometry(sunnyCircuit))).toBe(Infinity);
+  });
+
+  it('slows to arrive as the piston opens when it would be down on arrival', () => {
+    const kart = kartBefore(43);
+    // At top speed it would reach the piston while it's coming down (the scenario's timing).
+    const arrive = CRUSHERS_START_TICK + Math.round((43 - 5) / top / DT);
+    expect(busy(arrive - 10, arrive + 10)).toBe(true);
+    const limit = crusherSpeedLimit(kart, CRUSHERS_START_TICK, works);
+    expect(limit).toBeLessThan(top * 0.8);
+    expect(limit).toBeGreaterThan(0);
+  });
+
+  it('carries on when the piston stays open while it passes, or once it is under it', () => {
+    // A tick at which the first piston stays open for the whole crossing at top speed.
+    let tick = 0;
+    const crossing = (t: number) => [t + Math.round(38 / top / DT), t + Math.round(48 / top / DT)];
+    while (busy(crossing(tick)[0]! - 6, crossing(tick)[1]! + 6)) tick += 1;
+    expect(crusherSpeedLimit(kartBefore(43), tick, works)).toBe(Infinity);
+    // Committed: at the footprint's edge, the way out is forwards.
+    expect(crusherSpeedLimit(kartBefore(3), CRUSHERS_START_TICK, works)).toBe(Infinity);
+  });
+
+  it('is deterministic: a pure function of the kart, the tick and the track', () => {
+    const kart = kartBefore(30, 20);
+    const results = [0, 1, 2].map(() => crusherSpeedLimit(kart, 1234, works));
     expect(new Set(results).size).toBe(1);
   });
 });
