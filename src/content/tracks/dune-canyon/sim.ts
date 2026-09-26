@@ -140,14 +140,18 @@ const slotGap = (x: number, z0: number, z1: number) => {
   return { from: Math.min(a, b), to: Math.max(a, b), side: 'right' as const };
 };
 
+/** The sandstorm's cells: circles along the plateau straight, clear of the jump and S-bends. */
+const STORM_CELLS = { xs: [105, 185, 265], z: -124, radius: 50 };
+
 /**
  * The sandstorm: 20 s of every 60 on the open plateau, starting 40 s into each minute (so never on
- * the first lap's opening seconds). Grip drops a little and the view closes in.
+ * the first lap's opening seconds). Grip drops a little and the view closes in. Zones are circles,
+ * so it is three overlapping cells in step; this is the first, and every cell's timing.
  */
 export const SANDSTORM: ZoneEffectHazard = {
   kind: 'zoneEffect',
-  centre: { x: 180, y: 4, z: -115 },
-  radius: 115,
+  centre: { x: STORM_CELLS.xs[0] ?? 0, y: 4, z: STORM_CELLS.z },
+  radius: STORM_CELLS.radius,
   period: 60,
   activeFraction: 1 / 3,
   // `phase` shifts the cycle: on while (t / period + phase) mod 1 < activeFraction.
@@ -157,6 +161,12 @@ export const SANDSTORM: ZoneEffectHazard = {
   warning: 'SANDSTORM!',
   dust: 0xe8b070,
 };
+
+/** All the cells, west to east. */
+export const SANDSTORM_CELLS: ZoneEffectHazard[] = STORM_CELLS.xs.map((x) => ({
+  ...SANDSTORM,
+  centre: { ...SANDSTORM.centre, x },
+}));
 
 export const duneCanyon: SplineTrackDef = {
   ...base,
@@ -186,7 +196,7 @@ export const duneCanyon: SplineTrackDef = {
     { t: tAt(270, -48), laterals: [-4.5, -1.5, 1.5, 4.5] },
     { t: tAt(U.x + U.radius, 100), laterals: [-4.5, -1.5, 1.5, 4.5] },
   ],
-  hazards: [SANDSTORM],
+  hazards: SANDSTORM_CELLS,
 };
 
 /** Where features are, for tests, scenarios and the view (world space). */
@@ -215,7 +225,8 @@ const theme: TrackTheme = {
     wallA: 0xc8643c,
     wallB: 0x8e3b22,
   },
-  scenery: 'canyon',
+  // The fallback set; `render.ts` draws the canyon's own scenery instead.
+  scenery: 'desert',
 };
 
 export default {

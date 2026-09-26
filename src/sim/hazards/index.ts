@@ -33,12 +33,15 @@ export function hazardPose(hazard: HazardDef, ticks: number): HazardPose {
   return hazardKinds.get(hazard.kind).pose(hazard, ticks);
 }
 
-/** Sideways grip multiplier at `position` at `tick` from the track's zone hazards (1 = none). */
+/**
+ * Sideways grip multiplier at `position` at `tick` from the track's zone hazards (1 = none). Where
+ * zones overlap (one storm made of several cells) the strongest applies; they don't stack.
+ */
 export function hazardGrip(hazards: readonly HazardDef[], tick: number, position: Vec3): number {
   let grip = 1;
   for (const hazard of hazards) {
     const kind = hazardKinds.get(hazard.kind);
-    if (kind.grip) grip *= kind.grip(hazard, kind.pose(hazard, tick), position);
+    if (kind.grip) grip = Math.min(grip, kind.grip(hazard, kind.pose(hazard, tick), position));
   }
   return grip;
 }

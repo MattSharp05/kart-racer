@@ -12,9 +12,11 @@ import { DT, tuning } from '../../../sim/tuning';
 import { NEUTRAL_INPUT, type InputFrame, type SimState } from '../../../sim/types';
 import { tracks } from '..';
 import { SANDSTORM_START_TICK } from './scenarios';
-import { DUNE_CANYON, SANDSTORM, duneCanyon } from './sim';
+import { DUNE_CANYON, SANDSTORM, SANDSTORM_CELLS, duneCanyon } from './sim';
 
 const geometry = trackGeometry(duneCanyon);
+/** The far side of the plateau hairpin. */
+const H1_APEX = { x: 362, z: -80 };
 const TOP = tuning.topSpeed[150];
 const PERIOD_TICKS = Math.round(SANDSTORM.period / DT);
 const STORM_TICKS = Math.round((SANDSTORM.period * SANDSTORM.activeFraction) / DT);
@@ -81,7 +83,11 @@ describe('Dune Canyon data', () => {
     expect(duneCanyon.surfaceZones.filter((z) => z.type === 'sand').length).toBeGreaterThanOrEqual(
       4,
     );
-    expect(duneCanyon.hazards).toEqual([SANDSTORM]);
+    expect(duneCanyon.hazards).toEqual(SANDSTORM_CELLS);
+    // Its cells blow in step: one storm.
+    for (const cell of SANDSTORM_CELLS) {
+      expect({ ...cell, centre: SANDSTORM.centre }).toEqual(SANDSTORM);
+    }
   });
 });
 
@@ -92,7 +98,9 @@ describe('Dune Canyon sandstorm', () => {
       const inCycle = tick % PERIOD_TICKS;
       const scheduled =
         inCycle >= SANDSTORM_START_TICK && inCycle < SANDSTORM_START_TICK + STORM_TICKS;
-      expect(hazardPose(SANDSTORM, tick).amount === 1).toBe(scheduled);
+      for (const cell of SANDSTORM_CELLS) {
+        expect(hazardPose(cell, tick).amount === 1).toBe(scheduled);
+      }
     }
   });
 
@@ -106,14 +114,29 @@ describe('Dune Canyon sandstorm', () => {
     }
   });
 
-  it('lowers grip on the plateau only while it blows, never in the canyon', () => {
+  it('lowers grip along the plateau straight only while it blows, never off the plateau', () => {
     const hazards = duneCanyon.hazards ?? [];
-    const plateau = { ...DUNE_CANYON.plateau, y: 4 };
-    const canyon = geometry.pointAt(0.02);
     const on = SANDSTORM_START_TICK + 60;
-    expect(hazardGrip(hazards, on, plateau)).toBe(SANDSTORM.grip);
-    expect(hazardGrip(hazards, on, canyon)).toBe(1);
-    expect(hazardGrip(hazards, SANDSTORM_START_TICK - 60, plateau)).toBe(1);
+    // The whole straight, every 10 m from the first sand drift to the last.
+    for (let x = 100; x <= 280; x += 10) {
+      const plateau = geometry.pointAt(DUNE_CANYON.tAt(x, -124));
+      expect(hazardGrip(hazards, on, plateau)).toBe(SANDSTORM.grip);
+      expect(hazardGrip(hazards, SANDSTORM_START_TICK - 60, plateau)).toBe(1);
+    }
+    // Canyon floor, the hairpin, the jump's run-up and lip, the riverbed and the S-bends.
+    const elsewhere = [
+      [0, 0],
+      [H1_APEX.x, H1_APEX.z],
+      [300, -48],
+      [240, -48],
+      [DUNE_CANYON.riverbed.x, DUNE_CANYON.riverbed.z],
+      [160, -36],
+      [145, -15],
+    ] as const;
+    for (const [x, z] of elsewhere) {
+      const point = geometry.pointAt(DUNE_CANYON.tAt(x, z));
+      expect(hazardGrip(hazards, on, point)).toBe(1);
+    }
     expect(SANDSTORM.grip).toBeGreaterThanOrEqual(0.6);
     expect(SANDSTORM.grip).toBeLessThan(1);
   });
