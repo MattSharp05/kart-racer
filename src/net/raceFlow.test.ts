@@ -84,7 +84,7 @@ describe('online race flow over loopback (MK-55)', () => {
       // host's ticks; the first beat can come from the host if it fell before the first snapshot.
       expect(played.slice(1)).toEqual(expected?.slice(1));
     }
-  });
+  }, 60_000); // A whole online race over loopback: ~12 s of CPU, up to 20+ s on CI's 2-core runner.
 
   it("doesn't wait for a player who left: results come once everyone still here finished", () => {
     const { host, clients, clock } = onlineRace({

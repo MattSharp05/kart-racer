@@ -119,7 +119,7 @@ describe('drops (MK-70)', () => {
     // A snapshot from the host and it's back.
     for (let i = 0; i < NET.snapshotEveryTicks; i += 1) tickRoom(race, [null]);
     expect(client.hostLost).toBe(false);
-  });
+  }, 60_000); // A whole online race over loopback: ~9 s of CPU, more on CI's 2-core runner.
 
   it("doesn't drop anyone while the host isn't ticking (its tab in the background)", () => {
     const race = onlineRace({ clients: 1, conditions: parseNetConditions('0,0,0') });
