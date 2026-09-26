@@ -15,7 +15,7 @@ import { KartRenderer, type KartPoseFilter } from './karts';
 import { NameTags } from './nameTags';
 import { AdaptiveQuality } from './quality';
 import { createScene } from './scene';
-import { createTrackView, overviewCamera } from './trackView';
+import { createTrackView, overviewCamera, type TrackViewUpdate } from './trackView';
 
 /** Longest real frame we feed the sim, so a backgrounded tab doesn't cause a huge catch-up. */
 const MAX_FRAME_SECONDS = 0.25;
@@ -77,6 +77,8 @@ export class World {
   private readonly nameTags: NameTags;
   /** Track hazards (MK-49), posed from the tick. */
   private readonly hazards: HazardRenderer;
+  /** The track's moving scenery, if it has any (MK-59: falling snow). */
+  private readonly trackUpdate: TrackViewUpdate | undefined;
   /** Bananas, shells… one renderer per item renderer class (`src/content/items/<id>/render.ts`). */
   private readonly itemRenderers: ItemRenderer[];
   private readonly aiDebug: AiDebugView | undefined;
@@ -94,7 +96,7 @@ export class World {
   ) {
     ({ renderer: this.renderer, scene: this.scene, camera: this.camera } = createScene(canvas));
     // Menus and races all happen on the launch track (Sunny Circuit, unless a scenario says otherwise).
-    createTrackView(this.scene, options.track);
+    this.trackUpdate = createTrackView(this.scene, options.track);
     this.hazards = new HazardRenderer(this.scene, options.track);
     this.view = options.view;
     this.followId = options.follow;
@@ -163,6 +165,7 @@ export class World {
     this.itemBoxes.sync(state, state.tick / 60);
     const ticks = game.previousState.tick + (state.tick - game.previousState.tick) * game.alpha;
     this.hazards.sync(ticks, this.camera.position);
+    this.trackUpdate?.(ticks, this.camera.position);
     for (const renderer of this.itemRenderers) renderer.sync(state, state.tick / 60);
     this.aiDebug?.sync(state);
     const followed = this.karts.kart(followId);

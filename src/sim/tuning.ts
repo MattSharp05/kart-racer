@@ -219,6 +219,11 @@ export const tuning = {
     /** How far ahead it checks for tight corners, m. */
     brakeHorizon: 45,
     /**
+     * Corners with a slippery surface on the line ahead are planned with cornerGrip × (that
+     * surface's grip ^ this): 0 ignores it, 1 trusts the full grip loss (MK-59: ice).
+     */
+    lowGripCaution: 0.6,
+    /**
      * Difficulty per engine class. The AI's top speed follows the cc table like the player's, and
      * skill (corner speed, cruise speed) is spread 0.86–1.0. At 150cc the spread tightens to
      * 0.92–1.0 so the whole pack is sharper, and only there do the best drivers hold drifts for
