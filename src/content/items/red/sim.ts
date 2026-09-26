@@ -7,7 +7,7 @@ export default {
   name: 'Red shell',
   order: 40,
   // 1st place … 8th place.
-  odds: [0, 0.2, 0.35, 0.4, 0.35, 0.3, 0.25, 0.2],
+  odds: [0, 0.1, 0.17, 0.2, 0.18, 0.16, 0.14, 0.12],
   onUse: (kart, state, _events, input) => fireShell(kart, state, input, 'red'),
   update: updateShells,
 } satisfies ItemContent;

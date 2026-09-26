@@ -13,10 +13,10 @@ export default {
   id: 'turbo-trio',
   name: 'Turbo Trio',
   order: 110,
-  // Mostly mid-to-back (1st place … 8th place); relative weights, the balance pass (MK-72) tunes them.
-  odds: [0, 0, 0.05, 0.1, 0.15, 0.2, 0.2, 0.15],
+  // Mostly mid-to-back (1st place … 8th place); balanced in MK-72 (each row sums to 1).
+  odds: [0, 0, 0.04, 0.09, 0.12, 0.15, 0.15, 0.14],
   uses: TURBO_TRIO_USES,
   onUse: (kart, _state, events) => applyBoost(kart, tuning.mushroomSeconds, events),
-  aiUse: (_kart, _state, { straightAhead }) =>
-    straightAhead(tuning.ai.straightLookAhead) < tuning.ai.straightCurvature,
+  aiUse: (_kart, _state, { straightAhead, giveUp }) =>
+    giveUp || straightAhead(tuning.ai.straightLookAhead) < tuning.ai.straightCurvature,
 } satisfies ItemContent;

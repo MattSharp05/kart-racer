@@ -7,7 +7,7 @@ export default {
   name: 'Star',
   order: 50,
   // 1st place … 8th place.
-  odds: [0, 0, 0, 0, 0.12, 0.2, 0.25, 0.3],
+  odds: [0, 0, 0, 0, 0.07, 0.11, 0.15, 0.18],
   onUse: (kart, _state, events) => useStar(kart, events),
   update: updateStarLightning,
 } satisfies ItemContent;

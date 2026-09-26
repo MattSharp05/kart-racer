@@ -8,7 +8,7 @@ import {
 import { applyEffect, endEffect, getEffect } from '../../../sim/items/effects';
 import { tryHit } from '../../../sim/items/hit';
 import { forwardFromHeading, wrapAngleDelta } from '../../../sim/math';
-import { DT } from '../../../sim/tuning';
+import { DT, tuning } from '../../../sim/tuning';
 import type { ItemEntity, KartState, SimState } from '../../../sim/types';
 
 /** Ticks per second (the sim runs at 60 Hz). */
@@ -176,8 +176,8 @@ export default {
   id: 'boomerang',
   name: 'Boomerang',
   order: 170,
-  // Front and mid (1st place … 8th place); relative weights, the balance pass (MK-72) tunes them.
-  odds: [0.1, 0.15, 0.15, 0.12, 0.08, 0.04, 0, 0],
+  // Front and mid (1st place … 8th place); balanced in MK-72 (each row sums to 1).
+  odds: [0.08, 0.15, 0.14, 0.13, 0.08, 0.04, 0, 0],
   uses: THROWS,
   // The second throw is the caught one (it carries `CAUGHT`). The first empties the slot even
   // from a fresh pickup (2 uses shown): only a catch gives it back.
@@ -194,8 +194,11 @@ export default {
     const caught = getEffect(kart, CAUGHT);
     if (caught) caught.ticksLeft = CAUGHT_TICKS;
   },
-  // AI: when a kart is 10–40 m ahead and lined up.
-  aiUse: (kart, state) => {
+  // AI: when a kart is 10–40 m ahead and lined up, down a straight: it flies straight out about
+  // 40 m, so into a bend it would only hit the wall (MK-72). Having given up, down any straight.
+  aiUse: (kart, state, { straightAhead, giveUp }) => {
+    if (straightAhead(AI_MAX_RANGE) >= tuning.ai.straightCurvature) return false;
+    if (giveUp) return true;
     const forward = forwardFromHeading(kart.heading);
     const heading = Math.atan2(forward.x, forward.z);
     return state.karts.some((other) => {
