@@ -1,4 +1,4 @@
-import { expect, type Browser, type BrowserContext, type Page } from '@playwright/test';
+import { expect, type BrowserContext, type Page } from '@playwright/test';
 
 /**
  * Online e2e helpers (MK-46): a host and clients as pages of one browser context, racing over
@@ -47,19 +47,20 @@ export function roomUrl(role: 'host' | 'client', options: RoomOptions & { room: 
 }
 
 /**
- * Opens a room of `n` pages (host + n-1 clients) in one context of `browser` (BroadcastChannel
- * only reaches pages of the same context) and waits until every client knows its kart.
+ * Opens a room of `n` pages (host + n-1 clients) in `context` (BroadcastChannel only reaches pages
+ * of the same context) and waits until every client knows its kart. Pass the test's `context`
+ * fixture, so the room closes with the test even when it fails (MK-80: a room left running starved
+ * every later test in the worker).
  *
  * A host repeats a Start the simulated network lost only as it ticks, so while a paused room waits
  * for a client's kart, the host is stepped (MK-83; 2.5 % of joins at 5 % loss otherwise waited out
  * the timeout). Those first ticks run the countdown, as they would anyway.
  */
 export async function openRoom(
-  browser: Browser | BrowserContext,
+  context: BrowserContext,
   n: number,
   options: RoomOptions = {},
 ): Promise<Room> {
-  const context = 'newContext' in browser ? await browser.newContext() : browser;
   const room = options.room ?? `e2e-${Date.now()}-${(rooms += 1)}`;
   const open = async (role: 'host' | 'client') => {
     const page = await context.newPage();
