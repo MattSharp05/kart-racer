@@ -7,6 +7,8 @@ export interface PauseProps {
   onRestart: () => void;
   onQuit: () => void;
   onHowToPlay?: () => void;
+  /** Opens Settings (MK-43); Back returns to this menu with the race still paused. */
+  onSettings?: () => void;
   sound?: SoundControl;
 }
 
@@ -16,7 +18,10 @@ declare module '../router' {
   }
 }
 
-/** Pause menu (MK-25): Resume (or Esc), Restart, How to play, Quit and the sound toggle. */
+/**
+ * Pause menu (MK-25): Resume (or Esc), Restart, How to play, Settings (MK-43), Quit and the
+ * sound toggle (it stays here as the in-race mute button).
+ */
 registerScreen('paused', (panel, handlers) => {
   const resume = button('Resume', handlers.onResume, 'primary');
   const actions = document.createElement('div');
@@ -25,6 +30,7 @@ registerScreen('paused', (panel, handlers) => {
     resume,
     button('Restart race', handlers.onRestart),
     ...(handlers.onHowToPlay ? [button('How to play', handlers.onHowToPlay)] : []),
+    ...(handlers.onSettings ? [button('⚙ Settings', handlers.onSettings, 'settings-button')] : []),
     button('Quit to title', handlers.onQuit),
   );
   panel.append(heading('h2', 'Paused'), actions);

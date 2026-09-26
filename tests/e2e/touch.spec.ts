@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import type { SimEvent } from '../../src/sim/types';
-import { loadScenario, step } from './helpers';
+import { enterNickname, loadScenario, step } from './helpers';
 
 const isPhone = (name: string) => name === 'iphone-landscape' || name === 'pixel-landscape';
 
@@ -59,6 +59,7 @@ test.describe('touch controls', () => {
     test.skip(!isPhone(info.project.name));
     await page.goto('/');
     await page.waitForFunction(() => window.__game?.ready === true);
+    await enterNickname(page);
     await page.locator('.how-to-play button').click();
     await page.locator('.menu-title button.primary').click();
     await page.locator('.menu-kartSelect button.primary').click();

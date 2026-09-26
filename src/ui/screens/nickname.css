@@ -1,0 +1,63 @@
+/* Nickname screen (MK-42). The panel scrolls when an on-screen keyboard leaves little room. */
+.menu-nickname {
+  --nickname-colour: var(--color-gold);
+  overflow-y: auto;
+}
+
+.nickname-form {
+  display: grid;
+  justify-items: center;
+  gap: clamp(8px, 2vh, 14px);
+  margin: 0;
+}
+
+.nickname-input {
+  box-sizing: border-box;
+  width: min(80vw, 320px);
+  min-height: 48px;
+  padding: 8px 14px;
+  border: 3px solid var(--nickname-colour);
+  border-radius: 12px;
+  background: var(--color-cream);
+  color: var(--color-navy);
+  /* 16px+ keeps iOS from zooming into the field. */
+  font:
+    700 20px/1.2 system-ui,
+    sans-serif;
+  text-align: center;
+}
+
+.nickname-input:focus-visible {
+  outline: 4px solid var(--color-mint);
+  outline-offset: 3px;
+}
+
+.nickname-error {
+  min-height: 1.3em;
+  margin: 0;
+  color: var(--color-gold);
+  font-size: 14px;
+}
+
+.nickname-swatches {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+}
+
+.menus button.swatch {
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 3px solid rgb(255 255 255 / 0.35);
+  border-radius: 50%;
+  background: var(--swatch);
+}
+
+.menus button.swatch[aria-checked='true'] {
+  border-color: #fff;
+  box-shadow:
+    0 0 0 3px var(--color-navy),
+    0 0 0 6px #fff;
+}

@@ -14,3 +14,18 @@
     sans-serif;
   cursor: pointer;
 }
+
+/* Short (phone landscape) screens: two columns so all six buttons fit without scrolling (MK-43
+   added Settings). Resume and the sound toggle span both. */
+@media (max-height: 480px) {
+  .menu-paused .actions.column {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .menu-paused .actions.column > .primary,
+  .menu-paused .actions.column > .sound-toggle {
+    grid-column: 1 / -1;
+  }
+}

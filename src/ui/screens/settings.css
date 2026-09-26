@@ -1,0 +1,93 @@
+/* Settings screen (MK-43): headed groups of fields that scroll inside the panel; Back stays in
+   view. Fields follow the mockup's phone settings: a bold label over a row of pill buttons. */
+.menu-settings {
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  width: min(94vw, 460px);
+  max-height: calc(100dvh - 2 * max(12px, env(safe-area-inset-top)));
+  box-sizing: border-box;
+}
+
+.settings-body {
+  display: grid;
+  gap: clamp(10px, 2.5vh, 18px);
+  width: 100%;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  text-align: left;
+}
+
+.settings-group {
+  display: grid;
+  gap: 8px;
+}
+
+.menus .settings-group h3 {
+  margin: 0;
+  color: var(--color-gold);
+  font-size: 13px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.settings-section {
+  display: grid;
+  gap: 8px;
+}
+
+.settings-field {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px 12px;
+}
+
+.settings-label {
+  font-weight: 800;
+}
+
+.settings-seg {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.15);
+}
+
+.menus .settings-seg button {
+  padding: 8px 16px;
+  border-radius: 999px;
+  background: transparent;
+  color: #fff;
+  box-shadow: none;
+}
+
+.menus .settings-seg button[aria-pressed='true'] {
+  background: var(--color-cream);
+  color: var(--color-navy);
+  box-shadow: 0 2px 4px rgb(0 0 0 / 0.3);
+}
+
+.settings-profile-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 60%;
+}
+
+.settings-profile-dot {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  background: var(--color-gold);
+}
+
+.settings-profile-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
