@@ -1,8 +1,10 @@
 import type { TrackDef } from '../../sim/track';
 import { Registry } from '../registry';
+import hazardTest from './hazard-test/sim';
 import sunnyCircuit from './sunny-circuit/sim';
 import testOval from './test-oval/sim';
 import testPad from './test-pad/sim';
+import type { TrackTheme } from './theme';
 
 /** A track (ADR 0007): `src/content/tracks/<id>/sim.ts` default-exports one of these. */
 export interface TrackContent {
@@ -13,13 +15,15 @@ export interface TrackContent {
   def: TrackDef;
   /** Test fixtures (handling pad, oval): not offered in menus. */
   testOnly?: boolean;
+  /** Sky, light, palette and scenery (MK-49); Sunny Circuit's look when absent. */
+  theme?: TrackTheme;
 }
 
 /** Every track. `sim/track.ts` → `getTrack()` looks tracks up here. */
 export const tracks = new Registry<TrackContent>('track');
 
 // One line per track folder, alphabetical (a unit test checks none is missing).
-for (const track of [sunnyCircuit, testOval, testPad]) {
+for (const track of [hazardTest, sunnyCircuit, testOval, testPad]) {
   if (track.id !== track.def.id) throw new Error(`Track ${track.id}: def.id is ${track.def.id}`);
   tracks.register(track);
 }
