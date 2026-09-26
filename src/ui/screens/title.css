@@ -13,3 +13,37 @@
     0 4px 0 var(--color-red),
     0 8px 18px rgb(0 0 0 / 0.4);
 }
+
+/* Name chip (MK-42): top-left corner, clear of the logo and buttons. */
+.menus button.name-chip {
+  position: fixed;
+  top: max(12px, env(safe-area-inset-top));
+  left: max(12px, env(safe-area-inset-left));
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 45vw;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: rgb(0 0 0 / 0.55);
+  color: #fff;
+  font-size: 15px;
+}
+
+.name-chip-dot {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  border: 2px solid #fff;
+  border-radius: 50%;
+}
+
+.name-chip-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.name-chip-edit {
+  opacity: 0.7;
+}

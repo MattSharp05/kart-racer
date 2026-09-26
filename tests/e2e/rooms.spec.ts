@@ -1,4 +1,5 @@
 import { expect, test, type BrowserContext, type Page } from '@playwright/test';
+import { enterNickname } from './helpers';
 
 /**
  * Rooms (MK-40): create, join by code or link, the live presence list, full and missing rooms.
@@ -12,6 +13,8 @@ async function open(context: BrowserContext, url = TITLE): Promise<Page> {
   const page = await context.newPage();
   await page.goto(url);
   await page.waitForFunction(() => window.__game?.ready === true);
+  // A room link opened with no saved name asks for one first (MK-42), then joins.
+  if (await page.locator('.menu-nickname').isVisible()) await enterNickname(page);
   return page;
 }
 
@@ -87,6 +90,13 @@ test.describe('rooms', () => {
   test('a 5th player is refused with "Room is full"', async ({ context }) => {
     // Five 3D pages at once: slow on CI's software GL.
     test.setTimeout(120_000);
+    // A saved name, so the room links go straight to the lobby (no first-launch Nickname screen).
+    await context.addInitScript(() =>
+      localStorage.setItem(
+        'kart-racer:settings',
+        JSON.stringify({ version: 1, muted: false, nickname: 'Guest', colour: 'blue' }),
+      ),
+    );
     const host = await open(context);
     const code = await createRoom(host);
     // The joiners only need their lobby (the room link opens it without waiting on the 3D scene).

@@ -9,12 +9,24 @@ export interface Settings {
   muted: boolean;
   /** The first-load controls guide (MK-32) has been dismissed. */
   seenHowToPlay: boolean;
+  /** Player nickname (MK-42); '' until picked on first launch. Validated by `game/profile.ts`. */
+  nickname: string;
+  /** Player colour id (MK-42), one of `PROFILE_COLOURS`; '' until picked. */
+  colour: string;
+  /** Random id for this device's leaderboard rows (MK-42); '' until first generated. */
+  deviceId: string;
 }
 
 export const SETTINGS_KEY = 'kart-racer:settings';
 export const SETTINGS_VERSION = 1;
 
-const DEFAULTS: Settings = { muted: false, seenHowToPlay: false };
+const DEFAULTS: Settings = {
+  muted: false,
+  seenHowToPlay: false,
+  nickname: '',
+  colour: '',
+  deviceId: '',
+};
 
 /** Keys the MVP stored settings under, one per setting (read once by the v0 → v1 migration). */
 export const LEGACY_KEYS = {
