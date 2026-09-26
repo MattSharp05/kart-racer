@@ -5,14 +5,16 @@ import banana from './banana/render';
 import green from './green/render';
 import lightning from './lightning/render';
 import mushroom from './mushroom/render';
+import oilSlick from './oil-slick/render';
 import red from './red/render';
 import star from './star/render';
 import testKit from './test-kit/render';
+import turboTrio from './turbo-trio/render';
 
 export * from './views';
 
 // One line per item folder, alphabetical (a unit test checks none is missing).
-for (const view of [banana, green, lightning, mushroom, red, star, testKit]) {
+for (const view of [banana, green, lightning, mushroom, oilSlick, red, star, testKit, turboTrio]) {
   registerItemView(view);
 }
 

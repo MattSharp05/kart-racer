@@ -56,8 +56,10 @@ function aimError(e: ItemEntity, x: number, z: number): number {
 }
 
 describe('item framework (MK-52)', () => {
-  it('keeps the MVP odds table unchanged; new items start at 0', () => {
+  it('keeps the MVP odds table unchanged; new items start at 0 until their tickets set them', () => {
     const mvp = ['mushroom', 'banana', 'green', 'red', 'star', 'lightning'];
+    // Items whose own tickets set their odds (MK-65 on); the balance pass (MK-72) tunes them all.
+    const withOdds = [...mvp, 'turbo-trio', 'oil-slick'];
     const table = oddsTable();
     // Columns: mushroom banana green red star lightning; rows: 1st … 8th place.
     expect(table.map((row) => mvp.map((id) => row[id]).join(' '))).toMatchInlineSnapshot(`
@@ -73,7 +75,9 @@ describe('item framework (MK-52)', () => {
       ]
     `);
     for (const row of table) {
-      for (const [id, weight] of Object.entries(row)) if (!mvp.includes(id)) expect(weight).toBe(0);
+      for (const [id, weight] of Object.entries(row)) {
+        if (!withOdds.includes(id)) expect(weight).toBe(0);
+      }
     }
   });
 

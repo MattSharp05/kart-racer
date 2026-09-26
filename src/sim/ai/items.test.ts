@@ -38,7 +38,16 @@ describe('AI item use', () => {
         );
         for (const e of events) if (e.type === 'itemUsed' && e.kartId > 0) used.add(e.item);
       }
-      expect([...used].sort()).toEqual(['banana', 'green', 'lightning', 'mushroom', 'red', 'star']);
+      expect([...used].sort()).toEqual([
+        'banana',
+        'green',
+        'lightning',
+        'mushroom',
+        'oil-slick',
+        'red',
+        'star',
+        'turbo-trio',
+      ]);
     },
   );
 

@@ -17,6 +17,7 @@ import { Registry } from './registry';
 import { tracks } from './tracks';
 import { trackViews } from './tracks/render';
 import { trackFolderScenarios } from './tracks/scenarios';
+import { itemFolderScenarios } from './items/scenarios';
 
 /** Content folders on disk: each `src/content/<kind>/<id>/` is one piece of content. */
 const folders = (kind: string) =>
@@ -26,7 +27,7 @@ const folders = (kind: string) =>
     .sort();
 
 describe('content registries', () => {
-  it('list 2 real tracks plus the test tracks, 4 racers and 6 items (+ the test kit), in order', () => {
+  it('list 2 real tracks plus the test tracks, 4 racers and 8 items (+ the test kit), in order', () => {
     expect(
       tracks
         .list()
@@ -45,7 +46,16 @@ describe('content registries', () => {
         .list()
         .filter((i) => !i.testOnly)
         .map((i) => i.id),
-    ).toEqual(['mushroom', 'banana', 'green', 'red', 'star', 'lightning']);
+    ).toEqual([
+      'mushroom',
+      'banana',
+      'green',
+      'red',
+      'star',
+      'lightning',
+      'turbo-trio',
+      'oil-slick',
+    ]);
     expect(
       items
         .list()
@@ -90,10 +100,18 @@ describe('content registries', () => {
     expect(Object.keys(trackFolderScenarios).sort()).toEqual(withScenarios);
   });
 
-  it('assemble odds rows that each sum to 1 from the items’ own odds', () => {
+  it('list every item folder with a scenarios.ts in items/scenarios.ts (MK-65)', () => {
+    const withScenarios = folders('items').filter((id) =>
+      existsSync(new URL(`./items/${id}/scenarios.ts`, import.meta.url)),
+    );
+    expect(Object.keys(itemFolderScenarios).sort()).toEqual(withScenarios);
+  });
+
+  it('assemble odds rows of relative weights from the items’ own odds', () => {
     expect(oddsTable()).toHaveLength(ODDS_ROWS);
     for (const row of oddsTable()) {
-      expect(Object.values(row).reduce((a, b) => a + b, 0)).toBeCloseTo(1, 9);
+      expect(Object.values(row).every((w) => w >= 0)).toBe(true);
+      expect(Object.values(row).reduce((a, b) => a + b, 0)).toBeGreaterThan(0);
     }
     expect(oddsRow(1, 8)).toMatchObject({ banana: 0.45, green: 0.4, mushroom: 0.15 });
   });
