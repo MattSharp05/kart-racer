@@ -1,11 +1,12 @@
 import { registerScreen } from '../router';
-import { appendSoundToggle, button, heading, type SoundControl } from './common';
+import { button, heading } from './common';
 import './title.css';
 
 export interface TitleProps {
   onPlay: () => void;
   onHowToPlay?: () => void;
-  sound?: SoundControl;
+  /** Opens Settings (MK-43), which holds the sound toggle. */
+  onSettings?: () => void;
   /** The player's name and colour (MK-42), shown as a chip that opens the Nickname screen. */
   player?: { nickname: string; colour: string };
   onEditName?: () => void;
@@ -18,18 +19,17 @@ declare module '../router' {
 }
 
 /**
- * Title screen (MK-25): logo, Play, How to play and the sound toggle over the attract race, plus
+ * Title screen (MK-25): logo, Play, How to play and Settings (MK-43) over the attract race, plus
  * the player's name chip (MK-42).
  */
-registerScreen('title', (panel, { onPlay, onHowToPlay, sound, player, onEditName }) => {
+registerScreen('title', (panel, { onPlay, onHowToPlay, onSettings, player, onEditName }) => {
   const play = button('Play', onPlay, 'primary');
   panel.append(heading('h1', 'Kart Racer', 'logo'), play);
   if (player && onEditName) panel.append(nameChip(player, onEditName));
   if (onHowToPlay) panel.append(button('How to play', onHowToPlay, 'secondary'));
-  const refresh = appendSoundToggle(panel, sound);
+  if (onSettings) panel.append(button('⚙ Settings', onSettings, 'secondary settings-button'));
   play.focus();
   return {
-    refresh,
     onKey: (e) => {
       // Enter means Play unless a button has focus (it presses that button itself).
       if (e.key === 'Enter' && !(document.activeElement instanceof HTMLButtonElement)) onPlay();

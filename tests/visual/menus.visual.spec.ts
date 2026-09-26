@@ -7,6 +7,7 @@ for (const name of [
   'menu-paused',
   'race-finished',
   'menu-how-to-play',
+  'settings',
   'first-launch',
 ]) {
   test(`${name} (paused)`, async ({ page }) => {

@@ -113,14 +113,16 @@ test.describe('menus QA round 2 (MK-25)', () => {
     await expect(page.locator('.menu-title')).toBeVisible();
   });
 
-  test('every menu fits the screen with buttons at least 44 px', async ({ page }) => {
-    for (const name of [
-      'first-launch',
-      'menu-title',
-      'menu-kart-select',
-      'menu-cc-select',
-      'menu-paused',
-    ]) {
+  // One test per menu: each loads a page, so they get their own timeout.
+  for (const name of [
+    'first-launch',
+    'menu-title',
+    'menu-kart-select',
+    'menu-cc-select',
+    'menu-paused',
+    'settings',
+  ]) {
+    test(`${name} fits the screen with buttons at least 44 px`, async ({ page }) => {
       await loadScenario(page, name, { paused: true });
       const panel = page.locator('.menu-panel');
       await expect(panel).toBeVisible();
@@ -136,6 +138,6 @@ test.describe('menus QA round 2 (MK-25)', () => {
         };
       });
       expect(result, name).toEqual({ inside: true, scrolls: false, small: 0 });
-    }
-  });
+    });
+  }
 });

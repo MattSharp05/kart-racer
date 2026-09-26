@@ -3,7 +3,8 @@ import type { CreateRaceOptions } from '../sim/race/createRace';
 import type { SimState } from '../sim/types';
 
 export type ScenarioView = 'chase' | 'overview' | 'lineup';
-export type MenuScreen = 'title' | 'kartSelect' | 'ccSelect' | 'paused' | 'howToPlay' | 'nickname';
+export type MenuScreen =
+  'title' | 'kartSelect' | 'ccSelect' | 'paused' | 'howToPlay' | 'settings' | 'nickname';
 
 export interface ScenarioSetup {
   state: SimState;
