@@ -113,6 +113,37 @@ body.touch .hud-item-key::after {
   }
 }
 
+/* Incoming (MK-67): what's homing on you, just right of the item slot. */
+.hud-incoming {
+  position: absolute;
+  top: calc(var(--edge-top) + clamp(8px, 1vw, 14px));
+  left: calc(50% + clamp(52px, 7vw, 84px) / 2 + 14px);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: clamp(34px, 4.5vw, 54px);
+  padding: 3px 8px 3px 4px;
+  border: 3px solid #ff4d4d;
+  border-radius: 12px;
+  background: rgb(120 0 0 / 0.55);
+  box-sizing: border-box;
+  animation: hud-blink 0.5s steps(2) infinite;
+}
+
+.hud-incoming svg {
+  height: 100%;
+  width: auto;
+  aspect-ratio: 1;
+  display: block;
+}
+
+.hud-incoming-alert {
+  min-width: 1.1em;
+  color: #fff;
+  font-size: clamp(18px, 2.4vw, 28px);
+  text-align: center;
+}
+
 .hud-item-uses {
   position: absolute;
   left: -10px;

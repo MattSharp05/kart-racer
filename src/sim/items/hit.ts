@@ -34,13 +34,10 @@ export function tryHit(
   by: number,
   kind: HitKind,
   events: SimEvent[],
-  { crush = false }: HitOptions = {},
+  options: HitOptions = {},
 ): HitResult {
-  if (!canBeHit(kart)) return 'immune';
-  if (effectsBlockHit(kart, { by, kind, crush }, events)) {
-    kart.invulnerableTimer = Math.max(kart.invulnerableTimer, tuning.blockedHitInvulnerableSeconds);
-    return 'blocked';
-  }
+  const result = screenHit(kart, by, kind, events, options);
+  if (result !== 'hit') return result;
   kart.speed *= tuning.hitSpeedFactor;
   kart.velocity = scale(kart.velocity, tuning.hitSpeedFactor);
   cancelDrift(kart, events);
@@ -48,6 +45,27 @@ export function tryHit(
   kart.spinTimer = tuning.spinSeconds;
   kart.invulnerableTimer = tuning.spinSeconds + tuning.hitInvulnerableSeconds;
   events.push({ type: 'kartHit', kartId: kart.id, by, kind });
+  return 'hit';
+}
+
+/**
+ * The first half of `tryHit` (MK-67): whether a hit would land, without knocking the kart about.
+ * `immune` and `blocked` work exactly as in `tryHit` (a blocking effect, such as a shield, is used
+ * up and the kart gets the short blocked-hit invulnerability). On `hit` nothing has been done to
+ * the kart yet: items with a lighter hit than a spin-out (a hornet's sting) apply their own.
+ */
+export function screenHit(
+  kart: KartState,
+  by: number,
+  kind: HitKind,
+  events: SimEvent[],
+  { crush = false }: HitOptions = {},
+): HitResult {
+  if (!canBeHit(kart)) return 'immune';
+  if (effectsBlockHit(kart, { by, kind, crush }, events)) {
+    kart.invulnerableTimer = Math.max(kart.invulnerableTimer, tuning.blockedHitInvulnerableSeconds);
+    return 'blocked';
+  }
   return 'hit';
 }
 
