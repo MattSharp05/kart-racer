@@ -294,6 +294,13 @@ export const tuning = {
     /** Chance of spotting a banana = clamp((skill − base) × gain): ~27% at 0.86, 90% at 1.0. */
     dodgeSkillBase: 0.8,
     dodgeSkillGain: 4.5,
+    /**
+     * Moving hazards (MK-60: traffic): the AI predicts them this far ahead, s, and keeps this much
+     * clear of them sideways, m, checking only those within `hazardDodgeRange` m.
+     */
+    hazardDodgeSeconds: 3,
+    hazardDodgeMargin: 2.2,
+    hazardDodgeRange: 110,
   },
   // --- Race (MK-11, MK-12) ---
   raceLaps: 3,

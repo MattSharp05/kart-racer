@@ -5,6 +5,7 @@ import { rngRange } from '../rng';
 import type { TrackGeometry } from '../splineTrack';
 import { tuning } from '../tuning';
 import type { AiState, InputFrame, KartState, SimState } from '../types';
+import { hazardDodgeOffset } from './hazards';
 import { lineOffsetAt } from './racingLine';
 
 /** Deterministic 0..1 from two ids (the same banana is always spotted — or missed — by the same AI). */
@@ -63,6 +64,10 @@ export function aiSteerOffset(
   const here = geometry.project(kart.position);
   const myLateral = here.lateral;
   const myS = here.s;
+
+  // Traffic and other moving hazards first (MK-60): a hit costs far more than a missed box.
+  const traffic = hazardDodgeOffset(kart, ai, state.tick, geometry, line);
+  if (traffic !== undefined) return traffic;
 
   // Dodge: the nearest banana ahead near where we're going, if we noticed it.
   let dodge: number | undefined;

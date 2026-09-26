@@ -34,6 +34,11 @@ export interface MoverHazard extends HazardBase {
    * shadow under it, rumbling as it rolls (a snowball, a boulder). Absent: a traffic kart.
    */
   rolling?: number;
+  /**
+   * Render only (MK-60): drawn as a road vehicle with a body of this colour, headlights and tail
+   * lights (a truck: longer, with a box on the back). Absent: a traffic kart.
+   */
+  vehicle?: { body: number; truck?: boolean };
 }
 
 /** A bar spinning about `centre` (a swinging bridge beam, a windmill sail). */

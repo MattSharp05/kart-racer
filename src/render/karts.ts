@@ -9,6 +9,7 @@ import {
   type KartModelFactory,
 } from './kartModels';
 import type { KartState } from '../sim/types';
+import { createHeadlights } from './headlights';
 
 const MAX_WHEEL_TURN = 0.45;
 /** How far the body leans outward and yaws into a drift, radians. */
@@ -16,6 +17,8 @@ const DRIFT_LEAN = 0.12;
 const DRIFT_YAW = 0.35;
 /** Spark colour per mini-turbo tier (0 = charging, not yet blue). */
 const SPARK_COLOURS = [0xfff3b0, 0x3fa9ff, 0xff9a1f, 0xb15cff] as const;
+/** Kart headlights on night tracks: lamps this far forward and high, this wide, lighting this far, m. */
+const KART_HEADLIGHTS = [1.05, 0.4, 1.2, 9] as const;
 
 /** Deterministic 0..1 noise so sparks look random but freeze exactly when the sim is paused. */
 function noise(seed: number): number {
@@ -59,6 +62,8 @@ export class KartRenderer {
   constructor(
     private readonly scene: THREE.Scene,
     private readonly factory: KartModelFactory = new PrimitiveKartFactory(),
+    /** Night tracks (MK-60): karts drive with their headlights on. */
+    private readonly headlights = false,
   ) {}
 
   sync(
@@ -167,6 +172,7 @@ export class KartRenderer {
     const repeats = this.types.filter((type) => type === kart.kartType).length;
     this.types.push(kart.kartType);
     const model = this.factory.create(kart.kartType, alternateColours(kart.kartType, repeats));
+    if (this.headlights) model.body.add(createHeadlights(...KART_HEADLIGHTS));
     this.scene.add(model.root);
     this.models.push(model);
     return model;
