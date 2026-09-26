@@ -110,7 +110,7 @@ describe('AI racers', () => {
     const b = race(aiOnly(7, 7), 60 * 60 * 4).state;
     expect(a.positions).toEqual(b.positions);
     expect(a.karts.map((k) => k.race.finishTick)).toEqual(b.karts.map((k) => k.race.finishTick));
-  });
+  }, 60_000); // Two full AI races: ~10 s of CPU, up to 20 s on CI's 2-core runner.
 
   it('the player starts 5th–8th in an AI race', () => {
     for (let seed = 1; seed <= 10; seed += 1) {
