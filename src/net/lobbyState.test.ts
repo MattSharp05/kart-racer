@@ -83,9 +83,9 @@ describe('slots', () => {
       expect(lobbySlots(sortMembers(listed)).map((s) => s.id)).toEqual(['h', 'b', 'a']);
     }
     expect(lobbySlots(sortMembers([a, b, host]))).toEqual([
-      { id: 'h', racer: 'swoop', nickname: 'H' },
-      { id: 'b', racer: 'pixie', nickname: 'B' },
-      { id: 'a', racer: 'maple', nickname: 'A' },
+      { id: 'h', racer: 'swoop', nickname: 'H', colour: '#fff' },
+      { id: 'b', racer: 'pixie', nickname: 'B', colour: '#fff' },
+      { id: 'a', racer: 'maple', nickname: 'A', colour: '#fff' },
     ]);
   });
 });

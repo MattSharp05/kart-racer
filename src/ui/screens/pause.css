@@ -15,6 +15,13 @@
   cursor: pointer;
 }
 
+/* Online (MK-55): the race goes on while the menu is open. */
+.menu-paused .pause-note {
+  margin: 0;
+  font-size: 14px;
+  color: var(--color-mint);
+}
+
 /* Short (phone landscape) screens: two columns so all six buttons fit without scrolling (MK-43
    added Settings). Resume and the sound toggle span both. */
 @media (max-height: 480px) {

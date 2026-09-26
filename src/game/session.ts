@@ -38,6 +38,8 @@ export interface Launch {
   lobby?: LobbyLaunch;
   /** Rooms over BroadcastChannel, not Supabase (`&net=local`; online scenarios default to it). */
   localRooms: boolean;
+  /** `&role=` of an online scenario that isn't a race (the `online-results` host or client view). */
+  role?: LobbyLaunch['role'];
 }
 
 /** `localKartId` when this device drives no kart (spectating). */
@@ -87,8 +89,11 @@ function initialState(params: LaunchParams): Launch {
         localKartId,
         ...(setup.screen ? { screen: setup.screen } : {}),
         ...(setup.storage ? { storage: setup.storage } : {}),
-        ...(setup.lobby ? { lobby: lobbyLaunch(params.role ?? 'host', params.room) } : {}),
+        ...(setup.lobby
+          ? { lobby: lobbyLaunch(params.role ?? 'host', params.room, params.laps) }
+          : {}),
         localRooms: params.net === 'local' || isOnlineScenario(scenario),
+        ...(params.role ? { role: params.role } : {}),
       };
     }
     showErrorBanner(
@@ -108,9 +113,13 @@ function initialState(params: LaunchParams): Launch {
 }
 
 /** A room from the URL; codes are upper case (links typed by hand may not be). */
-function lobbyLaunch(role: LobbyLaunch['role'], room: string | undefined): LobbyLaunch {
+function lobbyLaunch(
+  role: LobbyLaunch['role'],
+  room: string | undefined,
+  laps?: number,
+): LobbyLaunch {
   const code = room?.trim().toUpperCase();
-  return { role, ...(code ? { code } : {}) };
+  return { role, ...(code ? { code } : {}), ...(laps ? { laps } : {}) };
 }
 
 function onlineNames(): string[] {
@@ -163,11 +172,17 @@ export class RaceSession {
   localKartId: number;
   /** The online race this session plays, if any (MK-46). */
   online: OnlineRace | null = null;
+  /**
+   * Whether the controls drive the local kart. Off while a menu is open over an online race, which
+   * keeps running (MK-55): the kart coasts instead of taking menu key presses as steering.
+   */
+  inputEnabled = true;
 
   constructor(initial: SimState) {
     this.localKartId = localKartOf(initial);
     this.game = new Game(initial, () => {
-      this.playerInput = this.controls.read();
+      const input = this.controls.read();
+      this.playerInput = this.inputEnabled ? input : NEUTRAL_INPUT;
       return this.inputs();
     });
   }

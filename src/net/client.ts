@@ -16,6 +16,7 @@ import {
   type ByeReason,
   type NetEvent,
   type RaceSetup,
+  type RaceStanding,
   type SnapshotMessage,
 } from './protocol';
 import { type Correction } from './smoothing';
@@ -93,6 +94,8 @@ export class OnlineClient {
   setup: RaceSetup | null = null;
   /** Set when the race is over for this client: the host ended it, or it left. */
   ended: ByeReason | null = null;
+  /** The host's final standings (MK-55), once the race has ended there; null until then. */
+  results: RaceStanding[] | null = null;
   /** Called once when Start arrives and `kartId` / `setup` are known. */
   onStart: (() => void) | null = null;
   /** Called with the host's state of every snapshot applied (remote-kart interpolation). */
@@ -144,6 +147,8 @@ export class OnlineClient {
   private readonly corrections: Correction[] = [];
   /** Tick each kind of own item-use event was last played at (prediction or host), for dedupe. */
   private readonly ownUsePlayed = new Map<OwnUseEvent, number>();
+  /** Countdown beats already played ("countdown:3" … "go"), from the prediction or the host. */
+  private readonly beatsPlayed = new Set<string>();
 
   constructor(
     private readonly transport: Transport,
@@ -196,7 +201,11 @@ export class OnlineClient {
     return this.received
       .splice(0)
       .sort((a, b) => a.seq - b.seq)
-      .filter(({ event, tick }) => !this.isOwnItemUse(event) || this.playOwnUse(event.type, tick));
+      .filter(({ event, tick }) => {
+        if (this.isOwnItemUse(event)) return this.playOwnUse(event.type, tick);
+        const beat = countdownBeat(event);
+        return beat === null || this.playBeat(beat);
+      });
   }
 
   /** How reconciles moved the karts since the last call, for render smoothing (MK-45). */
@@ -292,6 +301,10 @@ export class OnlineClient {
           this.received.push(event);
           this.nextEventSeq = event.seq + 1;
         }
+        break;
+      case MSG.results:
+        // Frozen on the host: every copy is the same, so the first one is kept.
+        if (this.initial) this.results ??= msg.standings;
         break;
       case MSG.bye:
         this.ended = msg.reason;
@@ -395,9 +408,21 @@ export class OnlineClient {
    * confirm the use, the next reconcile takes it back without a sound.
    */
   private cosmetic(events: readonly SimEvent[], tick: number): SimEvent[] {
-    return events.filter((event) =>
-      this.isOwnItemUse(event) ? this.playOwnUse(event.type, tick) : !HOST_EVENTS.has(event.type),
-    );
+    return events.filter((event) => {
+      if (this.isOwnItemUse(event)) return this.playOwnUse(event.type, tick);
+      // The countdown is a pure function of the tick: play it when this device's race reaches that
+      // tick, the same host tick for everyone (MK-55), not a lag later when the host's copy lands.
+      const beat = countdownBeat(event);
+      if (beat !== null) return this.playBeat(beat);
+      return !HOST_EVENTS.has(event.type);
+    });
+  }
+
+  /** Whether to play countdown beat `beat`: once, whichever copy comes first (MK-55). */
+  private playBeat(beat: string): boolean {
+    if (this.beatsPlayed.has(beat)) return false;
+    this.beatsPlayed.add(beat);
+    return true;
   }
 
   private isOwnItemUse(event: SimEvent): event is SimEvent & { type: OwnUseEvent } {
@@ -512,6 +537,13 @@ export class OnlineClient {
 
 /** Our own item-use events, played from the prediction (see `OnlineClient.cosmetic`). */
 type OwnUseEvent = 'itemUsed' | 'star';
+
+/** A countdown event's identity ("countdown:2", "go"), or null for any other event. */
+function countdownBeat(event: SimEvent): string | null {
+  if (event.type === 'countdown') return `countdown:${event.value}`;
+  if (event.type === 'go') return 'go';
+  return null;
+}
 
 /**
  * Whether a predicted state is close enough to the host's at the same tick to keep predicting from

@@ -7,6 +7,7 @@ import {
   encodeBye,
   encodeEvents,
   encodePing,
+  encodeResults,
   encodeSnapshot,
   encodeStart,
   withAck,
@@ -15,6 +16,7 @@ import {
   type AppliedInput,
   type NetEvent,
   type RaceSetup,
+  type RaceStanding,
 } from './protocol';
 import type { Transport } from './transport';
 
@@ -77,6 +79,14 @@ export function raceSetupOf(options: CreateRaceOptions, state: SimState): RaceSe
   };
 }
 
+/** `state`'s standings, leader first: finished karts with their finish tick (MK-55). */
+export function standingsOf(state: SimState): RaceStanding[] {
+  return state.positions.map((kartId) => {
+    const finishTick = state.karts[kartId]?.race.finishTick;
+    return finishTick !== undefined ? { kartId, finishTick } : { kartId };
+  });
+}
+
 /**
  * The authoritative side of an online race (ADR 0005). Runs the real sim at 60 Hz with the host's
  * own input and each client's input for that tick (holding the last one when it's late), and sends
@@ -87,6 +97,12 @@ export class OnlineHost {
   state: SimState;
   readonly setup: RaceSetup;
   readonly peers: RemotePeer[] = [];
+  /**
+   * The final standings, frozen when the race ended here (every human still connected finished;
+   * MK-55), or null while it runs. Sent with every snapshot from then on, so every device shows
+   * the same results.
+   */
+  results: RaceStanding[] | null = null;
   private lastLocalInput: InputFrame = NEUTRAL_INPUT;
   private eventSeq = 0;
   /** Host-decided events of the last `NET.eventRedundancyTicks` ticks, oldest first. */
@@ -159,9 +175,23 @@ export class OnlineHost {
     }
     const { state, events } = step(this.state, inputs);
     this.state = state;
+    if (!this.results && this.raceOver()) this.results = standingsOf(state);
     this.recordEvents(events);
     if (state.tick % NET.snapshotEveryTicks === 0) this.broadcast();
     return events;
+  }
+
+  /**
+   * Whether the race is over for the room: the sim ended it (every person finished), or everyone
+   * still here has, and the karts of players who left coast on unfinished (until drops hand them
+   * to the AI) — so one quitter can't keep the room from its results.
+   */
+  private raceOver(): boolean {
+    const { phase, karts } = this.state;
+    if (phase === 'finished') return true;
+    if (phase !== 'racing') return false;
+    const here = [this.localKartId, ...this.peers.filter((p) => p.connected).map((p) => p.kartId)];
+    return here.every((kartId) => karts[kartId]?.race.finishTick !== undefined);
   }
 
   /** Ends the race for everyone (the host leaving ends the room, ADR 0005). */
@@ -197,6 +227,7 @@ export class OnlineHost {
       this.recentEvents.length > 0
         ? encodeEvents(this.recentEvents.slice(-MAX_EVENTS_PER_PACKET))
         : null;
+    const results = this.results ? encodeResults(this.results) : null;
     // Encoded once; only the ack differs per client.
     const snapshot = encodeSnapshot(this.state, 0, humans);
     for (const peer of this.peers) {
@@ -208,6 +239,7 @@ export class OnlineHost {
       s.snapshotBytesMax = Math.max(s.snapshotBytesMax, packet.length);
       this.send(peer, packet);
       if (events) this.send(peer, events);
+      if (results) this.send(peer, results);
     }
   }
 
