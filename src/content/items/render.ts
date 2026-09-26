@@ -2,6 +2,7 @@ import type * as THREE from 'three';
 import { items } from '.';
 import { itemViews, registerItemView, type ItemRenderer } from './views';
 import banana from './banana/render';
+import boomerang from './boomerang/render';
 import bubbleShield from './bubble-shield/render';
 import green from './green/render';
 import hornetSwarm from './hornet-swarm/render';
@@ -21,6 +22,7 @@ export * from './views';
 // One line per item folder, alphabetical (a unit test checks none is missing).
 for (const view of [
   banana,
+  boomerang,
   bubbleShield,
   green,
   hornetSwarm,
