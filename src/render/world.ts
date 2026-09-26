@@ -9,6 +9,7 @@ import type { InputFrame } from '../sim/types';
 import { AiDebugView } from './aiDebug';
 import { ChaseCamera, LineupCamera } from './camera';
 import { Effects } from './effects';
+import { HazardRenderer } from './hazards';
 import { ItemBoxRenderer } from './itemBoxes';
 import { KartRenderer } from './karts';
 import { AdaptiveQuality } from './quality';
@@ -64,6 +65,8 @@ export class World {
   private readonly lineup: LineupCamera;
   private readonly chaseCamera: ChaseCamera;
   private readonly itemBoxes: ItemBoxRenderer;
+  /** Track hazards (MK-49), posed from the tick. */
+  private readonly hazards: HazardRenderer;
   /** Bananas, shells… one renderer per item renderer class (`src/content/items/<id>/render.ts`). */
   private readonly itemRenderers: ItemRenderer[];
   private readonly aiDebug: AiDebugView | undefined;
@@ -80,6 +83,7 @@ export class World {
     ({ renderer: this.renderer, scene: this.scene, camera: this.camera } = createScene(canvas));
     // Menus and races all happen on the launch track (Sunny Circuit, unless a scenario says otherwise).
     createTrackView(this.scene, options.track);
+    this.hazards = new HazardRenderer(this.scene, options.track);
     this.view = options.view;
     this.followId = options.follow;
     if (this.view === 'overview') overviewCamera(this.camera, options.track);
@@ -137,6 +141,8 @@ export class World {
     const state = game.state;
     this.karts.sync(game.previousState, state, game.alpha, this.options.playerInputs());
     this.itemBoxes.sync(state, state.tick / 60);
+    const ticks = game.previousState.tick + (state.tick - game.previousState.tick) * game.alpha;
+    this.hazards.sync(ticks, this.camera.position);
     for (const renderer of this.itemRenderers) renderer.sync(state, state.tick / 60);
     this.aiDebug?.sync(state);
     const followed = this.karts.kart(followId);
