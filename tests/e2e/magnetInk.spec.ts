@@ -38,10 +38,15 @@ test.describe('Magnet and Ink Cloud (MK-68)', () => {
     await setInput(page, 0, { throttle: 1 });
     const ink = page.locator('.hud-screen-effects .ink-cloud-splats');
     await expect(ink).toHaveCount(0);
-    // The AI behind uses its Ink Cloud about 1 s in.
-    let state = await step(page, 60);
-    for (let i = 0; i < 40 && !hasEffect(state, 0, 'ink-cloud'); i += 1)
-      state = await step(page, 3);
+    // The AI behind uses its Ink Cloud about 1 s in. The wait runs in the page without drawing
+    // (one round trip, not dozens of software-GL frames), then draws once for the HUD checks.
+    await page.evaluate(() => {
+      const game = window.__game!;
+      const inked = () => game.getState().karts[0]!.effects.some((e) => e.kind === 'ink-cloud');
+      game.step(60, { render: false });
+      for (let i = 0; i < 40 && !inked(); i += 1) game.step(3, { render: false });
+    });
+    let state = await step(page, 0);
     expect(hasEffect(state, 0, 'ink-cloud')).toBe(true);
     expect(hasEffect(state, 1, 'ink-cloud')).toBe(true);
     expect(hasEffect(state, 2, 'ink-cloud')).toBe(false);
@@ -66,7 +71,13 @@ test.describe('Magnet and Ink Cloud (MK-68)', () => {
     // fades, then it's gone.
     const inkLeft = (s: TestState) =>
       s.karts[0]!.effects.find((e) => e.kind === 'ink-cloud')?.ticksLeft ?? 0;
-    for (let i = 0; i < 60 && inkLeft(state) > 60; i += 1) state = await step(page, 4);
+    await page.evaluate(() => {
+      const game = window.__game!;
+      const left = () =>
+        game.getState().karts[0]!.effects.find((e) => e.kind === 'ink-cloud')?.ticksLeft ?? 0;
+      for (let i = 0; i < 60 && left() > 60; i += 1) game.step(4, { render: false });
+    });
+    state = await step(page, 0);
     expect(inkLeft(state)).toBeGreaterThan(0);
     const opacity = Number(await ink.evaluate((el) => getComputedStyle(el).opacity));
     expect(opacity).toBeGreaterThan(0);
