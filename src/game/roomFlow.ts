@@ -59,6 +59,9 @@ export interface LobbyHooks {
   onLobby?: () => void;
 }
 
+/** Shown in the lobby after Rejoin (MK-70): the AI finishes this race; the next one is yours. */
+export const REJOIN_MESSAGE = "You're back in the room. You'll race in the next one.";
+
 /** Shown in the lobby when the host's start didn't reach the room. */
 export const START_FAILED_MESSAGE = "Couldn't start the race. Try again.";
 
@@ -222,7 +225,7 @@ export class RoomFlow {
    * device lost the room too, joining it again by its code (the host re-admits it in the lobby).
    */
   rejoin(): void {
-    if (this.room) this.backToLobby();
+    if (this.room) this.backToLobby(REJOIN_MESSAGE);
     else if (this.lastCode) void this.join(this.lastCode);
     else this.showOnline();
   }

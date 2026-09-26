@@ -1,6 +1,7 @@
 import {
   allReady,
   ENGINE_CLASSES,
+  kartOf,
   settingsOf,
   type LobbyContent,
   type LobbySettings,
@@ -143,7 +144,8 @@ registerScreen('lobby', (panel, props) => {
     start.hidden = !room.isHost;
     if (!room.members.some((m) => m.isHost && m.start)) start.disabled = !everyone;
     // A race is on without this device (it joined or came back mid-race, MK-70): the next one.
-    const raceOn = !room.isHost && room.members.some((m) => m.isHost && m.start);
+    const hostStart = room.members.find((m) => m.isHost)?.start;
+    const raceOn = !room.isHost && hostStart !== undefined && kartOf(hostStart, room.selfId) < 0;
     waiting.textContent = raceOn
       ? RACE_ON_MESSAGE
       : room.isHost
