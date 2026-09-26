@@ -56,9 +56,19 @@ function aimError(e: ItemEntity, x: number, z: number): number {
 }
 
 describe('item framework (MK-52)', () => {
-  it('keeps the MVP odds table unchanged; new items start at 0 until their tickets set them', () => {
+  it('odds rows sum to 1 for every position, and every item is in some row (MK-72)', () => {
+    const table = oddsTable();
+    for (const row of table) {
+      const total = availableItems().reduce((sum, id) => sum + (row[id] ?? 0), 0);
+      expect(total).toBeCloseTo(1, 9);
+    }
+    for (const id of availableItems()) expect(table.some((row) => (row[id] ?? 0) > 0)).toBe(true);
+  });
+
+  it('the MVP columns of the odds table; only listed items have odds', () => {
     const mvp = ['mushroom', 'banana', 'green', 'red', 'star', 'lightning'];
-    // Items whose own tickets set their odds (MK-65 on); the balance pass (MK-72) tunes them all.
+    // MK-72 balanced all 14 items so each row sums to 1: the MVP columns shrank to make room for
+    // the 8 new items, and Lightning (behind 34% of all hits in the first balance run) was cut.
     const withOdds = [
       ...mvp,
       'turbo-trio',
@@ -74,14 +84,14 @@ describe('item framework (MK-52)', () => {
     // Columns: mushroom banana green red star lightning; rows: 1st … 8th place.
     expect(table.map((row) => mvp.map((id) => row[id]).join(' '))).toMatchInlineSnapshot(`
       [
-        "0.15 0.45 0.4 0 0 0",
-        "0.25 0.25 0.3 0.2 0 0",
-        "0.3 0.15 0.2 0.35 0 0",
-        "0.35 0.1 0.15 0.4 0 0",
-        "0.35 0 0.1 0.35 0.12 0.08",
-        "0.35 0 0 0.3 0.2 0.15",
-        "0.3 0 0 0.25 0.25 0.2",
-        "0.25 0 0 0.2 0.3 0.25",
+        "0.14 0.28 0.24 0 0 0",
+        "0.2 0.16 0.18 0.1 0 0",
+        "0.19 0.1 0.13 0.17 0 0",
+        "0.18 0.06 0.1 0.2 0 0",
+        "0.15 0 0.06 0.17 0.07 0.03",
+        "0.15 0 0 0.15 0.11 0.05",
+        "0.13 0 0 0.13 0.15 0.07",
+        "0.1 0 0 0.11 0.18 0.09",
       ]
     `);
     for (const row of table) {
@@ -292,6 +302,8 @@ describe('AI item-use hook (MK-52)', () => {
   });
 
   let wanted = false;
+  /** Whether the waiter settles for any moment once the AI has given up waiting. */
+  let settles = false;
   const waiter: ItemContent = {
     id: 'test-waiter',
     name: 'Waiter',
@@ -299,7 +311,7 @@ describe('AI item-use hook (MK-52)', () => {
     testOnly: true,
     odds: [0, 0, 0, 0, 0, 0, 0, 0],
     onUse: () => {},
-    aiUse: () => wanted,
+    aiUse: (_kart, _state, { giveUp }) => wanted || (settles && giveUp),
   };
   beforeAll(() => registerItem(waiter));
   afterAll(() => unregisterItem(waiter.id));
@@ -316,13 +328,19 @@ describe('AI item-use hook (MK-52)', () => {
     return max;
   }
 
-  it('waits while the hook says no, then gives up and uses it anyway', () => {
+  it('waits while the hook says no; tells it when the AI gives up; forces it only at the last resort', () => {
+    const max = 60 * (tuning.ai.itemForceUse + 5);
     wanted = true;
-    const eager = ticksToUse(60 * 20);
+    const eager = ticksToUse(max);
     wanted = false;
-    const reluctant = ticksToUse(60 * 20);
+    settles = true;
+    const settled = ticksToUse(max);
+    settles = false;
+    const stubborn = ticksToUse(max);
     expect(eager).toBeLessThan(60 * tuning.ai.itemGiveUp);
-    expect(reluctant).toBeGreaterThanOrEqual(60 * tuning.ai.itemGiveUp);
-    expect(reluctant).toBeLessThan(60 * 20);
+    expect(settled).toBeGreaterThanOrEqual(60 * tuning.ai.itemGiveUp);
+    expect(settled).toBeLessThan(60 * tuning.ai.itemForceUse);
+    expect(stubborn).toBeGreaterThanOrEqual(60 * tuning.ai.itemForceUse);
+    expect(stubborn).toBeLessThan(max);
   });
 });

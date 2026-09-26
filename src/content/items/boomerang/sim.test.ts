@@ -434,9 +434,18 @@ describe('Boomerang (MK-69)', () => {
       ai.ai!.itemDelay = 0;
       return state;
     }
-    const decide = (state: SimState) =>
-      aiItemInput(state.karts[1]!, state.karts[1]!.ai!, state, geometry, line, 1 / 60, () => 0)
-        .item ?? false;
+    /** `curvature`: of the racing line ahead (0 = a straight). */
+    const decide = (state: SimState, curvature = 0) =>
+      aiItemInput(
+        state.karts[1]!,
+        state.karts[1]!.ai!,
+        state,
+        geometry,
+        line,
+        1 / 60,
+        () => curvature,
+      ).item ?? false;
+    const bend = tuning.ai.straightCurvature * 2;
 
     it('throws at a kart 10–40 m ahead in line', () => {
       expect(decide(aiHolding(12))).toBe(true);
@@ -448,6 +457,15 @@ describe('Boomerang (MK-69)', () => {
       expect(decide(aiHolding(6))).toBe(false);
       expect(decide(aiHolding(50))).toBe(false);
       expect(decide(aiHolding(25, 8))).toBe(false);
+    });
+
+    it('never throws into a bend, where it would hit the wall (MK-72)', () => {
+      expect(decide(aiHolding(25), bend)).toBe(false);
+      const givenUp = aiHolding(50);
+      givenUp.karts[1]!.ai!.itemHeld = tuning.ai.itemGiveUp;
+      expect(decide(structuredClone(givenUp), bend)).toBe(false);
+      // Having given up waiting for a target, it throws down the next straight.
+      expect(decide(givenUp)).toBe(true);
     });
   });
 

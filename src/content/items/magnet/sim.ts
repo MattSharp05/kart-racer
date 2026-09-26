@@ -132,11 +132,12 @@ export default {
   id: 'magnet',
   name: 'Magnet',
   order: 190,
-  // Back positions (1st place … 8th place); relative weights, the balance pass (MK-72) tunes them.
-  odds: [0, 0, 0, 0, 0.04, 0.08, 0.12, 0.14],
+  // Back positions (1st place … 8th place); balanced in MK-72 (each row sums to 1).
+  odds: [0, 0, 0, 0, 0.05, 0.08, 0.1, 0.11],
   onUse: (kart, state, events) =>
     applyEffect(kart, 'magnet', MAGNET_TICKS, state, events, { data: [-1, 1] }),
-  // AI: when a kart is within range ahead.
+  // AI: when a kart is within range ahead. Without one it does nothing, so even having given up it
+  // waits (the framework's `itemForceUse` still empties a jammed slot, MK-72).
   aiUse: (kart, state) => magnetTarget(kart, state) !== undefined,
   effects: [
     {

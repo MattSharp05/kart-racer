@@ -6,7 +6,7 @@ import { giveItem } from '../../../sim/items';
 import { applyEffect, getEffect, hasEffect, isIntangible } from '../../../sim/items/effects';
 import { spawnEntity } from '../../../sim/items/entities';
 import { tryHit } from '../../../sim/items/hit';
-import { updateShells } from '../../../sim/items/shell';
+import { fireShell, updateShells } from '../../../sim/items/shell';
 import { updateStarLightning, useLightning } from '../../../sim/items/starLightning';
 import { createSimState } from '../../../sim/state';
 import { step } from '../../../sim/step';
@@ -21,7 +21,7 @@ import {
 } from '../../../sim/types';
 import { sunnyCircuit } from '../../tracks/sunny-circuit/sim';
 import { BANANA_AHEAD, KART_AHEAD } from './scenarios';
-import phase, { PHASE_SPEED, PHASE_TICKS } from './sim';
+import phase, { PHASE_AI_LATERAL, PHASE_SPEED, PHASE_TICKS } from './sim';
 
 /** Steps `ticks` ticks with kart 0 on `input`, collecting events. */
 function run(state: SimState, ticks: number, input: Partial<InputFrame> = {}) {
@@ -195,9 +195,26 @@ describe('Phase (MK-66)', () => {
       state.entities = state.entities.filter((e) => e.kind !== 'banana');
       return state;
     }
-    const decide = (state: SimState) =>
-      aiItemInput(state.karts[0]!, state.karts[0]!.ai!, state, geometry, line, 1 / 60, () => 0)
-        .item ?? false;
+    /** `curvature`: of the racing line ahead (0 = a straight). */
+    const decide = (state: SimState, curvature = 0) =>
+      aiItemInput(
+        state.karts[0]!,
+        state.karts[0]!.ai!,
+        state,
+        geometry,
+        line,
+        1 / 60,
+        () => curvature,
+      ).item ?? false;
+    /** Puts kart 1 `ahead` m in front of kart 0 along the track and `side` m to its side. */
+    function kartAt(state: SimState, ahead: number, side: number): SimState {
+      const here = geometry.project(state.karts[0]!.position);
+      state.karts[1]!.position = geometry.pointAt(
+        here.t + ahead / geometry.length,
+        here.lateral + side,
+      );
+      return state;
+    }
 
     it('holds it with nothing within 20 m ahead', () => {
       expect(decide(aiHolding())).toBe(false);
@@ -216,6 +233,46 @@ describe('Phase (MK-66)', () => {
         x: kart.position.x + (dx / d) * 15,
         z: kart.position.z + (dz / d) * 15,
       };
+      expect(decide(state)).toBe(true);
+    });
+
+    it('holds it when the kart ahead is off to the side, out of its way (MK-72)', () => {
+      expect(decide(kartAt(aiHolding(), 15, 0))).toBe(true);
+      expect(decide(kartAt(aiHolding(), 15, PHASE_AI_LATERAL + 2))).toBe(false);
+    });
+
+    it("doesn't phase through its own shell on the way out (MK-72)", () => {
+      const state = kartAt(aiHolding(), 60, 0);
+      const kart = state.karts[0]!;
+      fireShell(kart, state, NEUTRAL_INPUT, 'green');
+      expect(state.entities.some((e) => e.kind === 'shell')).toBe(true);
+      expect(decide(state)).toBe(false);
+    });
+
+    it('phases through its own banana once the drop grace is over: it can hit its owner then', () => {
+      const state = kartAt(aiHolding(), 60, 0);
+      const kart = state.karts[0]!;
+      const here = geometry.project(kart.position);
+      const position = geometry.pointAt(here.t + 12 / geometry.length, here.lateral);
+      const banana = {
+        id: 900,
+        kind: 'banana' as const,
+        position,
+        from: position,
+        flightTimer: 0,
+        ownerId: kart.id,
+        ownerImmune: 0.5,
+      };
+      state.entities.push(banana);
+      expect(decide(structuredClone(state))).toBe(false);
+      banana.ownerImmune = 0;
+      expect(decide(state)).toBe(true);
+    });
+
+    it('having given up, phases on a straight for the speed, never into a bend (MK-72)', () => {
+      const state = aiHolding();
+      state.karts[0]!.ai!.itemHeld = tuning.ai.itemGiveUp;
+      expect(decide(structuredClone(state), tuning.ai.straightCurvature * 2)).toBe(false);
       expect(decide(state)).toBe(true);
     });
 
