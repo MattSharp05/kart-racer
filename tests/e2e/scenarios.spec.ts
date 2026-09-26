@@ -4,8 +4,12 @@ import { getState, loadScenario, pause, setInput, step } from './helpers';
 
 /** Every scenario, in /dev's order (grouped by heading, registry order within a group). */
 const ALL_SCENARIOS = devOrder(scenarios.list().map(({ name, group }) => ({ name, group })));
-/** ~2.5 s a scenario on pixel-landscape's software GL: about 15 s a test there. */
-const SCENARIOS_PER_TEST = 6;
+/**
+ * Up to ~5 s a scenario (a full track's scenery on a busy CI runner, desktop or phone): a chunk of 3
+ * stays near half of the desktop projects' default 30 s. Six Canopy Rush / Cog Works scenarios in
+ * one test took 31 s on desktop-chrome in CI (MK-80).
+ */
+const SCENARIOS_PER_TEST = 3;
 
 /** The names grouped as /dev shows them: groups in first-seen order. */
 function devOrder(list: { name: string; group: string }[]): string[] {
@@ -72,7 +76,7 @@ test.describe('scenario links', () => {
 
 /**
  * Every scenario loads without errors (MK-80): in chunks of a few, so the chunks spread over the
- * workers and each stays well inside the phones' 60 s budget (one test for all ~100 took 3.5–4 min
+ * workers and each stays well inside its test timeout (one test for all ~100 took 3.5–4 min
  * on pixel-landscape and grew with every track and item). The test above checks the chunks cover
  * exactly what /dev lists.
  */
