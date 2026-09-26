@@ -234,6 +234,13 @@ export const tuning = {
     skillMax: 1.0,
     skillMin150: 0.92,
     lineOffsetMax: 1.5,
+    /**
+     * The driver that takes over a dropped online player's kart (MK-70): a fixed mid-pack
+     * personality, not a seeded one, so the host and every client hand the kart over identically.
+     */
+    takeoverSkill: 0.93,
+    takeoverLineOffset: 0,
+    takeoverAggression: 0.5,
     /** Cruising speed = top × (base + skill × this): 0.885–0.935 of top speed (drift boosts add the rest). */
     cruiseBase: 0.885,
     cruiseSkill: 0.05,

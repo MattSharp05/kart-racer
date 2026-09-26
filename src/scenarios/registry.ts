@@ -41,6 +41,8 @@ export interface OnlineScenario {
   race: CreateRaceOptions;
   /** Lag, jitter and loss each way unless the URL's `&netsim=` says otherwise. */
   netsim?: NetConditions;
+  /** The client vanishes (links closed, no Bye) at this tick of its race (MK-70, `online-drop`). */
+  vanishAtTick?: number;
 }
 
 /** A named, deterministic starting state reachable via `/?scenario=<name>` (CLAUDE.md → Testing). */

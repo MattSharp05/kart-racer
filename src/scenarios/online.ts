@@ -52,6 +52,17 @@ function onlineRace(seed: number, players: number, netsim?: NetConditions): Scen
   };
 }
 
+/** Seconds after GO when the `online-drop` client vanishes (MK-70). */
+const DROP_AFTER_GO_SECONDS = 10;
+
+/** A 2-player race whose client vanishes 10 s after GO (MK-70): the host hands its kart to the AI. */
+function onlineDrop(seed: number): ScenarioSetup {
+  const setup = onlineRace(seed, 2);
+  if (!setup.online) return setup;
+  const vanishAtTick = setup.state.race.goTick + Math.round(DROP_AFTER_GO_SECONDS / DT);
+  return { ...setup, online: { ...setup.online, vanishAtTick } };
+}
+
 /** Nicknames of the people in the offline online-look scenarios (MK-55): you, then 3 friends. */
 const PEOPLE = ['Maya', 'Ann', 'Bob', 'Cleo'] as const;
 
@@ -153,6 +164,14 @@ export const onlineScenarios: Scenario[] = [
       'The room\'s results (MK-55): all 8 karts, the 4 people highlighted in their colours. The host link has Race again / Next track; the client link shows "Waiting for host…". (No room here: the buttons go back to the title.)',
     defaultSeed: 1,
     setup: (seed) => ({ state: finishedPeopleRace(seed), view: 'chase', screen: 'onlineResults' }),
+  },
+  {
+    name: 'online-drop',
+    group: ONLINE_GROUP,
+    description:
+      'Drops (MK-70): host + 1 client, and the client vanishes 10 s after GO (no goodbye, like a phone losing its network). 3 s later the host shows "Player 2 disconnected — AI takes over" and the AI drives that kart; 5 s after vanishing the client shows "Connection lost".',
+    defaultSeed: 1,
+    setup: (seed) => onlineDrop(seed),
   },
   {
     name: 'net-good',

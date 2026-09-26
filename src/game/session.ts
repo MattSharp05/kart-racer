@@ -147,7 +147,13 @@ function onlineLaunch(scenario: string, online: OnlineScenario, params: LaunchPa
     follow: hostKart,
     localKartId: role === 'host' ? hostKart : NO_LOCAL_KART,
     localRooms: true,
-    online: { role, room: params.room ?? DEFAULT_ROOM, race, ...(netsim ? { netsim } : {}) },
+    online: {
+      role,
+      room: params.room ?? DEFAULT_ROOM,
+      race,
+      ...(netsim ? { netsim } : {}),
+      ...(online.vanishAtTick !== undefined ? { vanishAtTick: online.vanishAtTick } : {}),
+    },
   };
 }
 

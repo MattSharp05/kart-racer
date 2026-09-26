@@ -1,6 +1,7 @@
 import {
   allReady,
   ENGINE_CLASSES,
+  kartOf,
   settingsOf,
   type LobbyContent,
   type LobbySettings,
@@ -9,6 +10,9 @@ import { MAX_ROOM_PLAYERS, type RoomMember } from '../../net/room';
 import { registerScreen } from '../router';
 import { button, heading, row } from './common';
 import './lobby.css';
+
+/** A client in the lobby while the host races without it (MK-70: no joining mid-race). */
+export const RACE_ON_MESSAGE = "A race is on. You'll be in the next one.";
 
 /** What the lobby shows of a room (a `net/room.ts` Room). */
 export interface LobbyRoom {
@@ -139,13 +143,18 @@ registerScreen('lobby', (panel, props) => {
     ready.hidden = room.isHost;
     start.hidden = !room.isHost;
     if (!room.members.some((m) => m.isHost && m.start)) start.disabled = !everyone;
-    waiting.textContent = room.isHost
-      ? everyone
-        ? ''
-        : 'Waiting for everyone to be ready…'
-      : me?.ready
-        ? 'Waiting for the host to start…'
-        : '';
+    // A race is on without this device (it joined or came back mid-race, MK-70): the next one.
+    const hostStart = room.members.find((m) => m.isHost)?.start;
+    const raceOn = !room.isHost && hostStart !== undefined && kartOf(hostStart, room.selfId) < 0;
+    waiting.textContent = raceOn
+      ? RACE_ON_MESSAGE
+      : room.isHost
+        ? everyone
+          ? ''
+          : 'Waiting for everyone to be ready…'
+        : me?.ready
+          ? 'Waiting for the host to start…'
+          : '';
   };
   render();
   const stop = room.onChange(() => {
