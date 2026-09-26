@@ -3,9 +3,11 @@ import { NET } from '../net/config';
 import { OnlineHost } from '../net/host';
 import { ConditionedTransport, type NetConditions } from '../net/netsim';
 import { localRaceLinks, type RaceLinks } from '../net/raceLinks';
+import { NetSmoother } from '../net/smoothing';
 import type { Transport } from '../net/transport';
 import type { CreateRaceOptions } from '../sim/race/createRace';
 import { NEUTRAL_INPUT, type InputFrame, type SimState, type StepResult } from '../sim/types';
+import type { NetDebugInfo } from '../ui/netDebug';
 import type { Stepper } from './game';
 import type { NetRole } from './launchParams';
 
@@ -52,6 +54,8 @@ export interface NetInfo {
  */
 export class OnlineRace {
   readonly stepper: Stepper;
+  /** A client's render smoothing and remote-kart interpolation (null on the host: it's the truth). */
+  smoother: NetSmoother | null = null;
   private host: OnlineHost | null = null;
   private client: OnlineClient | null = null;
   private readonly links: Transport[] = [];
@@ -95,6 +99,46 @@ export class OnlineRace {
     };
   }
 
+  /** What the `?netdebug=1` overlay shows (MK-45). */
+  debug(): NetDebugInfo {
+    const { host, client } = this;
+    const info: NetDebugInfo = {
+      role: this.launch.role,
+      ended: this.ended ?? client?.ended ?? null,
+    };
+    if (host) {
+      info.tick = host.state.tick;
+      info.peers = host.peers.map((peer) => ({
+        kartId: peer.kartId,
+        connected: peer.connected,
+        lateInputs: peer.stats.lateInputs,
+        snapshotBytes: peer.stats.snapshotBytesAvg,
+      }));
+    }
+    if (client) {
+      const s = client.stats;
+      const now = performance.now();
+      const expected =
+        s.firstSnapshotTick < 0
+          ? 0
+          : (client.snapshotTick - s.firstSnapshotTick) / NET.snapshotEveryTicks + 1;
+      info.tick = client.state?.tick ?? 0;
+      info.rttMs = s.rttMs;
+      info.lossPercent =
+        expected > 0 ? Math.max(0, 1 - (s.snapshots + s.staleSnapshots) / expected) * 100 : 0;
+      info.snapshotAgeMs = s.lastSnapshotAt < 0 ? -1 : now - s.lastSnapshotAt;
+      info.leadTicks = client.state ? client.state.tick - client.snapshotTick : 0;
+      info.resimPerSnapshot = s.snapshots > 0 ? s.replayTicks / s.snapshots : 0;
+      info.lastReplayTicks = s.lastReplayTicks;
+      info.matchedPercent = s.snapshots > 0 ? (s.matched / s.snapshots) * 100 : 0;
+      info.snapshotMs = s.snapshots > 0 ? s.snapshotMsTotal / s.snapshots : 0;
+      info.correction = s.lastCorrection;
+      info.correctionMax = s.correctionMax;
+      info.offset = this.smoother?.corrections.offsetSize(client.kartId) ?? 0;
+    }
+    return info;
+  }
+
   /** Leaves the race: the host ends it for everyone, a client says Bye. */
   close(): void {
     this.closeRoom();
@@ -136,14 +180,23 @@ export class OnlineRace {
     const join = links.join((reason) => (this.ended = reason));
     const client = new OnlineClient(this.link(join.transport));
     this.client = client;
+    const smoother = new NetSmoother(client);
+    this.smoother = smoother;
+    client.onSnapshotState = (snapshot) => smoother.snapshots.push(snapshot);
     client.onStart = () => {
       join.stop();
+      smoother.remoteKarts = new Set(
+        (client.setup?.racers ?? []).flatMap((r, i) => (r.human && i !== client.kartId ? [i] : [])),
+      );
       this.onLocalKart(client.kartId);
     };
     return (state: SimState, inputs: InputFrame[]): StepResult => {
       const cosmetic = client.tick(inputs[client.kartId] ?? NEUTRAL_INPUT);
       // Until the first snapshot the placeholder race stands still; host events wait for it.
       if (!client.state) return { state, events: [] };
+      // Reconciles (and clock easing) since the last tick show from this state on: blend them out.
+      // (Once the race has ended here the state stands still: that's not the clock holding a tick.)
+      if (!client.ended) smoother.update(client.state, client.takeCorrections());
       const hostEvents = client.takeEvents().map((e) => e.event);
       return { state: client.state, events: [...hostEvents, ...cosmetic] };
     };

@@ -213,3 +213,93 @@ describe('OnlineClient reconciliation (ADR 0005)', () => {
     expect(() => host.addClient(hostEnd, 5)).toThrow(); // an AI kart
   });
 });
+
+describe('OnlineClient prediction for the player (MK-45)', () => {
+  /** Scripted driving without the script's own item presses. */
+  const drive = (client: OnlineClient, item = false): InputFrame => ({
+    ...scriptedInput(client.state?.karts[CLIENT_KART], client.state?.tick ?? 0, 1),
+    item,
+  });
+  const hostDrive = (host: OnlineHost) => ({
+    ...scriptedInput(host.state.karts[0], host.state.tick, 0),
+    item: false,
+  });
+
+  it('reports how far a reconcile moved each kart, for render smoothing', () => {
+    const { host, client, clock, tick } = settledRace();
+    client.takeCorrections();
+    while ((host.state.tick + 1) % 3 !== 0) {
+      tick();
+      clock.advance(TICK_MS);
+    }
+    host.state.karts[CLIENT_KART]!.position.x += 1;
+    const reconciled = client.stats.reconciled;
+    for (let i = 0; i < 12 && client.stats.reconciled === reconciled; i += 1) {
+      tick();
+      clock.advance(TICK_MS);
+    }
+    const own = client.takeCorrections().filter((c) => c.kartId === CLIENT_KART);
+    expect(own).toHaveLength(1);
+    // Drawn at old + (−1 m): where it was, before blending over to the host's position.
+    expect(own[0]!.dx).toBeCloseTo(-1, 1);
+    expect(Math.abs(own[0]!.dz)).toBeLessThan(0.1);
+    expect(client.stats.lastCorrection).toBeCloseTo(1, 1);
+    expect(client.takeCorrections()).toEqual([]); // taken once
+  });
+
+  it('plays its own item use at once and not again when the host confirms it', () => {
+    const { host, client, clock } = settledRace();
+    const step = (item = false) => {
+      host.tick(hostDrive(host));
+      const events = client.tick(drive(client, item));
+      clock.advance(TICK_MS);
+      return [...events, ...client.takeEvents().map((e) => e.event)];
+    };
+    host.state.karts[CLIENT_KART]!.item.held = 'mushroom';
+    for (let i = 0; i < 30 && client.state!.karts[CLIENT_KART]!.item.held !== 'mushroom'; i += 1) {
+      step();
+    }
+    expect(client.state!.karts[CLIENT_KART]!.item.held).toBe('mushroom');
+
+    const pressed = step(true);
+    expect(pressed).toContainEqual({ type: 'itemUsed', kartId: CLIENT_KART, item: 'mushroom' });
+    const hostUses: unknown[] = [];
+    const later: unknown[] = [];
+    for (let i = 0; i < 60; i += 1) {
+      const hostEvents = host.tick(hostDrive(host));
+      hostUses.push(...hostEvents.filter((e) => e.type === 'itemUsed' && e.kartId === CLIENT_KART));
+      later.push(...client.tick(drive(client)), ...client.takeEvents().map((e) => e.event));
+      clock.advance(TICK_MS);
+    }
+    expect(hostUses).toHaveLength(1); // the host did use it…
+    expect(later.filter((e) => (e as { type: string }).type === 'itemUsed')).toEqual([]); // …once
+  });
+
+  it('rolls back an item use the host never saw, without a sound', () => {
+    const { host, client, clock } = settledRace();
+    host.state.karts[CLIENT_KART]!.item.held = null;
+    host.state.karts[CLIENT_KART]!.item.roulette = 0;
+    // The client thinks it has a banana (a mispredicted pickup); the host says it has nothing.
+    const predicted = structuredClone(client.state!);
+    predicted.karts[CLIENT_KART]!.item.held = 'banana';
+    predicted.karts[CLIENT_KART]!.item.roulette = 0;
+    client.state = predicted;
+    host.tick(hostDrive(host));
+    const pressed = client.tick(drive(client, true));
+    expect(pressed).toContainEqual({ type: 'itemUsed', kartId: CLIENT_KART, item: 'banana' });
+    const owned = (s: typeof predicted) =>
+      s.entities.filter((e) => e.kind === 'banana' && e.ownerId === CLIENT_KART).length;
+    expect(owned(client.state!)).toBe(1);
+    clock.advance(TICK_MS);
+
+    const later: { type: string }[] = [];
+    for (let i = 0; i < 30; i += 1) {
+      host.tick(hostDrive(host));
+      later.push(...client.tick(drive(client)), ...client.takeEvents().map((e) => e.event));
+      clock.advance(TICK_MS);
+    }
+    expect(owned(client.state!)).toBe(0); // the next snapshot took it back
+    expect(owned(host.state)).toBe(0);
+    expect(later.filter((e) => e.type === 'itemUsed' || e.type === 'kartHit')).toEqual([]);
+  });
+});
