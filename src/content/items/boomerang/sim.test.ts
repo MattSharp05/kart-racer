@@ -23,6 +23,7 @@ import { GAP } from './scenarios';
 import boomerang, {
   BACK_OUT_TICKS,
   BOOMERANG_RADIUS,
+  CAUGHT,
   LIFE_TICKS,
   OUT_TICKS,
   THROWS,
@@ -161,6 +162,29 @@ describe('Boomerang (MK-69)', () => {
     const again = throwIt(state);
     expect(flying(again.state)).toHaveLength(0);
     expect(again.events.some((e) => e.type === 'itemUsed')).toBe(false);
+  });
+
+  it('a slot given without uses (`?item=boomerang`) throws a first throw, caught back', () => {
+    const state = pad();
+    state.karts[0]!.item = { ...state.karts[0]!.item, held: 'boomerang', uses: 0 };
+    const thrown = throwIt(state);
+    expect(throwNumber(flying(thrown.state)[0]!)).toBe(1);
+    const caught = run(thrown.state, LIFE_TICKS, { throttle: 1 });
+    expect(catches(caught.events)).toHaveLength(1);
+    expect(caught.state.karts[0]!.item).toMatchObject({ held: 'boomerang', uses: 1 });
+  });
+
+  it('the caught mark goes once the boomerang has left the slot', () => {
+    let { state } = throwIt(pad());
+    state = run(state, LIFE_TICKS, { throttle: 1 }).state;
+    expect(getEffect(state.karts[0]!, CAUGHT)).toBeDefined();
+    // Held for a while, it stays marked…
+    state = run(state, 120, { throttle: 1 }).state;
+    expect(getEffect(state.karts[0]!, CAUGHT)).toBeDefined();
+    // …and lost some other way (the slot cleared), the mark is gone within a few ticks.
+    state.karts[0]!.item = { ...state.karts[0]!.item, held: null, uses: 0 };
+    state = run(state, 3, { throttle: 1 }).state;
+    expect(getEffect(state.karts[0]!, CAUGHT)).toBeUndefined();
   });
 
   it('without a catch there is no second throw', () => {

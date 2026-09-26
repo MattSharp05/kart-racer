@@ -5,6 +5,7 @@ import {
   type CollisionRule,
   type EntitySpec,
 } from '../../../sim/items/entities';
+import { applyEffect, endEffect, getEffect } from '../../../sim/items/effects';
 import { tryHit } from '../../../sim/items/hit';
 import { forwardFromHeading, wrapAngleDelta } from '../../../sim/math';
 import { DT } from '../../../sim/tuning';
@@ -34,6 +35,15 @@ export const BOOMERANG_RADIUS = 1.6;
 export const SPAWN_DISTANCE = 2.5;
 /** Wall bounces before it's gone (the first one also turns it back early). */
 export const MAX_BOUNCES = 3;
+
+/**
+ * A caught boomerang back in the slot carries this kart effect (kept alive while it's held), so its
+ * throw is the second: `kart.item.uses` can't tell, as a slot given without `uses` (`?item=`) looks
+ * the same.
+ */
+export const CAUGHT = 'boomerang-caught';
+/** The mark's life, ticks: refreshed every tick while held, so it ends soon after it isn't. */
+const CAUGHT_TICKS = 2;
 
 /** AI: throw when a kart is this many metres ahead… */
 export const AI_MIN_RANGE = 10;
@@ -142,11 +152,12 @@ function boomerangSpec(id: string, outTicks: number): EntitySpec {
     collide: [wallTurnsBack, strike],
     onTick: (entity, { state }) => !missed(entity, state),
     // Caught: the first throw goes back in the slot (if it's free) for one more.
-    onReturn: (entity, owner, { events }) => {
+    onReturn: (entity, owner, { state, events }) => {
       const slot = owner.item;
       if (throwNumber(entity) === 1 && slot.held === null && slot.roulette === 0) {
         slot.held = 'boomerang';
         slot.uses = 1;
+        applyEffect(owner, CAUGHT, CAUGHT_TICKS, state, events);
       }
       events.push({ type: 'itemFx', kartId: owner.id, item: 'boomerang', fx: 'catch' });
     },
@@ -168,16 +179,20 @@ export default {
   // Front and mid (1st place … 8th place); relative weights, the balance pass (MK-72) tunes them.
   odds: [0.1, 0.15, 0.15, 0.12, 0.08, 0.04, 0, 0],
   uses: THROWS,
-  // `kart.item.uses` is already lowered here: 1 left = the first throw (from a fresh pickup), 0 =
-  // the second (after a catch). The first throw empties the slot: only a catch gives it back.
-  onUse: (kart, state, _events, input) => {
-    const first = kart.item.uses > 0;
-    if (first) {
-      kart.item.held = null;
-      kart.item.uses = 0;
-    }
+  // The second throw is the caught one (it carries `CAUGHT`). The first empties the slot even
+  // from a fresh pickup (2 uses shown): only a catch gives it back.
+  onUse: (kart, state, events, input) => {
+    const first = !getEffect(kart, CAUGHT);
+    endEffect(kart, CAUGHT, state, events);
+    kart.item.held = null;
+    kart.item.uses = 0;
     const backwards = input.brake > 0 && input.throttle === 0;
     throwBoomerang(kart, state, first ? 1 : THROWS, backwards);
+  },
+  // Keeps a caught boomerang's mark while it's held.
+  onHoldTick: (kart) => {
+    const caught = getEffect(kart, CAUGHT);
+    if (caught) caught.ticksLeft = CAUGHT_TICKS;
   },
   // AI: when a kart is 10–40 m ahead and lined up.
   aiUse: (kart, state) => {
@@ -193,6 +208,8 @@ export default {
       return Math.abs(wrapAngleDelta(Math.atan2(dx, dz) - heading)) < cone;
     });
   },
+  // Nothing to simulate or draw: it marks a caught boomerang in the slot.
+  effects: [{ id: CAUGHT }],
   entities: [
     boomerangSpec('boomerang', OUT_TICKS),
     boomerangSpec('boomerang-back', BACK_OUT_TICKS),
