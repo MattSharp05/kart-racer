@@ -1,4 +1,4 @@
-import { items } from '../content/items';
+import { entitySpecs, itemEffects, items } from '../content/items';
 import { isKartId, type KartId } from '../sim/data/karts';
 import { DT, type EngineClass } from '../sim/tuning';
 import type {
@@ -468,7 +468,8 @@ function writeKart(w: ByteWriter, k: KartState): void {
   for (const time of race.lapTimes) w.u16(Math.round(time / DT));
   if (race.finishTick !== undefined) w.u32(race.finishTick);
   if (race.throttleSince !== undefined) w.u32(race.throttleSince);
-  w.u8(k.item.held === null ? 0 : itemIds().indexOf(k.item.held) + 1);
+  w.u8(k.item.held === null ? 0 : itemIds().indexOf(k.item.held) + 1).u8(k.item.uses);
+  writeEffects(w, k);
   const ai = k.ai;
   if (ai) {
     let aiMask = 0;
@@ -511,6 +512,8 @@ function readKart(r: ByteReader, k: KartState): void {
   else delete k.race.throttleSince;
   const held = r.u8();
   k.item.held = held === 0 ? null : (itemIds()[held - 1] ?? null);
+  k.item.uses = r.u8();
+  readEffects(r, k);
   const ai = k.ai;
   if (ai) {
     const aiMask = r.u8();
@@ -523,7 +526,36 @@ function readKart(r: ByteReader, k: KartState): void {
   }
 }
 
-const ENTITY_KIND = { itemBox: 1, banana: 2, green: 3, red: 4 } as const;
+/** Numbers owned by item effects and entities (their meaning is the item's): exact f64s. */
+function writeData(w: ByteWriter, data: readonly number[]): void {
+  w.u8(data.length);
+  for (const value of data) w.f64(value);
+}
+
+function readData(r: ByteReader): number[] {
+  return Array.from({ length: r.u8() }, () => r.f64());
+}
+
+/** Kart effects (MK-52): count, then kind (by registered index), ticks left, cause, data. */
+function writeEffects(w: ByteWriter, k: KartState): void {
+  const kinds = itemEffects.ids();
+  w.u8(k.effects.length);
+  for (const effect of k.effects) {
+    w.u8(kinds.indexOf(effect.kind)).u16(effect.ticksLeft).i8(effect.by);
+    writeData(w, effect.data);
+  }
+}
+
+function readEffects(r: ByteReader, k: KartState): void {
+  const kinds = itemEffects.ids();
+  k.effects = Array.from({ length: r.u8() }, () => {
+    const kind = kinds[r.u8()];
+    if (kind === undefined) throw new Error('Unknown kart effect');
+    return { kind, ticksLeft: r.u16(), by: r.i8(), data: readData(r) };
+  });
+}
+
+const ENTITY_KIND = { itemBox: 1, banana: 2, green: 3, red: 4, item: 5 } as const;
 
 function writeEntity(w: ByteWriter, e: Entity): void {
   const kind = e.kind === 'shell' ? ENTITY_KIND[e.colour] : ENTITY_KIND[e.kind];
@@ -548,6 +580,14 @@ function writeEntity(w: ByteWriter, e: Entity): void {
         .u8(e.ownerId)
         .u16(e.ownerImmune * MS)
         .i8(e.targetId);
+      break;
+    case 'item':
+      w.u8(entitySpecs.ids().indexOf(e.spec))
+        .i16(e.direction.x * UNIT)
+        .i16(e.direction.z * UNIT)
+        .i16(e.speed * VEL);
+      w.u16(e.age).u8(e.ownerId).i8(e.targetId).u8(e.returning).u8(e.bounces);
+      writeData(w, e.data);
       break;
   }
 }
@@ -586,6 +626,24 @@ function readEntity(r: ByteReader): Entity {
       targetId: r.i8(),
     };
   }
+  if (kind === ENTITY_KIND.item) {
+    const spec = entitySpecs.ids()[r.u8()];
+    if (spec === undefined) throw new Error('Unknown item entity');
+    return {
+      id,
+      kind: 'item',
+      spec,
+      position,
+      direction: { x: r.i16() / UNIT, z: r.i16() / UNIT },
+      speed: r.i16() / VEL,
+      age: r.u16(),
+      ownerId: r.u8(),
+      targetId: r.i8(),
+      returning: r.u8() === 1 ? 1 : 0,
+      bounces: r.u8(),
+      data: readData(r),
+    };
+  }
   throw new Error(`Unknown entity kind ${kind}`);
 }
 
@@ -622,6 +680,7 @@ type FieldKind =
   | 'phase'
   | 'item'
   | 'hit'
+  | 'str' // short names (item fx)
   | 'u8[]'; // kart id lists
 
 type EventType = SimEvent['type'];
@@ -702,6 +761,11 @@ const EVENT_FIELDS: Record<EventType, readonly (readonly [string, FieldKind])[]>
     ['kartId', 'u8'],
     ['airTime', 'f64'],
   ],
+  itemFx: [
+    ['kartId', 'u8'],
+    ['item', 'item'],
+    ['fx', 'str'],
+  ],
 };
 
 const EVENT_TYPES = Object.keys(EVENT_FIELDS) as EventType[];
@@ -736,6 +800,9 @@ function writeEvent(w: ByteWriter, event: SimEvent): void {
         break;
       case 'hit':
         w.u8(hitKinds().indexOf(value as HitKind));
+        break;
+      case 'str':
+        w.str(value as string);
         break;
       case 'u8[]': {
         const list = value as number[];
@@ -776,6 +843,9 @@ function readEvent(r: ByteReader): SimEvent {
         break;
       case 'hit':
         event[name] = hitKinds()[r.u8()];
+        break;
+      case 'str':
+        event[name] = r.str();
         break;
       case 'u8[]':
         event[name] = Array.from({ length: r.u8() }, () => r.u8());

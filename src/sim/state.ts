@@ -73,7 +73,7 @@ export function createSimState({
           wrongWay: false,
           stallTimer: 0,
         },
-        item: { held: null, roulette: 0, buttonHeld: false },
+        item: { held: null, uses: 0, roulette: 0, buttonHeld: false },
         respawnTimer: 0,
         invulnerableTimer: 0,
         lastSafeT: -1,
@@ -82,6 +82,7 @@ export function createSimState({
         spinTimer: 0,
         starTimer: 0,
         shrinkTimer: 0,
+        effects: [],
       };
     }),
     entities: itemsOn ? itemBoxesFor(trackId) : [],

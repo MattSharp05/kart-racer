@@ -2,7 +2,7 @@ import { countDown } from '../math';
 import { positionOf } from '../race';
 import { tuning } from '../tuning';
 import type { KartState, SimEvent, SimState } from '../types';
-import { hitKart } from './hit';
+import { hitKart, tryHit } from './hit';
 
 /** Star (MK-20): 6 s of speed, immunity, and knocking over anyone you touch. */
 export function useStar(kart: KartState, events: SimEvent[]): void {
@@ -25,8 +25,9 @@ export function useLightning(kart: KartState, state: SimState, events: SimEvent[
   events.push({ type: 'lightning', kartId: kart.id });
   for (const other of state.karts) {
     if (other.id === kart.id || other.starTimer > 0 || other.respawnTimer > 0) continue;
-    hitKart(other, kart.id, 'lightning', events);
-    other.item = { ...other.item, held: null, roulette: 0 };
+    // A kart whose effect blocks it (a shield, MK-52) is spared; others (even spinning ones) shrink.
+    if (tryHit(other, kart.id, 'lightning', events) === 'blocked') continue;
+    other.item = { ...other.item, held: null, uses: 0, roulette: 0 };
     other.shrinkTimer = shrinkSeconds(positionOf(state, other.id), state.karts.length);
   }
 }

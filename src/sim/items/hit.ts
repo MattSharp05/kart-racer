@@ -2,6 +2,7 @@ import { cancelDrift } from '../drift';
 import { scale } from '../math';
 import { tuning } from '../tuning';
 import type { HitKind, KartState, SimEvent } from '../types';
+import { effectsBlockHit } from './effects';
 
 /** Whether items can hit this kart right now. */
 export function canBeHit(kart: KartState): boolean {
@@ -13,13 +14,22 @@ export function canBeHit(kart: KartState): boolean {
   );
 }
 
+/** How a hit went: it landed, the kart couldn't be hit, or one of its effects blocked it. */
+export type HitResult = 'hit' | 'immune' | 'blocked';
+
 /**
  * The generic item hit (MK-17): the kart spins out, losing most of its speed and all control for
  * `spinSeconds`, then stays invulnerable a little longer. Drifts and boosts are cancelled.
- * Returns false (and does nothing) if the kart can't be hit.
+ * Nothing happens if the kart can't be hit (`immune`), or one of its effects (a shield, MK-52)
+ * cancels the hit (`blocked`: the kart is then briefly invulnerable, so whatever it touched can't
+ * hit it again on the next tick).
  */
-export function hitKart(kart: KartState, by: number, kind: HitKind, events: SimEvent[]): boolean {
-  if (!canBeHit(kart)) return false;
+export function tryHit(kart: KartState, by: number, kind: HitKind, events: SimEvent[]): HitResult {
+  if (!canBeHit(kart)) return 'immune';
+  if (effectsBlockHit(kart, { by, kind }, events)) {
+    kart.invulnerableTimer = Math.max(kart.invulnerableTimer, tuning.blockedHitInvulnerableSeconds);
+    return 'blocked';
+  }
   kart.speed *= tuning.hitSpeedFactor;
   kart.velocity = scale(kart.velocity, tuning.hitSpeedFactor);
   cancelDrift(kart, events);
@@ -27,5 +37,10 @@ export function hitKart(kart: KartState, by: number, kind: HitKind, events: SimE
   kart.spinTimer = tuning.spinSeconds;
   kart.invulnerableTimer = tuning.spinSeconds + tuning.hitInvulnerableSeconds;
   events.push({ type: 'kartHit', kartId: kart.id, by, kind });
-  return true;
+  return 'hit';
+}
+
+/** `tryHit`, true when the hit landed. */
+export function hitKart(kart: KartState, by: number, kind: HitKind, events: SimEvent[]): boolean {
+  return tryHit(kart, by, kind, events) === 'hit';
 }
