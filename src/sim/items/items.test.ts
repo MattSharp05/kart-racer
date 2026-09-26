@@ -33,9 +33,10 @@ function run(state: SimState, ticks: number, input: (s: SimState) => Partial<Inp
 }
 
 describe('item odds', () => {
-  it('every position row sums to 1', () => {
+  it('every position row has weights (relative: `pickItem` normalises them)', () => {
     for (const row of oddsTable()) {
-      expect(Object.values(row).reduce((a, b) => a + b, 0)).toBeCloseTo(1, 9);
+      expect(Object.values(row).every((w) => w >= 0)).toBe(true);
+      expect(Object.values(row).reduce((a, b) => a + b, 0)).toBeGreaterThan(0);
     }
   });
 

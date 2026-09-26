@@ -19,7 +19,10 @@ export interface ItemContent {
   order: number;
   /** Dev/test items (the MK-52 worked example): never handed out, only given by scenarios. */
   testOnly?: boolean;
-  /** Chance weight in each odds row (`ODDS_ROWS` numbers, 1st place first); each row sums to 1. */
+  /**
+   * Chance weight in each odds row (`ODDS_ROWS` numbers, 1st place first). Weights are relative:
+   * the roulette divides by the row's total (the MVP rows alone sum to 1).
+   */
   odds: readonly number[];
   /**
    * Uses per pickup (default 1): a multi-use item (Turbo Trio = 3) stays in the slot until its
