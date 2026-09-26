@@ -24,7 +24,9 @@
     "test:netsoak": "vitest run -c vitest.netsoak.config.ts",
     "test:soak": "playwright test -c playwright.soak.config.ts",
     "net:sweep": "vitest run -c vitest.lab.config.ts --reporter=verbose",
-    "check:bundle": "node scripts/check-bundle-size.mjs"
+    "check:bundle": "node scripts/check-bundle-size.mjs",
+    "test:sql": "scripts/test-sql.sh",
+    "track-limits": "vitest run -c vitest.lab.config.ts scripts/track-limits.lab.ts --silent=false --reporter=dot"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.117.2",

@@ -35,6 +35,7 @@ import {
 } from './profile';
 import { standingsOf } from '../net/host';
 import type { OnlineLaunch, RaceLoss } from './online';
+import { supabaseLeaderboard, submitFinish } from '../records/leaderboard';
 import { onlineResultLines, recordFinish, recordLines, resultLines } from './results';
 import { RoomFlow, type RoomService } from './roomFlow';
 import { DEFAULT_SEED, localKartOf, type Launch, type RaceSession } from './session';
@@ -89,6 +90,14 @@ export class Flow {
   private resultsTimer: number | undefined;
   /** What the local player's finish did to the track records, for the results screen. */
   private recordUpdate: RecordUpdate | undefined;
+  /** The global leaderboard (MK-48): personal bests from ranked races go to it. */
+  private readonly leaderboard = supabaseLeaderboard();
+  /**
+   * Whether the race running now counts for the leaderboard: one started from the menus or a
+   * room. Nothing on a page opened from a scenario link (dev and QA) ever does.
+   */
+  private ranked = false;
+  private scenarioPage = false;
   private readonly rooms: RoomFlow;
   /** When this device's online race began connecting (`performance.now()`), 0 when not racing online. */
   private onlineSince = 0;
@@ -187,6 +196,7 @@ export class Flow {
 
   /** Opens the launch screen (menus or a direct race). */
   open(launch: Launch): void {
+    this.scenarioPage = launch.scenario !== undefined;
     const game = this.session.game;
     this.pauseButton.hidden = launch.screen !== undefined || launch.state.phase === 'free';
     switch (launch.screen) {
@@ -335,6 +345,7 @@ export class Flow {
     this.raceCount += 1;
     this.screens.hide();
     this.beforeLoad();
+    this.ranked = !this.scenarioPage;
     this.session.startRace({
       seed: DEFAULT_SEED + this.raceCount,
       engineClass: this.chosenCc,
@@ -352,6 +363,7 @@ export class Flow {
   private readonly startOnlineRace = (launch: OnlineLaunch): void => {
     this.screens.hide();
     this.beforeLoad();
+    this.ranked = !this.scenarioPage;
     const state = createRace(launch.race);
     this.session.load(state);
     this.world.reset('chase', localKartOf(state));
@@ -563,6 +575,7 @@ export class Flow {
   private beforeLoad(): void {
     window.clearTimeout(this.resultsTimer);
     this.recordUpdate = undefined;
+    this.ranked = false;
   }
 
   private focusLineupKart(kart: KartId, snap = false): void {
@@ -578,6 +591,7 @@ export class Flow {
     const finished = events.find((e) => e.type === 'finish' && e.kartId === me);
     if (finished) {
       this.recordUpdate = recordFinish(this.store, state, me);
+      if (this.ranked) void submitFinish(this.leaderboard, this.store, state, me);
       this.resultsTimer = window.setTimeout(this.showResults, RESULTS_DELAY_MS);
     }
   }
