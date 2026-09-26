@@ -1,8 +1,8 @@
 import { OnlineClient } from '../net/client';
 import { NET } from '../net/config';
 import { OnlineHost } from '../net/host';
-import { hostLocalRoom, joinLocalRoom } from '../net/localRoom';
 import { ConditionedTransport, type NetConditions } from '../net/netsim';
+import { localRaceLinks, type RaceLinks } from '../net/raceLinks';
 import type { Transport } from '../net/transport';
 import type { CreateRaceOptions } from '../sim/race/createRace';
 import { NEUTRAL_INPUT, type InputFrame, type SimState, type StepResult } from '../sim/types';
@@ -20,6 +20,8 @@ export interface OnlineLaunch {
   race: CreateRaceOptions;
   /** Simulated network, applied to every link in both directions. */
   netsim?: NetConditions;
+  /** Where the links come from (default: `?net=local` tabs in room `room`); the lobby's (MK-47). */
+  links?: RaceLinks;
 }
 
 /** What `__game.net()` reports (tests, and the netdebug overlay in MK-45). */
@@ -111,10 +113,11 @@ export class OnlineRace {
     const localKartId = racers.findIndex((r) => r.controller === 'local');
     const host = new OnlineHost(this.launch.race, localKartId);
     this.host = host;
-    // Clients get the remote karts in the order they join.
+    // Clients get the remote karts in the order they join, unless the lobby assigned them.
     const freeKarts = racers.flatMap((r, i) => (r.controller === 'remote' ? [i] : []));
-    this.closeRoom = hostLocalRoom(this.launch.room, (transport) => {
-      const kartId = freeKarts.shift();
+    const links = this.launch.links ?? localRaceLinks(this.launch.room);
+    this.closeRoom = links.host((transport, clientId) => {
+      const kartId = links.kartOf ? links.kartOf(clientId) : freeKarts.shift();
       if (kartId === undefined) return false;
       host.addClient(this.link(transport), kartId);
       return true;
@@ -129,7 +132,8 @@ export class OnlineRace {
   }
 
   private startClient(): Stepper {
-    const join = joinLocalRoom(this.launch.room, randomId(), (reason) => (this.ended = reason));
+    const links = this.launch.links ?? localRaceLinks(this.launch.room);
+    const join = links.join((reason) => (this.ended = reason));
     const client = new OnlineClient(this.link(join.transport));
     this.client = client;
     client.onStart = () => {
@@ -156,9 +160,4 @@ export class OnlineRace {
     this.links.push(link);
     return link;
   }
-}
-
-/** A client id for the room (unique enough between tabs; `crypto.randomUUID` needs HTTPS). */
-function randomId(): string {
-  return `c-${Math.random().toString(36).slice(2, 10)}`;
 }

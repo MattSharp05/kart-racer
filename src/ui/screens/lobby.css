@@ -1,16 +1,96 @@
-/* Lobby (MK-40): code and share on the left, players on the right (stacked on narrow screens). */
+/*
+ * Lobby (MK-40, MK-47): code and share, players, then the race settings, side by side (stacked on
+ * narrow screens). Wider than the other menus so the three columns fit a landscape phone.
+ */
+.menu-panel.menu-lobby {
+  max-width: min(96vw, 820px);
+  gap: clamp(6px, 1.6vh, 14px);
+}
+
 .lobby-body {
   display: grid;
-  grid-template-columns: auto minmax(200px, 1fr);
-  gap: clamp(10px, 3vw, 28px);
+  grid-template-columns: auto minmax(180px, 1fr) auto;
+  gap: clamp(10px, 2.5vw, 24px);
   align-items: start;
 }
 
 .lobby-share,
-.lobby-list {
+.lobby-list,
+.lobby-settings {
   display: grid;
   justify-items: center;
   gap: 6px;
+}
+
+.lobby-settings {
+  justify-items: stretch;
+}
+
+.lobby-select {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  text-align: left;
+}
+
+.lobby-select select {
+  min-height: 36px;
+  padding: 4px 8px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--color-cream);
+  color: var(--color-navy);
+  font: inherit;
+}
+
+.lobby-select select:disabled {
+  opacity: 0.85;
+}
+
+.lobby-cc {
+  display: flex;
+  gap: 6px;
+}
+
+.menus .lobby-cc button,
+.menus .lobby-items {
+  flex: 1;
+  padding: 6px 10px;
+  font-size: 14px;
+}
+
+.menus .lobby-cc button[aria-pressed='true'],
+.menus .lobby-items[aria-pressed='true'] {
+  background: var(--color-mint);
+}
+
+.menus .lobby-settings button:disabled {
+  cursor: default;
+  opacity: 0.85;
+  box-shadow: none;
+}
+
+.menus .lobby-start:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.lobby-waiting {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 400;
+}
+
+.lobby-waiting:empty {
+  display: none;
+}
+
+.player-racer {
+  font-size: 12px;
+  font-weight: 400;
+  opacity: 0.85;
 }
 
 .room-code {

@@ -1,8 +1,11 @@
 import { SoundManager } from '../audio/soundManager';
+import { racers } from '../content/racers';
+import { tracks } from '../content/tracks';
 import type { World } from '../render/world';
 import { attractMode, sunnyLineup } from '../scenarios/menus';
 import type { ScenarioView } from '../scenarios/registry';
 import { isKartId, KART_IDS, type KartId } from '../sim/data/karts';
+import { createRace } from '../sim/race/createRace';
 import type { EngineClass } from '../sim/tuning';
 import type { SimEvent, SimState } from '../sim/types';
 import { Hud } from '../ui/hud/hud';
@@ -25,9 +28,10 @@ import {
   saveProfile,
   type Profile,
 } from './profile';
+import type { OnlineLaunch } from './online';
 import { recordFinish, recordLines, resultLines } from './results';
 import { RoomFlow, type RoomService } from './roomFlow';
-import { DEFAULT_SEED, type Launch, type RaceSession } from './session';
+import { DEFAULT_SEED, localKartOf, type Launch, type RaceSession } from './session';
 import { readPrefs, writePrefs } from './storage/prefs';
 import type { RecordUpdate } from './storage/records';
 import { hasSeenHowToPlay, markHowToPlaySeen } from './storage/settings';
@@ -94,6 +98,14 @@ export class Flow {
         };
       },
       () => this.showTitleScreen(),
+      {
+        tracks: tracks.list().filter((t) => !t.testOnly),
+        racers: racers.list(),
+      },
+      this.startOnlineRace,
+      (racer) => {
+        if (isKartId(racer)) this.chosenKart = racer;
+      },
     );
 
     this.pauseButton = createPauseButton(() => this.pauseRace());
@@ -190,6 +202,7 @@ export class Flow {
   };
 
   private readonly showTitle = (): void => {
+    this.rooms.leave();
     this.session.stop();
     this.load(attractMode(DEFAULT_SEED + this.raceCount), 'chase');
     // An AI race runs behind the title; the "player" kart drives itself too.
@@ -273,6 +286,21 @@ export class Flow {
     this.world.reset('chase', this.session.localKartId);
     this.session.game.resume();
     this.pauseButton.hidden = false;
+  };
+
+  /**
+   * An online race from the lobby (MK-47): this device's placeholder of the race (its own kart
+   * `local`), then the host or client steps it. Online races don't pause.
+   */
+  private readonly startOnlineRace = (launch: OnlineLaunch): void => {
+    this.screens.hide();
+    this.beforeLoad();
+    const state = createRace(launch.race);
+    this.session.load(state);
+    this.world.reset('chase', localKartOf(state));
+    this.session.goOnline(launch, (kartId) => this.world.reset('chase', kartId));
+    this.session.game.resume();
+    this.pauseButton.hidden = true;
   };
 
   private readonly pauseRace = (): void => {

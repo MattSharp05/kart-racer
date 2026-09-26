@@ -1,4 +1,15 @@
 import {
+  defaultSettings,
+  kartOf,
+  lobbySlots,
+  raceOptions,
+  settingsOf,
+  type LobbyContent,
+  type LobbySettings,
+  type LobbyStart,
+} from '../net/lobbyState';
+import { localRaceLinks, webRtcRaceLinks } from '../net/raceLinks';
+import {
   createRoom,
   joinRoom,
   ROOM_ERROR_MESSAGES,
@@ -10,8 +21,10 @@ import type { RoomBackend } from '../net/roomBackend';
 import type { Router } from '../ui/router';
 import '../ui/screens/join';
 import '../ui/screens/lobby';
+import type { LobbyChoice } from '../ui/screens/lobby';
 import '../ui/screens/online';
 import type { NetRole } from './launchParams';
+import type { OnlineLaunch } from './online';
 
 /** Where rooms live: Supabase, or BroadcastChannel between tabs for `?net=local` (MK-40). */
 export interface RoomService {
@@ -27,25 +40,41 @@ export interface LobbyLaunch {
   code?: string;
 }
 
+/** What the lobby offers (MK-47): the menu tracks and the racers, from the content registries. */
+export interface LobbyMenu {
+  tracks: readonly LobbyChoice[];
+  racers: readonly LobbyChoice[];
+}
+
 /**
  * The online screens (MK-40): Online (create or join) → Join (type a code) → Lobby (code, link,
- * who's here). Owns this device's room. A newer action (Back, another create) cancels an older
- * one still waiting on the network.
+ * who's here; MK-47: the host's track, cc and items, everyone's racer and Ready, the host's Start).
+ * Owns this device's room. A newer action (Back, another create) cancels an older one still
+ * waiting on the network. When the host starts, every device in the start hands its race to
+ * `onRace` (the host's own at once, a client's when the host's `start` reaches it).
  */
 export class RoomFlow {
   /** The room this device is in, if any. */
   room: Room | null = null;
   private attempt = 0;
+  /** Starts already handed to `onRace` (so a presence echo never starts a race twice). */
+  private readonly started = new Set<string>();
 
   /**
    * @param player What this device shows the room (nickname, colour, racer).
    * @param onExit Back from the Online screen (to the title).
+   * @param menu The lobby's tracks and racers.
+   * @param onRace Runs a started race (MK-47).
+   * @param onRacer The player picked a racer in the lobby (remembered for next time).
    */
   constructor(
     private readonly screens: Router,
     private readonly rooms: RoomService,
     private readonly player: () => MemberInfo,
     private readonly onExit: () => void,
+    private readonly menu: LobbyMenu = { tracks: [], racers: [] },
+    private readonly onRace: (launch: OnlineLaunch) => void = () => undefined,
+    private readonly onRacer: (racer: string) => void = () => undefined,
   ) {
     window.addEventListener('pagehide', () => this.leave());
     // Back to a page from the back/forward cache: the room was left on pagehide, so the lobby (or
@@ -138,13 +167,78 @@ export class RoomFlow {
       this.room = null;
       this.showOnline(ROOM_ERROR_MESSAGES[reason]);
     });
+    // The host's first settings (best effort: everyone shows the defaults until they arrive).
+    if (room.isHost) void room.update({ lobby: defaultSettings(this.content()) });
+    room.onChange(() => this.checkStart(room));
+    this.showLobby(room);
+  }
+
+  private showLobby(room: Room): void {
     this.screens.show('lobby', {
       room,
       link: this.link(room.code),
+      tracks: this.menu.tracks,
+      racers: this.menu.racers,
+      onSettings: (settings: LobbySettings) => void room.update({ lobby: settings }),
+      onRacer: (racer) => {
+        this.onRacer(racer);
+        void room.update({ racer });
+      },
+      onReady: (ready) => void room.update({ ready }),
+      onStart: () => void this.startRace(room),
       onLeave: () => {
         this.leave();
         this.showOnline();
       },
+    });
+  }
+
+  private content(): LobbyContent {
+    return {
+      trackIds: this.menu.tracks.map((t) => t.id),
+      racerIds: this.menu.racers.map((r) => r.id),
+    };
+  }
+
+  /** Host: starts the race with everyone present now, in the room's order. */
+  private async startRace(room: Room): Promise<void> {
+    if (!room.isHost || this.room !== room) return;
+    const start: LobbyStart = {
+      id: Math.random().toString(36).slice(2, 10),
+      // A fresh race each start (not the sim: the host's seed goes to everyone in `start`).
+      seed: Math.floor(Math.random() * 2 ** 31),
+      slots: lobbySlots(room.members),
+    };
+    this.started.add(start.id);
+    // Links open before the others hear of the start, so none of their joins are missed.
+    this.race(room, start);
+    await room.update({ start });
+  }
+
+  /** Client: a new start from the host that seats this device runs its race. */
+  private checkStart(room: Room): void {
+    const start = room.host?.start;
+    if (room.isHost || this.room !== room || !start || this.started.has(start.id)) return;
+    this.started.add(start.id);
+    // Joined after that start: stay in the lobby.
+    if (kartOf(start, room.selfId) < 0) return;
+    this.race(room, start);
+  }
+
+  private race(room: Room, start: LobbyStart): void {
+    const content = this.content();
+    const clientKart = (clientId: string) => {
+      const kart = kartOf(start, clientId);
+      return kart > 0 ? kart : undefined;
+    };
+    const links = this.rooms.local
+      ? localRaceLinks(`lobby-${room.code}-${start.id}`, room.selfId, clientKart)
+      : webRtcRaceLinks(room.signaling(start.id), clientKart);
+    this.onRace({
+      role: room.isHost ? 'host' : 'client',
+      room: room.code,
+      race: raceOptions(settingsOf(room.members, content), start, room.selfId, content),
+      links,
     });
   }
 
