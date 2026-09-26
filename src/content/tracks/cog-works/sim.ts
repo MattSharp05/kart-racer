@@ -271,6 +271,7 @@ const theme: TrackTheme = {
 export default {
   id: cogWorks.id,
   name: 'Cog Works',
+  hazard: 'Steam crushers and belts',
   order: 60,
   def: cogWorks,
   theme,

@@ -3,6 +3,7 @@ import { loadScenario } from '../e2e/helpers';
 
 for (const name of [
   'racer-select',
+  'track-select-records',
   'menu-cc-select',
   'menu-paused',
   'race-finished',

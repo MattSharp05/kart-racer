@@ -156,6 +156,7 @@ export const SUNNY_INFIELD = { ...U_CENTRE, radius: INFIELD_RADIUS };
 export default {
   id: sunnyCircuit.id,
   name: 'Sunny Circuit',
+  hazard: 'Grass shortcut in the U-turn',
   order: 10,
   def: sunnyCircuit,
   theme: SUNNY_THEME,

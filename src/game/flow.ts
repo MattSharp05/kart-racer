@@ -25,6 +25,7 @@ import { createPauseButton } from '../ui/screens/pause';
 import '../ui/screens/results';
 import '../ui/screens/settings';
 import '../ui/screens/title';
+import '../ui/screens/trackSelect';
 import {
   clearProfile,
   colourHex,
@@ -40,7 +41,7 @@ import { onlineResultLines, recordFinish, recordLines, resultLines } from './res
 import { RoomFlow, type RoomService } from './roomFlow';
 import { DEFAULT_SEED, localKartOf, type Launch, type RaceSession } from './session';
 import { readPrefs, writePrefs } from './storage/prefs';
-import type { RecordUpdate } from './storage/records';
+import { getRecord, type RecordUpdate } from './storage/records';
 import { hasSeenHowToPlay, markHowToPlaySeen } from './storage/settings';
 import type { KeyValueStore } from './storage/store';
 
@@ -65,6 +66,14 @@ const LOSS_MESSAGES: Record<RaceLoss, string> = {
   'host-lost': 'Lost the connection to the host.',
 };
 
+/** Where a race goes when no track is offered (never, with the tracks registered today). */
+const DEFAULT_TRACK = 'sunny-circuit';
+
+/** The tracks the menus offer (single player and rooms): every registered one but test fixtures. */
+function menuTracks() {
+  return tracks.list().filter((t) => !t.testOnly);
+}
+
 /** The toast when a player drops and the AI takes their kart (MK-70). */
 export function dropMessage(name: string | undefined): string {
   return `${name ?? 'A player'} disconnected — AI takes over`;
@@ -86,6 +95,8 @@ export class Flow {
   private readonly rotatePrompt: RotatePrompt;
   private chosenKart: KartId;
   private chosenCc: EngineClass;
+  /** The single-player track (MK-50): a registered, non-test track. */
+  private chosenTrack: string;
   private raceCount = 0;
   private resultsTimer: number | undefined;
   /** What the local player's finish did to the track records, for the results screen. */
@@ -116,6 +127,9 @@ export class Flow {
     const prefs = readPrefs(store);
     this.chosenKart = prefs.kart && isKartId(prefs.kart) ? prefs.kart : 'maple';
     this.chosenCc = ENGINE_CLASSES.find((cc) => cc === prefs.engineClass) ?? 100;
+    const offered = menuTracks();
+    this.chosenTrack =
+      offered.find((t) => t.id === prefs.track)?.id ?? offered[0]?.id ?? DEFAULT_TRACK;
 
     this.sound = new SoundManager(store, () => this.screens.refresh());
     this.soundControl = {
@@ -138,7 +152,7 @@ export class Flow {
       },
       () => this.showTitleScreen(),
       {
-        tracks: tracks.list().filter((t) => !t.testOnly),
+        tracks: menuTracks(),
         racers: racers.list(),
         onRace: this.startOnlineRace,
         onStartFailed: (message) => this.abortOnlineRace(message),
@@ -147,7 +161,7 @@ export class Flow {
           if (!isKartId(racer)) return;
           this.chosenKart = racer;
           // Kept for next time, so a player who drops and rejoins keeps their pick (MK-70).
-          writePrefs(this.store, { kart: racer, engineClass: this.chosenCc });
+          this.savePrefs();
         },
         onLobby: () => this.leaveOnlineRace(),
       },
@@ -238,6 +252,10 @@ export class Flow {
         this.focusLineupKart(this.chosenKart, true);
         this.showCcSelect();
         break;
+      case 'trackSelect':
+        this.focusLineupKart(this.chosenKart, true);
+        this.showTrackSelect();
+        break;
       case 'paused':
         this.pauseButton.hidden = false;
         this.pauseRace();
@@ -318,7 +336,7 @@ export class Flow {
       onChoose: (kart) => {
         this.chosenKart = kart;
         // Remembered straight away (MK-51), even if the player backs out of the cc select.
-        writePrefs(this.store, { kart, engineClass: this.chosenCc });
+        this.savePrefs();
         this.showCcSelect();
       },
       onBack: this.showTitle,
@@ -331,12 +349,37 @@ export class Flow {
       initial: this.chosenCc,
       onChoose: (cc) => {
         this.chosenCc = cc;
-        writePrefs(this.store, { kart: this.chosenKart, engineClass: this.chosenCc });
-        this.startRace();
+        this.savePrefs();
+        this.showTrackSelect();
       },
       onBack: this.showRacerSelect,
     });
   };
+
+  /** Track select (MK-50): the last step before a single-player race. */
+  private readonly showTrackSelect = (): void => {
+    this.screens.show('trackSelect', {
+      tracks: menuTracks(),
+      initial: this.chosenTrack,
+      recordOf: (trackId) => getRecord(this.store, trackId, this.chosenCc),
+      classLabel: `${this.chosenCc}cc`,
+      onChoose: (trackId) => {
+        this.chosenTrack = trackId;
+        this.savePrefs();
+        this.startRace();
+      },
+      onBack: this.showCcSelect,
+    });
+  };
+
+  /** Remembers the menu picks for next time (racer, engine class, track). */
+  private savePrefs(): void {
+    writePrefs(this.store, {
+      kart: this.chosenKart,
+      engineClass: this.chosenCc,
+      track: this.chosenTrack,
+    });
+  }
 
   private readonly startRace = (): void => {
     // A local race (also "Again" after an online one): not in a room any more.
@@ -350,6 +393,7 @@ export class Flow {
       seed: DEFAULT_SEED + this.raceCount,
       engineClass: this.chosenCc,
       playerKart: this.chosenKart,
+      trackId: this.chosenTrack,
     });
     this.world.reset('chase', this.session.localKartId);
     this.session.game.resume();

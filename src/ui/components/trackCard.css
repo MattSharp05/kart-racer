@@ -1,0 +1,87 @@
+/* Track card (MK-50): outline, name, hazard and records. Shared by the track select and the lobby. */
+.menus .track-card {
+  display: grid;
+  grid-template-rows: auto auto auto 1fr;
+  justify-items: center;
+  align-content: start;
+  gap: 3px;
+  min-width: 0;
+  min-height: 44px;
+  padding: 8px 6px;
+  border-radius: 12px;
+  background: rgb(255 255 255 / 0.12);
+  color: #fff;
+  font-size: 14px;
+  box-shadow: none;
+}
+
+.menus .track-card[aria-checked='true'] {
+  background: rgb(255 255 255 / 0.28);
+  box-shadow: inset 0 0 0 3px var(--color-gold);
+}
+
+.track-outline {
+  width: 100%;
+  height: clamp(48px, 14vh, 96px);
+}
+
+.track-outline polygon {
+  fill: none;
+  stroke: var(--color-cream);
+  stroke-width: 4;
+  stroke-linejoin: round;
+}
+
+.track-card[aria-checked='true'] .track-outline polygon {
+  stroke: var(--color-gold);
+}
+
+.track-outline .track-start {
+  fill: var(--color-red);
+  stroke: #fff;
+  stroke-width: 1.5;
+}
+
+.track-name {
+  max-width: 100%;
+  overflow: hidden;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.track-hazard {
+  font-weight: 400;
+  font-size: 12px;
+  opacity: 0.85;
+}
+
+.track-records {
+  display: grid;
+  align-self: end;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-mint);
+}
+
+.track-records.none {
+  color: rgb(255 255 255 / 0.6);
+}
+
+/* Short landscape phones: a smaller outline and tighter text. */
+@media (max-height: 430px) {
+  .menus .track-card {
+    gap: 2px;
+    padding: 6px 4px;
+    font-size: 13px;
+  }
+
+  .track-outline {
+    height: 58px;
+  }
+
+  .track-hazard,
+  .track-records {
+    font-size: 11px;
+  }
+}

@@ -304,6 +304,7 @@ const theme: TrackTheme = {
 export default {
   id: canopyRush.id,
   name: 'Canopy Rush',
+  hazard: 'Swaying rope bridges',
   order: 50,
   def: canopyRush,
   theme,
