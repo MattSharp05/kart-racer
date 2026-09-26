@@ -4,7 +4,7 @@ if (new URLSearchParams(location.search).get('spike') === 'net')
 import { Flow } from './game/flow';
 import { parseLaunchParams } from './game/launchParams';
 import { RaceSession, resolveLaunch } from './game/session';
-import { browserStore } from './game/storage';
+import { browserStore, OverlayStore } from './game/storage';
 import { installTestApi } from './game/testApi';
 import { World } from './render/world';
 import { getTrack } from './sim/track';
@@ -16,8 +16,8 @@ const canvas = document.querySelector<HTMLCanvasElement>('#game');
 if (!canvas) throw new Error('Missing #game canvas');
 
 const params = parseLaunchParams(window.location.search);
-const store = browserStore();
 const launch = resolveLaunch(params);
+const store = launch.storage ? new OverlayStore(browserStore(), launch.storage) : browserStore();
 const session = new RaceSession(launch.state);
 const game = session.game;
 if (params.paused) game.pause();

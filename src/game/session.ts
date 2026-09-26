@@ -29,6 +29,8 @@ export interface Launch {
   screen?: MenuScreen;
   /** The kart this device drives (MK-38). */
   localKartId: number;
+  /** The scenario's saved data (MK-44), layered over the real store for this page load. */
+  storage?: Record<string, string>;
   /** An online scenario (MK-46): host or join its race over `?net=local`. */
   online?: OnlineLaunch;
 }
@@ -78,6 +80,7 @@ function initialState(params: LaunchParams): Launch {
         follow: setup.follow ?? localKartId,
         localKartId,
         ...(setup.screen ? { screen: setup.screen } : {}),
+        ...(setup.storage ? { storage: setup.storage } : {}),
       };
     }
     showErrorBanner(

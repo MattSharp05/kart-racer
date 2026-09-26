@@ -3,7 +3,6 @@ import type { World } from '../render/world';
 import { attractMode, sunnyLineup } from '../scenarios/menus';
 import type { ScenarioView } from '../scenarios/registry';
 import { isKartId, KART_IDS, type KartId } from '../sim/data/karts';
-import { raceTime } from '../sim/raceFlow';
 import type { EngineClass } from '../sim/tuning';
 import type { SimEvent, SimState } from '../sim/types';
 import { Hud } from '../ui/hud/hud';
@@ -13,13 +12,16 @@ import '../ui/screens/ccSelect';
 import type { SoundControl } from '../ui/screens/common';
 import { HowToPlay } from '../ui/screens/howToPlay';
 import '../ui/screens/kartSelect';
+import '../ui/screens/nickname';
 import { createPauseButton } from '../ui/screens/pause';
 import '../ui/screens/results';
+import '../ui/screens/settings';
 import '../ui/screens/title';
-import { resultLines } from './results';
+import { clearProfile, colourHex, readProfile, saveProfile, type Profile } from './profile';
+import { recordFinish, recordLines, resultLines } from './results';
 import { DEFAULT_SEED, type Launch, type RaceSession } from './session';
 import { readPrefs, writePrefs } from './storage/prefs';
-import { recordBests } from './storage/records';
+import type { RecordUpdate } from './storage/records';
 import { hasSeenHowToPlay, markHowToPlaySeen } from './storage/settings';
 import type { KeyValueStore } from './storage/store';
 
@@ -47,6 +49,8 @@ export class Flow {
   private chosenCc: EngineClass;
   private raceCount = 0;
   private resultsTimer: number | undefined;
+  /** What the local player's finish did to the track records, for the results screen. */
+  private recordUpdate: RecordUpdate | undefined;
 
   constructor(
     private readonly session: RaceSession,
@@ -103,13 +107,33 @@ export class Flow {
     this.pauseButton.hidden = launch.screen !== undefined || launch.state.phase === 'free';
     switch (launch.screen) {
       case 'title':
-      case 'howToPlay':
+      case 'howToPlay': {
+        game.setAutopilot(launch.localKartId, true);
+        const toTitle = () => {
+          this.showTitleScreen();
+          // First visit (plain URL, nothing stored): show the controls guide straight away.
+          if (
+            launch.screen === 'howToPlay' ||
+            (!launch.scenario && !hasSeenHowToPlay(this.store))
+          ) {
+            this.openHowToPlay();
+          }
+        };
+        // First launch (plain URL, no name saved yet): pick a nickname before the title (MK-42).
+        if (!launch.scenario && !readProfile(this.store)) this.showNickname(toTitle);
+        else toTitle();
+        break;
+      }
+      case 'nickname':
+        // The first-launch scenario: forget the saved name so the screen starts empty.
+        clearProfile(this.store);
+        game.setAutopilot(launch.localKartId, true);
+        this.showNickname(() => this.showTitleScreen());
+        break;
+      case 'settings':
         this.showTitleScreen();
         game.setAutopilot(launch.localKartId, true);
-        // First visit (plain URL, nothing stored): show the controls guide straight away.
-        if (launch.screen === 'howToPlay' || (!launch.scenario && !hasSeenHowToPlay(this.store))) {
-          this.openHowToPlay();
-        }
+        this.showSettings();
         break;
       case 'kartSelect':
         this.showKartSelect();
@@ -147,12 +171,37 @@ export class Flow {
   };
 
   private showTitleScreen(): void {
+    const profile = readProfile(this.store);
     this.screens.show('title', {
       onPlay: this.showKartSelect,
       onHowToPlay: this.openHowToPlay,
-      sound: this.soundControl,
+      onSettings: this.showSettings,
+      ...(profile && {
+        player: { nickname: profile.nickname, colour: colourHex(profile.colour) },
+        onEditName: () => this.showNickname(() => this.showTitleScreen(), profile),
+      }),
     });
   }
+
+  /** Nickname and colour (MK-42): on first launch (no way back), or edited from the title. */
+  private showNickname(then: () => void, initial?: Profile): void {
+    this.screens.show('nickname', {
+      onSave: (profile) => {
+        saveProfile(this.store, profile);
+        then();
+      },
+      ...(initial && { initial, onBack: () => this.showTitleScreen() }),
+    });
+  }
+
+  /** Settings (MK-43) over the title or the pause menu; Back returns there. */
+  private readonly showSettings = (): void => {
+    this.screens.show('settings', {
+      store: this.store,
+      sound: this.soundControl,
+      onBack: () => this.screens.back(),
+    });
+  };
 
   private readonly showKartSelect = (): void => {
     if (this.screens.current !== 'ccSelect') this.load(sunnyLineup(DEFAULT_SEED), 'lineup');
@@ -205,6 +254,7 @@ export class Flow {
       onRestart: this.startRace,
       onQuit: this.showTitle,
       onHowToPlay: this.openHowToPlay,
+      onSettings: this.showSettings,
       sound: this.soundControl,
     });
   };
@@ -219,7 +269,7 @@ export class Flow {
     this.pauseButton.hidden = true;
     this.screens.show('results', {
       rows,
-      bestNote: this.hud.bestNote,
+      ...(this.recordUpdate ? { records: recordLines(this.recordUpdate) } : {}),
       onAgain: this.startRace,
       onChangeKart: this.showKartSelect,
       onMenu: this.showTitle,
@@ -235,7 +285,7 @@ export class Flow {
 
   private beforeLoad(): void {
     window.clearTimeout(this.resultsTimer);
-    this.hud.bestNote = '';
+    this.recordUpdate = undefined;
   }
 
   private focusLineupKart(kart: KartId, snap = false): void {
@@ -249,22 +299,8 @@ export class Flow {
     const me = this.session.localKartId;
     this.hud.onEvents(events, state, me, performance.now());
     const finished = events.find((e) => e.type === 'finish' && e.kartId === me);
-    const player = state.karts[me];
-    if (finished && player) {
-      const bests = recordBests(
-        this.store,
-        state.trackId,
-        player.kartType,
-        state.engineClass,
-        player.race.lapTimes,
-        raceTime(state, player.race.finishTick),
-      );
-      this.hud.bestNote = [
-        bests.newBestRace && 'New best race time!',
-        bests.newBestLap && 'New best lap!',
-      ]
-        .filter(Boolean)
-        .join(' ');
+    if (finished) {
+      this.recordUpdate = recordFinish(this.store, state, me);
       this.resultsTimer = window.setTimeout(this.showResults, RESULTS_DELAY_MS);
     }
   }

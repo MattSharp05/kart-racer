@@ -3,7 +3,8 @@ import type { CreateRaceOptions } from '../sim/race/createRace';
 import type { SimState } from '../sim/types';
 
 export type ScenarioView = 'chase' | 'overview' | 'lineup';
-export type MenuScreen = 'title' | 'kartSelect' | 'ccSelect' | 'paused' | 'howToPlay';
+export type MenuScreen =
+  'title' | 'kartSelect' | 'ccSelect' | 'paused' | 'howToPlay' | 'settings' | 'nickname';
 
 export interface ScenarioSetup {
   state: SimState;
@@ -13,6 +14,11 @@ export interface ScenarioSetup {
   follow?: number;
   /** Open a menu screen on top of this state (MK-25). */
   screen?: MenuScreen;
+  /**
+   * Saved data the scenario starts with (key → value, e.g. track records, MK-44). Kept in memory
+   * over the real store, so it never replaces the player's own data.
+   */
+  storage?: Record<string, string>;
   /** An online race (MK-46): `state` is `createRace(online.race)`, played over `?net=local`. */
   online?: OnlineScenario;
 }
