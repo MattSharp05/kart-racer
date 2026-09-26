@@ -65,6 +65,8 @@ describe('content registries', () => {
       'bubble-shield',
       'hornet-swarm',
       'phase',
+      'magnet',
+      'ink-cloud',
     ]);
     expect(
       items

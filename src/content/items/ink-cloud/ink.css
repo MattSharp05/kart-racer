@@ -1,0 +1,18 @@
+/* Ink Cloud (MK-68): the splats on an inked player's screen. Never catches taps (the touch
+   buttons stay usable under it). */
+.ink-cloud-splats {
+  pointer-events: none;
+}
+
+.ink-cloud-svg {
+  width: 100%;
+  height: 100%;
+  animation: ink-cloud-splat 0.2s ease-out;
+}
+
+@keyframes ink-cloud-splat {
+  from {
+    transform: scale(0.6);
+    opacity: 0;
+  }
+}
