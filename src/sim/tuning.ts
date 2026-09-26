@@ -135,6 +135,8 @@ export const tuning = {
     crusherMoveFraction: 0.1,
     /** A squashed kart spins out this many times as long as an item hit. */
     squashSpinFactor: 1.5,
+    /** A hazard with a HUD warning (a sandstorm) shows it this long before it switches on, s. */
+    warningSeconds: 3,
   },
   // --- Respawn (MK-13) ---
   /** Being carried back to the track takes this long, s. */

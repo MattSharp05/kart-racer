@@ -1,6 +1,8 @@
+import { hazardWarning, trackHazards } from '../../sim/hazards';
 import { availableItems } from '../../sim/items';
 import { positionOf } from '../../sim/race';
 import { raceTime } from '../../sim/raceFlow';
+import { getTrack } from '../../sim/track';
 import type { ItemId, KartItem, SimEvent, SimState } from '../../sim/types';
 import { formatTime, ordinal } from './format';
 import { itemIcon, itemName } from './icons';
@@ -31,6 +33,8 @@ export class Hud {
   private readonly position = div('hud-position');
   private readonly centre = div('hud-centre');
   private readonly wrongWay = div('hud-wrong-way');
+  /** A hazard about to start, e.g. "SANDSTORM!" (MK-58). */
+  private readonly hazard = div('hud-hazard-warning');
   private readonly minimap = new Minimap();
   private readonly screenFlash = div('hud-flash');
   private readonly screenEffects = new ScreenEffects();
@@ -47,6 +51,7 @@ export class Hud {
       this.position,
       this.centre,
       this.wrongWay,
+      this.hazard,
       this.minimap.root,
       this.screenEffects.root,
       this.screenFlash,
@@ -122,6 +127,9 @@ export class Hud {
     }
 
     this.show(this.wrongWay, kart.race.wrongWay);
+    const warning = hazardWarning(trackHazards(getTrack(state.trackId)), state.tick);
+    this.set(this.hazard, warning ?? '');
+    this.show(this.hazard, warning !== undefined);
 
     if (state.phase === 'countdown' && this.centre.hidden) {
       // Scenarios can start mid-countdown: show the current number.

@@ -44,6 +44,21 @@ export function hazardGrip(hazards: readonly HazardDef[], tick: number, position
 }
 
 /**
+ * The HUD warning of the first hazard about to switch on (within `tuning.hazards.warningSeconds`
+ * of `tick`), e.g. "SANDSTORM!" before a sandstorm. Pure, like the poses.
+ */
+export function hazardWarning(hazards: readonly HazardDef[], tick: number): string | undefined {
+  for (const hazard of hazards) {
+    const kind = hazardKinds.get(hazard.kind);
+    const text = kind.warning?.(hazard);
+    if (!text || !kind.secondsUntilOn) continue;
+    const seconds = kind.secondsUntilOn(hazard, tick);
+    if (seconds > 0 && seconds <= tuning.hazards.warningSeconds) return text;
+  }
+  return undefined;
+}
+
+/**
  * Karts touching a hazard this tick are pushed clear and bumped, spun out or squashed, by the
  * hazard's effect. Runs after the karts have moved.
  */

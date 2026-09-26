@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { trackViews } from '../content/tracks/render';
 import { trackGeometry, type TrackDef } from '../sim/track';
 import { createScenery } from './scenery';
 import { applyTheme, createNightLamps, trackTheme } from './theme';
@@ -16,7 +17,9 @@ export function createTrackView(scene: THREE.Scene, track: TrackDef): void {
     const geometry = trackGeometry(track);
     const theme = trackTheme(track);
     scene.add(createSplineTrackMesh(geometry, theme.palette));
-    scene.add(createScenery(geometry, theme.scenery));
+    // A track's own `render.ts` (MK-58) may draw its scenery instead of the theme's set.
+    const view = trackViews.has(track.id) ? trackViews.get(track.id) : undefined;
+    scene.add(view?.scenery?.(geometry, theme) ?? createScenery(geometry, theme.scenery));
     if (theme.night) scene.add(createNightLamps(geometry));
     applyTheme(scene, theme);
     return;

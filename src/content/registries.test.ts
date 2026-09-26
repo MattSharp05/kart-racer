@@ -1,4 +1,4 @@
-import { readdirSync } from 'node:fs';
+import { existsSync, readdirSync } from 'node:fs';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { kartDef } from '../sim/data/karts';
 import { availableItems } from '../sim/items';
@@ -15,6 +15,7 @@ import { racers } from './racers';
 import { racerViews } from './racers/render';
 import { Registry } from './registry';
 import { tracks } from './tracks';
+import { trackViews } from './tracks/render';
 
 /** Content folders on disk: each `src/content/<kind>/<id>/` is one piece of content. */
 const folders = (kind: string) =>
@@ -24,13 +25,13 @@ const folders = (kind: string) =>
     .sort();
 
 describe('content registries', () => {
-  it('list 1 real track plus the test tracks, 4 racers and 6 items (+ the test kit), in order', () => {
+  it('list 2 real tracks plus the test tracks, 4 racers and 6 items (+ the test kit), in order', () => {
     expect(
       tracks
         .list()
         .filter((t) => !t.testOnly)
         .map((t) => t.id),
-    ).toEqual(['sunny-circuit']);
+    ).toEqual(['sunny-circuit', 'dune-canyon']);
     expect(
       tracks
         .list()
@@ -72,6 +73,13 @@ describe('content registries', () => {
   it('give every racer and item a render view (add its line to the render.ts list)', () => {
     expect(racerViews.ids().sort()).toEqual([...racers.ids()].sort());
     expect(itemViews.ids().sort()).toEqual([...items.ids()].sort());
+  });
+
+  it('list every track folder with a render.ts in tracks/render.ts (MK-58)', () => {
+    const withView = folders('tracks').filter((id) =>
+      existsSync(new URL(`./tracks/${id}/render.ts`, import.meta.url)),
+    );
+    expect(trackViews.ids().sort()).toEqual(withView);
   });
 
   it('assemble odds rows that each sum to 1 from the items’ own odds', () => {
