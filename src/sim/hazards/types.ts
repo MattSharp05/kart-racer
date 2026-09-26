@@ -10,14 +10,30 @@ interface HazardBase {
   phase?: number;
 }
 
-/** Travels round a closed `path` at constant speed, once per `period` s (a car, a rolling snowball). */
+/**
+ * Travels round a closed `path` at constant speed, once per `period` s (a car); or, with
+ * `activeFraction`, along an open path now and then (a snowball rolling across the road).
+ */
 export interface MoverHazard extends HazardBase {
   kind: 'mover';
-  /** Closed loop, world space (the last point joins back to the first). */
+  /**
+   * World space, at ground level under the mover. A closed loop (the last point joins back to the
+   * first), or an open path start → end when `activeFraction` is set.
+   */
   path: Vec3[];
   period: number;
   /** Collider radius, m. */
   radius: number;
+  /**
+   * Open path (MK-59): travelled start → end during this share of each period, then gone (no
+   * contact, not drawn) until the next. Absent: a closed loop, always there.
+   */
+  activeFraction?: number;
+  /**
+   * Render and audio only (MK-59): drawn as a ball of this colour rolling along its path, with a
+   * shadow under it, rumbling as it rolls (a snowball, a boulder). Absent: a traffic kart.
+   */
+  rolling?: number;
 }
 
 /** A bar spinning about `centre` (a swinging bridge beam, a windmill sail). */

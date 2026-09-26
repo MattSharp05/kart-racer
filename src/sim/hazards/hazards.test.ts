@@ -5,7 +5,7 @@ import { step } from '../step';
 import { tuning } from '../tuning';
 import { NEUTRAL_INPUT, type InputFrame, type SimEvent, type SimState } from '../types';
 import { hazardGrip, hazardKinds, hazardPose, trackHazards } from '.';
-import type { PeriodicHazard, ZoneEffectHazard } from './types';
+import type { MoverHazard, PeriodicHazard, ZoneEffectHazard } from './types';
 
 const hazards = trackHazards(hazardTest);
 const byKind = <K extends string>(kind: K) => hazards.find((h) => h.kind === kind)!;
@@ -46,6 +46,39 @@ describe('track hazards (MK-49)', () => {
     const b = hazardPose(mover, 11);
     const mid = hazardPose(mover, 10.5);
     expect(mid.z).toBeCloseTo((a.z + b.z) / 2, 6);
+  });
+
+  it('an open-path mover runs start → end in its active share of the period, then is gone (MK-59)', () => {
+    // 60 m straight at 30 m/s: 2 s of every 4.
+    const ball: MoverHazard = {
+      kind: 'mover',
+      path: [
+        { x: 0, y: 0, z: 0 },
+        { x: 0, y: 0, z: 30 },
+        { x: 0, y: 0, z: 60 },
+      ],
+      period: 4,
+      activeFraction: 0.5,
+      radius: 1,
+    };
+    const kind = hazardKinds.get('mover');
+    expect(hazardPose(ball, 0).amount).toBe(1);
+    expect(hazardPose(ball, 0).z).toBeCloseTo(0, 6);
+    expect(hazardPose(ball, 60).z).toBeCloseTo(30, 6);
+    expect(hazardPose(ball, 119).z).toBeCloseTo(59.5, 6);
+    // Off for the rest of the period: parked at the end, and it touches nothing.
+    for (const tick of [120, 180, 239]) {
+      const pose = hazardPose(ball, tick);
+      expect(pose).toMatchObject({ z: 60, amount: 0 });
+      expect(kind.contact?.(ball, pose, { x: 0, y: 0, z: 60 }, 1)).toBeUndefined();
+    }
+    // Back at the start next period, never joining the end back to the start.
+    expect(hazardPose(ball, 240).amount).toBe(1);
+    expect(hazardPose(ball, 240).z).toBeCloseTo(0, 6);
+    for (let tick = 0; tick < 120; tick += 1) {
+      expect(hazardPose(ball, tick + 1).z).toBeGreaterThan(hazardPose(ball, tick).z);
+    }
+    expect(kind.contact?.(ball, hazardPose(ball, 60), { x: 1.5, y: 0, z: 30 }, 1)).toBeDefined();
   });
 
   it('a race on the hazard track is deterministic (same seed + inputs → same state)', () => {

@@ -3,6 +3,7 @@ import { isTextEntry } from '../input/keyboard';
 import { tuning } from '../sim/tuning';
 import type { KartState, SimEvent, SimState } from '../sim/types';
 import { Music } from './music';
+import { rumbleLevel } from './rumble';
 import { cueFor } from './soundMap';
 import { Synth } from './synth';
 
@@ -10,6 +11,8 @@ import { Synth } from './synth';
 const HEARING_RANGE = 60;
 const AI_ENGINES = 3;
 const AI_ENGINE_RANGE = 40;
+/** Loudness of the rumble right next to a rolling snowball (MK-59). */
+const RUMBLE_VOLUME = 0.5;
 
 interface EngineVoice {
   osc: OscillatorNode;
@@ -46,6 +49,8 @@ export class SoundManager {
   private synth: Synth | undefined;
   private music: Music | undefined;
   private engines: EngineVoice[] = [];
+  /** Low rumble of rolling hazards nearby (MK-59: snowballs); silent otherwise. */
+  private rumble: GainNode | undefined;
   private muted: boolean;
   private lastRouletteTick = -1;
   private suspended = false;
@@ -97,6 +102,7 @@ export class SoundManager {
       this.synth = new Synth();
       this.music = new Music(this.synth);
       this.engines = Array.from({ length: 1 + AI_ENGINES }, () => this.engineVoice());
+      this.rumble = this.rumbleVoice();
       this.applyMute();
       // iOS only starts a context that plays something inside the gesture: a one-sample silence.
       const ctx = this.synth.ctx;
@@ -132,6 +138,23 @@ export class SoundManager {
     osc.start();
     sub.start();
     return { osc, sub, gain };
+  }
+
+  /** Looped noise through a low-pass filter: a deep rumble, at zero volume until something rolls. */
+  private rumbleVoice(): GainNode {
+    const synth = this.synth as Synth;
+    const ctx = synth.ctx;
+    const source = ctx.createBufferSource();
+    source.buffer = synth.noise;
+    source.loop = true;
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.value = 110;
+    const gain = ctx.createGain();
+    gain.gain.value = 0;
+    source.connect(filter).connect(gain).connect(synth.sfx);
+    source.start();
+    return gain;
   }
 
   onEvents(events: SimEvent[], state: SimState, followId: number): void {
@@ -194,6 +217,8 @@ export class SoundManager {
         volume: o ? 0.035 * (1 - o.d / AI_ENGINE_RANGE) : 0,
       });
     }
+    const rumble = racing ? rumbleLevel(state, view.followId) : 0;
+    this.rumble?.gain.setTargetAtTime(rumble * RUMBLE_VOLUME, now, 0.1);
     voices.forEach(({ kart, volume }, i) => {
       const voice = this.engines[i];
       if (!voice) return;
