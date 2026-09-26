@@ -1,6 +1,6 @@
 import { itemEffects } from '../../content/items/registries';
 import { itemViews, type ScreenOverlay } from '../../content/items/views';
-import type { KartState, SimEvent } from '../../sim/types';
+import type { KartEffect, KartState, SimEvent } from '../../sim/types';
 import './screenEffects.css';
 
 /** How long an `itemFx` overlay stays up when its view gives no `seconds`. */
@@ -35,22 +35,29 @@ export class ScreenEffects {
   /** Shows the overlays for `kart` (the followed kart) right now. */
   update(kart: KartState | undefined, now: number): void {
     const want = new Map<string, ScreenOverlay>();
+    const effects = new Map<string, KartEffect>();
     for (const effect of kart?.effects ?? []) {
       const overlay = effectOverlay(effect.kind);
-      if (overlay) want.set(`effect:${effect.kind}`, overlay);
+      if (!overlay) continue;
+      want.set(`effect:${effect.kind}`, overlay);
+      effects.set(`effect:${effect.kind}`, effect);
     }
     for (const [key, { overlay, until }] of this.fxUntil) {
       if (now < until) want.set(key, overlay);
       else this.fxUntil.delete(key);
     }
     for (const [key, overlay] of want) {
-      if (this.shown.has(key)) continue;
-      const el = document.createElement('div');
-      el.className = `hud-screen-effect ${overlay.className}`;
-      el.dataset.overlay = key;
-      el.innerHTML = overlay.html ?? '';
-      this.root.append(el);
-      this.shown.set(key, el);
+      let el = this.shown.get(key);
+      if (!el) {
+        el = document.createElement('div');
+        el.className = `hud-screen-effect ${overlay.className}`;
+        el.dataset.overlay = key;
+        el.innerHTML = overlay.html ?? '';
+        this.root.append(el);
+        this.shown.set(key, el);
+      }
+      const effect = effects.get(key);
+      if (overlay.opacity && effect) el.style.opacity = String(overlay.opacity(effect));
     }
     for (const [key, el] of this.shown) {
       if (want.has(key)) continue;

@@ -40,10 +40,13 @@ describe('AI item use', () => {
       }
       expect([...used].sort()).toEqual([
         'banana',
+        'boomerang',
         'bubble-shield',
         'green',
         'hornet-swarm',
+        'ink-cloud',
         'lightning',
+        'magnet',
         'mushroom',
         'oil-slick',
         'phase',

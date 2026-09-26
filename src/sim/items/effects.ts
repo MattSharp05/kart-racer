@@ -43,10 +43,25 @@ export interface EffectContent {
    * and it can't knock others over (star, squash). Walls, hazards and item boxes still apply.
    */
   intangible?: boolean;
-  /** While it lasts the kart's top speed is multiplied by this (Phase's small boost, MK-66). */
-  speedFactor?: number;
+  /**
+   * While it lasts the kart's top speed is multiplied by this (Phase's small boost, MK-66), or by
+   * what this function returns each tick (a pull that grows as it closes in: Magnet, MK-68).
+   */
+  speedFactor?: number | ((kart: KartState, effect: KartEffect) => number);
+  /**
+   * While it lasts an AI driver drives worse (Ink Cloud, MK-68): `steer` is added to its steering
+   * (−1…1) and it looks `lookAhead`× as far down the racing line. The effect keeps any randomness
+   * in its own `data`, drawn from the seeded RNG. Players' karts ignore it.
+   */
+  aiDriving?(kart: KartState, effect: KartEffect): AiDriving;
   /** When it runs out or is ended with `endEffect`. */
   onExpire?(kart: KartState, effect: KartEffect, state: SimState, events: SimEvent[]): void;
+}
+
+/** How a kart effect changes an AI driver's steering (`EffectContent.aiDriving`). */
+export interface AiDriving {
+  steer?: number;
+  lookAhead?: number;
 }
 
 export interface EffectOptions {
@@ -134,7 +149,22 @@ export function isIntangible(kart: KartState): boolean {
 export function effectsSpeedFactor(kart: KartState): number {
   let factor = 1;
   for (const effect of kart.effects) {
-    if (effect.ticksLeft > 0) factor *= itemEffects.get(effect.kind).speedFactor ?? 1;
+    if (effect.ticksLeft <= 0) continue;
+    const speedFactor = itemEffects.get(effect.kind).speedFactor ?? 1;
+    factor *= typeof speedFactor === 'number' ? speedFactor : speedFactor(kart, effect);
   }
   return factor;
+}
+
+/** The kart's effects' `aiDriving`, combined: steering nudges add, look-ahead factors multiply. */
+export function effectsAiDriving(kart: KartState): Required<AiDriving> {
+  const driving = { steer: 0, lookAhead: 1 };
+  for (const effect of kart.effects) {
+    if (effect.ticksLeft <= 0) continue;
+    const change = itemEffects.get(effect.kind).aiDriving?.(kart, effect);
+    if (!change) continue;
+    driving.steer += change.steer ?? 0;
+    driving.lookAhead *= change.lookAhead ?? 1;
+  }
+  return driving;
 }
