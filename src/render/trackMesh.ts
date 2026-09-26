@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { SUNNY_THEME, type TrackTheme } from '../content/tracks/theme';
+import { hazardHidesRoad } from './hazards';
 import {
   inRange,
   type TrackGeometry,
@@ -54,6 +55,13 @@ class MeshBuilder {
     }
   }
 
+  triangle(a: THREE.Vector3, b: THREE.Vector3, c: THREE.Vector3, colour: THREE.Color) {
+    for (const v of [a, b, c]) {
+      this.positions.push(v.x, v.y, v.z);
+      this.colours.push(colour.r, colour.g, colour.b);
+    }
+  }
+
   build(): THREE.BufferGeometry {
     const geometry = new THREE.BufferGeometry();
     geometry.setAttribute('position', new THREE.Float32BufferAttribute(this.positions, 3));
@@ -100,6 +108,7 @@ export function createSplineTrackMesh(
   const walls = new MeshBuilder();
   const n = geometry.samples.length;
   const grassOuter = geometry.def.offroadWidth;
+  const hazards = geometry.def.hazards ?? [];
 
   for (let i = 0; i < n; i += 1) {
     const a = geometry.sample(i);
@@ -107,6 +116,9 @@ export function createSplineTrackMesh(
     const half = (s: TrackSample) => s.width / 2;
     const wallA = half(a) + grassOuter;
     const wallB = half(b) + grassOuter;
+    // Hazards that draw their own surface here (MK-61: a rope bridge's swaying deck) replace the
+    // road, verges and walls (a deck has none).
+    if (hazards.length && hazardHidesRoad(hazards, a) && hazardHidesRoad(hazards, b)) continue;
 
     // Grass verges (left and right), then road on top.
     ground.quad(
@@ -214,17 +226,15 @@ export function createSplineTrackMesh(
     }
   }
 
-  // Drivable grass infields (shortcuts), as flat fans.
+  // Drivable infields (shortcuts): deep grass, or road (MK-61), triangulated (outlines may be concave).
   for (const cut of geometry.def.shortcuts ?? []) {
-    const cx = cut.polygon.reduce((sum, v) => sum + v.x, 0) / cut.polygon.length;
-    const cz = cut.polygon.reduce((sum, v) => sum + v.z, 0) / cut.polygon.length;
-    cut.polygon.forEach((v, i) => {
-      const w = cut.polygon[(i + 1) % cut.polygon.length] ?? v;
-      const centre = new THREE.Vector3(cx, cut.y + LIFT.grass, cz);
-      const p1 = new THREE.Vector3(v.x, cut.y + LIFT.grass, v.z);
-      const p2 = new THREE.Vector3(w.x, cut.y + LIFT.grass, w.z);
-      ground.quad(centre, p1, p2, centre, colours.infield);
-    });
+    const outline = cut.polygon.map((v) => new THREE.Vector2(v.x, v.z));
+    const colour = cut.surface === 'road' ? colours.road : colours.infield;
+    const at = (v: THREE.Vector2) => new THREE.Vector3(v.x, cut.y + LIFT.grass, v.y);
+    for (const [i = 0, j = 0, k = 0] of THREE.ShapeUtils.triangulateShape(outline, [])) {
+      const [p1, p2, p3] = [outline[i], outline[j], outline[k]];
+      if (p1 && p2 && p3) ground.triangle(at(p1), at(p2), at(p3), colour);
+    }
   }
 
   group.add(

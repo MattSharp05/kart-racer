@@ -2,14 +2,24 @@ import * as THREE from 'three';
 import { Registry } from '../../content/registry';
 import { hazardPose, trackHazards } from '../../sim/hazards';
 import type { HazardDef } from '../../sim/hazards/types';
+import type { Vec3 } from '../../sim/math';
 import type { TrackDef } from '../../sim/track';
 import { trackTheme } from '../theme';
+import { swayView } from './sway';
 import { moverView, periodicView, rotatorView, zoneEffectView, type HazardView } from './views';
 
 /** How each hazard kind is drawn, by kind (a new kind registers its view here). */
 export const hazardViews = new Registry<HazardView>('hazard view');
-for (const view of [moverView, periodicView, rotatorView, zoneEffectView]) {
+for (const view of [moverView, periodicView, rotatorView, swayView, zoneEffectView]) {
   hazardViews.register(view as HazardView);
+}
+
+/**
+ * Whether one of `hazards` draws its own surface over the road at `point` (MK-61: a rope bridge's
+ * swaying deck), so the track mesh and scenery leave the road out there.
+ */
+export function hazardHidesRoad(hazards: readonly HazardDef[], point: Vec3): boolean {
+  return hazards.some((def) => hazardViews.get(def.kind).hidesRoad?.(def, point) ?? false);
 }
 
 /** Fog near distance while a visibility hazard thins the view, as a fraction of its far. */

@@ -32,6 +32,28 @@ export interface SurfaceZone extends TrackRange {
   flowAngle?: number;
 }
 
+/**
+ * Another way round part of the lap, off the main road (MK-61: a lower path through ruins). Its
+ * floor is a `shortcuts` polygon; the route says where it goes, so a kart on it keeps making lap
+ * progress along it (`sim/routes.ts`) and AI drivers can take it.
+ */
+export interface TrackRoute {
+  /**
+   * Its centreline, world space, in driving order: from a point on the main road before it leaves
+   * to a point on the main road where it has rejoined.
+   */
+  path: Vec3[];
+  /** A kart off the main road within this of the centreline is on the route, m. */
+  halfWidth: number;
+  /** Chance that an AI driver takes it on a given lap (seeded by the driver and the lap), 0..1. */
+  aiChance: number;
+}
+
+/** A kart that falls off with its last safe spot in `from`..`to` is put back at `t` instead. */
+export interface RespawnPoint extends TrackRange {
+  t: number;
+}
+
 export interface WallGap extends TrackRange {
   side: 'left' | 'right' | 'both';
 }
@@ -50,8 +72,15 @@ export interface SplineTrackDef {
   surfaceZones: SurfaceZone[];
   /** Lap checkpoints as `t` values, ascending, first is 0 (the finish line). */
   checkpoints: number[];
-  /** Off-track areas of deep grass (e.g. an infield cut); karts can drive here, slowly. */
-  shortcuts?: { polygon: { x: number; z: number }[]; y: number }[];
+  /**
+   * Off-track areas of deep grass (e.g. an infield cut); karts can drive here, slowly. `surface`
+   * (MK-61) lays another surface instead (`road`: a paved lower path).
+   */
+  shortcuts?: { polygon: { x: number; z: number }[]; y: number; surface?: Surface }[];
+  /** Other ways round part of the lap (MK-61), each over a `shortcuts` floor. */
+  routes?: TrackRoute[];
+  /** Where karts that fall off in certain stretches are put back (MK-61: each bridge's start). */
+  respawnPoints?: RespawnPoint[];
   /** Jump ramps, drawn with chevrons (the ramp shape itself comes from the points' `y`). */
   ramps?: TrackRange[];
   /** Starting grid, pole first. */

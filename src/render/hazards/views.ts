@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type {
   HazardDef,
   HazardPose,
@@ -7,7 +8,9 @@ import type {
   RotatorHazard,
   ZoneEffectHazard,
 } from '../../sim/hazards/types';
+import type { Vec3 } from '../../sim/math';
 import { DT } from '../../sim/tuning';
+import { createHeadlights } from '../headlights';
 
 /**
  * How one hazard kind is drawn (MK-49): a model built once per hazard, posed every frame from the
@@ -28,6 +31,11 @@ export interface HazardView<D extends HazardDef = HazardDef> {
     camera: THREE.Vector3,
     ticks: number,
   ): number | undefined;
+  /**
+   * Whether it draws its own surface over the road at `point` (a point on the road), so the track
+   * mesh leaves the road out there (MK-61: a swaying rope bridge's deck).
+   */
+  hidesRoad?(def: D, point: Vec3): boolean;
 }
 
 const lambert = (color: number) => new THREE.MeshLambertMaterial({ color });
@@ -77,11 +85,107 @@ function rollingBall(def: MoverHazard, radius: number, colour: number): THREE.Ob
   return group;
 }
 
-/** A boxy traffic kart with glowing lamps at night, or a rolling ball (`rolling`). */
+/** A box of `size` (x, y, z) centred at (x, y, z), every vertex painted `colour`. */
+function paintedBox(
+  [w, h, l]: readonly [number, number, number],
+  [x, y, z]: readonly [number, number, number],
+  colour: number,
+): THREE.BufferGeometry {
+  const box = new THREE.BoxGeometry(w, h, l).translate(x, y, z).toNonIndexed();
+  box.deleteAttribute('uv');
+  const c = new THREE.Color(colour);
+  const count = box.getAttribute('position').count;
+  const colours = new Float32Array(count * 3);
+  for (let i = 0; i < count; i += 1) colours.set([c.r, c.g, c.b], i * 3);
+  box.setAttribute('color', new THREE.BufferAttribute(colours, 3));
+  return box;
+}
+
+function merged(parts: THREE.BufferGeometry[]): THREE.BufferGeometry {
+  const geometry = mergeGeometries(parts);
+  if (!geometry) throw new Error('Vehicle: geometries do not merge');
+  return geometry;
+}
+
+/** Vehicle colours: glass, tyres and trim, a truck's cargo box, headlights and tail lights. */
+const VEHICLE = {
+  glass: 0x1b2233,
+  trim: 0x16181f,
+  cargo: 0xdfe3ea,
+  headlight: 0xfff6d5,
+  tail: 0xff2a3a,
+};
+/** How far ahead of a vehicle its headlights light the road, m. */
+const VEHICLE_BEAM = 12;
+
+/**
+ * A car or a delivery truck (MK-60: night traffic), facing −Z: one vertex-coloured body, its lamps
+ * (glowing at night) and, at night, a headlight glow with a pool of light ahead (4 draws at most).
+ * About as long as its collider is wide, so what you see is what you hit.
+ */
+function vehicle(def: MoverHazard, body: number, truck: boolean, night: boolean): THREE.Object3D {
+  const group = new THREE.Group();
+  const width = def.radius * 1.25;
+  const length = def.radius * (truck ? 2.5 : 2.4);
+  const half = length / 2;
+  const parts = [paintedBox([width, 0.3, length - 0.2], [0, 0.3, 0], VEHICLE.trim)];
+  if (truck) {
+    const cab = 1.6;
+    parts.push(
+      paintedBox([width, 1.3, cab], [0, 1.05, -half + cab / 2], body),
+      paintedBox([width * 0.92, 0.5, 0.05], [0, 1.35, -half - 0.01], VEHICLE.glass),
+      paintedBox(
+        [width, 2.3, length - cab - 0.2],
+        [0, 1.6, half - (length - cab) / 2],
+        VEHICLE.cargo,
+      ),
+      paintedBox(
+        [width + 0.04, 0.35, length - cab - 0.2],
+        [0, 1.1, half - (length - cab) / 2],
+        body,
+      ),
+    );
+  } else {
+    parts.push(
+      paintedBox([width, 0.55, length], [0, 0.7, 0], body),
+      paintedBox([width * 0.85, 0.5, length * 0.5], [0, 1.2, length * 0.05], VEHICLE.glass),
+    );
+  }
+  const shell = new THREE.Mesh(
+    merged(parts),
+    new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true }),
+  );
+  const lampY = truck ? 0.75 : 0.7;
+  const lamps = new THREE.Mesh(
+    merged(
+      [-1, 1].flatMap((side) => [
+        paintedBox(
+          [0.4, 0.2, 0.06],
+          [side * (width / 2 - 0.3), lampY, -half - 0.02],
+          VEHICLE.headlight,
+        ),
+        paintedBox(
+          [0.35, 0.2, 0.06],
+          [side * (width / 2 - 0.25), lampY, half + 0.02],
+          VEHICLE.tail,
+        ),
+      ]),
+    ),
+    night
+      ? new THREE.MeshBasicMaterial({ vertexColors: true })
+      : new THREE.MeshLambertMaterial({ vertexColors: true }),
+  );
+  group.add(shell, lamps);
+  if (night) group.add(createHeadlights(half, lampY, width, VEHICLE_BEAM));
+  return group;
+}
+
+/** A boxy traffic kart with glowing lamps at night, a road vehicle (`vehicle`) or a rolling ball (`rolling`). */
 export const moverView: HazardView<MoverHazard> = {
   id: 'mover',
   create(def, night) {
     if (def.rolling !== undefined) return rollingBall(def, def.radius, def.rolling);
+    if (def.vehicle) return vehicle(def, def.vehicle.body, def.vehicle.truck ?? false, night);
     const group = new THREE.Group();
     const size = def.radius * 2;
     const body = new THREE.Mesh(

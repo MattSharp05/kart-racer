@@ -1,8 +1,10 @@
 import type { TrackDef } from '../../sim/track';
 import { Registry } from '../registry';
+import canopyRush from './canopy-rush/sim';
 import duneCanyon from './dune-canyon/sim';
 import frostpeakPass from './frostpeak-pass/sim';
 import hazardTest from './hazard-test/sim';
+import neonHarbour from './neon-harbour/sim';
 import sunnyCircuit from './sunny-circuit/sim';
 import testOval from './test-oval/sim';
 import testPad from './test-pad/sim';
@@ -25,7 +27,16 @@ export interface TrackContent {
 export const tracks = new Registry<TrackContent>('track');
 
 // One line per track folder, alphabetical (a unit test checks none is missing).
-for (const track of [duneCanyon, frostpeakPass, hazardTest, sunnyCircuit, testOval, testPad]) {
+for (const track of [
+  canopyRush,
+  duneCanyon,
+  frostpeakPass,
+  hazardTest,
+  neonHarbour,
+  sunnyCircuit,
+  testOval,
+  testPad,
+]) {
   if (track.id !== track.def.id) throw new Error(`Track ${track.id}: def.id is ${track.def.id}`);
   tracks.register(track);
 }
