@@ -62,13 +62,16 @@ test.describe('Magnet and Ink Cloud (MK-68)', () => {
       expect(blocked).toEqual([]);
     }
 
-    // Near the end of the 4 s it fades, then it's gone.
-    state = await step(page, 200);
-    expect(hasEffect(state, 0, 'ink-cloud')).toBe(true);
+    // Near the end of the 4 s (sooner here: the boost pad on the straight wipes it 3× as fast) it
+    // fades, then it's gone.
+    const inkLeft = (s: TestState) =>
+      s.karts[0]!.effects.find((e) => e.kind === 'ink-cloud')?.ticksLeft ?? 0;
+    for (let i = 0; i < 60 && inkLeft(state) > 60; i += 1) state = await step(page, 4);
+    expect(inkLeft(state)).toBeGreaterThan(0);
     const opacity = Number(await ink.evaluate((el) => getComputedStyle(el).opacity));
     expect(opacity).toBeGreaterThan(0);
     expect(opacity).toBeLessThan(1);
-    state = await step(page, 45);
+    state = await step(page, 60);
     expect(hasEffect(state, 0, 'ink-cloud')).toBe(false);
     await expect(ink).toHaveCount(0);
   });

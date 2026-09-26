@@ -48,11 +48,15 @@ const INK_SVG = `<svg class="ink-cloud-svg" viewBox="0 0 100 100" preserveAspect
   '',
 )}</g><g fill="#3d2a6b" opacity="0.6">${SPLATS.map((s) => `<circle cx="${s.x - s.r * 0.25}" cy="${s.y - s.r * 0.25}" r="${round(s.r * 0.45)}"/>`).join('')}</g></svg>`;
 
+/** The icon's blots and drips (drawn twice: a pale outline, then the ink). */
+const ICON_SHAPES =
+  '<circle cx="24" cy="28" r="13"/><circle cx="38" cy="22" r="14"/><circle cx="46" cy="34" r="11"/><circle cx="30" cy="38" r="11"/><path d="M22 44v10a3 3 0 0 0 6 0V44zM38 44v6a3 3 0 0 0 6 0v-6z"/><circle cx="12" cy="18" r="3"/><circle cx="54" cy="16" r="2.5"/>';
+
 /** How the Ink Cloud (MK-68) looks and sounds; see `./sim.ts`. */
 export default {
   id: 'ink-cloud',
-  // A dark ink cloud with drips.
-  icon: '<g fill="#140f24"><circle cx="24" cy="28" r="13"/><circle cx="38" cy="22" r="14"/><circle cx="46" cy="34" r="11"/><circle cx="30" cy="38" r="11"/><path d="M22 44v10a3 3 0 0 0 6 0V44zM38 44v6a3 3 0 0 0 6 0v-6z"/><circle cx="12" cy="18" r="3"/><circle cx="54" cy="16" r="2.5"/></g><circle cx="33" cy="20" r="4" fill="#3d2a6b"/>',
+  // A dark ink cloud with drips, outlined so it reads on the slot.
+  icon: `<g fill="#c9b8ff" stroke="#c9b8ff" stroke-width="5">${ICON_SHAPES}</g><g fill="#140f24">${ICON_SHAPES}</g><circle cx="33" cy="20" r="4" fill="#4b3585"/>`,
   useSound: 'ink-cloud.use',
   sounds: {
     // A squirt: a low bloop falling away, and a spray.
