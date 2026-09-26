@@ -189,6 +189,16 @@ export async function openLobby(
   const clients: Page[] = [];
   for (let i = 1; i < n; i += 1) {
     const client = await open('client', i);
+    // A join listens briefly for the host's answer; a CPU-starved CI host can miss it ("Room not
+    // found"). Reload and join again, as a player would.
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      const joined = client.locator('.lobby-players li').nth(i);
+      const refused = client.locator('.menu-online');
+      await expect(joined.or(refused)).toBeVisible({ timeout: JOIN_TIMEOUT_MS });
+      if (await joined.isVisible()) break;
+      await client.reload();
+      await client.waitForFunction(() => window.__game?.ready === true);
+    }
     await expect(client.locator('.lobby-players li')).toHaveCount(i + 1, { timeout: 10_000 });
     await client.getByRole('button', { name: 'Ready' }).click();
     clients.push(client);
