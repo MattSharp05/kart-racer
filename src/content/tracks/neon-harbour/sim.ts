@@ -275,6 +275,7 @@ const theme: TrackTheme = {
 export default {
   id: neonHarbour.id,
   name: 'Neon Harbour',
+  hazard: 'Night traffic on the docks',
   order: 40,
   def: neonHarbour,
   theme,

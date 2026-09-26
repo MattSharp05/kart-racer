@@ -250,6 +250,7 @@ const theme: TrackTheme = {
 export default {
   id: frostpeakPass.id,
   name: 'Frostpeak Pass',
+  hazard: 'Snowballs and a frozen lake',
   order: 30,
   def: frostpeakPass,
   theme,

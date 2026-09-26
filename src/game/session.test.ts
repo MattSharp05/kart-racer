@@ -67,10 +67,11 @@ describe('RaceSession', () => {
     expect(session.game.state.karts[0]!.race.throttleSince).toBeUndefined();
   });
 
-  it('startRace loads the player plus 7 AI karts at the chosen class', () => {
+  it('startRace loads the player plus 7 AI karts at the chosen class and track', () => {
     const session = new RaceSession(resolveLaunch(parseLaunchParams('')).state);
-    session.startRace({ seed: 2, engineClass: 150, playerKart: 'boulder' });
+    session.startRace({ seed: 2, engineClass: 150, playerKart: 'boulder', trackId: 'cog-works' });
     const state = session.game.state;
+    expect(state.trackId).toBe('cog-works');
     expect(state.karts).toHaveLength(8);
     expect(state.engineClass).toBe(150);
     expect(state.karts[0]?.kartType).toBe('boulder');

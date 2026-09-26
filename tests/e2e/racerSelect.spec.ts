@@ -23,6 +23,7 @@ for (const { id, name } of racers.list()) {
     await expect(picker(page)).toHaveAttribute('data-racer', id);
     await page.locator('.menu-racerSelect button.primary').click();
     await page.locator('.menu-ccSelect button', { hasText: '100' }).click();
+    await page.locator('.menu-trackSelect button.primary').click();
     await expect(page.locator('.menus .menu-panel')).toHaveCount(0);
     const state = await getState(page);
     expect(state.karts[state.localKartId]?.kartType).toBe(id);

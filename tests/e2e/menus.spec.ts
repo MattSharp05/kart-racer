@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { enterNickname, getState, loadScenario } from './helpers';
 
-test('title → kart select → engine class → race with 8 karts', async ({ page }) => {
+test('title → kart select → engine class → track → race with 8 karts', async ({ page }) => {
   await page.goto('/');
   await page.waitForFunction(() => window.__game?.ready === true);
   // First visit: the nickname (MK-42), then the controls guide.
@@ -13,10 +13,14 @@ test('title → kart select → engine class → race with 8 karts', async ({ pa
   await page.locator('.menu-racerSelect button.primary').click();
   await expect(page.locator('.menu-ccSelect')).toBeVisible();
   await page.locator('.menu-ccSelect button', { hasText: '150' }).click();
+  await expect(page.locator('.menu-trackSelect')).toBeVisible();
+  await page.locator('.track-card[data-track="dune-canyon"]').click();
+  await page.locator('.menu-trackSelect button.primary').click();
   await expect(page.locator('.menus .menu-panel')).toHaveCount(0);
   const state = await getState(page);
   expect(state.karts).toHaveLength(8);
   expect(state.engineClass).toBe(150);
+  expect(state.trackId).toBe('dune-canyon');
 });
 
 test('menu-paused: Resume closes the pause menu', async ({ page }) => {
