@@ -42,6 +42,7 @@ describe('AI item use', () => {
         'banana',
         'bubble-shield',
         'green',
+        'hornet-swarm',
         'lightning',
         'mushroom',
         'oil-slick',

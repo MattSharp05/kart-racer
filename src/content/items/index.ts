@@ -2,6 +2,7 @@ import { registerItem } from './registries';
 import banana from './banana/sim';
 import bubbleShield from './bubble-shield/sim';
 import green from './green/sim';
+import hornetSwarm from './hornet-swarm/sim';
 import lightning from './lightning/sim';
 import mushroom from './mushroom/sim';
 import oilSlick from './oil-slick/sim';
@@ -18,6 +19,7 @@ for (const item of [
   banana,
   bubbleShield,
   green,
+  hornetSwarm,
   lightning,
   mushroom,
   oilSlick,
