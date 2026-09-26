@@ -47,6 +47,17 @@ async function finalRows(page: Page): Promise<string[]> {
   return rows.map((text) => text.replace(' (you)', '').replace(/\s+/g, ' ').trim());
 }
 
+/**
+ * Closes `page` as a player closing the tab would: `pagehide` runs first (the engines differ on
+ * whether Playwright's close fires it), then the page goes.
+ */
+async function closeTab(page: Page): Promise<void> {
+  await page.evaluate(() => window.dispatchEvent(new PageTransitionEvent('pagehide')));
+  // Let the goodbyes (BroadcastChannel posts) leave before the page does.
+  await page.waitForTimeout(200);
+  await page.close();
+}
+
 /** Remembers every toast this page shows (they go by themselves after a few seconds). */
 async function recordToasts(page: Page): Promise<void> {
   await page.evaluate(() => {
@@ -102,7 +113,7 @@ test.describe('drops and rejoin', () => {
     for (const page of stayers) await recordToasts(page);
 
     // Bob closes his tab: it says bye on the way out, and the host hands kart 2 to the AI.
-    await bob.close({ runBeforeUnload: true });
+    await closeTab(bob);
     await expect
       .poll(
         async () => {
@@ -150,8 +161,7 @@ test.describe('drops and rejoin', () => {
     const room = await openLobby(context, 3);
     const [host, ...clients] = room.pages as [Page, Page, Page];
     const closedAt = Date.now();
-    // Closing the tab (unload handlers run, as when a player closes it).
-    await host.close({ runBeforeUnload: true });
+    await closeTab(host);
     for (const client of clients) {
       await expect(client.locator('.menu-online')).toBeVisible({
         timeout: Math.max(0, 6_000 - (Date.now() - closedAt)),
