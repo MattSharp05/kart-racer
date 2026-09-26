@@ -100,7 +100,7 @@ export const hazardTest: SplineTrackDef = {
       period: 10,
       activeFraction: 0.5,
       grip: 0.5,
-      visibility: 25,
+      visibility: 40,
     },
     { kind: 'rotator', centre: HAZARD_TEST.spinner, armLength: 7, armWidth: 1, period: 5 },
   ],

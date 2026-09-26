@@ -13,7 +13,7 @@ for (const view of [moverView, periodicView, rotatorView, zoneEffectView]) {
 }
 
 /** Fog near distance while a visibility hazard thins the view, as a fraction of its far. */
-const HAZE_NEAR = 0.1;
+const HAZE_NEAR = 0.2;
 
 /**
  * Draws a track's hazards (MK-49). Poses come from the sim's pure pose functions at a fractional
