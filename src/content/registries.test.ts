@@ -36,7 +36,7 @@ describe('content registries', () => {
         .list()
         .filter((t) => t.testOnly)
         .map((t) => t.id),
-    ).toEqual(['test-oval', 'test-pad']);
+    ).toEqual(['test-oval', 'test-pad', 'hazard-test']);
     expect(racers.ids()).toEqual(['maple', 'pixie', 'boulder', 'swoop']);
     expect(items.ids()).toEqual(['mushroom', 'banana', 'green', 'red', 'star', 'lightning']);
   });

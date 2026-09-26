@@ -28,7 +28,14 @@ const periodic: HazardKind<PeriodicHazard> = {
     const local = toBoxFrame(def.centre, def.heading, position);
     const under = Math.abs(local.x) < def.halfWidth && Math.abs(local.z) < def.halfLength;
     if (under) return { nx: 0, nz: 0, depth: 0 };
-    const side = boxContact(def.centre, def.heading, def.halfWidth, def.halfLength, position, radius);
+    const side = boxContact(
+      def.centre,
+      def.heading,
+      def.halfWidth,
+      def.halfLength,
+      position,
+      radius,
+    );
     return side && { ...side, effect: 'bump' };
   },
 };
