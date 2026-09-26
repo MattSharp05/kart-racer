@@ -377,7 +377,7 @@ function snowfall(): THREE.Points {
     geometry,
     new THREE.PointsMaterial({
       color: 0xffffff,
-      size: 0.14,
+      size: 0.08,
       transparent: true,
       opacity: 0.9,
       depthWrite: false,
