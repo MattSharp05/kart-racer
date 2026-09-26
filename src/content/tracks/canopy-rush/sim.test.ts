@@ -415,7 +415,8 @@ describe('Canopy Rush AI race', () => {
     });
     const falls = new Map<number, number>();
     const stuckFor = new Map<number, number>();
-    const inRuins = new Set<number>();
+    /** `kart:lap` for every lap a kart drove through the ruins. */
+    const inRuins = new Set<string>();
     let worst = 0;
     for (let i = 0; i < 60 * 60 * 4; i += 1) {
       const result = step(s, []);
@@ -430,7 +431,7 @@ describe('Canopy Rush AI race', () => {
         stuckFor.set(kart.id, t);
         worst = Math.max(worst, t);
         if (routeProgress(geometry, kart.position, geometry.project(kart.position))) {
-          inRuins.add(kart.id);
+          inRuins.add(`${kart.id}:${kart.race.lap}`);
         }
       }
       if (s.karts.every((k) => k.race.finishTick !== undefined)) break;
@@ -439,8 +440,9 @@ describe('Canopy Rush AI race', () => {
     expect(Math.max(...times)).toBeLessThan(180);
     expect(worst).toBeLessThanOrEqual(5);
     for (const kart of s.karts) expect(falls.get(kart.id) ?? 0).toBeLessThan(2);
+    // Some laps through the ruins, not all (MK-71: each AI now spreads its calls over the race).
     expect(inRuins.size).toBeGreaterThan(0);
-    expect(inRuins.size).toBeLessThan(8);
+    expect(inRuins.size).toBeLessThan(8 * s.race.laps);
     expect(tuning.ai.routeCapture).toBeGreaterThan(0);
   });
 

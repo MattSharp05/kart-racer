@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { racerViews } from '../content/racers/render';
 import type { KartId } from '../sim/data/karts';
 
@@ -14,8 +15,11 @@ export interface KartModel {
   wheels: THREE.Object3D[];
   /** Pivots that turn with steering. */
   frontWheels: THREE.Object3D[];
-  /** Spark clusters behind the two rear wheels (drift charge colour). */
-  sparks: THREE.Group[];
+  /**
+   * Spark clusters behind the two rear wheels (drift charge colour): `SPARKS_PER_WHEEL` instances
+   * each, one draw call per cluster (MK-71).
+   */
+  sparks: THREE.InstancedMesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>[];
   /** Exhaust flame shown while boosting. */
   flame: THREE.Mesh;
   /** Radius of the rear wheels, for roll speed. */
@@ -89,6 +93,7 @@ export class PrimitiveKartFactory implements KartModelFactory {
     body.add(driver);
 
     view.details({ body, shape, palette, lambert });
+    mergeStaticParts(body);
     const { wheels, frontWheels } = this.addWheels(body, shape);
     const sparks = this.addSparks(body, shape);
     const flame = this.addFlame(body, shape);
@@ -118,14 +123,16 @@ export class PrimitiveKartFactory implements KartModelFactory {
     return { wheels, frontWheels };
   }
 
-  private addSparks(body: THREE.Group, shape: KartShape): THREE.Group[] {
+  private addSparks(body: THREE.Group, shape: KartShape): KartModel['sparks'] {
     return [-shape.wheelX, shape.wheelX].map((x) => {
-      const cluster = new THREE.Group();
+      const cluster = new THREE.InstancedMesh(
+        new THREE.BoxGeometry(0.06, 0.06, 0.5),
+        new THREE.MeshBasicMaterial({ color: 0xffffff }),
+        SPARKS_PER_WHEEL,
+      );
       cluster.position.set(x, 0.12, shape.rearZ + shape.rearRadius + 0.1);
-      const material = new THREE.MeshBasicMaterial({ color: 0xffffff });
-      for (let i = 0; i < SPARKS_PER_WHEEL; i += 1) {
-        cluster.add(new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.06, 0.5), material));
-      }
+      // The sparks move every frame, so the cluster's bounds would be stale: always draw it.
+      cluster.frustumCulled = false;
       cluster.visible = false;
       body.add(cluster);
       return cluster;
@@ -143,6 +150,40 @@ export class PrimitiveKartFactory implements KartModelFactory {
     body.add(flame);
     return flame;
   }
+}
+
+/**
+ * Bakes the body's fixed parts (chassis, driver, each racer's details: every plain opaque Lambert
+ * mesh added straight to `body` so far) into one mesh coloured per vertex (MK-71): one draw call
+ * instead of 4–9 per kart, which matters with the whole pack in view. Looks the same: the colours
+ * are the materials' own (linear) colours, lit by the same Lambert shading.
+ */
+function mergeStaticParts(body: THREE.Group): void {
+  const parts = body.children.filter(
+    (child): child is THREE.Mesh<THREE.BufferGeometry, THREE.MeshLambertMaterial> =>
+      child instanceof THREE.Mesh &&
+      child.children.length === 0 &&
+      child.material instanceof THREE.MeshLambertMaterial &&
+      !child.material.transparent &&
+      child.material.map === null,
+  );
+  if (parts.length < 2) return;
+  const geometries = parts.map((part) => {
+    part.updateMatrix();
+    const geometry = part.geometry.clone().applyMatrix4(part.matrix).toNonIndexed();
+    for (const name of Object.keys(geometry.attributes)) {
+      if (name !== 'position' && name !== 'normal') geometry.deleteAttribute(name);
+    }
+    const { r, g, b } = part.material.color;
+    const colours = new Float32Array(geometry.getAttribute('position').count * 3);
+    for (let i = 0; i < colours.length; i += 3) colours.set([r, g, b], i);
+    geometry.setAttribute('color', new THREE.BufferAttribute(colours, 3));
+    return geometry;
+  });
+  const merged = mergeGeometries(geometries);
+  if (!merged) return;
+  body.remove(...parts);
+  body.add(new THREE.Mesh(merged, new THREE.MeshLambertMaterial({ vertexColors: true })));
 }
 
 /** Little quad-rotor that carries respawning karts back to the track (original design). */

@@ -56,6 +56,13 @@ describe('ai-debug flag (MK-15)', () => {
   });
 });
 
+describe('quality flag (MK-71)', () => {
+  it('reads &quality=low, and leaves it out otherwise', () => {
+    expect(parseLaunchParams('?scenario=track-cog-works&quality=low').lowQuality).toBe(true);
+    expect(parseLaunchParams('?scenario=track-cog-works').lowQuality).toBeUndefined();
+  });
+});
+
 describe('online params (MK-46)', () => {
   it('reads net, role, room, laps and netdebug', () => {
     expect(

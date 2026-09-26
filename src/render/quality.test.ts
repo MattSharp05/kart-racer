@@ -6,6 +6,17 @@ function run(q: AdaptiveQuality, fps: number, seconds: number) {
 }
 
 describe('adaptive quality', () => {
+  it('forceLow (&quality=low) goes to pixel ratio 1 + low-quality mode and stays there', () => {
+    const applied: [number, boolean][] = [];
+    const q = new AdaptiveQuality(2, (r, low) => applied.push([r, low]));
+    q.forceLow();
+    expect(applied).toEqual([[1, true]]);
+    run(q, 60, 10); // fast frames would normally raise the pixel ratio back
+    expect(q.pixelRatio).toBe(1);
+    expect(q.lowQuality).toBe(true);
+    expect(applied).toHaveLength(1);
+  });
+
   it('drops the pixel ratio step by step when frames are slow, never below 1', () => {
     const applied: number[] = [];
     const q = new AdaptiveQuality(2, (r) => applied.push(r));

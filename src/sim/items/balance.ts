@@ -5,6 +5,7 @@ import { createRace, raceSetupRng, type RacerSlot } from '../race/createRace';
 import { raceTime } from '../raceFlow';
 import { rngInt, rngPick } from '../rng';
 import { step } from '../step';
+import type { EngineClass } from '../tuning';
 import { NEUTRAL_INPUT, type ItemId, type SimEvent, type SimState } from '../types';
 
 /**
@@ -22,7 +23,12 @@ export function raceTrackIds(): string[] {
 }
 
 /** 8 AI racers (seeded karts, shuffled grid) with items on, in countdown. */
-export function allAiRace(seed: number, trackId: string, karts = 8): SimState {
+export function allAiRace(
+  seed: number,
+  trackId: string,
+  karts = 8,
+  engineClass: EngineClass = 100,
+): SimState {
   const rng = raceSetupRng(seed);
   const slots = Array.from({ length: karts }, (_, i) => i);
   // Seeded Fisher–Yates: nobody always starts on pole.
@@ -35,7 +41,7 @@ export function allAiRace(seed: number, trackId: string, karts = 8): SimState {
     controller: 'ai',
     gridSlot,
   }));
-  return createRace({ trackId, racers, engineClass: 100, itemsOn: true, seed, rng });
+  return createRace({ trackId, racers, engineClass, itemsOn: true, seed, rng });
 }
 
 /** What one race did with items. */

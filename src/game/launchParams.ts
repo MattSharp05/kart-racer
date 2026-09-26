@@ -38,6 +38,8 @@ export interface LaunchParams {
   laps?: number;
   /** Show the netcode debug overlay (the overlay is MK-45). */
   netdebug: boolean;
+  /** `&quality=low` (MK-71): render at adaptive quality's lowest setting from the start. */
+  lowQuality?: boolean;
 }
 
 const TRUE_VALUES = ['1', 'true'];
@@ -65,6 +67,7 @@ export function parseLaunchParams(search: string): LaunchParams {
     ...(room ? { room } : {}),
     ...(netsim ? { netsim: oneWayOf(netsim) } : {}),
     ...(Number.isInteger(laps) && laps > 0 ? { laps } : {}),
+    ...(params.get('quality') === 'low' ? { lowQuality: true } : {}),
     paused: flag('paused'),
     tune: flag('tune'),
     reducedMotion: flag('reduced-motion'),
