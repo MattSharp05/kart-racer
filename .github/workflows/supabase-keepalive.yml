@@ -1,0 +1,42 @@
+name: Supabase keep-alive
+
+# Free Supabase projects pause after about a week without activity (ADR 0006). Once a week this
+# reads a leaderboard board, which is a real database query. The URL and anon key are public by
+# design (they ship in the app bundle; RLS protects the data), so they sit here, not in secrets.
+# Never put a service_role or secret key in this file.
+on:
+  schedule:
+    - cron: '17 6 * * 1' # Mondays 06:17 UTC
+  workflow_dispatch:
+  # Runs on PRs that change this file, so a broken keep-alive shows up before it merges.
+  pull_request:
+    paths:
+      - .github/workflows/supabase-keepalive.yml
+
+jobs:
+  ping:
+    name: Supabase keep-alive
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      SUPABASE_URL: https://alntefhfldttmhqwrpyk.supabase.co
+      SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFsbnRlZmhmbGR0dG1ocXdycHlrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTAzNDU3NjEsImV4cCI6MjEwNTkyMTc2MX0.9PXUYXHhLl-kLtXwW9q6R0jQYurefbwmzaSWqm83qkM
+    steps:
+      - name: Read a leaderboard board
+        run: |
+          status=$(curl -sS -o body.json -w '%{http_code}' --retry 3 --retry-all-errors \
+            -X POST "$SUPABASE_URL/rest/v1/rpc/get_board" \
+            -H "apikey: $SUPABASE_ANON_KEY" \
+            -H "Authorization: Bearer $SUPABASE_ANON_KEY" \
+            -H 'Content-Type: application/json' \
+            -d '{"p_track_id": "sunny-circuit", "p_engine_class": 150}')
+          echo "HTTP $status"
+          cat body.json; echo
+          if [ "$status" = 200 ]; then exit 0; fi
+          # The request still reached the project (that's activity); the SQL just isn't applied.
+          if [ "$status" = 404 ] && grep -q PGRST202 body.json; then
+            echo "::warning::get_board() not found: paste supabase/migrations/0001_leaderboard.sql into the Supabase SQL editor (supabase/README.md)."
+            exit 0
+          fi
+          echo "::error::Supabase answered HTTP $status (paused project, or a changed URL or key?)"
+          exit 1
