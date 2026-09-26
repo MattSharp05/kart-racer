@@ -1,7 +1,8 @@
 import type { ItemContent } from '..';
+import { entitySpecs } from '../registries';
 import { applyEffect } from '../../../sim/items/effects';
 import { DT, tuning } from '../../../sim/tuning';
-import type { KartState, SimState } from '../../../sim/types';
+import type { Entity, KartState, SimState } from '../../../sim/types';
 import type { AiItemContext } from '../../../sim/ai/items';
 
 /** Ticks per second (the sim runs at 60 Hz). */
@@ -49,10 +50,10 @@ export default {
  * Whether another kart, or someone else's item entity on the track, is within `PHASE_AI_RANGE` m
  * ahead and `PHASE_AI_LATERAL` m of the kart sideways: something it would run into.
  */
-export function somethingAhead(
+function somethingAhead(
   kart: KartState,
   state: SimState,
-  { geometry, aheadMetres }: Pick<AiItemContext, 'geometry' | 'aheadMetres'>,
+  { geometry, aheadMetres }: AiItemContext,
 ): boolean {
   const here = geometry.project(kart.position);
   const ahead = (p: { x: number; z: number; y: number }) => {
@@ -66,7 +67,18 @@ export function somethingAhead(
   };
   return (
     state.karts.some((other) => other.id !== kart.id && ahead(other.position)) ||
-    // Its own shells and boomerangs can't hit it on the way out: nothing to phase through.
-    state.entities.some((e) => e.kind !== 'itemBox' && e.ownerId !== kart.id && ahead(e.position))
+    state.entities.some(
+      (e) => e.kind !== 'itemBox' && !harmlessToOwner(e, kart) && ahead(e.position),
+    )
   );
+}
+
+/**
+ * Whether `e` is the kart's own and can't hit it yet (MK-72): a shell just fired, or a boomerang
+ * on its way out or back. Once the owner's grace is over, its own banana or shell is a threat too.
+ */
+function harmlessToOwner(e: Exclude<Entity, { kind: 'itemBox' }>, kart: KartState): boolean {
+  if (e.ownerId !== kart.id) return false;
+  if (e.kind !== 'item') return e.ownerImmune > 0;
+  return e.returning === 1 || e.age <= entitySpecs.get(e.spec).ownerImmuneTicks;
 }

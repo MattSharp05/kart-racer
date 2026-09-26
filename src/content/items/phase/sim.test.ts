@@ -249,6 +249,26 @@ describe('Phase (MK-66)', () => {
       expect(decide(state)).toBe(false);
     });
 
+    it('phases through its own banana once the drop grace is over: it can hit its owner then', () => {
+      const state = kartAt(aiHolding(), 60, 0);
+      const kart = state.karts[0]!;
+      const here = geometry.project(kart.position);
+      const position = geometry.pointAt(here.t + 12 / geometry.length, here.lateral);
+      const banana = {
+        id: 900,
+        kind: 'banana' as const,
+        position,
+        from: position,
+        flightTimer: 0,
+        ownerId: kart.id,
+        ownerImmune: 0.5,
+      };
+      state.entities.push(banana);
+      expect(decide(structuredClone(state))).toBe(false);
+      banana.ownerImmune = 0;
+      expect(decide(state)).toBe(true);
+    });
+
     it('having given up, phases on a straight for the speed, never into a bend (MK-72)', () => {
       const state = aiHolding();
       state.karts[0]!.ai!.itemHeld = tuning.ai.itemGiveUp;

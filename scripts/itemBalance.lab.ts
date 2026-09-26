@@ -51,17 +51,19 @@ it(`item balance over ${RACES} races`, { timeout: 30 * 60_000 }, () => {
         `${id} | ${used[id] ?? 0} | ${hits[id] ?? 0} | ${totalHits ? (((hits[id] ?? 0) / totalHits) * 100).toFixed(1) : '0'}%`,
     ),
     'per track: lead changes, spread',
-    ...trackIds.map((id) => {
+    ...trackIds.flatMap((id) => {
       const on = races.filter((r) => r.trackId === id);
+      if (on.length === 0) return [];
       const lc = on.reduce((a, r) => a + r.leadChanges, 0) / on.length;
       const sp = on.reduce((a, r) => a + r.finishSpread, 0) / on.length;
       return `${id}: ${lc.toFixed(1)}, ${sp.toFixed(1)} s`;
     }),
   ];
-  console.log(lines.join('\n'));
+  process.stdout.write(`${lines.join('\n')}\n`);
 
   for (const id of availableItems()) expect(used[id] ?? 0, `${id} used`).toBeGreaterThan(0);
   expect(leadChanges).toBeGreaterThanOrEqual(3);
+  expect(totalHits, 'item hits').toBeGreaterThan(0);
   for (const id of availableItems()) {
     expect((hits[id] ?? 0) / totalHits, `${id} share of hits`).toBeLessThanOrEqual(0.3);
   }
