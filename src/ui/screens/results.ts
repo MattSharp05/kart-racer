@@ -23,9 +23,16 @@ export interface ResultsProps {
   rows: ResultRowView[];
   /** The track's records after the local player's finish (MK-44); absent without a finish. */
   records?: RecordLineView[];
+  /**
+   * This race's leaderboard submit (MK-56): resolves to your rank once the backend has taken a
+   * personal best, or null (not a best, not sent, unavailable).
+   */
+  submitted?: Promise<number | null>;
   onAgain: () => void;
   onChangeKart: () => void;
   onMenu: () => void;
+  /** Opens this track's leaderboard (MK-56). */
+  onLeaderboard?: () => void;
 }
 
 declare module '../router' {
@@ -35,7 +42,7 @@ declare module '../router' {
 }
 
 /** Results (MK-25): finishing order with times, the local player highlighted, then what next. */
-registerScreen('results', (panel, { rows, records, ...handlers }) => {
+registerScreen('results', (panel, { rows, records, submitted, ...handlers }) => {
   const you = rows.find((r) => r.you);
   const list = document.createElement('ol');
   list.className = 'results';
@@ -49,17 +56,33 @@ registerScreen('results', (panel, { rows, records, ...handlers }) => {
   }
   panel.append(heading('h2', you ? `You finished ${ordinal(you.position)}!` : 'Results'), list);
   if (records?.length) panel.append(recordsBlock(records));
+  const status = document.createElement('p');
+  status.className = 'leaderboard-status';
+  status.setAttribute('role', 'status');
+  if (submitted) panel.append(status);
   const again = button('Race again', handlers.onAgain, 'primary');
+  const leaderboard = handlers.onLeaderboard
+    ? [button('See leaderboard', handlers.onLeaderboard)]
+    : [];
   panel.append(
     row(
       'actions',
       button('Menu', handlers.onMenu),
       button('Change kart', handlers.onChangeKart),
+      ...leaderboard,
       again,
     ),
   );
   again.focus();
-  return {};
+  let shown = true;
+  void submitted?.then((rank) => {
+    if (shown && rank !== null) status.textContent = `Submitted — you're #${rank}`;
+  });
+  return {
+    dispose: () => {
+      shown = false;
+    },
+  };
 });
 
 /** "New record!" when this race set one, then each record with the previous best it beat. */

@@ -138,7 +138,7 @@ function racingSince(state: SimState, secondsAgo: number): SimState {
 }
 
 /** Final lap, 100 m before the finish line, with laps of 52.4 s and 49.8 s behind. */
-function finalStraight(seed: number): SimState {
+export function finalStraight(seed: number): SimState {
   const state = racingSince(sunnyRace(seed), 150);
   const t = 1 - 100 / sunny.length;
   const kart = state.karts[0];

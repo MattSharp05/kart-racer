@@ -9,6 +9,8 @@ export interface TitleProps {
   onHowToPlay?: () => void;
   /** Opens Settings (MK-43), which holds the sound toggle. */
   onSettings?: () => void;
+  /** Opens the leaderboards (MK-56). */
+  onLeaderboards?: () => void;
   /** The player's name and colour (MK-42), shown as a chip that opens the Nickname screen. */
   player?: { nickname: string; colour: string };
   onEditName?: () => void;
@@ -25,12 +27,19 @@ declare module '../router' {
  * attract race, plus the player's name chip (MK-42).
  */
 registerScreen('title', (panel, props) => {
-  const { onPlay, onOnline, onHowToPlay, onSettings, player, onEditName } = props;
+  const { onPlay, onOnline, onHowToPlay, onSettings, onLeaderboards, player, onEditName } = props;
   const play = button('Play', onPlay, 'primary');
   const online = onOnline ? [button('Online', onOnline, 'online')] : [];
   panel.append(heading('h1', 'Kart Racer', 'logo'), row('actions', play, ...online));
   if (player && onEditName) panel.append(nameChip(player, onEditName));
-  if (onHowToPlay) panel.append(button('How to play', onHowToPlay, 'secondary'));
+  // How to play and Leaderboards (MK-56) share a line.
+  const secondary = [
+    ...(onHowToPlay ? [button('How to play', onHowToPlay, 'secondary')] : []),
+    ...(onLeaderboards
+      ? [button('🏆 Leaderboards', onLeaderboards, 'secondary leaderboards')]
+      : []),
+  ];
+  if (secondary.length) panel.append(row('actions', ...secondary));
   if (onSettings) panel.append(button('⚙ Settings', onSettings, 'secondary settings-button'));
   play.focus();
   return {

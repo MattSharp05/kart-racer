@@ -9,6 +9,7 @@ import { browserStore, OverlayStore } from './game/storage';
 import { installTestApi } from './game/testApi';
 import { localRoomBackend } from './net/roomBackendLocal';
 import { supabaseRoomBackend } from './net/roomBackendSupabase';
+import { launchLeaderboard } from './records/leaderboardMock';
 import { World } from './render/world';
 import { getTrack } from './sim/track';
 import { NetDebugOverlay } from './ui/netDebug';
@@ -36,10 +37,16 @@ const world = new World(canvas, game, {
   poseFilter: () => session.online?.smoother,
   playerColour: (kartId) => playerColour(session.online?.launch.colours, kartId),
 });
-const flow = new Flow(session, world, store, {
-  backend: launch.localRooms ? localRoomBackend() : supabaseRoomBackend(),
-  local: launch.localRooms,
-});
+const flow = new Flow(
+  session,
+  world,
+  store,
+  {
+    backend: launch.localRooms ? localRoomBackend() : supabaseRoomBackend(),
+    local: launch.localRooms,
+  },
+  launchLeaderboard(params.lb, store),
+);
 
 installTestApi(
   game,

@@ -32,8 +32,8 @@ select pg_temp.expect(
   '{"status": "new"}', 'another engine class is another board');
 select pg_temp.expect(
   public.get_board('test-track', 150, 'a0000000-0000-4000-8000-000000000001'),
-  '{"total": 1, "top": [{"rank": 1, "nickname": "Ace 3", "race_ms": 85000, "best_lap_ms": 28000, "you": true}],
-    "you": {"rank": 1, "nickname": "Ace 3", "race_ms": 85000, "best_lap_ms": 28000, "you": true}}',
+  '{"total": 1, "top": [{"rank": 1, "nickname": "Ace 3", "race_ms": 85000, "best_lap_ms": 28000, "racer": null, "colour": null, "you": true}],
+    "you": {"rank": 1, "nickname": "Ace 3", "race_ms": 85000, "best_lap_ms": 28000, "racer": null, "colour": null, "you": true}}',
   'board after three submissions');
 
 -- Impossible or malformed times are rejected (another device each, clear of the rate limit).
@@ -103,6 +103,35 @@ select pg_temp.expect(
   public.get_board('test-track', 150, null)->'you', 'null', 'no device: no row of yours');
 select pg_temp.expect(
   public.get_board('nowhere', 150, null), '{"total": 0, "top": [], "you": null}', 'empty board');
+
+-- How a row looks (MK-56): the racer of its race time and the player's colour; bad values are
+-- stored as null, not rejected; a slower race keeps the racer but takes the new colour.
+do $$
+declare
+  dev constant uuid := 'f0000000-0000-4000-8000-000000000001';
+  board jsonb;
+begin
+  perform pg_temp.expect(
+    public.submit_record('test-track', 50, 'Looks', dev, 3, 90000, 29000, 'maple', 'teal'),
+    '{"status": "new"}', 'record with racer and colour');
+  board := public.get_board('test-track', 50, dev);
+  perform pg_temp.expect(board->'you'->'racer', '"maple"', 'racer stored');
+  perform pg_temp.expect(board->'you'->'colour', '"teal"', 'colour stored');
+  perform pg_temp.expect(board->'top'->0->'colour', '"teal"', 'colour in the top list');
+  perform pg_temp.expect(
+    public.submit_record('test-track', 50, 'Looks', dev, 3, 95000, 29000, 'boulder', 'pink'),
+    '{"status": "kept"}', 'slower race with another racer');
+  board := public.get_board('test-track', 50, dev);
+  perform pg_temp.expect(board->'you'->'racer', '"maple"', 'slower race keeps the racer');
+  perform pg_temp.expect(board->'you'->'colour', '"pink"', 'slower race takes the colour');
+  perform pg_temp.expect(
+    public.submit_record('test-track', 50, 'Looks', dev, 3, 85000, 28000, 'Bad Racer!', '#fff'),
+    '{"status": "improved"}', 'bad racer and colour still count');
+  board := public.get_board('test-track', 50, dev);
+  perform pg_temp.expect(board->'you'->'racer', 'null', 'bad racer stored as null');
+  perform pg_temp.expect(board->'you'->'colour', '"pink"', 'bad colour keeps the old one');
+end;
+$$;
 
 -- Direct writes and device ids are off limits to the anon key.
 do $$
