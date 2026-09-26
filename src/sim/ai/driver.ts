@@ -5,6 +5,7 @@ import { surfaceEffect } from '../surfaces';
 import { DT, tuning, type EngineClass } from '../tuning';
 import { NEUTRAL_INPUT, type AiState, type InputFrame, type KartState } from '../types';
 import { lineOffsetAt } from './racingLine';
+import { aiRoute, routeAim } from './routes';
 
 /**
  * The AI driver (MK-14): steers at a point ahead on the racing line (pure pursuit), lifts or brakes
@@ -36,11 +37,27 @@ export function aiInput(
 
   const speed = Math.max(0, kart.speed);
   const lookAhead = cfg.lookAheadBase + speed * cfg.lookAheadPerSpeed;
+  const top = kartPhysics(kart.kartType, engineClass).topSpeed * (ai.speedScale ?? 1);
+  // Cruising speed = 90–95% of top by skill, so a good player can beat it.
+  const cruise = top * (tuning.ai.cruiseBase + tuning.ai.cruiseSkill * ai.skill);
+
+  // On another route round part of the lap (MK-61): follow it instead of the racing line.
+  const route = racing ? aiRoute(kart, ai, geometry) : undefined;
+  if (route) {
+    ai.drifting = false;
+    const aim = routeAim(kart, route, lookAhead, cfg.brakeHorizon);
+    const routeSteer = clamp(-aim.error * cfg.steerGain, -1, 1);
+    const routeCorner =
+      aim.curvature > 1e-4 ? Math.sqrt((cfg.cornerGrip * ai.skill) / aim.curvature) : Infinity;
+    const routeTarget = Math.min(cruise, routeCorner);
+    if (speed > routeTarget + 2) return { ...NEUTRAL_INPUT, brake: 0.6, steer: routeSteer };
+    return { ...NEUTRAL_INPUT, throttle: speed > routeTarget ? 0 : 1, steer: routeSteer };
+  }
+
   const error = aimError(kart, geometry, line, ai, lookAhead);
   let steer = clamp(-error * cfg.steerGain, -1, 1);
 
   // Corner speed: v = sqrt(grip / curvature) for the tightest bit of line ahead.
-  const top = kartPhysics(kart.kartType, engineClass).topSpeed * (ai.speedScale ?? 1);
   const here = geometry.project(kart.position).s;
 
   // Drifting (MK-15): hop into a drift for tight corners, hold it for a mini-turbo.
@@ -55,8 +72,6 @@ export function aiInput(
       : 1;
   const cornerSpeed =
     curvature > 1e-4 ? Math.sqrt((cfg.cornerGrip * ai.skill * grip) / curvature) : Infinity;
-  // AI cruises a little below top speed (90–95% by skill) so a good player can beat it.
-  const cruise = top * (tuning.ai.cruiseBase + tuning.ai.cruiseSkill * ai.skill);
   const target = Math.min(cruise, cornerSpeed);
   if (speed > target + 2 && !drift) return { ...NEUTRAL_INPUT, brake: 0.6, steer };
   if (speed > target) return { ...NEUTRAL_INPUT, steer, drift };

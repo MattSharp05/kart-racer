@@ -4,11 +4,12 @@ import { hazardPose, trackHazards } from '../../sim/hazards';
 import type { HazardDef } from '../../sim/hazards/types';
 import type { TrackDef } from '../../sim/track';
 import { trackTheme } from '../theme';
+import { swayView } from './sway';
 import { moverView, periodicView, rotatorView, zoneEffectView, type HazardView } from './views';
 
 /** How each hazard kind is drawn, by kind (a new kind registers its view here). */
 export const hazardViews = new Registry<HazardView>('hazard view');
-for (const view of [moverView, periodicView, rotatorView, zoneEffectView]) {
+for (const view of [moverView, periodicView, rotatorView, swayView, zoneEffectView]) {
   hazardViews.register(view as HazardView);
 }
 

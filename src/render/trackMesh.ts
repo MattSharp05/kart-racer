@@ -1,5 +1,7 @@
 import * as THREE from 'three';
 import { SUNNY_THEME, type TrackTheme } from '../content/tracks/theme';
+import { swayDeckFrame } from '../sim/hazards/sway';
+import type { SwayHazard } from '../sim/hazards/types';
 import {
   inRange,
   type TrackGeometry,
@@ -80,6 +82,17 @@ function curvature(geometry: TrackGeometry, i: number): number {
 }
 
 /**
+ * Whether a sample lies on one of the track's swaying decks (MK-61): those draw their own deck
+ * (`render/hazards/sway.ts`), so the road isn't drawn under them.
+ */
+function onSwayDeck(decks: readonly SwayHazard[], sample: TrackSample): boolean {
+  return decks.some((deck) => {
+    const frame = swayDeckFrame(deck, sample);
+    return frame.u >= 0 && frame.u <= 1 && Math.abs(frame.across) <= deck.halfWidth;
+  });
+}
+
+/**
  * Builds road, grass verges, kerbs, walls and the start line for a spline track (ADR 0003), in the
  * track theme's palette (MK-49).
  */
@@ -100,6 +113,9 @@ export function createSplineTrackMesh(
   const walls = new MeshBuilder();
   const n = geometry.samples.length;
   const grassOuter = geometry.def.offroadWidth;
+  const decks = (geometry.def.hazards ?? []).filter(
+    (hazard): hazard is SwayHazard => hazard.kind === 'sway',
+  );
 
   for (let i = 0; i < n; i += 1) {
     const a = geometry.sample(i);
@@ -107,6 +123,8 @@ export function createSplineTrackMesh(
     const half = (s: TrackSample) => s.width / 2;
     const wallA = half(a) + grassOuter;
     const wallB = half(b) + grassOuter;
+    // Swaying decks draw themselves (walls: a deck has none, so there's nothing else to draw).
+    if (decks.length && onSwayDeck(decks, a) && onSwayDeck(decks, b)) continue;
 
     // Grass verges (left and right), then road on top.
     ground.quad(
@@ -214,17 +232,15 @@ export function createSplineTrackMesh(
     }
   }
 
-  // Drivable grass infields (shortcuts), as flat fans.
+  // Drivable infields (shortcuts): deep grass, or road (MK-61), triangulated (outlines may be concave).
   for (const cut of geometry.def.shortcuts ?? []) {
-    const cx = cut.polygon.reduce((sum, v) => sum + v.x, 0) / cut.polygon.length;
-    const cz = cut.polygon.reduce((sum, v) => sum + v.z, 0) / cut.polygon.length;
-    cut.polygon.forEach((v, i) => {
-      const w = cut.polygon[(i + 1) % cut.polygon.length] ?? v;
-      const centre = new THREE.Vector3(cx, cut.y + LIFT.grass, cz);
-      const p1 = new THREE.Vector3(v.x, cut.y + LIFT.grass, v.z);
-      const p2 = new THREE.Vector3(w.x, cut.y + LIFT.grass, w.z);
-      ground.quad(centre, p1, p2, centre, colours.infield);
-    });
+    const outline = cut.polygon.map((v) => new THREE.Vector2(v.x, v.z));
+    const colour = cut.surface === 'road' ? colours.road : colours.infield;
+    const at = (v: THREE.Vector2) => new THREE.Vector3(v.x, cut.y + LIFT.grass, v.y);
+    for (const [i = 0, j = 0, k = 0] of THREE.ShapeUtils.triangulateShape(outline, [])) {
+      const [p1, p2, p3] = [outline[i], outline[j], outline[k]];
+      if (p1 && p2 && p3) ground.quad(at(p1), at(p2), at(p3), at(p3), colour);
+    }
   }
 
   group.add(

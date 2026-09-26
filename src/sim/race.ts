@@ -1,3 +1,4 @@
+import { routeProgress } from './routes';
 import type { SplineTrackDef } from './splineTrack';
 import { trackGeometry, type TrackDef } from './track';
 import { DT, tuning } from './tuning';
@@ -95,9 +96,12 @@ export function updateRace(state: SimState, track: TrackDef, events: SimEvent[],
   const progress = new Map<number, number>();
   for (const kart of state.karts) {
     const p = geometry.project(kart.position);
-    updateKartLaps(kart, track, p.t, state.tick, events);
-    updateWrongWay(kart, p.tangent, dt);
-    progress.set(kart.id, raceProgress(kart, p.t));
+    // On another route round part of the lap (MK-61), progress follows the route.
+    const route = routeProgress(geometry, kart.position, p);
+    const t = route?.t ?? p.t;
+    updateKartLaps(kart, track, t, state.tick, events);
+    updateWrongWay(kart, route?.tangent ?? p.tangent, dt);
+    progress.set(kart.id, raceProgress(kart, t));
   }
 
   const byId = new Map(state.karts.map((k) => [k.id, k]));

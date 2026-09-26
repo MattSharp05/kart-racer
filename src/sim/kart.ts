@@ -85,6 +85,8 @@ export interface KartEnv {
   tick: number;
   /** Sideways grip × this, from hazard zones such as a sandstorm (1 = none). */
   grip: number;
+  /** Sideways push on the ground from a swaying deck (MK-61), m/s², world XZ. */
+  push?: { x: number; z: number };
 }
 
 const DEFAULT_ENV: KartEnv = { tick: 0, grip: 1 };
@@ -172,7 +174,11 @@ export function updateKart(
   const grip =
     (isDrifting(kart) ? tuning.driftGrip : tuning.lateralGrip) * (effect.grip ?? 1) * env.grip;
   const slide = scale(lateral, Math.exp(-grip * dt));
-  const horizontal = add(scale(forward, newSpeed), slide);
+  let horizontal = add(scale(forward, newSpeed), slide);
+  // A swaying deck (MK-61) shoves grounded karts sideways; grip then bleeds the slide off.
+  if (env.push && kart.grounded) {
+    horizontal = add(horizontal, vec3(env.push.x * dt, 0, env.push.z * dt));
+  }
 
   // Vertical: gravity + snap to the ground. While grounded, vertical speed follows the ground,
   // so a kart leaving the top of a ramp keeps its upward speed and flies.

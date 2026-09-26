@@ -1,5 +1,6 @@
 import { cancelDrift } from './drift';
-import type { SplineTrackDef } from './splineTrack';
+import { routeProgress } from './routes';
+import { inRange, type SplineTrackDef } from './splineTrack';
 import { groundAt, trackGeometry, type TrackDef } from './track';
 import { tuning } from './tuning';
 import type { InputFrame, KartState, SimEvent, SimState } from './types';
@@ -33,9 +34,13 @@ export function updateRespawns(
 
     const ground = groundAt(track, kart.position);
     const p = geometry.project(kart.position);
-    if (kart.grounded && ground.surface !== 'out') kart.lastSafeT = p.t;
+    if (kart.grounded && ground.surface !== 'out') {
+      kart.lastSafeT = routeProgress(geometry, kart.position, p)?.t ?? p.t;
+    }
     kart.outTime = ground.surface === 'out' ? kart.outTime + dt : 0;
-    const fell = kart.position.y < p.groundY - tuning.fallDepth || kart.outTime > tuning.outSeconds;
+    // Fallen = well below the ground under it: the road, or a lower floor off it (MK-61: ruins).
+    const floor = ground.surface === 'out' ? p.groundY : ground.height;
+    const fell = kart.position.y < floor - tuning.fallDepth || kart.outTime > tuning.outSeconds;
     const asked = inputs[kart.id]?.respawn === true && kart.respawnCooldown <= 0;
     if (fell || asked) startRespawn(state, kart, track, events);
   }
@@ -43,7 +48,9 @@ export function updateRespawns(
 
 function startRespawn(state: SimState, kart: KartState, track: SplineTrackDef, events: SimEvent[]) {
   const geometry = trackGeometry(track);
-  const t = kart.lastSafeT >= 0 ? kart.lastSafeT : geometry.project(kart.position).t;
+  const safeT = kart.lastSafeT >= 0 ? kart.lastSafeT : geometry.project(kart.position).t;
+  // Some stretches (MK-61: rope bridges) put karts back at their start instead.
+  const t = track.respawnPoints?.find((point) => inRange(safeT, point))?.t ?? safeT;
   // Spread out karts being put back at (nearly) the same spot.
   const nearby = state.karts.filter(
     (other) =>

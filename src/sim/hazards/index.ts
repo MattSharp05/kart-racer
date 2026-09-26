@@ -8,6 +8,7 @@ import type { KartState, SimEvent, SimState } from '../types';
 import mover from './mover';
 import periodic from './periodic';
 import rotator from './rotator';
+import sway from './sway';
 import type { HazardContact, HazardDef, HazardEffect, HazardKind, HazardPose } from './types';
 import zoneEffect from './zoneEffect';
 
@@ -18,7 +19,8 @@ import zoneEffect from './zoneEffect';
  */
 export const hazardKinds = new Registry<HazardKind>('hazard kind');
 // One line per kind, alphabetical.
-for (const kind of [mover, periodic, rotator, zoneEffect]) hazardKinds.register(kind as HazardKind);
+for (const kind of [mover, periodic, rotator, sway, zoneEffect])
+  hazardKinds.register(kind as HazardKind);
 
 /** `by` on the `kartHit` event for a hit from a hazard (no kart threw it). */
 export const HAZARD_HITTER = -1;
@@ -44,6 +46,24 @@ export function hazardGrip(hazards: readonly HazardDef[], tick: number, position
     if (kind.grip) grip = Math.min(grip, kind.grip(hazard, kind.pose(hazard, tick), position));
   }
   return grip;
+}
+
+/**
+ * Sideways push (m/s², world XZ) on a kart on the ground at `position` at `tick`, from the track's
+ * swaying decks (MK-61); undefined when nothing pushes.
+ */
+export function hazardPush(
+  hazards: readonly HazardDef[],
+  tick: number,
+  position: Vec3,
+): { x: number; z: number } | undefined {
+  let push: { x: number; z: number } | undefined;
+  for (const hazard of hazards) {
+    const kind = hazardKinds.get(hazard.kind);
+    const p = kind.push?.(hazard, kind.pose(hazard, tick), position);
+    if (p) push = { x: (push?.x ?? 0) + p.x, z: (push?.z ?? 0) + p.z };
+  }
+  return push;
 }
 
 /**

@@ -85,8 +85,28 @@ export interface ZoneEffectHazard extends HazardBase {
   dust?: number;
 }
 
+/**
+ * A swaying deck (MK-61: a rope bridge): a straight strip from `from` to `to` that leans from side
+ * to side on a timer, pushing karts on it sideways. It is anchored at both ends, so the sway (and
+ * the push) is strongest mid-span and fades to nothing at the anchors. Scripted, not physics: the
+ * lean is a sine of the tick. The track surface under it is drawn by its view instead.
+ */
+export interface SwayHazard extends HazardBase {
+  kind: 'sway';
+  /** The deck's centreline ends, world space, at deck level. */
+  from: Vec3;
+  to: Vec3;
+  /** Half the deck's width (the push acts on karts within it), m. */
+  halfWidth: number;
+  /** Seconds per full sway (right, back, left, back). */
+  period: number;
+  /** Peak sideways push mid-span, m/s² (towards the side the deck leans to). */
+  push: number;
+}
+
 /** A hazard in a track's `hazards[]` (MK-49). Adding a kind adds a member here and a file next to it. */
-export type HazardDef = MoverHazard | RotatorHazard | PeriodicHazard | ZoneEffectHazard;
+export type HazardDef =
+  MoverHazard | RotatorHazard | PeriodicHazard | ZoneEffectHazard | SwayHazard;
 
 /** Where a hazard is and what it's doing at one moment: a pure function of the tick. */
 export interface HazardPose {
@@ -95,7 +115,10 @@ export interface HazardPose {
   z: number;
   /** Facing (movers) or rotation (rotators, crushers), radians, like a kart's heading. */
   heading: number;
-  /** 0..1: how closed a crusher is, how strong a zone is (1 = on). Movers and rotators: 1. */
+  /**
+   * 0..1: how closed a crusher is, how strong a zone is (1 = on). Movers and rotators: 1. Sway
+   * decks: −1..1, how far and which way it leans mid-span (positive = to its right).
+   */
   amount: number;
 }
 
@@ -120,6 +143,8 @@ export interface HazardKind<D extends HazardDef = HazardDef> {
   pose(def: D, ticks: number): HazardPose;
   /** Whether a kart centred at `position` with radius `radius` touches it. */
   contact?(def: D, pose: HazardPose, position: Vec3, radius: number): HazardContact | undefined;
+  /** Sideways push on a kart on the ground at `position` (swaying decks), m/s², world XZ. */
+  push?(def: D, pose: HazardPose, position: Vec3): { x: number; z: number } | undefined;
   /** Sideways grip multiplier at `position` (zone effects). */
   grip?(def: D, pose: HazardPose, position: Vec3): number;
   /** Seconds until it next switches on (0 while on), for hazards with a HUD warning. */

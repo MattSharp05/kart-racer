@@ -58,6 +58,6 @@ export function groundAt(track: TrackDef, position: Vec3): GroundInfo {
     return ground;
   }
   const cut = track.shortcuts?.find((c) => insidePolygon(position.x, position.z, c.polygon));
-  if (cut) return { height: cut.y, surface: 'rough' };
+  if (cut) return { height: cut.y, surface: cut.surface ?? 'rough' };
   return { height: VOID_HEIGHT, surface: 'out' };
 }

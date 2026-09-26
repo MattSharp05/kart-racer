@@ -1,5 +1,5 @@
 import { resolveKartCollisions } from './collisions';
-import { hazardGrip, trackHazards, updateHazards } from './hazards';
+import { hazardGrip, hazardPush, trackHazards, updateHazards } from './hazards';
 import { updateKart } from './kart';
 import { updateRace } from './race';
 import { afterRace, beforeMovement } from './raceFlow';
@@ -34,7 +34,12 @@ export function step(state: SimState, inputs: readonly InputFrame[], dt = DT): S
     if (isRespawning(kart)) continue;
     const input = kart.spinTimer > 0 ? NEUTRAL_INPUT : (resolved[kart.id] ?? NEUTRAL_INPUT);
     const grip = hazards.length ? hazardGrip(hazards, next.tick, kart.position) : 1;
-    updateKart(kart, input, next.engineClass, track, dt, events, { tick: next.tick, grip });
+    const push = hazards.length ? hazardPush(hazards, next.tick, kart.position) : undefined;
+    updateKart(kart, input, next.engineClass, track, dt, events, {
+      tick: next.tick,
+      grip,
+      ...(push ? { push } : {}),
+    });
   }
   // Hazards (MK-49) push, spin or squash karts that touch them; their poses depend only on the tick.
   if (hazards.length) updateHazards(next, hazards, events);
