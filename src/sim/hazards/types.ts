@@ -58,6 +58,10 @@ export interface ZoneEffectHazard extends HazardBase {
   grip: number;
   /** Render only: fog distance inside while on, m. */
   visibility: number;
+  /** HUD warning shown `tuning.hazards.warningSeconds` before it switches on (e.g. a sandstorm). */
+  warning?: string;
+  /** Render only: colour of the dust blowing inside while on (no dust when absent). */
+  dust?: number;
 }
 
 /** A hazard in a track's `hazards[]` (MK-49). Adding a kind adds a member here and a file next to it. */
@@ -97,4 +101,8 @@ export interface HazardKind<D extends HazardDef = HazardDef> {
   contact?(def: D, pose: HazardPose, position: Vec3, radius: number): HazardContact | undefined;
   /** Sideways grip multiplier at `position` (zone effects). */
   grip?(def: D, pose: HazardPose, position: Vec3): number;
+  /** Seconds until it next switches on (0 while on), for hazards with a HUD warning. */
+  secondsUntilOn?(def: D, ticks: number): number;
+  /** The HUD warning text, if it has one. */
+  warning?(def: D): string | undefined;
 }

@@ -36,7 +36,7 @@ scenerySets.register({
 });
 
 /** Deterministic pseudo-random numbers so the scenery is the same every load (and in screenshots). */
-function random(seed: number): () => number {
+export function random(seed: number): () => number {
   let state = seed >>> 0;
   return () => {
     state = (state + 0x6d2b79f5) | 0;
@@ -56,14 +56,17 @@ const HILL_CLEARANCE = 15;
 const HILL_STEP = 10;
 
 /** Distance from (x, z) to the nearest point of the track centreline, m. */
-function distanceToTrack(geometry: TrackGeometry, { x, z }: { x: number; z: number }): number {
+export function distanceToTrack(
+  geometry: TrackGeometry,
+  { x, z }: { x: number; z: number },
+): number {
   let best = Infinity;
   for (const s of geometry.samples) best = Math.min(best, Math.hypot(s.x - x, s.z - z));
   return best;
 }
 
 /** Whether a point is clear of the track, its walls and any drivable infield. */
-function clearOfTrack(geometry: TrackGeometry, x: number, z: number): boolean {
+export function clearOfTrack(geometry: TrackGeometry, x: number, z: number): boolean {
   const p = geometry.project({ x, y: 0, z });
   if (Math.abs(p.lateral) < geometry.wallOffset(p.width) + CLEARANCE) return false;
   return !(geometry.def.shortcuts ?? []).some((c) => insidePolygon(x, z, c.polygon));
@@ -197,7 +200,7 @@ export function createScenery(geometry: TrackGeometry, setId = SUNNY_THEME.scene
 }
 
 /** Three tiers of seating plus a roof, beside the start line, facing the track. */
-function createGrandstand(geometry: TrackGeometry, set: ScenerySet): THREE.Group {
+export function createGrandstand(geometry: TrackGeometry, set: ScenerySet): THREE.Group {
   const stand = new THREE.Group();
   const start = geometry.sample(Math.round(geometry.samples.length * 0.02));
   const side = -1; // left of the driving direction

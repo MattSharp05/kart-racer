@@ -2,9 +2,15 @@ import { rotateY, type Vec3 } from '../math';
 import { DT } from '../tuning';
 import type { HazardContact } from './types';
 
+/**
+ * Rounding slack, in cycles: a boundary that falls exactly on a tick (a 20 s storm at 60 Hz)
+ * lands on that tick instead of one late through float error.
+ */
+const CYCLE_EPSILON = 1e-9;
+
 /** Where in its cycle a hazard is at `ticks`: 0..1. */
 export function cyclePhase(ticks: number, period: number, phase = 0): number {
-  const cycles = (ticks * DT) / period + phase;
+  const cycles = (ticks * DT) / period + phase + CYCLE_EPSILON;
   return cycles - Math.floor(cycles);
 }
 
