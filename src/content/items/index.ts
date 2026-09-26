@@ -4,7 +4,9 @@ import boomerang from './boomerang/sim';
 import bubbleShield from './bubble-shield/sim';
 import green from './green/sim';
 import hornetSwarm from './hornet-swarm/sim';
+import inkCloud from './ink-cloud/sim';
 import lightning from './lightning/sim';
+import magnet from './magnet/sim';
 import mushroom from './mushroom/sim';
 import oilSlick from './oil-slick/sim';
 import phase from './phase/sim';
@@ -22,7 +24,9 @@ for (const item of [
   bubbleShield,
   green,
   hornetSwarm,
+  inkCloud,
   lightning,
+  magnet,
   mushroom,
   oilSlick,
   phase,

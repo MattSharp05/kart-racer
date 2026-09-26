@@ -66,6 +66,8 @@ describe('content registries', () => {
       'hornet-swarm',
       'boomerang',
       'phase',
+      'magnet',
+      'ink-cloud',
     ]);
     expect(
       items

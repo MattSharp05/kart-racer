@@ -66,6 +66,8 @@ describe('item framework (MK-52)', () => {
       'bubble-shield',
       'hornet-swarm',
       'phase',
+      'magnet',
+      'ink-cloud',
       'boomerang',
     ];
     const table = oddsTable();

@@ -59,6 +59,11 @@ export interface ScreenOverlay {
   html?: string;
   /** `itemFx` overlays: how long it stays up (default 1 s). */
   seconds?: number;
+  /**
+   * Effect overlays: how opaque it is right now (0…1, default 1), from the effect's state (ink
+   * that fades as it wears off, MK-68). Read every HUD frame.
+   */
+  opacity?(effect: KartEffect): number;
 }
 
 export const itemViews = new Registry<ItemView>('item view');

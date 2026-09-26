@@ -6,7 +6,9 @@ import boomerang from './boomerang/render';
 import bubbleShield from './bubble-shield/render';
 import green from './green/render';
 import hornetSwarm from './hornet-swarm/render';
+import inkCloud from './ink-cloud/render';
 import lightning from './lightning/render';
+import magnet from './magnet/render';
 import mushroom from './mushroom/render';
 import oilSlick from './oil-slick/render';
 import phase from './phase/render';
@@ -24,7 +26,9 @@ for (const view of [
   bubbleShield,
   green,
   hornetSwarm,
+  inkCloud,
   lightning,
+  magnet,
   mushroom,
   oilSlick,
   phase,

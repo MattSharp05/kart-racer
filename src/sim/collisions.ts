@@ -28,6 +28,18 @@ function mass(kart: KartState): number {
   return 1 + kartPhysics(kart.kartType, 100).weight * tuning.bumpMassPerWeight;
 }
 
+/**
+ * How far apart two karts' bodies are, m (between their closest circles; ≤ 0 = touching). Items
+ * that act on contact use it (Magnet, MK-68).
+ */
+export function kartGap(a: KartState, b: KartState): number {
+  let closest = Infinity;
+  for (const ca of circles(a)) {
+    for (const cb of circles(b)) closest = Math.min(closest, Math.hypot(cb.x - ca.x, cb.z - ca.z));
+  }
+  return closest - tuning.kartRadius * 2;
+}
+
 /** Closest pair of circles between two karts: separation normal (a → b) and overlap depth. */
 function contact(
   a: KartState,

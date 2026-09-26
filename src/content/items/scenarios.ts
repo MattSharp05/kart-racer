@@ -2,6 +2,8 @@ import type { Scenario } from '../../scenarios/registry';
 import boomerang from './boomerang/scenarios';
 import bubbleShield from './bubble-shield/scenarios';
 import hornetSwarm from './hornet-swarm/scenarios';
+import inkCloud from './ink-cloud/scenarios';
+import magnet from './magnet/scenarios';
 import oilSlick from './oil-slick/scenarios';
 import phase from './phase/scenarios';
 import turboTrio from './turbo-trio/scenarios';
@@ -17,6 +19,8 @@ export const itemFolderScenarios: Record<string, Scenario[]> = {
   boomerang,
   'bubble-shield': bubbleShield,
   'hornet-swarm': hornetSwarm,
+  'ink-cloud': inkCloud,
+  magnet,
   'oil-slick': oilSlick,
   phase,
   'turbo-trio': turboTrio,

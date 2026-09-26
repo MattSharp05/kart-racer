@@ -4,6 +4,7 @@ import { inRange, type TrackGeometry } from '../splineTrack';
 import { surfaceEffect } from '../surfaces';
 import { DT, tuning, type EngineClass } from '../tuning';
 import { NEUTRAL_INPUT, type AiState, type InputFrame, type KartState } from '../types';
+import { effectsAiDriving } from '../items/effects';
 import { curvatureAlong } from './curvature';
 import { crusherSpeedLimit } from './hazards';
 import { lineOffsetAt } from './racingLine';
@@ -40,7 +41,9 @@ export function aiInput(
   }
 
   const speed = Math.max(0, kart.speed);
-  const lookAhead = cfg.lookAheadBase + speed * cfg.lookAheadPerSpeed;
+  // Kart effects can make it drive worse (inked, MK-68): a nudge on the wheel, a shorter look-ahead.
+  const impaired = effectsAiDriving(kart);
+  const lookAhead = (cfg.lookAheadBase + speed * cfg.lookAheadPerSpeed) * impaired.lookAhead;
   const top = kartPhysics(kart.kartType, engineClass).topSpeed * (ai.speedScale ?? 1);
   // Cruising speed = 90–95% of top by skill, so a good player can beat it.
   const cruise = top * (tuning.ai.cruiseBase + tuning.ai.cruiseSkill * ai.skill);
@@ -73,6 +76,7 @@ export function aiInput(
         : 1;
     if (curvature > 1e-4) cornerSpeed = Math.sqrt((cfg.cornerGrip * ai.skill * grip) / curvature);
   }
+  steer = clamp(steer + impaired.steer, -1, 1);
   const crusher = racing && tick !== undefined ? crusherSpeedLimit(kart, tick, geometry) : Infinity;
   const target = Math.min(cruise, cornerSpeed, crusher);
   if (speed > target + 2 && !drift) return { ...NEUTRAL_INPUT, brake: 0.6, steer };
