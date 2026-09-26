@@ -15,8 +15,8 @@ import {
 } from './settings';
 import { MemoryStore, type KeyValueStore } from './store';
 
-/** The MK-42 profile fields, empty until the player picks a nickname. */
-const NO_PROFILE = { nickname: '', colour: '', deviceId: '' };
+/** The MK-42 profile fields, empty until the player picks a nickname, and MK-53's default hand. */
+const NO_PROFILE = { nickname: '', colour: '', deviceId: '', hand: 'right' };
 
 /** A store holding what the MVP (before MK-37) saved, keys and formats exactly as it wrote them. */
 function mvpStore(): MemoryStore {
@@ -86,6 +86,14 @@ describe('settings', () => {
       seenHowToPlay: true,
       ...NO_PROFILE,
     });
+  });
+
+  it('keeps the touch hand (MK-53); anything but left/right reads as right', () => {
+    const store = new MemoryStore();
+    expect(updateSettings(store, { hand: 'left' }).hand).toBe('left');
+    expect(readSettings(store).hand).toBe('left');
+    expect(migrate({ version: 1, hand: 'middle' }, store).hand).toBe('right');
+    expect(migrate({ version: 1, hand: 1 }, store).hand).toBe('right');
   });
 
   it('survives broken storage', () => {

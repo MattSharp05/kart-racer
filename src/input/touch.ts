@@ -1,3 +1,4 @@
+import type { Hand } from '../game/storage/settings';
 import { NEUTRAL_INPUT, type InputFrame } from '../sim/types';
 import { isTextEntry } from './keyboard';
 import './touch.css';
@@ -18,9 +19,23 @@ export function isTouchDevice(): boolean {
 
 type ButtonName = 'drift' | 'item' | 'brake';
 
+/** The hand the controls are laid out for (MK-53), and every live set of controls to update. */
+let currentHand: Hand = 'right';
+const allControls = new Set<TouchControls>();
+
 /**
- * On-screen controls for phones and tablets (MK-23): a steering zone for the left thumb, and
- * Drift / Item / Brake buttons for the right. Auto-accelerates once the player has touched the
+ * Lays the touch controls out for `hand` (MK-53): Left mirrors them, buttons left and steering
+ * right. Applies at once, mid-race too; controls created later start with it. The layout itself is
+ * CSS custom properties on `.touch-controls`, switched by its `data-hand`.
+ */
+export function setTouchHand(hand: Hand): void {
+  currentHand = hand;
+  for (const controls of allControls) controls.root.dataset.hand = hand;
+}
+
+/**
+ * On-screen controls for phones and tablets (MK-23): a steering zone for one thumb, and
+ * Drift / Item / Brake buttons for the other (right-handed by default; see `setTouchHand`). Auto-accelerates once the player has touched the
  * controls. Hidden on keyboard devices, and as soon as a key is pressed.
  */
 export class TouchControls {
@@ -37,7 +52,9 @@ export class TouchControls {
 
   constructor() {
     this.root.className = 'touch-controls';
+    this.root.dataset.hand = currentHand;
     this.root.hidden = true;
+    allControls.add(this);
 
     const zone = document.createElement('div');
     zone.className = 'touch-steer';

@@ -91,3 +91,81 @@ test.describe('touch controls', () => {
     expect(await page.evaluate(() => window.__game!.isPaused())).toBe(false);
   });
 });
+
+test.describe('left-handed layout (MK-53)', () => {
+  test('phones: Left puts the buttons on the left, and a drag on the right half steers', async ({
+    page,
+  }, info) => {
+    test.skip(!isPhone(info.project.name));
+    await loadScenario(page, 'race-touch-left', { paused: true });
+    const controls = page.locator('.touch-controls');
+    await expect(controls).toBeVisible();
+    await expect(controls).toHaveAttribute('data-hand', 'left');
+    const vw = page.viewportSize()!;
+    for (const sel of ['.touch-drift', '.touch-item', '.touch-brake']) {
+      const box = (await page.locator(sel).boundingBox())!;
+      expect(box.x + box.width, sel).toBeLessThanOrEqual(vw.width / 2);
+    }
+    const zone = (await page.locator('.touch-steer').boundingBox())!;
+    expect(zone.x).toBeGreaterThanOrEqual(vw.width / 2);
+
+    // A finger on the right half lands on the steering zone (nothing on top of it) and steers.
+    const start = { x: vw.width * 0.75, y: vw.height * 0.8 };
+    const onZone = await page.evaluate(
+      ({ x, y }) => !!document.elementFromPoint(x, y)?.closest('.touch-steer'),
+      start,
+    );
+    expect(onZone).toBe(true);
+    const heading = (await step(page, 0)).karts[0]!.heading;
+    const pointer = { pointerId: 5, clientY: start.y, bubbles: true };
+    await page
+      .locator('.touch-steer')
+      .dispatchEvent('pointerdown', { ...pointer, clientX: start.x });
+    await page
+      .locator('.touch-steer')
+      .dispatchEvent('pointermove', { ...pointer, clientX: start.x + 60 });
+    await expect(page.locator('.touch-stick')).toHaveCSS(
+      'transform',
+      /matrix\(1, 0, 0, 1, 60, 0\)/,
+    );
+    await page.evaluate(() => window.__game!.step(60, { render: false }));
+    const turned = (await step(page, 0)).karts[0]!.heading;
+    expect(Math.abs(turned - heading)).toBeGreaterThan(0.1);
+  });
+
+  test('phones: Settings → Controls → Hand applies mid-race and survives a reload', async ({
+    page,
+  }, info) => {
+    test.skip(!isPhone(info.project.name));
+    // Two page loads plus menus: slow on the software-GL pixel-landscape job.
+    test.setTimeout(60_000);
+    await loadScenario(page, 'menu-paused');
+    const controls = page.locator('.touch-controls');
+    await expect(controls).toHaveAttribute('data-hand', 'right');
+    await page.locator('.menu-paused button', { hasText: 'Settings' }).click();
+    const hand = page.locator('.menu-settings .hand-setting');
+    await expect(hand.getByRole('button', { name: 'Right' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    await hand.getByRole('button', { name: 'Left' }).click();
+    await expect(hand.getByRole('button', { name: 'Left' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    // Applied at once, to the paused race's controls.
+    await expect(controls).toHaveAttribute('data-hand', 'left');
+    const stored = await page.evaluate(() => localStorage.getItem('kart-racer:settings'));
+    expect(JSON.parse(stored ?? '{}')).toMatchObject({ hand: 'left' });
+    await page.locator('.menu-settings button', { hasText: 'Back' }).click();
+    await page.locator('.menu-paused button', { hasText: 'Resume' }).click();
+    await expect(controls).toBeVisible();
+    const vw = page.viewportSize()!;
+    const drift = (await page.locator('.touch-drift').boundingBox())!;
+    expect(drift.x + drift.width).toBeLessThanOrEqual(vw.width / 2);
+
+    await page.reload();
+    await page.waitForFunction(() => window.__game?.ready === true);
+    await expect(controls).toHaveAttribute('data-hand', 'left');
+  });
+});
