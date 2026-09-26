@@ -17,8 +17,16 @@ import { createPauseButton } from '../ui/screens/pause';
 import '../ui/screens/results';
 import '../ui/screens/settings';
 import '../ui/screens/title';
-import { clearProfile, colourHex, readProfile, saveProfile, type Profile } from './profile';
+import {
+  clearProfile,
+  colourHex,
+  DEFAULT_COLOUR,
+  readProfile,
+  saveProfile,
+  type Profile,
+} from './profile';
 import { recordFinish, recordLines, resultLines } from './results';
+import { RoomFlow, type RoomService } from './roomFlow';
 import { DEFAULT_SEED, type Launch, type RaceSession } from './session';
 import { readPrefs, writePrefs } from './storage/prefs';
 import type { RecordUpdate } from './storage/records';
@@ -30,6 +38,8 @@ const RESULTS_DELAY_MS = 2500;
 /** Results for a scenario that boots already finished, ms. */
 const LAUNCH_RESULTS_DELAY_MS = 300;
 const ENGINE_CLASSES = [50, 100, 150] as const;
+/** A room name for a player who hasn't picked one (scenarios skip the nickname screen). */
+const DEFAULT_ROOM_NICKNAME = 'Player';
 
 /**
  * The screen flow (MK-35): title → kart select → cc select → race ⇄ pause → results → (again,
@@ -51,11 +61,13 @@ export class Flow {
   private resultsTimer: number | undefined;
   /** What the local player's finish did to the track records, for the results screen. */
   private recordUpdate: RecordUpdate | undefined;
+  private readonly rooms: RoomFlow;
 
   constructor(
     private readonly session: RaceSession,
     private readonly world: World,
     private readonly store: KeyValueStore,
+    rooms: RoomService,
   ) {
     const game = session.game;
     const prefs = readPrefs(store);
@@ -68,6 +80,21 @@ export class Flow {
       toggle: () => this.sound.toggleMute(),
     };
     this.howToPlay = new HowToPlay();
+    // Online rooms (MK-40): the room shows the player's name and colour (MK-42).
+    this.rooms = new RoomFlow(
+      this.screens,
+      rooms,
+      () => {
+        const profile = readProfile(this.store);
+        return {
+          nickname: profile?.nickname ?? DEFAULT_ROOM_NICKNAME,
+          colour: colourHex(profile?.colour ?? DEFAULT_COLOUR),
+          racer: this.chosenKart,
+          ready: false,
+        };
+      },
+      () => this.showTitleScreen(),
+    );
 
     this.pauseButton = createPauseButton(() => this.pauseRace());
     window.addEventListener('keydown', (e) => {
@@ -111,6 +138,8 @@ export class Flow {
         game.setAutopilot(launch.localKartId, true);
         const toTitle = () => {
           this.showTitleScreen();
+          // A room link or the online-lobby scenario (MK-40): straight into that room.
+          if (launch.lobby) return this.rooms.launch(launch.lobby);
           // First visit (plain URL, nothing stored): show the controls guide straight away.
           if (
             launch.screen === 'howToPlay' ||
@@ -174,6 +203,7 @@ export class Flow {
     const profile = readProfile(this.store);
     this.screens.show('title', {
       onPlay: this.showKartSelect,
+      onOnline: () => this.rooms.showOnline(),
       onHowToPlay: this.openHowToPlay,
       onSettings: this.showSettings,
       ...(profile && {

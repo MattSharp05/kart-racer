@@ -6,6 +6,8 @@ import { parseLaunchParams } from './game/launchParams';
 import { RaceSession, resolveLaunch } from './game/session';
 import { browserStore, OverlayStore } from './game/storage';
 import { installTestApi } from './game/testApi';
+import { localRoomBackend } from './net/roomBackendLocal';
+import { supabaseRoomBackend } from './net/roomBackendSupabase';
 import { World } from './render/world';
 import { getTrack } from './sim/track';
 import { PerfOverlay } from './ui/perfOverlay';
@@ -30,7 +32,10 @@ const world = new World(canvas, game, {
     params.reducedMotion || window.matchMedia('(prefers-reduced-motion: reduce)').matches,
   aiDebug: params.aiDebug,
 });
-const flow = new Flow(session, world, store);
+const flow = new Flow(session, world, store, {
+  backend: launch.localRooms ? localRoomBackend() : supabaseRoomBackend(),
+  local: launch.localRooms,
+});
 
 installTestApi(
   game,
