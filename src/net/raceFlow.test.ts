@@ -96,17 +96,18 @@ describe('online race flow over loopback (MK-55)', () => {
       if (ticks > 120 * HZ) throw new Error('No results: the room waited for the quitter');
       host.tick(scriptedInput(host.state.karts[0], host.state.tick, 0));
       stayer.tick(scriptedInput(stayer.state?.karts[1], stayer.state?.tick ?? 0, 1));
-      // Kart 2's player quits 10 s into the race; the kart coasts from then on.
+      // Kart 2's player quits 10 s into the race.
       if (ticks === 10 * HZ) quitter.leave();
       else if (ticks < 10 * HZ) {
         quitter.tick(scriptedInput(quitter.state?.karts[2], quitter.state?.tick ?? 0, 2));
       }
       clock.advance(TICK_MS);
     }
-    expect(host.state.phase).toBe('racing'); // the quitter's kart never finished
+    // The quitter's kart went to the AI (MK-70), so the race ended when the other two finished.
+    expect(host.state.karts[2]?.controller).toBe('ai');
     const finished = (kartId: number) =>
       host.results?.find((s) => s.kartId === kartId)?.finishTick !== undefined;
-    expect([finished(0), finished(1), finished(2)]).toEqual([true, true, false]);
+    expect([finished(0), finished(1)]).toEqual([true, true]);
     for (let i = 0; i < HZ; i += 1) {
       host.tick(scriptedInput(host.state.karts[0], host.state.tick, 0));
       stayer.tick(scriptedInput(stayer.state?.karts[1], stayer.state?.tick ?? 0, 1));

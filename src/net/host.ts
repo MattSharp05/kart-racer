@@ -1,4 +1,5 @@
 import { createRace, type CreateRaceOptions } from '../sim/race/createRace';
+import { handToAi } from '../sim/race/takeover';
 import { step } from '../sim/step';
 import { NEUTRAL_INPUT, type InputFrame, type SimEvent, type SimState } from '../sim/types';
 import { HOST_EVENTS, NET } from './config';
@@ -48,8 +49,10 @@ export interface RemotePeer {
   lastInputTick: number;
   /** Newest input tick received (the snapshot's ack). */
   newestTick: number;
-  /** False after the client said Bye: nothing more is sent to it. */
+  /** False once the client left or was dropped (MK-70): nothing more is sent to it. */
   connected: boolean;
+  /** Host tick when the last packet from this client arrived (or it was added). */
+  lastHeardTick: number;
   readonly stats: HostPeerStats;
 }
 
@@ -103,6 +106,10 @@ export class OnlineHost {
    * the same results.
    */
   results: RaceStanding[] | null = null;
+  /** Karts whose player dropped mid-race and are driven by the AI from the next tick (MK-70). */
+  private readonly handovers: number[] = [];
+  /** Dropped players' karts not yet reported by `takeDrops` (the "AI takes over" toast). */
+  private readonly drops: number[] = [];
   private lastLocalInput: InputFrame = NEUTRAL_INPUT;
   private eventSeq = 0;
   /** Host-decided events of the last `NET.eventRedundancyTicks` ticks, oldest first. */
@@ -133,6 +140,7 @@ export class OnlineHost {
       lastInputTick: 0,
       newestTick: 0,
       connected: true,
+      lastHeardTick: this.state.tick,
       stats: {
         lateInputs: 0,
         snapshots: 0,
@@ -145,6 +153,10 @@ export class OnlineHost {
     };
     this.peers.push(peer);
     transport.onMessage((packet) => this.receive(peer, packet));
+    // The data channel closed (the peer's tab went, or its network did): dropped at once.
+    transport.onStateChange((state) => {
+      if (state === 'closed') this.drop(peer, false);
+    });
     this.send(peer, encodeStart(kartId, this.setup));
     return peer;
   }
@@ -155,6 +167,14 @@ export class OnlineHost {
    */
   tick(localInput: InputFrame): SimEvent[] {
     const nextTick = this.state.tick + 1;
+    for (const peer of this.peers) {
+      if (peer.connected && this.state.tick - peer.lastHeardTick >= NET.dropAfterTicks) {
+        this.drop(peer, true);
+      }
+    }
+    // Dropped players' karts are the AI's from this tick on (every client's copy follows through
+    // the snapshot's AI flag).
+    for (const kartId of this.handovers.splice(0)) this.state = handToAi(this.state, kartId);
     const inputs: InputFrame[] = [];
     this.lastLocalInput = quantizeInput(localInput);
     inputs[this.localKartId] = this.lastLocalInput;
@@ -194,6 +214,29 @@ export class OnlineHost {
     return here.every((kartId) => karts[kartId]?.race.finishTick !== undefined);
   }
 
+  /**
+   * Karts whose players dropped since the last call (MK-70), for the "AI takes over" toast. Only
+   * drops while the race was on: a player leaving the results isn't news.
+   */
+  takeDrops(): number[] {
+    return this.drops.splice(0);
+  }
+
+  /**
+   * Drops `peer` (MK-70): nothing more is sent to it (but a Bye, if it may still be listening), and
+   * while the race is on its kart goes to the AI from the next tick. The host alone decides this.
+   */
+  private drop(peer: RemotePeer, tellPeer: boolean): void {
+    if (!peer.connected) return;
+    if (tellPeer) this.send(peer, encodeBye('dropped'));
+    peer.connected = false;
+    peer.lastInput = NEUTRAL_INPUT;
+    peer.inputs.clear();
+    if (this.results || this.state.phase === 'finished') return;
+    this.handovers.push(peer.kartId);
+    this.drops.push(peer.kartId);
+  }
+
   /** Ends the race for everyone (the host leaving ends the room, ADR 0005). */
   end(): void {
     for (const peer of this.peers) {
@@ -217,11 +260,14 @@ export class OnlineHost {
     const tick = this.state.tick;
     const humans: AppliedInput[] = [
       { kartId: this.localKartId, age: 0, input: this.lastLocalInput },
-      ...this.peers.map((peer) => ({
-        kartId: peer.kartId,
-        age: peer.lastInputTick === 0 ? tick : tick - peer.lastInputTick,
-        input: peer.lastInput,
-      })),
+      // Karts the AI took over aren't anyone's any more: clients predict them as AI.
+      ...this.peers
+        .filter((peer) => this.state.karts[peer.kartId]?.controller !== 'ai')
+        .map((peer) => ({
+          kartId: peer.kartId,
+          age: peer.lastInputTick === 0 ? tick : tick - peer.lastInputTick,
+          input: peer.lastInput,
+        })),
     ];
     const events =
       this.recentEvents.length > 0
@@ -252,13 +298,13 @@ export class OnlineHost {
       peer.stats.badPackets += 1;
       return;
     }
+    // Dropped is final for this race: a player who comes back rejoins for the next one (MK-70).
+    if (!peer.connected) return;
+    peer.lastHeardTick = this.state.tick;
     if (msg.type === MSG.ping) {
-      if (peer.connected) this.send(peer, encodePing(MSG.pong, msg.time));
+      this.send(peer, encodePing(MSG.pong, msg.time));
     } else if (msg.type === MSG.bye) {
-      // Its kart coasts from now on (handing it to the AI is the drops ticket's job).
-      peer.connected = false;
-      peer.lastInput = NEUTRAL_INPUT;
-      peer.inputs.clear();
+      this.drop(peer, false);
     } else if (msg.type === MSG.input) {
       const now = this.state.tick;
       // Inputs for ticks already simulated are too late; ones absurdly far ahead are bogus.

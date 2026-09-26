@@ -137,7 +137,7 @@ test.describe('lobby', () => {
     // The host leaving mid-race ends it for the guest: back to Online with why, race stopped.
     await host.close();
     await expect(guest.locator('.menu-online')).toBeVisible({ timeout: 10_000 });
-    await expect(guest.getByRole('alert')).toHaveText('Host left the room');
+    await expect(guest.getByRole('alert')).toHaveText('Host left — room closed');
     expect(await guest.evaluate(() => window.__game!.net())).toBeNull();
   });
 

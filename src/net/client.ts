@@ -96,6 +96,12 @@ export class OnlineClient {
   ended: ByeReason | null = null;
   /** The host's final standings (MK-55), once the race has ended there; null until then. */
   results: RaceStanding[] | null = null;
+  /** Karts the host handed to the AI (their player dropped, MK-70) not yet taken by `takeDrops`. */
+  private readonly drops: number[] = [];
+  /** Karts already seen driven by the AI (the race's own AI, and dropped players). */
+  private readonly aiKarts = new Set<number>();
+  /** This client's ticks since the host was last heard from (MK-70). */
+  private quietTicks = 0;
   /** Called once when Start arrives and `kartId` / `setup` are known. */
   onStart: (() => void) | null = null;
   /** Called with the host's state of every snapshot applied (remote-kart interpolation). */
@@ -161,6 +167,20 @@ export class OnlineClient {
     return this.state !== null;
   }
 
+  /**
+   * The host has sent no race packets for `NET.hostLostTicks` (MK-70): its tab closed without a
+   * Bye, stopped simulating, or the network between us is gone. Only once the race is running here
+   * (before that, the lobby's start watchdog covers it), and not after it ended.
+   */
+  get hostLost(): boolean {
+    return !this.ended && this.state !== null && this.quietTicks >= NET.hostLostTicks;
+  }
+
+  /** Other players' karts the host handed to the AI since the last call (MK-70). */
+  takeDrops(): number[] {
+    return this.drops.splice(0);
+  }
+
   /** Tick of the newest snapshot applied (-1 before the first). */
   get snapshotTick(): number {
     return this.lastSnapshotTick;
@@ -172,6 +192,7 @@ export class OnlineClient {
    */
   tick(localInput: InputFrame): SimEvent[] {
     if (this.ended) return [];
+    if (this.state) this.quietTicks += 1;
     this.ticksSincePing += 1;
     if (this.ticksSincePing >= NET.pingEveryTicks) {
       this.ticksSincePing = 0;
@@ -263,6 +284,8 @@ export class OnlineClient {
       return;
     }
     if (this.ended) return;
+    // Pongs don't count: a host tab that stopped simulating (in the background) still answers them.
+    if (msg.type !== MSG.pong) this.quietTicks = 0;
     switch (msg.type) {
       case MSG.start:
         if (this.initial) return; // A repeat.
@@ -281,6 +304,7 @@ export class OnlineClient {
         }
         this.kartId = msg.kartId;
         this.setup = msg.setup;
+        this.initial.karts.forEach((kart) => kart.controller === 'ai' && this.aiKarts.add(kart.id));
         this.onStart?.();
         break;
       case MSG.pong: {
@@ -334,6 +358,7 @@ export class OnlineClient {
     this.stats.snapshots += 1;
     if (this.stats.firstSnapshotTick < 0) this.stats.firstSnapshotTick = msg.tick;
     this.stats.lastSnapshotAt = this.now();
+    this.noticeDrops(authoritative);
     this.onSnapshotState?.(authoritative);
 
     let remoteChanged = false;
@@ -393,6 +418,19 @@ export class OnlineClient {
     const ms = performance.now() - started;
     this.stats.snapshotMsTotal += ms;
     this.stats.snapshotMsMax = Math.max(this.stats.snapshotMsMax, ms);
+  }
+
+  /**
+   * Karts the host's snapshot has the AI driving that weren't before: their players dropped
+   * (MK-70). Their held inputs go, so the prediction lets the AI drive them.
+   */
+  private noticeDrops(host: SimState): void {
+    for (const kart of host.karts) {
+      if (kart.controller !== 'ai' || this.aiKarts.has(kart.id)) continue;
+      this.aiKarts.add(kart.id);
+      this.remoteInputs.delete(kart.id);
+      if (kart.id !== this.kartId) this.drops.push(kart.id);
+    }
   }
 
   /** Simulates a tick that is new to the player (not a replay), keeping its cosmetic events. */
@@ -552,6 +590,8 @@ function countdownBeat(event: SimEvent): string | null {
  */
 export function matches(predicted: SimState, host: SimState): boolean {
   if (predicted.phase !== host.phase || predicted.rngState !== host.rngState) return false;
+  // A kart the host handed to the AI (MK-70): the prediction must switch to it too.
+  if (predicted.karts.some((k, i) => k.controller !== host.karts[i]?.controller)) return false;
   if (predicted.positions.some((id, i) => host.positions[i] !== id)) return false;
   if (predicted.entities.length !== host.entities.length) return false;
   const entitiesMatch = predicted.entities.every((e, i) => {

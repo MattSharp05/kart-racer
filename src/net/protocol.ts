@@ -1,5 +1,6 @@
 import { entitySpecs, itemEffects, items } from '../content/items';
 import { isKartId, type KartId } from '../sim/data/karts';
+import { driveByAi } from '../sim/race/takeover';
 import { DT, type EngineClass } from '../sim/tuning';
 import type {
   AiState,
@@ -22,7 +23,7 @@ import { ByteReader, ByteWriter } from './bytes';
  * copy of the race, so fields that never change during a race (kart type, AI personality) are only
  * sent once, in Start.
  */
-export const PROTOCOL_VERSION = 3;
+export const PROTOCOL_VERSION = 4;
 
 export const MSG = {
   start: 1,
@@ -138,8 +139,9 @@ export interface EventMessage {
   events: NetEvent[];
 }
 
-export type ByeReason = 'left' | 'ended' | 'kicked' | 'version';
-const BYE_REASONS: readonly ByeReason[] = ['left', 'ended', 'kicked', 'version'];
+/** `dropped` (v4, MK-70): the host stopped hearing this client and gave its kart to the AI. */
+export type ByeReason = 'left' | 'ended' | 'kicked' | 'version' | 'dropped';
+const BYE_REASONS: readonly ByeReason[] = ['left', 'ended', 'kicked', 'version', 'dropped'];
 
 /** Either side, when leaving (best effort: a lost Bye is a timeout for the other side). */
 export interface ByeMessage {
@@ -419,6 +421,12 @@ const TIMERS: readonly {
   { get: (k) => k.item.roulette, set: (k, v) => (k.item.roulette = v) },
 ];
 
+/**
+ * Kart flag: the AI drives this kart, so its memory follows (v4, MK-70). A kart handed to the AI
+ * mid-race carries the handover in the snapshot itself, ordered with the state it applies to.
+ */
+const AI_DRIVEN = 32;
+
 /** AI memory sent with a presence mask (optional fields stay undefined when absent). */
 const AI_TIMERS = ['stuckTime', 'recoverTime', 'itemDelay', 'itemHeld'] as const;
 
@@ -448,7 +456,8 @@ function writeKart(w: ByteWriter, k: KartState): void {
     (k.item.buttonHeld ? 2 : 0) |
     (k.ai?.drifting ? 4 : 0) |
     (race.finishTick !== undefined ? 8 : 0) |
-    (race.throttleSince !== undefined ? 16 : 0);
+    (race.throttleSince !== undefined ? 16 : 0) |
+    (k.ai ? AI_DRIVEN : 0);
   w.u8(flags).u8(flags2);
   let mask = 0;
   TIMERS.forEach((timer, i) => {
@@ -497,6 +506,8 @@ function readKart(r: ByteReader, k: KartState): void {
   k.drift.tier = ((flags >> 6) & 3) as DriftTier;
   k.race.wrongWay = !!(flags2 & 1);
   k.item.buttonHeld = !!(flags2 & 2);
+  // The host handed this kart to the AI (a dropped player, MK-70): so does this copy, from here on.
+  if (flags2 & AI_DRIVEN) driveByAi(k);
   if (k.ai) k.ai.drifting = !!(flags2 & 4);
   const mask = r.u16();
   TIMERS.forEach((timer, i) => timer.set(k, mask & (1 << i) ? r.u16() / MS : 0));

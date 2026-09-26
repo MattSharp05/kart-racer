@@ -54,6 +54,14 @@ export const NET = {
    * (a new item takes a box and the 1.5 s roulette), ticks.
    */
   ownItemUseDedupeTicks: 60,
+  /**
+   * Drops (MK-70): the host drops a client it hasn't heard from for this many of its ticks (3 s)
+   * and hands its kart to the AI. Ticks, not wall time: a host whose tab stops ticking (background)
+   * drops nobody for it.
+   */
+  dropAfterTicks: 180,
+  /** A client that hears nothing from the host for this many of its ticks (5 s) has lost it. */
+  hostLostTicks: 300,
   /** Remote-kart interpolation (MK-45): snapshots kept (1 s at 20 Hz)… */
   interpolationBuffer: 20,
   /** …share of the draw clock's error corrected per frame, and beyond how many ticks it jumps. */
