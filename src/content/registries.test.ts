@@ -27,13 +27,20 @@ const folders = (kind: string) =>
     .sort();
 
 describe('content registries', () => {
-  it('list 5 real tracks plus the test tracks, 4 racers and 8 items (+ the test kit), in order', () => {
+  it('list 6 real tracks plus the test tracks, 4 racers and 8 items (+ the test kit), in order', () => {
     expect(
       tracks
         .list()
         .filter((t) => !t.testOnly)
         .map((t) => t.id),
-    ).toEqual(['sunny-circuit', 'dune-canyon', 'frostpeak-pass', 'neon-harbour', 'canopy-rush']);
+    ).toEqual([
+      'sunny-circuit',
+      'dune-canyon',
+      'frostpeak-pass',
+      'neon-harbour',
+      'canopy-rush',
+      'cog-works',
+    ]);
     expect(
       tracks
         .list()

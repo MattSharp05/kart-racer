@@ -6,7 +6,7 @@ import { step } from '../step';
 import { getTrack } from '../track';
 import { tuning } from '../tuning';
 import { NEUTRAL_INPUT, type InputFrame, type SimEvent, type SimState } from '../types';
-import { hazardGrip, hazardKinds, hazardPose, hazardPush, trackHazards } from '.';
+import { hazardGrip, hazardKinds, hazardPose, hazardPush, hazardWarning, trackHazards } from '.';
 import type { MoverHazard, PeriodicHazard, SwayHazard, ZoneEffectHazard } from './types';
 
 const hazards = trackHazards(hazardTest);
@@ -149,6 +149,18 @@ describe('track hazards (MK-49)', () => {
     };
     expect(at(0)).toHaveLength(1);
     expect(at(tuning.hazards.clearance + 5)).toEqual([]);
+  });
+
+  it('a crusher counts down to its next drop (its warning lamp, MK-62), with no HUD banner', () => {
+    const kind = hazardKinds.get('periodic');
+    // The test crusher: 4 s cycle, down 30% of it; it starts to drop half-way through (2 s).
+    const dropTick = (1 - crusher.closedFraction - 2 * tuning.hazards.crusherMoveFraction) * 240;
+    expect(kind.secondsUntilOn?.(crusher, 0)).toBeCloseTo(dropTick / 60, 6);
+    expect(kind.secondsUntilOn?.(crusher, dropTick - 30)).toBeCloseTo(0.5, 6);
+    expect(kind.secondsUntilOn?.(crusher, dropTick + 30)).toBe(0);
+    for (const tick of [0, dropTick - 20, dropTick + 30]) {
+      expect(hazardWarning([crusher], tick)).toBeUndefined();
+    }
   });
 
   it('the spinning bar bumps a parked kart out of its way (no spin-out)', () => {

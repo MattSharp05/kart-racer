@@ -65,6 +65,12 @@ export interface PeriodicHazard extends HazardBase {
   heading: number;
   period: number;
   closedFraction: number;
+  /**
+   * Render only (MK-62): drawn as a steam piston hammering down out of a housing, with a shadow
+   * that darkens as it drops and a lamp that flashes `tuning.hazards.crusherWarningSeconds` before
+   * it does. Absent: a block between two pillars.
+   */
+  piston?: boolean;
 }
 
 /** An area that switches on for part of each period (a sandstorm): changes grip and visibility. */

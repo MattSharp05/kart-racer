@@ -11,6 +11,7 @@ import type {
 import type { Vec3 } from '../../sim/math';
 import { DT } from '../../sim/tuning';
 import { createHeadlights } from '../headlights';
+import { createPiston, updatePiston } from './piston';
 
 /**
  * How one hazard kind is drawn (MK-49): a model built once per hazard, posed every frame from the
@@ -245,10 +246,11 @@ export const rotatorView: HazardView<RotatorHazard> = {
 const CRUSHER_LIFT = 3.5;
 const CRUSHER_THICKNESS = 1.4;
 
-/** A heavy block between two pillars that drops to the road. */
+/** A heavy block between two pillars that drops to the road, or a steam piston (`piston`, MK-62). */
 export const periodicView: HazardView<PeriodicHazard> = {
   id: 'periodic',
   create(def, night) {
+    if (def.piston) return createPiston(def);
     const group = new THREE.Group();
     const block = new THREE.Mesh(
       new THREE.BoxGeometry(def.halfWidth * 2, CRUSHER_THICKNESS, def.halfLength * 2),
@@ -273,7 +275,11 @@ export const periodicView: HazardView<PeriodicHazard> = {
     group.add(block);
     return group;
   },
-  update(object, def, pose) {
+  update(object, def, pose, _camera, ticks) {
+    if (def.piston) {
+      updatePiston(object, def, pose, ticks);
+      return undefined;
+    }
     object.position.set(pose.x, pose.y, pose.z);
     object.rotation.y = def.heading;
     const block = object.getObjectByName('block');

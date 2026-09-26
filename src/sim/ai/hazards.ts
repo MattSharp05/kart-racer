@@ -1,5 +1,5 @@
 import { hazardPose } from '../hazards';
-import type { HazardDef, MoverHazard } from '../hazards/types';
+import type { HazardDef, MoverHazard, PeriodicHazard } from '../hazards/types';
 import type { TrackGeometry } from '../splineTrack';
 import { DT, tuning } from '../tuning';
 import type { AiState, KartState } from '../types';
@@ -103,4 +103,93 @@ export function hazardDodgeOffset(
   // The offset applies at the point the AI steers at, a little way ahead.
   const aim = cfg.lookAheadBase + Math.max(0, kart.speed) * cfg.lookAheadPerSpeed;
   return best - lineAt((here.s + aim) / geometry.length);
+}
+
+/** A crusher and where it sits on the lap: along the road (`s`), across it, and its extent. */
+interface CrusherSpot {
+  def: PeriodicHazard;
+  s: number;
+  lateral: number;
+  /** Half its footprint along and across the road, m. */
+  along: number;
+  across: number;
+}
+
+const isCrusher = (hazard: HazardDef): hazard is PeriodicHazard => hazard.kind === 'periodic';
+
+/** A track's crushers, measured once per track. */
+const crushersByTrack = new WeakMap<TrackGeometry, CrusherSpot[]>();
+function trackCrushers(geometry: TrackGeometry): CrusherSpot[] {
+  let spots = crushersByTrack.get(geometry);
+  if (!spots) {
+    spots = (geometry.def.hazards ?? []).filter(isCrusher).map((def) => {
+      const at = geometry.project(def.centre);
+      // The footprint turned to the road: its heading against the road's (heading 0 faces −Z).
+      const angle = def.heading - Math.atan2(-at.tangent.x, -at.tangent.z);
+      const cos = Math.abs(Math.cos(angle));
+      const sin = Math.abs(Math.sin(angle));
+      return {
+        def,
+        s: at.s,
+        lateral: at.lateral,
+        along: def.halfLength * cos + def.halfWidth * sin,
+        across: def.halfWidth * cos + def.halfLength * sin,
+      };
+    });
+    crushersByTrack.set(geometry, spots);
+  }
+  return spots;
+}
+
+/** Whether `def` stays fully open from `tick + from` s to `tick + to` s. */
+function openThroughout(def: PeriodicHazard, tick: number, from: number, to: number): boolean {
+  for (let k = Math.floor(from / DT); k <= Math.ceil(to / DT); k += 2) {
+    if (hazardPose(def, tick + k).amount > 0) return false;
+  }
+  return true;
+}
+
+/**
+ * The fastest the AI should go to time the next crusher on its way (MK-62: pistons), or Infinity
+ * when it can carry on. Crusher poses are a pure function of the tick, so the AI knows when each one
+ * will be down: if at its speed it would be under the next one while it's moving or down, it slows
+ * to arrive as it opens (the first moment it can cross, at `crusherPassSpeed` or better, while it
+ * stays open). Once at the footprint it's committed and goes. Deterministic; does nothing on
+ * tracks without crushers.
+ */
+export function crusherSpeedLimit(kart: KartState, tick: number, geometry: TrackGeometry): number {
+  const spots = trackCrushers(geometry);
+  if (!spots.length) return Infinity;
+  const cfg = tuning.ai;
+  const here = geometry.project(kart.position);
+  // The nearest crusher ahead (not yet passed) whose footprint covers where the kart is across.
+  let next: CrusherSpot | undefined;
+  let distance = Infinity;
+  for (const spot of spots) {
+    const reach = spot.along + tuning.hazards.kartRadius + cfg.crusherMargin;
+    const ahead = (((spot.s - here.s) % geometry.length) + geometry.length) % geometry.length;
+    const d = ahead > geometry.length - reach ? ahead - geometry.length : ahead;
+    if (d > cfg.crusherLookAhead || d + reach <= 0 || d >= distance) continue;
+    if (Math.abs(here.lateral - spot.lateral) > spot.across + tuning.hazards.kartRadius) continue;
+    next = spot;
+    distance = d;
+  }
+  if (!next) return Infinity;
+  const reach = next.along + tuning.hazards.kartRadius + cfg.crusherMargin;
+  const enter = distance - reach;
+  // Committed: under it or at its edge, the way out is forwards.
+  if (enter <= 0) return Infinity;
+  const width = 2 * reach;
+  const speed = Math.max(kart.speed, MIN_SPEED);
+  const pass = Math.max(speed, cfg.crusherPassSpeed);
+  if (openThroughout(next.def, tick, enter / speed, enter / speed + width / pass)) return Infinity;
+  // Later: the first arrival (checked every PREDICT_TICKS, up to two cycles out) that crosses clear.
+  const horizon = 2 * next.def.period;
+  for (let at = enter / speed; at <= horizon; at += PREDICT_TICKS * DT) {
+    const arrive = enter / at;
+    if (openThroughout(next.def, tick, at, at + width / Math.max(arrive, cfg.crusherPassSpeed))) {
+      return arrive;
+    }
+  }
+  return Infinity;
 }
