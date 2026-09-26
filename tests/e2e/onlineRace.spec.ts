@@ -26,9 +26,9 @@ function results(s: TestState) {
     }));
 }
 
-/** The results screen's finished rows (with a time), without the "(you)" marker. */
+/** The room results' finished rows (with a time, MK-55), without the "(you)" marker. */
 async function resultRows(page: Page): Promise<string[]> {
-  const rows = page.locator('ol.results li');
+  const rows = page.locator('ol.online-results[data-final="true"] li');
   await expect(rows.first()).toBeVisible({ timeout: 10_000 });
   const texts = await rows.allInnerTexts();
   return texts
