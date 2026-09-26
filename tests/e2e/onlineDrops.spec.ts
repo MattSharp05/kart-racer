@@ -47,6 +47,27 @@ async function finalRows(page: Page): Promise<string[]> {
   return rows.map((text) => text.replace(' (you)', '').replace(/\s+/g, ' ').trim());
 }
 
+/** Remembers every toast this page shows (they go by themselves after a few seconds). */
+async function recordToasts(page: Page): Promise<void> {
+  await page.evaluate(() => {
+    const seen: string[] = [];
+    (window as unknown as { toasts: string[] }).toasts = seen;
+    new MutationObserver((records) => {
+      for (const record of records) {
+        for (const node of record.addedNodes) {
+          if (node instanceof HTMLElement && node.classList.contains('toast')) {
+            seen.push(node.textContent ?? '');
+          }
+        }
+      }
+    }).observe(document.body, { childList: true, subtree: true });
+  });
+}
+
+function toasts(page: Page): Promise<string[]> {
+  return page.evaluate(() => (window as unknown as { toasts: string[] }).toasts);
+}
+
 /** Opens room link `/?room=CODE&net=local` in a new page as `name` (a player coming back). */
 async function openRoomLink(context: BrowserContext, code: string, name: string): Promise<Page> {
   const page = await context.newPage();
@@ -77,14 +98,23 @@ test.describe('drops and rejoin', () => {
     await pauseAll(room.pages);
     await autopilotAll(room.pages);
     await stepAll(room.pages, 60 * 5);
-
-    // Bob's tab goes: it says bye on the way out, and the host hands kart 2 to the AI.
-    await bob.close();
     const stayers = [host, ann];
-    await stepAll(stayers, 30, { render: true });
+    for (const page of stayers) await recordToasts(page);
+
+    // Bob closes his tab: it says bye on the way out, and the host hands kart 2 to the AI.
+    await bob.close({ runBeforeUnload: true });
+    await expect
+      .poll(
+        async () => {
+          await stepAll(stayers, 30, { render: true });
+          return (await state(ann)).karts[2]?.controller;
+        },
+        { timeout: 60_000 },
+      )
+      .toBe('ai');
     for (const page of stayers) {
-      await expect(page.locator('.toast')).toHaveText('Bob disconnected — AI takes over');
       expect((await state(page)).karts[2]?.controller).toBe('ai');
+      await expect.poll(() => toasts(page)).toEqual(['Bob disconnected — AI takes over']);
     }
 
     // The race finishes as usual: 8 rows, the same on both pages.
@@ -120,7 +150,8 @@ test.describe('drops and rejoin', () => {
     const room = await openLobby(context, 3);
     const [host, ...clients] = room.pages as [Page, Page, Page];
     const closedAt = Date.now();
-    await host.close();
+    // Closing the tab (unload handlers run, as when a player closes it).
+    await host.close({ runBeforeUnload: true });
     for (const client of clients) {
       await expect(client.locator('.menu-online')).toBeVisible({
         timeout: Math.max(0, 6_000 - (Date.now() - closedAt)),
