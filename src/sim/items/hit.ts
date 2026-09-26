@@ -14,6 +14,11 @@ export function canBeHit(kart: KartState): boolean {
   );
 }
 
+/** Extra facts about a hit (`IncomingHit`): a crusher's hit is a `crush`. */
+export interface HitOptions {
+  crush?: boolean;
+}
+
 /** How a hit went: it landed, the kart couldn't be hit, or one of its effects blocked it. */
 export type HitResult = 'hit' | 'immune' | 'blocked';
 
@@ -24,9 +29,15 @@ export type HitResult = 'hit' | 'immune' | 'blocked';
  * cancels the hit (`blocked`: the kart is then briefly invulnerable, so whatever it touched can't
  * hit it again on the next tick).
  */
-export function tryHit(kart: KartState, by: number, kind: HitKind, events: SimEvent[]): HitResult {
+export function tryHit(
+  kart: KartState,
+  by: number,
+  kind: HitKind,
+  events: SimEvent[],
+  { crush = false }: HitOptions = {},
+): HitResult {
   if (!canBeHit(kart)) return 'immune';
-  if (effectsBlockHit(kart, { by, kind }, events)) {
+  if (effectsBlockHit(kart, { by, kind, crush }, events)) {
     kart.invulnerableTimer = Math.max(kart.invulnerableTimer, tuning.blockedHitInvulnerableSeconds);
     return 'blocked';
   }
@@ -41,6 +52,12 @@ export function tryHit(kart: KartState, by: number, kind: HitKind, events: SimEv
 }
 
 /** `tryHit`, true when the hit landed. */
-export function hitKart(kart: KartState, by: number, kind: HitKind, events: SimEvent[]): boolean {
-  return tryHit(kart, by, kind, events) === 'hit';
+export function hitKart(
+  kart: KartState,
+  by: number,
+  kind: HitKind,
+  events: SimEvent[],
+  options: HitOptions = {},
+): boolean {
+  return tryHit(kart, by, kind, events, options) === 'hit';
 }

@@ -35,6 +35,11 @@ export interface ItemView {
   /** A model drawn around a kart with one of its effects (a shield bubble), by `ItemEntityRenderer`. */
   effectModel?(effect: KartEffect): THREE.Object3D;
   /**
+   * How see-through a kart with one of its effects is drawn (1 = solid), at sim tick `tick` (a
+   * ghostly shimmer: Phase, MK-66). `KartRenderer` uses the lowest over the kart's effects.
+   */
+  kartOpacity?(effect: KartEffect, tick: number): number;
+  /**
    * Screen overlays on the affected player's HUD (MK-52, `ui/hud/screenEffects.ts`), keyed by an
    * effect id (shown while that effect lasts on the followed kart) or an `itemFx` name (shown for
    * `seconds` after the event).

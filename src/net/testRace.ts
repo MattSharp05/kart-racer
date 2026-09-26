@@ -98,5 +98,23 @@ export function scriptedInput(
   const lateral = Math.sin(tick / 70 + player * 1.7) * 3;
   const input = autopilotInput(kart, geometry, 1, lateral);
   const phase = (tick + player * 40) % 240;
-  return { ...input, drift: phase > 150 && phase < 200, item: phase === 100 };
+  // Pinned against a wall (a head-on hit can leave the autopilot pushing into it for good): ask
+  // for the pickup drone, as a player would.
+  const stuck =
+    kart.race.lap >= 1 &&
+    kart.race.finishTick === undefined &&
+    tick - kart.race.lapStartTick > STUCK_AFTER_TICKS &&
+    Math.abs(kart.speed) < STUCK_SPEED &&
+    kart.spinTimer === 0 &&
+    kart.respawnTimer === 0;
+  return {
+    ...input,
+    drift: phase > 150 && phase < 200,
+    item: phase === 100,
+    ...(stuck ? { respawn: true } : {}),
+  };
 }
+
+/** A scripted kart slower than this (m/s) this long into its lap (ticks) is stuck. */
+const STUCK_SPEED = 0.5;
+const STUCK_AFTER_TICKS = 180;

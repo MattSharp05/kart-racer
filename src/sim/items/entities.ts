@@ -5,6 +5,7 @@ import { getTrack, trackGeometry } from '../track';
 import { tuning } from '../tuning';
 import type { ItemEntity, KartState, SimEvent, SimState } from '../types';
 import { nextEntityId } from './banana';
+import { isIntangible } from './effects';
 import { hitKart } from './hit';
 import { steerTowards } from './shell';
 
@@ -149,9 +150,12 @@ export function spawnEntity(
   return entity;
 }
 
-/** Whether `kart` can touch `entity` now (the owner is skipped while immune and on the way back). */
+/**
+ * Whether `kart` can touch `entity` now (the owner is skipped while immune and on the way back; an
+ * intangible kart, MK-66, never touches it).
+ */
 export function canTouch(entity: ItemEntity, kart: KartState, spec: RegisteredEntitySpec): boolean {
-  if (kart.respawnTimer > 0) return false;
+  if (kart.respawnTimer > 0 || isIntangible(kart)) return false;
   if (kart.id === entity.ownerId && (entity.age <= spec.ownerImmuneTicks || entity.returning)) {
     return false;
   }
