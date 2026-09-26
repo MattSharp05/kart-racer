@@ -80,6 +80,9 @@ test.describe('online client prediction under lag', () => {
   test('?netdebug=1 shows RTT, loss, snapshot age, re-simulation and corrections', async ({
     browser,
   }) => {
+    // Two real-time, software-rendered pages on a busy CI runner: the RTT alone can take 15 s to
+    // settle, which leaves too little of the default 30 s for the rest.
+    test.setTimeout(60_000);
     const room = await openRoom(browser, 2, { netsim: NETSIM, netdebug: true, paused: false });
     const [host, client] = room.pages as [Page, Page];
     const overlay = client.getByTestId('net-debug');
