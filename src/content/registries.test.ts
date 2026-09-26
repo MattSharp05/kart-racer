@@ -16,6 +16,7 @@ import { racerViews } from './racers/render';
 import { Registry } from './registry';
 import { tracks } from './tracks';
 import { trackViews } from './tracks/render';
+import { trackFolderScenarios } from './tracks/scenarios';
 
 /** Content folders on disk: each `src/content/<kind>/<id>/` is one piece of content. */
 const folders = (kind: string) =>
@@ -80,6 +81,13 @@ describe('content registries', () => {
       existsSync(new URL(`./tracks/${id}/render.ts`, import.meta.url)),
     );
     expect(trackViews.ids().sort()).toEqual(withView);
+  });
+
+  it('list every track folder with a scenarios.ts in tracks/scenarios.ts (MK-58)', () => {
+    const withScenarios = folders('tracks').filter((id) =>
+      existsSync(new URL(`./tracks/${id}/scenarios.ts`, import.meta.url)),
+    );
+    expect(Object.keys(trackFolderScenarios).sort()).toEqual(withScenarios);
   });
 
   it('assemble odds rows that each sum to 1 from the items’ own odds', () => {

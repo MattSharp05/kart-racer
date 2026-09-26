@@ -5,15 +5,8 @@ import { menuScenarios } from './menus';
 import { onlineScenarios } from './online';
 import { raceScenarios } from './race';
 import { trackScenarios } from './tracks';
-import { ScenarioRegistry, type Scenario } from './registry';
-
-/** Tracks register their own scenarios from `src/content/tracks/<id>/scenarios.ts` (MK-58). */
-const trackFolderScenarios = Object.values(
-  import.meta.glob<Scenario[]>('../content/tracks/*/scenarios.ts', {
-    eager: true,
-    import: 'default',
-  }),
-).flat();
+import { ScenarioRegistry } from './registry';
+import { trackFolderScenarios } from '../content/tracks/scenarios';
 
 /** Every scenario in the game. Add new groups here. */
 export const scenarios = new ScenarioRegistry();
@@ -25,5 +18,5 @@ scenarios.register(
   ...itemScenarios,
   ...menuScenarios,
   ...onlineScenarios,
-  ...trackFolderScenarios,
+  ...Object.values(trackFolderScenarios).flat(),
 );
