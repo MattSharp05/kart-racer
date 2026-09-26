@@ -88,7 +88,7 @@ const scenarios: Scenario[] = [
     name: 'item-hornet-swarm-incoming',
     group: 'Items',
     description:
-      'Hornet Swarm (MK-67), on the receiving end: you lead, an AI 15 m behind sets a swarm off after 2 s. All three hornets chase you and the HUD shows an incoming warning next to the item slot; you get stung at most once every 0.5 s.',
+      'Hornet Swarm (MK-67), on the receiving end: you lead, an AI 15 m behind sets a swarm off after 2 s. All three hornets chase you and the HUD shows an incoming warning next to the item slot; you get stung at most once per wobble (0.6 s).',
     defaultSeed: 1,
     setup: (seed) => ({ state: hornetSwarmIncomingRace(seed) }),
   },

@@ -82,7 +82,7 @@ describe('Hornet Swarm (MK-67)', () => {
     expect(hornets(state)).toHaveLength(0);
   }, 30_000);
 
-  it('a sting is the tuned bump: speed × 0.7, a 0.6 s wobble, then 0.5 s unhittable', () => {
+  it('a sting is the tuned bump: speed × 0.7, a 0.6 s wobble, unhittable meanwhile', () => {
     let state = hornetsOnTarget(1);
     const events: SimEvent[] = [];
     const before = state.karts[1]!.speed;
@@ -94,6 +94,7 @@ describe('Hornet Swarm (MK-67)', () => {
     expect(target.speed).toBeCloseTo(before * STING_SPEED_FACTOR, 6);
     expect(target.spinTimer).toBe(0);
     expect(target.invulnerableTimer).toBe(STING_GAP_SECONDS);
+    expect(STING_GAP_SECONDS).toBeGreaterThanOrEqual(0.5);
     expect(hornets(state)).toHaveLength(0);
     // The wobble swings the heading and brings it back, then ends.
     const heading = target.heading;
@@ -274,6 +275,12 @@ describe('Hornet Swarm (MK-67)', () => {
       for (const id of [0, 2, 3]) {
         state.karts[id]!.position = geometry.pointAt(0.5, 0);
       }
+      expect(decide(state)).toBe(false);
+    });
+
+    it('holds it when leading, even with a lapped kart just ahead', () => {
+      const state = aiHolding();
+      state.positions = [1, 3, 2, 0];
       expect(decide(state)).toBe(false);
     });
 

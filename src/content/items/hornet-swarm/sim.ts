@@ -41,9 +41,10 @@ export const STING_WOBBLES = 2;
 export const STING_YAW = 2;
 /**
  * After a sting the kart can't be hit for this long (seconds, the kart's usual invulnerability,
- * like a blocked hit's): at most one sting per 0.5 s, so a swarm can't chain-stun anyone.
+ * like a blocked hit's 0.5 s): as long as the wobble, so a swarm can't chain-stun anyone (at most
+ * one sting per 0.5 s) and a new sting never cuts a wobble short and leaves the kart turned.
  */
-export const STING_GAP_SECONDS = 0.5;
+export const STING_GAP_SECONDS = STING_TICKS / S;
 
 /** AI: use it when 1–3 karts are within this many metres ahead. */
 export const AI_RANGE = 60;
@@ -102,8 +103,10 @@ export default {
       spawnEntity(state, 'hornet-swarm', kart, { direction, targetId });
     });
   },
-  // AI: when 1–3 karts are within 60 m ahead.
+  // AI: when 1–3 karts are within 60 m ahead (and it isn't leading).
   aiUse: (kart, state, { geometry, aheadMetres }) => {
+    // From 1st the hornets have no one to chase (they go by race position).
+    if (positionOf(state, kart.id) === 1) return false;
     const myS = geometry.project(kart.position).s;
     const ahead = state.karts.filter((other) => {
       if (other.id === kart.id) return false;
