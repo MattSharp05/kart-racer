@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 import { saveProfile } from '../game/profile';
-import { recordFinish } from '../game/results';
 import { MemoryStore } from '../game/storage/store';
 import { scenarios } from '../scenarios';
+import { raceTime } from '../sim/raceFlow';
 import {
   Leaderboard,
   parseBoard,
@@ -32,13 +32,12 @@ const BOARD_JSON = {
   you: { rank: 1, nickname: 'Ace', race_ms: 125432, best_lap_ms: 40000, you: true },
 };
 
-/** A finished ranked race: a profile, and the local kart's finish saved to the records. */
+/** A finished race, and a player with a profile. */
 function finishedRace() {
   const state = scenarios.get('race-finished')!.setup(1).state;
   const store = new MemoryStore();
   saveProfile(store, { nickname: 'Ace', colour: 'red' });
-  const update = recordFinish(store, state, 0);
-  return { state, store, update };
+  return { state, store };
 }
 
 describe('Leaderboard (MK-48)', () => {
@@ -147,10 +146,10 @@ describe('restRpc', () => {
 });
 
 describe('submitFinish (MK-48)', () => {
-  it("submits a personal best with the profile's nickname and the device id", async () => {
-    const { state, store, update } = finishedRace();
+  it("submits a finish with the profile's nickname and the device id", async () => {
+    const { state, store } = finishedRace();
     const rpc = vi.fn<RpcCall>().mockResolvedValue({ status: 'new' });
-    expect(await submitFinish(new Leaderboard(rpc), store, state, 0, update)).toBe('saved');
+    expect(await submitFinish(new Leaderboard(rpc), store, state, 0)).toBe('saved');
     const args = rpc.mock.calls[0]![1];
     const kart = state.karts[0]!;
     expect(args).toMatchObject({
@@ -163,25 +162,59 @@ describe('submitFinish (MK-48)', () => {
     expect(args.p_device_id).toMatch(/^[0-9a-f-]{36}$/);
   });
 
-  it('skips a race that set no personal best, and a player with no profile', async () => {
-    const { state, store, update } = finishedRace();
+  it('submits only personal bests: the same race again sends nothing', async () => {
+    const { state, store } = finishedRace();
     const rpc = vi.fn<RpcCall>().mockResolvedValue({ status: 'new' });
     const leaderboard = new Leaderboard(rpc);
-    // The same race again is no faster: no new record, nothing sent.
-    const again = recordFinish(store, state, 0);
-    expect(again?.newRace || again?.newLap).toBe(false);
-    expect(await submitFinish(leaderboard, store, state, 0, again)).toBe('skipped');
-    expect(await submitFinish(leaderboard, new MemoryStore(), state, 0, update)).toBe('skipped');
-    expect(await submitFinish(leaderboard, store, state, 0, undefined)).toBe('skipped');
+    expect(await submitFinish(leaderboard, store, state, 0)).toBe('saved');
+    expect(await submitFinish(leaderboard, store, state, 0)).toBe('skipped');
+    expect(rpc).toHaveBeenCalledTimes(1);
+    // A faster race is a personal best again.
+    const faster = structuredClone(state);
+    faster.race.goTick += 60;
+    expect(await submitFinish(leaderboard, store, faster, 0)).toBe('saved');
+    expect(rpc).toHaveBeenCalledTimes(2);
+  });
+
+  it('skips a player with no profile, and a kart that has not finished', async () => {
+    const { state } = finishedRace();
+    const rpc = vi.fn<RpcCall>().mockResolvedValue({ status: 'new' });
+    const leaderboard = new Leaderboard(rpc);
+    expect(await submitFinish(leaderboard, new MemoryStore(), state, 0)).toBe('skipped');
+    const racing = structuredClone(state);
+    delete racing.karts[0]!.race.finishTick;
+    expect(await submitFinish(leaderboard, finishedRace().store, racing, 0)).toBe('skipped');
     expect(rpc).not.toHaveBeenCalled();
   });
 
   it('never throws when the leaderboard is offline or missing', async () => {
-    const { state, store, update } = finishedRace();
+    const { state, store } = finishedRace();
     const offline = new Leaderboard(() => Promise.reject(new TypeError('Failed to fetch')));
-    await expect(submitFinish(offline, store, state, 0, update)).resolves.toBe('unavailable');
-    await expect(submitFinish(new Leaderboard(null), store, state, 0, update)).resolves.toBe(
-      'unavailable',
+    await expect(submitFinish(offline, store, state, 0)).resolves.toBe('unavailable');
+    await expect(submitFinish(new Leaderboard(null), store, state, 0)).resolves.toBe('unavailable');
+  });
+
+  it('keeps a personal best it could not send, and sends it with the next finish', async () => {
+    const { state, store } = finishedRace();
+    const offline = new Leaderboard(() => Promise.reject(new TypeError('Failed to fetch')));
+    expect(await submitFinish(offline, store, state, 0)).toBe('unavailable');
+    // Back online, a slower race: the kept, faster one goes instead.
+    const slower = structuredClone(state);
+    slower.race.goTick -= 600;
+    const rpc = vi.fn<RpcCall>().mockResolvedValue({ status: 'new' });
+    expect(await submitFinish(new Leaderboard(rpc), store, slower, 0)).toBe('saved');
+    expect(rpc.mock.calls[0]![1].p_race_ms).toBe(
+      Math.round(raceTime(state, state.karts[0]!.race.finishTick) * 1000),
     );
+    // Sent: nothing is kept any more.
+    expect(await submitFinish(new Leaderboard(rpc), store, slower, 0)).toBe('skipped');
+  });
+
+  it('drops a race the server rejects; the next finish is tried on its own', async () => {
+    const { state, store } = finishedRace();
+    const rejecting = vi.fn<RpcCall>().mockResolvedValue({ status: 'rejected' });
+    expect(await submitFinish(new Leaderboard(rejecting), store, state, 0)).toBe('rejected');
+    const rpc = vi.fn<RpcCall>().mockResolvedValue({ status: 'new' });
+    expect(await submitFinish(new Leaderboard(rpc), store, state, 0)).toBe('saved');
   });
 });

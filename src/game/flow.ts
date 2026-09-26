@@ -94,9 +94,10 @@ export class Flow {
   private readonly leaderboard = supabaseLeaderboard();
   /**
    * Whether the race running now counts for the leaderboard: one started from the menus or a
-   * room. Scenario races (dev and QA links) never do.
+   * room. Nothing on a page opened from a scenario link (dev and QA) ever does.
    */
   private ranked = false;
+  private scenarioPage = false;
   private readonly rooms: RoomFlow;
   /** When this device's online race began connecting (`performance.now()`), 0 when not racing online. */
   private onlineSince = 0;
@@ -195,6 +196,7 @@ export class Flow {
 
   /** Opens the launch screen (menus or a direct race). */
   open(launch: Launch): void {
+    this.scenarioPage = launch.scenario !== undefined;
     const game = this.session.game;
     this.pauseButton.hidden = launch.screen !== undefined || launch.state.phase === 'free';
     switch (launch.screen) {
@@ -340,7 +342,7 @@ export class Flow {
     this.raceCount += 1;
     this.screens.hide();
     this.beforeLoad();
-    this.ranked = true;
+    this.ranked = !this.scenarioPage;
     this.session.startRace({
       seed: DEFAULT_SEED + this.raceCount,
       engineClass: this.chosenCc,
@@ -358,7 +360,7 @@ export class Flow {
   private readonly startOnlineRace = (launch: OnlineLaunch): void => {
     this.screens.hide();
     this.beforeLoad();
-    this.ranked = true;
+    this.ranked = !this.scenarioPage;
     const state = createRace(launch.race);
     this.session.load(state);
     this.world.reset('chase', localKartOf(state));
@@ -586,8 +588,7 @@ export class Flow {
     const finished = events.find((e) => e.type === 'finish' && e.kartId === me);
     if (finished) {
       this.recordUpdate = recordFinish(this.store, state, me);
-      if (this.ranked)
-        void submitFinish(this.leaderboard, this.store, state, me, this.recordUpdate);
+      if (this.ranked) void submitFinish(this.leaderboard, this.store, state, me);
       this.resultsTimer = window.setTimeout(this.showResults, RESULTS_DELAY_MS);
     }
   }

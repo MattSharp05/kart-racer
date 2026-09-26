@@ -1,6 +1,5 @@
 import { deviceId, readProfile } from '../game/profile';
-import type { RecordUpdate } from '../game/storage/records';
-import type { KeyValueStore } from '../game/storage/store';
+import { readJson, type KeyValueStore } from '../game/storage/store';
 import { raceTime } from '../sim/raceFlow';
 import type { SimState } from '../sim/types';
 
@@ -191,33 +190,62 @@ export function supabaseLeaderboard(): Leaderboard {
   return new Leaderboard(config ? restRpc(config.url, config.key) : null);
 }
 
-/**
- * Submits the local kart's finished race if it set a personal best (MK-44's `update`) and the
- * player has a profile (the board shows their nickname). Races loaded from a scenario never
- * count: the caller only passes ranked races.
- */
-export function submitFinish(
-  leaderboard: Leaderboard,
+/** What this device has on a board, as far as it knows (ms), and a submit still to send. */
+interface BoardMemory {
+  submitted?: { raceMs: number; bestLapMs: number };
+  pending?: LeaderboardEntry;
+}
+
+const memoryKey = (trackId: string, engineClass: number) =>
+  `kart-racer:leaderboard:${trackId}:${engineClass}`;
+
+function readMemory(store: KeyValueStore, trackId: string, engineClass: number): BoardMemory {
+  const { submitted, pending } = readJson(store, memoryKey(trackId, engineClass));
+  const memory: BoardMemory = {};
+  const s = submitted as Record<string, unknown> | undefined;
+  if (typeof s?.raceMs === 'number' && typeof s.bestLapMs === 'number') {
+    memory.submitted = { raceMs: s.raceMs, bestLapMs: s.bestLapMs };
+  }
+  const p = pending as Record<string, unknown> | undefined;
+  if (
+    typeof p?.raceTime === 'number' &&
+    typeof p.bestLap === 'number' &&
+    typeof p.laps === 'number'
+  ) {
+    memory.pending = { ...(p as unknown as LeaderboardEntry) };
+  }
+  return memory;
+}
+
+function writeMemory(
+  store: KeyValueStore,
+  trackId: string,
+  engineClass: number,
+  memory: BoardMemory,
+) {
+  store.set(memoryKey(trackId, engineClass), JSON.stringify(memory));
+}
+
+/** Whether `entry` would improve what this device has on the board (its race or its best lap). */
+function beats(entry: LeaderboardEntry, submitted: BoardMemory['submitted']): boolean {
+  return (
+    !submitted ||
+    toMs(entry.raceTime) < submitted.raceMs ||
+    toMs(entry.bestLap) < submitted.bestLapMs
+  );
+}
+
+/** The local kart's finished race as a leaderboard entry; null without a finish or a profile. */
+export function finishedEntry(
   store: KeyValueStore,
   state: SimState,
   kartId: number,
-  update: RecordUpdate | undefined,
-): Promise<SubmitOutcome> {
+): LeaderboardEntry | null {
   const kart = state.karts[kartId];
   const profile = readProfile(store);
   const finishTick = kart?.race.finishTick;
-  const personalBest = update !== undefined && (update.newRace || update.newLap);
-  if (
-    !kart ||
-    finishTick === undefined ||
-    !kart.race.lapTimes.length ||
-    !personalBest ||
-    !profile
-  ) {
-    return Promise.resolve('skipped');
-  }
-  if (!leaderboard.enabled) return Promise.resolve('unavailable');
-  return leaderboard.submit({
+  if (!kart || finishTick === undefined || !kart.race.lapTimes.length || !profile) return null;
+  return {
     trackId: state.trackId,
     engineClass: state.engineClass,
     nickname: profile.nickname,
@@ -225,5 +253,46 @@ export function submitFinish(
     laps: state.race.laps,
     raceTime: raceTime(state, finishTick),
     bestLap: Math.min(...kart.race.lapTimes),
-  });
+  };
+}
+
+/**
+ * Submits the local kart's finished race if it improves this device's row on the board (its race
+ * time or best lap), and the player has a profile (the board shows their nickname). Races loaded
+ * from a scenario never count: the caller only passes ranked races.
+ *
+ * A submit that can't reach the server is kept and sent with the next finish on that board (the
+ * faster of the two races), so a personal best set offline, or before the SQL was applied, still
+ * gets there. One the server rejects is dropped.
+ */
+export async function submitFinish(
+  leaderboard: Leaderboard,
+  store: KeyValueStore,
+  state: SimState,
+  kartId: number,
+): Promise<SubmitOutcome> {
+  const entry = finishedEntry(store, state, kartId);
+  if (!entry) return 'skipped';
+  const { trackId, engineClass } = entry;
+  const memory = readMemory(store, trackId, engineClass);
+  const candidates = [entry, memory.pending].filter(
+    (e): e is LeaderboardEntry => e !== undefined && beats(e, memory.submitted),
+  );
+  const best = candidates.sort((a, b) => a.raceTime - b.raceTime)[0];
+  if (!best) return 'skipped';
+  // Sent under today's nickname, and saved first in case the page closes mid-request.
+  const send = { ...best, nickname: entry.nickname, deviceId: entry.deviceId };
+  writeMemory(store, trackId, engineClass, { ...memory, pending: send });
+  const outcome = await leaderboard.submit(send);
+  if (outcome === 'unavailable') return outcome;
+  const was = memory.submitted;
+  const submitted =
+    outcome === 'rejected'
+      ? was
+      : {
+          raceMs: Math.min(toMs(send.raceTime), was?.raceMs ?? Infinity),
+          bestLapMs: Math.min(toMs(send.bestLap), was?.bestLapMs ?? Infinity),
+        };
+  writeMemory(store, trackId, engineClass, submitted ? { submitted } : {});
+  return outcome;
 }
