@@ -19,7 +19,14 @@ test('how to play, touch version (paused)', async ({ page }, info) => {
   await expect(page).toHaveScreenshot(`menu-how-to-play-${info.project.name}.png`);
 });
 
-for (const name of ['menu-title', 'racer-select', 'race-finished', 'settings', 'menu-paused']) {
+for (const name of [
+  'menu-title',
+  'racer-select',
+  'track-select',
+  'race-finished',
+  'settings',
+  'menu-paused',
+]) {
   test(`${name} on phones (paused)`, async ({ page }, info) => {
     await loadScenario(page, name, { paused: true });
     await page.waitForTimeout(600);

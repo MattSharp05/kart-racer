@@ -18,6 +18,8 @@ export interface TrackContent {
   name: string;
   order: number;
   def: TrackDef;
+  /** Its hazard or feature in a few words, for the track select card (MK-50). */
+  hazard?: string;
   /** Test fixtures (handling pad, oval): not offered in menus. */
   testOnly?: boolean;
   /** Sky, light, palette and scenery (MK-49); Sunny Circuit's look when absent. */

@@ -232,6 +232,7 @@ const theme: TrackTheme = {
 export default {
   id: duneCanyon.id,
   name: 'Dune Canyon',
+  hazard: 'Sandstorms sweep the road',
   order: 20,
   def: duneCanyon,
   theme,

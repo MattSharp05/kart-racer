@@ -10,7 +10,7 @@ import { trackGeometry } from '../sim/track';
 import { rngInt, rngPick } from '../sim/rng';
 import { DT, tuning, type EngineClass } from '../sim/tuning';
 import { NEUTRAL_INPUT, type SimState } from '../sim/types';
-import { recordStorage } from '../game/storage/records';
+import { recordStorage, type TrackRecord } from '../game/storage/records';
 import type { Scenario } from './registry';
 
 const sunny = trackGeometry(sunnyCircuit);
@@ -23,11 +23,13 @@ export interface RaceOptions {
   ai?: boolean;
   engineClass?: EngineClass;
   playerKart?: KartId;
+  /** The track (MK-50 track select); Sunny Circuit by default. */
+  trackId?: string;
 }
 
 /**
- * A race on Sunny Circuit from the grid, in countdown: a thin wrapper around `createRace` (MK-38).
- * Player = kart 0 (`local`). With AI, the grid order is shuffled (seeded) and the player starts
+ * A race from the grid, in countdown, on Sunny Circuit unless `trackId` says otherwise (MK-50): a
+ * thin wrapper around `createRace` (MK-38). Player = kart 0 (`local`). With AI, the grid order is shuffled (seeded) and the player starts
  * 5th–8th, as in a real race; otherwise the player is on pole and the others are parked dummies
  * (`remote`: they only move when a test drives them).
  */
@@ -37,6 +39,7 @@ export function sunnyRace(seed: number, options: RaceOptions | number = {}): Sim
     ai = false,
     engineClass = 100,
     playerKart = 'maple',
+    trackId = sunnyCircuit.id,
   } = typeof options === 'number' ? { karts: options } : options;
   const rng = raceSetupRng(seed);
   const playerSlot = ai && karts >= 5 ? rngInt(rng, 4, Math.min(7, karts - 1)) : 0;
@@ -50,7 +53,7 @@ export function sunnyRace(seed: number, options: RaceOptions | number = {}): Sim
     };
   });
   return createRace({
-    trackId: sunnyCircuit.id,
+    trackId,
     racers,
     engineClass,
     itemsOn: true,
@@ -98,6 +101,12 @@ function placeOnLap(
     lastT: wrapped,
   };
 }
+
+/** The saved records of `records-has-best` (and `track-select-records`, MK-50): Sunny, 100cc. */
+export const SAVED_RECORDS: TrackRecord = {
+  race: { time: 160, kart: 'boulder', date: '2026-09-01' },
+  lap: { time: 48, kart: 'swoop', date: '2026-09-01' },
+};
 
 /** Lap 2 with the player `gap` m ahead (+) or behind (−) a pack of 7 AI. */
 function gapRace(seed: number, gap: number): SimState {
@@ -202,10 +211,7 @@ export const raceScenarios: Scenario[] = [
       const state = finalStraight(seed);
       return {
         state,
-        storage: recordStorage(state.trackId, state.engineClass, {
-          race: { time: 160, kart: 'boulder', date: '2026-09-01' },
-          lap: { time: 48, kart: 'swoop', date: '2026-09-01' },
-        }),
+        storage: recordStorage(state.trackId, state.engineClass, SAVED_RECORDS),
       };
     },
   },

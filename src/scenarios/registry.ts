@@ -7,6 +7,7 @@ export type MenuScreen =
   | 'title'
   | 'racerSelect'
   | 'ccSelect'
+  | 'trackSelect'
   | 'paused'
   | 'howToPlay'
   | 'settings'

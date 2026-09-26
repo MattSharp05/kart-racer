@@ -64,6 +64,7 @@ test.describe('touch controls', () => {
     await page.locator('.menu-title button.primary').click();
     await page.locator('.menu-racerSelect button.primary').click();
     await page.locator('.menu-ccSelect button', { hasText: '100' }).click();
+    await page.locator('.menu-trackSelect button.primary').click();
     await expect(page.locator('.touch-controls')).toBeVisible();
     // Hit-test the centre of each control the way a finger would: nothing (such as an emptied
     // menu overlay) may sit on top of it.

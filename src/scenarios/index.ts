@@ -6,6 +6,7 @@ import { onlineScenarios } from './online';
 import { raceScenarios } from './race';
 import { racerSelectScenarios } from './racerSelect';
 import { trackScenarios } from './tracks';
+import { trackSelectScenarios } from './trackSelect';
 import { ScenarioRegistry } from './registry';
 import { itemFolderScenarios } from '../content/items/scenarios';
 import { trackFolderScenarios } from '../content/tracks/scenarios';
@@ -20,6 +21,7 @@ scenarios.register(
   ...itemScenarios,
   ...menuScenarios,
   ...racerSelectScenarios,
+  ...trackSelectScenarios,
   ...onlineScenarios,
   ...Object.values(trackFolderScenarios).flat(),
   ...Object.values(itemFolderScenarios).flat(),

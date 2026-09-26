@@ -1,0 +1,54 @@
+/* Track select (MK-50): as wide as the racer select; a 3-column grid, one scrolling row on phones. */
+.menu-panel.menu-trackSelect {
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  box-sizing: border-box;
+  width: min(100%, 780px);
+  max-width: none;
+  background: rgb(0 0 0 / 0.72);
+}
+
+.track-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  width: 100%;
+  max-height: 100%;
+  /* Room for the focus ring (4 px, 3 px out) inside the scroll box. */
+  padding: 8px;
+  box-sizing: border-box;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* Short landscape phones: one row of cards that scrolls sideways. */
+@media (max-height: 430px) {
+  .menu-panel.menu-trackSelect {
+    gap: 6px;
+    padding-top: 10px;
+    padding-bottom: 10px;
+  }
+
+  .track-grid {
+    grid-template-columns: none;
+    grid-auto-flow: column;
+    grid-auto-columns: 148px;
+    overflow: auto hidden;
+    scroll-snap-type: x proximity;
+  }
+
+  .track-grid .track-card {
+    scroll-snap-align: start;
+  }
+}
+
+.track-select-head {
+  display: grid;
+  justify-items: center;
+}
+
+.track-select-note {
+  margin: 0;
+  font-weight: 400;
+  font-size: 13px;
+  opacity: 0.8;
+}

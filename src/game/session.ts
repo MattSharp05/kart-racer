@@ -162,6 +162,8 @@ export interface RaceConfig {
   seed: number;
   engineClass: EngineClass;
   playerKart: KartId;
+  /** A registered track (MK-50). */
+  trackId: string;
 }
 
 /**
@@ -230,6 +232,7 @@ export class RaceSession {
         ai: true,
         engineClass: config.engineClass,
         playerKart: config.playerKart,
+        trackId: config.trackId,
       }),
     );
   }
