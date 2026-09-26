@@ -1,5 +1,6 @@
 import type { Scenario } from '../../scenarios/registry';
 import canopyRush from './canopy-rush/scenarios';
+import cogWorks from './cog-works/scenarios';
 import duneCanyon from './dune-canyon/scenarios';
 import frostpeakPass from './frostpeak-pass/scenarios';
 import neonHarbour from './neon-harbour/scenarios';
@@ -12,6 +13,7 @@ import neonHarbour from './neon-harbour/scenarios';
 // One entry per track folder that has a `scenarios.ts`, alphabetical (a unit test checks).
 export const trackFolderScenarios: Record<string, Scenario[]> = {
   'canopy-rush': canopyRush,
+  'cog-works': cogWorks,
   'dune-canyon': duneCanyon,
   'frostpeak-pass': frostpeakPass,
   'neon-harbour': neonHarbour,
