@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { HAZARD_TEST, hazardTest } from '../../content/tracks/hazard-test/sim';
 import { createSimState, type KartSpawn } from '../state';
+import { updateKart } from '../kart';
 import { step } from '../step';
+import { getTrack } from '../track';
 import { tuning } from '../tuning';
 import { NEUTRAL_INPUT, type InputFrame, type SimEvent, type SimState } from '../types';
-import { hazardGrip, hazardKinds, hazardPose, trackHazards } from '.';
-import type { MoverHazard, PeriodicHazard, ZoneEffectHazard } from './types';
+import { hazardGrip, hazardKinds, hazardPose, hazardPush, trackHazards } from '.';
+import type { MoverHazard, PeriodicHazard, SwayHazard, ZoneEffectHazard } from './types';
 
 const hazards = trackHazards(hazardTest);
 const byKind = <K extends string>(kind: K) => hazards.find((h) => h.kind === kind)!;
@@ -31,8 +33,8 @@ const hazardHits = (events: SimEvent[], kartId = 0) =>
   events.filter((e) => e.type === 'kartHit' && e.kartId === kartId && e.kind === 'hazard');
 
 describe('track hazards (MK-49)', () => {
-  it('registers the four kinds, and unknown kinds throw', () => {
-    expect(hazardKinds.ids()).toEqual(['mover', 'periodic', 'rotator', 'zoneEffect']);
+  it('registers the five kinds, and unknown kinds throw', () => {
+    expect(hazardKinds.ids()).toEqual(['mover', 'periodic', 'rotator', 'sway', 'zoneEffect']);
     expect(() => hazardKinds.get('volcano')).toThrow(/Unknown hazard kind/);
   });
 
@@ -172,5 +174,89 @@ describe('track hazards (MK-49)', () => {
 
   it('karts on tracks without hazards are untouched (no grip change, no events)', () => {
     expect(trackHazards({ id: 'x', kind: 'arena', halfSize: 10, groundHeight: 0 })).toEqual([]);
+  });
+
+  it('a swaying deck leans as a sine of the tick and pushes karts on it that way, most mid-span (MK-61)', () => {
+    // 40 m running east (+X), so its right is +Z; one full sway every 2 s.
+    const deck: SwayHazard = {
+      kind: 'sway',
+      from: { x: 0, y: 5, z: 0 },
+      to: { x: 40, y: 5, z: 0 },
+      halfWidth: 6,
+      period: 2,
+      push: 10,
+    };
+    const quarter = 30;
+    expect(hazardPose(deck, quarter).amount).toBeCloseTo(1, 6);
+    expect(hazardPose(deck, 3 * quarter).amount).toBeCloseTo(-1, 6);
+    expect(hazardPose(deck, 0).amount).toBeCloseTo(0, 6);
+    const mid = { x: 20, y: 5, z: 2 };
+    expect(hazardPush([deck], quarter, mid)).toEqual({ x: expect.closeTo(0, 6), z: 10 });
+    expect(hazardPush([deck], 3 * quarter, mid)!.z).toBeCloseTo(-10, 6);
+    expect(hazardPush([deck], quarter, { ...mid, x: 4 })!.z).toBeCloseTo(
+      10 * Math.sin(Math.PI / 10),
+      6,
+    );
+    // Off the deck, beyond its ends, or far below it: nothing.
+    for (const off of [
+      { ...mid, z: 7 },
+      { ...mid, x: -1 },
+      { ...mid, x: 41 },
+      { ...mid, y: 0 },
+    ]) {
+      expect(hazardPush([deck], quarter, off)).toBeUndefined();
+    }
+  });
+
+  it('a grounded kart on a leaning deck is shoved sideways; with no deck it drives straight', () => {
+    const deck: SwayHazard = {
+      kind: 'sway',
+      from: { x: 0, y: 0, z: 0 },
+      to: { x: 0, y: 0, z: -200 },
+      halfWidth: 20,
+      period: 8,
+      push: 20,
+    };
+    const pushed = createSimState({
+      seed: 1,
+      trackId: 'test-pad',
+      karts: [{ position: { x: 0, y: 0, z: -90 } }],
+    });
+    const kart = pushed.karts[0]!;
+    const env = (tick: number) => ({
+      tick,
+      grip: 1,
+      push: hazardPush([deck], tick, kart.position),
+    });
+    for (let tick = 1; tick <= 60; tick += 1) {
+      updateKart(
+        kart,
+        { ...NEUTRAL_INPUT, throttle: 1 },
+        100,
+        getTrack('test-pad'),
+        1 / 60,
+        [],
+        env(tick),
+      );
+    }
+    // Leaning right (+X for a deck running north) the whole first second.
+    expect(kart.position.x).toBeGreaterThan(0.5);
+    const straight = createSimState({
+      seed: 1,
+      trackId: 'test-pad',
+      karts: [{ position: { x: 0, y: 0, z: -90 } }],
+    }).karts[0]!;
+    for (let tick = 1; tick <= 60; tick += 1) {
+      updateKart(
+        straight,
+        { ...NEUTRAL_INPUT, throttle: 1 },
+        100,
+        getTrack('test-pad'),
+        1 / 60,
+        [],
+        { tick, grip: 1 },
+      );
+    }
+    expect(Math.abs(straight.position.x)).toBeLessThan(1e-6);
   });
 });

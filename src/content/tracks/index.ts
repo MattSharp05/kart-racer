@@ -1,5 +1,6 @@
 import type { TrackDef } from '../../sim/track';
 import { Registry } from '../registry';
+import canopyRush from './canopy-rush/sim';
 import duneCanyon from './dune-canyon/sim';
 import frostpeakPass from './frostpeak-pass/sim';
 import hazardTest from './hazard-test/sim';
@@ -27,6 +28,7 @@ export const tracks = new Registry<TrackContent>('track');
 
 // One line per track folder, alphabetical (a unit test checks none is missing).
 for (const track of [
+  canopyRush,
   duneCanyon,
   frostpeakPass,
   hazardTest,

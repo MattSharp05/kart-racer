@@ -234,6 +234,11 @@ export const tuning = {
     skillMax: 1.0,
     skillMin150: 0.92,
     lineOffsetMax: 1.5,
+    // Routes (MK-61): another way round part of a lap, e.g. a lower path through ruins.
+    /** An AI that has chosen a route joins it within this of the route's edge, m. */
+    routeCapture: 4,
+    /** It goes back to the racing line this far before the route's end (rejoined the road), m. */
+    routeEndMargin: 8,
     /**
      * The driver that takes over a dropped online player's kart (MK-70): a fixed mid-pack
      * personality, not a seeded one, so the host and every client hand the kart over identically.
