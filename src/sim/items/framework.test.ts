@@ -68,6 +68,7 @@ describe('item framework (MK-52)', () => {
       'phase',
       'magnet',
       'ink-cloud',
+      'boomerang',
     ];
     const table = oddsTable();
     // Columns: mushroom banana green red star lightning; rows: 1st … 8th place.

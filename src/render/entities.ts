@@ -49,6 +49,7 @@ export class ItemEntityRenderer {
       model.position.set(e.position.x, e.position.y + 0.4, e.position.z);
       // Heading 0 faces −Z (see CLAUDE.md units).
       model.rotation.y = Math.atan2(-e.direction.x, -e.direction.z) + (e.speed ? 0 : time);
+      this.animate(model, e);
     }
     for (const [id, model] of this.entities) {
       if (seen.has(id)) continue;
@@ -85,6 +86,12 @@ export class ItemEntityRenderer {
     const item = entitySpecs.get(entity.spec).item;
     const view = itemViews.has(item) ? itemViews.get(item) : undefined;
     return view?.entityModel?.(entity) ?? defaultModel();
+  }
+
+  /** The item view's per-frame touch to an entity's model (a boomerang's spin, MK-69). */
+  private animate(model: THREE.Object3D, entity: ItemEntity): void {
+    const item = entitySpecs.get(entity.spec).item;
+    if (itemViews.has(item)) itemViews.get(item).animateEntity?.(model, entity);
   }
 
   private effectModel(effect: KartEffect): THREE.Object3D | undefined {
