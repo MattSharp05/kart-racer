@@ -6,6 +6,7 @@ import { onlineScenarios } from './online';
 import { raceScenarios } from './race';
 import { trackScenarios } from './tracks';
 import { ScenarioRegistry } from './registry';
+import { itemFolderScenarios } from '../content/items/scenarios';
 import { trackFolderScenarios } from '../content/tracks/scenarios';
 
 /** Every scenario in the game. Add new groups here. */
@@ -19,4 +20,5 @@ scenarios.register(
   ...menuScenarios,
   ...onlineScenarios,
   ...Object.values(trackFolderScenarios).flat(),
+  ...Object.values(itemFolderScenarios).flat(),
 );
