@@ -17,7 +17,7 @@ function haze(): THREE.Object3D {
     new THREE.MeshBasicMaterial({
       color: '#b8a4ff',
       transparent: true,
-      opacity: 0.35,
+      opacity: 0.22,
       wireframe: true,
       depthWrite: false,
       blending: THREE.AdditiveBlending,

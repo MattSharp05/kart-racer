@@ -14,7 +14,7 @@ const RACING_TICKS = 30 * 60;
  * The race these checks sample. The race depends on the whole item table (every item added moves
  * the roulette), and the thresholds sit close to the spread across races: on main before MK-66,
  * seeds 1, 2, 3 and 8 of 1–8 passed. Seed 8 passes with and without MK-66's items (MK-66 moved
- * it off seed 1, where a human-vs-human grind now lands in the 30 s).
+ * it off seed 1, where a human-vs-human grind now lands in the 30 s). MK-86 makes this robust.
  */
 const SEED = 8;
 
