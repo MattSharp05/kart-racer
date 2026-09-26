@@ -40,7 +40,7 @@ function onLine(state: SimState, id: number, t: number, lane: number, speed: num
  * A race 20 s in on Sunny Circuit's main straight with `karts` karts in a line, `GAP` m apart,
  * all at the same speed; `order` lists kart ids from the back. Nobody holds an item.
  */
-function straightRace(seed: number, order: number[]): SimState {
+export function straightRace(seed: number, order: number[]): SimState {
   const state = sunnyRace(seed, { karts: order.length, ai: true });
   state.phase = 'racing';
   state.race.goTick = -Math.round(20 / DT);
