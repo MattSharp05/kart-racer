@@ -14,6 +14,11 @@ const zoneEffect: HazardKind<ZoneEffectHazard> = {
     const inside = Math.hypot(position.x - def.centre.x, position.z - def.centre.z) <= def.radius;
     return inside ? def.grip : 1;
   },
+  secondsUntilOn(def, ticks) {
+    const phase = cyclePhase(ticks, def.period, def.phase);
+    return phase < def.activeFraction ? 0 : (1 - phase) * def.period;
+  },
+  warning: (def) => def.warning,
 };
 
 export default zoneEffect;

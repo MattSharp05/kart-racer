@@ -7,6 +7,7 @@ import type {
   RotatorHazard,
   ZoneEffectHazard,
 } from '../../sim/hazards/types';
+import { DT } from '../../sim/tuning';
 
 /**
  * How one hazard kind is drawn (MK-49): a model built once per hazard, posed every frame from the
@@ -16,12 +17,16 @@ export interface HazardView<D extends HazardDef = HazardDef> {
   id: D['kind'];
   /** The model, at the origin; `night` = the track has a night theme (use glowing materials). */
   create(def: D, night: boolean): THREE.Object3D;
-  /** Poses `object` for this frame. Visibility hazards return a fog distance (m) to apply. */
+  /**
+   * Poses `object` for this frame, at `ticks` (fractional). Visibility hazards return a fog
+   * distance (m) to apply.
+   */
   update(
     object: THREE.Object3D,
     def: D,
     pose: HazardPose,
     camera: THREE.Vector3,
+    ticks: number,
   ): number | undefined;
 }
 
@@ -123,27 +128,92 @@ export const periodicView: HazardView<PeriodicHazard> = {
   },
 };
 
-/** A swirling translucent dome; while on, it thickens the fog for a camera inside it. */
+/** Dust: this many specks in a box this big (m) that travels with the camera, blown along +X. */
+const DUST_COUNT = 1500;
+const DUST_BOX = { half: 30, height: 10 };
+const DUST_WIND = { x: 14, z: 4 };
+
+/** Wraps `value` into [−half, half). */
+const wrap = (value: number, half: number) =>
+  value - Math.floor((value + half) / (2 * half)) * 2 * half;
+
+/**
+ * A swirling translucent dome; while on, it thickens the fog for a camera inside it, and with a
+ * `dust` colour, specks of dust blow past the camera (one draw, moved from the tick: no state).
+ */
 export const zoneEffectView: HazardView<ZoneEffectHazard> = {
   id: 'zoneEffect',
   create(def) {
     const dome = new THREE.Mesh(
       new THREE.SphereGeometry(def.radius, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2),
       new THREE.MeshBasicMaterial({
-        color: 0xe0b070,
+        color: def.dust ?? 0xe0b070,
         transparent: true,
         opacity: 0.25,
         depthWrite: false,
         side: THREE.DoubleSide,
       }),
     );
-    return dome;
+    if (def.dust === undefined) return dome;
+    const group = new THREE.Group();
+    dome.name = 'dome';
+    // Fixed scatter (a hash, not Math.random) so screenshots are stable.
+    const base = new Float32Array(DUST_COUNT * 3);
+    for (let i = 0; i < DUST_COUNT; i += 1) {
+      const h = (n: number) => {
+        const v = Math.sin((i + 1) * 12.9898 + n * 78.233) * 43758.5453;
+        return v - Math.floor(v);
+      };
+      base[i * 3] = (h(1) * 2 - 1) * DUST_BOX.half;
+      base[i * 3 + 1] = h(2) * DUST_BOX.height;
+      base[i * 3 + 2] = (h(3) * 2 - 1) * DUST_BOX.half;
+    }
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute('position', new THREE.BufferAttribute(base.slice(), 3));
+    geometry.userData.base = base;
+    const dust = new THREE.Points(
+      geometry,
+      new THREE.PointsMaterial({
+        color: def.dust,
+        size: 0.12,
+        transparent: true,
+        opacity: 0.85,
+        depthWrite: false,
+      }),
+    );
+    dust.name = 'dust';
+    dust.frustumCulled = false;
+    group.add(dome, dust);
+    return group;
   },
-  update(object, def, pose, camera) {
+  update(object, def, pose, camera, ticks) {
     object.position.set(pose.x, pose.y, pose.z);
     object.visible = pose.amount > 0;
     if (pose.amount === 0) return undefined;
     const inside = Math.hypot(camera.x - def.centre.x, camera.z - def.centre.z) <= def.radius;
+    const dust = object.getObjectByName('dust');
+    if (dust instanceof THREE.Points) {
+      dust.visible = inside;
+      if (inside) blowDust(dust, camera, pose, ticks * DT);
+    }
     return inside ? def.visibility : undefined;
   },
 };
+
+/** Moves the dust specks: each blows along the wind, wrapped into the box round the camera. */
+function blowDust(dust: THREE.Points, camera: THREE.Vector3, pose: HazardPose, seconds: number) {
+  const base = dust.geometry.userData.base as Float32Array;
+  const position = dust.geometry.getAttribute('position') as THREE.BufferAttribute;
+  const array = position.array as Float32Array;
+  // Positions are local to the zone's centre (the group sits there).
+  const cx = camera.x - pose.x;
+  const cz = camera.z - pose.z;
+  for (let i = 0; i < base.length; i += 3) {
+    const x = (base[i] ?? 0) + seconds * DUST_WIND.x;
+    const z = (base[i + 2] ?? 0) + seconds * DUST_WIND.z;
+    array[i] = cx + wrap(x - cx, DUST_BOX.half);
+    array[i + 1] = (base[i + 1] ?? 0) + Math.sin(seconds * 2 + i) * 0.4 + camera.y - pose.y - 3;
+    array[i + 2] = cz + wrap(z - cz, DUST_BOX.half);
+  }
+  position.needsUpdate = true;
+}

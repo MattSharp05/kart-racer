@@ -45,7 +45,7 @@ export class HazardRenderer {
     if (!this.items.length) return;
     let visibility = Infinity;
     for (const { def, view, object } of this.items) {
-      const fog = view.update(object, def, hazardPose(def, ticks), camera);
+      const fog = view.update(object, def, hazardPose(def, ticks), camera, ticks);
       if (fog !== undefined) visibility = Math.min(visibility, fog);
     }
     if (visibility < Infinity) {
