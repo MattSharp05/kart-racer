@@ -111,7 +111,8 @@ function applyContact(
 ): void {
   if (effect === 'squash') {
     // Flattened where it stands: stopped dead, and out of control for longer than an item hit.
-    if (!hitKart(kart, HAZARD_HITTER, 'hazard', events)) return;
+    // A crush: no shield stops it (MK-66).
+    if (!hitKart(kart, HAZARD_HITTER, 'hazard', events, { crush: true })) return;
     kart.velocity = { x: 0, y: 0, z: 0 };
     kart.speed = 0;
     const spin = tuning.spinSeconds * tuning.hazards.squashSpinFactor;

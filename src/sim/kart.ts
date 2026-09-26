@@ -18,6 +18,7 @@ import {
   handleDriftButton,
   isDrifting,
 } from './drift';
+import { effectsSpeedFactor } from './items/effects';
 import { kartPhysics } from './kartStats';
 import { inRange } from './splineTrack';
 import { surfaceEffect } from './surfaces';
@@ -102,9 +103,11 @@ export function updateKart(
   env: KartEnv = DEFAULT_ENV,
 ): KartState {
   const physics = kartPhysics(kart.kartType, engineClass);
-  // Star: faster (MK-20). Shrunk by lightning: slower. AI rubber-banding (MK-15) scales it too.
+  // Star: faster (MK-20). Shrunk by lightning: slower. AI rubber-banding (MK-15) scales it too, and
+  // so can kart effects (Phase, MK-66).
   const topSpeed =
     physics.topSpeed *
+    effectsSpeedFactor(kart) *
     (kart.starTimer > 0 ? tuning.starSpeed : 1) *
     (kart.shrinkTimer > 0 ? tuning.shrinkSpeed : 1) *
     (kart.ai?.speedScale ?? 1);

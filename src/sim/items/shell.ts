@@ -4,6 +4,7 @@ import { getTrack, trackGeometry } from '../track';
 import { tuning } from '../tuning';
 import type { InputFrame, KartState, ShellEntity, SimEvent, SimState } from '../types';
 import { nextEntityId } from './banana';
+import { isIntangible } from './effects';
 import { hitKart } from './hit';
 
 /**
@@ -154,7 +155,8 @@ export function updateShells(state: SimState, dt: number, events: SimEvent[]): v
     }
     for (const kart of state.karts) {
       if (kart.id === shell.ownerId && shell.ownerImmune > 0) continue;
-      if (kart.respawnTimer > 0) continue;
+      // Respawning and phased (MK-66) karts: the shell flies through.
+      if (kart.respawnTimer > 0 || isIntangible(kart)) continue;
       const d = Math.hypot(kart.position.x - shell.position.x, kart.position.z - shell.position.z);
       if (d > tuning.shellHitRadius || Math.abs(kart.position.y - shell.position.y) > 2) continue;
       // A shell breaks on any kart it touches; only vulnerable karts are knocked about.
