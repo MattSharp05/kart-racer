@@ -295,8 +295,10 @@ function summit(): THREE.Object3D {
   // Everything inside the inner walls, the valley floor up to the road.
   const base = [{ x: west, z: south }, { x: west, z: north }, ...arc(-Math.PI / 2, Math.PI / 2)];
   const top = summitY + SNOWBANK.height;
-  // East of the tunnel, round to the hairpin's inner wall.
-  const east = [{ x: t.x1, z: north }, ...arc(-Math.PI / 2, Math.PI / 2), { x: t.x1, z: south }];
+  // East of the tunnel, round to the hairpin's inner wall: the arc from where it crosses the
+  // tunnel's east side (x1) round to where it crosses back, closed along that side.
+  const cross = Math.acos(Math.min(1, (t.x1 - h.x) / inner));
+  const east = arc(-cross, cross);
   // Between the two mouths, west of the tunnel.
   const between = [
     { x: west, z: north + 2 },
