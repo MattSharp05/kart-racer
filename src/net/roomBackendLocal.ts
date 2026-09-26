@@ -19,7 +19,9 @@ export interface LocalRoomTiming {
 export const LOCAL_ROOM_TIMING: LocalRoomTiming = {
   syncMs: 300,
   heartbeatMs: 1000,
-  expiryMs: 3500,
+  // Generous: a tab that leaves says bye at once; this only catches crashed tabs, and a page
+  // starved of CPU (several software-GL tabs racing in CI) mustn't look gone (MK-55).
+  expiryMs: 10_000,
 };
 
 type PresenceMessage =

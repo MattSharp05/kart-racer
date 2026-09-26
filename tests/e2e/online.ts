@@ -130,3 +130,92 @@ export async function autopilotAll(pages: Page[]): Promise<void> {
     });
   }
 }
+
+export interface LobbyRoom extends Room {
+  code: string;
+  /** Each page's nickname, host first. */
+  names: string[];
+}
+
+let lobbies = 0;
+
+/** A room code no other test uses (4 characters of the room alphabet, starting with `prefix`). */
+export function freshRoomCode(prefix = 'F'): string {
+  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  const n = (Date.now() + (lobbies += 1) * 7919) % alphabet.length ** 3;
+  return `${prefix}${[2, 1, 0].map((p) => alphabet[Math.floor(n / alphabet.length ** p) % alphabet.length]).join('')}`;
+}
+
+/**
+ * A room of `n` pages through the lobby (MK-47/MK-55): the host creates it, the others join and
+ * ready up, and the host starts. Resolves once every page's race has started (running in real
+ * time: pause the pages to step them). `laps` shortens the host's races (`&laps=`).
+ */
+export async function openLobby(
+  context: BrowserContext,
+  n: number,
+  { laps, names }: { laps?: number; names?: string[] } = {},
+): Promise<LobbyRoom> {
+  const code = freshRoomCode();
+  const nicknames = names ?? ['Hosty', 'Ann', 'Bob', 'Cleo'].slice(0, n);
+  const colours = ['red', 'blue', 'green', 'purple'];
+  const open = async (role: 'host' | 'client', i: number) => {
+    const page = await context.newPage();
+    await page.addInitScript(
+      ([name, colour]) => {
+        const stored = localStorage.getItem('kart-racer:settings') ?? '{"version":1}';
+        const settings = JSON.parse(stored) as Record<string, unknown>;
+        localStorage.setItem(
+          'kart-racer:settings',
+          JSON.stringify({ ...settings, nickname: name, colour, seenHowToPlay: true }),
+        );
+      },
+      [nicknames[i] ?? `P${i}`, colours[i % colours.length] ?? 'red'] as const,
+    );
+    const params = new URLSearchParams({
+      scenario: 'online-lobby',
+      net: 'local',
+      role,
+      room: code,
+    });
+    if (laps) params.set('laps', String(laps));
+    params.set('paused', '1');
+    await page.goto(`/?${params}`);
+    await page.waitForFunction(() => window.__game?.ready === true);
+    return page;
+  };
+  const host = await open('host', 0);
+  await expect(host.locator('.room-code')).toHaveText(code);
+  const clients: Page[] = [];
+  for (let i = 1; i < n; i += 1) {
+    const client = await open('client', i);
+    // A join listens briefly for the host's answer; a CPU-starved CI host can miss it ("Room not
+    // found"). Reload and join again, as a player would.
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      const joined = client.locator('.lobby-players li').nth(i);
+      const refused = client.locator('.menu-online');
+      await expect(joined.or(refused)).toBeVisible({ timeout: JOIN_TIMEOUT_MS });
+      if (await joined.isVisible()) break;
+      await client.reload();
+      await client.waitForFunction(() => window.__game?.ready === true);
+    }
+    await expect(client.locator('.lobby-players li')).toHaveCount(i + 1, { timeout: 10_000 });
+    await client.getByRole('button', { name: 'Ready' }).click();
+    clients.push(client);
+  }
+  const start = host.getByRole('button', { name: 'Start' });
+  await expect(start).toBeEnabled({ timeout: 10_000 });
+  await start.click();
+  const pages = [host, ...clients];
+  await waitForRaces(pages);
+  return { host, clients, pages, context, code, names: nicknames };
+}
+
+/** Waits until every page's online race has started (everyone connected, snapshots flowing). */
+export async function waitForRaces(pages: Page[], timeout = 30_000): Promise<void> {
+  for (const page of pages) {
+    await expect
+      .poll(() => page.evaluate(() => window.__game!.net()?.started), { timeout })
+      .toBe(true);
+  }
+}

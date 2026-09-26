@@ -51,7 +51,9 @@ test.describe('online client prediction under lag', () => {
           await stepAll(room.pages, 6, REAL_TIME);
           return (await state(client)).karts[kartId]!.race.finishTick;
         },
-        { timeout: 20_000 },
+        // No backoff between polls: the results screen covers the HUD 2.5 s after the finish, and
+        // a busy CI runner (other online specs in parallel) can spend that in poll gaps (MK-55).
+        { timeout: 20_000, intervals: [0] },
       )
       .toBe(hostState.karts[kartId]!.race.finishTick);
 

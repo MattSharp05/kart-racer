@@ -1,9 +1,11 @@
+import type { RaceStanding } from '../net/protocol';
 import { kartDef } from '../sim/data/karts';
 import { raceResults, raceTime } from '../sim/raceFlow';
 import type { SimState } from '../sim/types';
 import type { RecordLineView } from '../ui/screens/results';
 import { saveRaceRecord, type RecordUpdate } from './storage/records';
 import type { KeyValueStore } from './storage/store';
+import { PROFILE_COLOURS } from './profile';
 
 /** One line of the results screen. */
 export interface ResultLine {
@@ -23,6 +25,56 @@ export function resultLines(state: SimState, localKartId: number): ResultLine[] 
       position: row.position,
       name: kart ? (kart.name ?? kartDef(kart.kartType).name) : '?',
       you: row.kartId === localKartId,
+      ...(row.time !== undefined ? { time: row.time } : {}),
+    };
+  });
+}
+
+/** A line of the online results (MK-55): also the racer, and whether a person drove it. */
+export interface OnlineResultLine extends ResultLine {
+  /** The racer's name (the kart), shown next to a person's nickname. */
+  racer: string;
+  /** Driven by a person (host or client), not the AI: highlighted in their colour. */
+  human: boolean;
+  /** CSS colour of a person's line. */
+  colour?: string;
+}
+
+/** A human's colour: the lobby's (`colours[kartId]`), else one of the profile swatches by kart. */
+export function playerColour(colours: readonly string[] | undefined, kartId: number): string {
+  const swatch = PROFILE_COLOURS[kartId % PROFILE_COLOURS.length] ?? PROFILE_COLOURS[0];
+  return colours?.[kartId] || swatch.hex;
+}
+
+/**
+ * The online results screen's rows (MK-55): the host's final `standings` once it sent them (the
+ * same on every device), else this device's live standings (finish times are the host's already;
+ * the order of karts still racing is this device's prediction).
+ */
+export function onlineResultLines(
+  state: SimState,
+  standings: readonly RaceStanding[] | null,
+  localKartId: number,
+  colours?: readonly string[],
+): OnlineResultLine[] {
+  const rows = standings
+    ? standings.map(({ kartId, finishTick }, i) => ({
+        kartId,
+        position: i + 1,
+        ...(finishTick !== undefined ? { time: raceTime(state, finishTick) } : {}),
+      }))
+    : raceResults(state);
+  return rows.map((row) => {
+    const kart = state.karts[row.kartId];
+    const racer = kart ? kartDef(kart.kartType).name : '?';
+    const human = kart !== undefined && kart.controller !== 'ai';
+    return {
+      position: row.position,
+      name: kart?.name ?? racer,
+      racer,
+      you: row.kartId === localKartId,
+      human,
+      ...(human ? { colour: playerColour(colours, row.kartId) } : {}),
       ...(row.time !== undefined ? { time: row.time } : {}),
     };
   });

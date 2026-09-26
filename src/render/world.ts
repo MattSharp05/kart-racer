@@ -12,6 +12,7 @@ import { Effects } from './effects';
 import { HazardRenderer } from './hazards';
 import { ItemBoxRenderer } from './itemBoxes';
 import { KartRenderer, type KartPoseFilter } from './karts';
+import { NameTags } from './nameTags';
 import { AdaptiveQuality } from './quality';
 import { createScene } from './scene';
 import { createTrackView, overviewCamera } from './trackView';
@@ -45,7 +46,12 @@ export interface WorldOptions {
   aiDebug: boolean;
   /** Where karts are drawn, if not straight from the sim (an online client's smoothing, MK-45). */
   poseFilter?: () => KartPoseFilter | null | undefined;
+  /** The colour of a person's name tag, by kart id (online, MK-55). */
+  playerColour?: (kartId: number) => string;
 }
+
+/** A name tag's colour when the options don't say. */
+const DEFAULT_TAG_COLOUR = '#ffffff';
 
 /**
  * Everything drawn in 3D (MK-35): scene, cameras, all renderers, adaptive quality and the render
@@ -67,6 +73,8 @@ export class World {
   private readonly lineup: LineupCamera;
   private readonly chaseCamera: ChaseCamera;
   private readonly itemBoxes: ItemBoxRenderer;
+  /** The other people's names over their karts (online, MK-55). */
+  private readonly nameTags: NameTags;
   /** Track hazards (MK-49), posed from the tick. */
   private readonly hazards: HazardRenderer;
   /** Bananas, shells… one renderer per item renderer class (`src/content/items/<id>/render.ts`). */
@@ -98,6 +106,7 @@ export class World {
     this.chaseCamera.reducedMotion = options.reducedMotion;
     this.effects = new Effects(this.scene, this.karts, this.chaseCamera);
     this.itemBoxes = new ItemBoxRenderer(this.scene);
+    this.nameTags = new NameTags(this.scene);
     this.itemRenderers = itemRendererClasses().map((Renderer) => new Renderer(this.scene));
     this.aiDebug = options.aiDebug ? new AiDebugView(this.scene) : undefined;
     window.addEventListener('resize', () => this.markChanged());
@@ -115,6 +124,7 @@ export class World {
   reset(view: ScenarioView, follow: number): void {
     this.karts.reset();
     this.effects.reset();
+    this.nameTags.reset();
     this.view = view;
     this.followId = follow;
     this.markChanged();
@@ -166,6 +176,14 @@ export class World {
     }
     const followedSpeed = kart ? Math.abs(kart.speed) / tuning.topSpeed[state.engineClass] : 0;
     this.effects.update(state, followId, followedSpeed, view);
+    this.nameTags.sync(
+      state,
+      followId,
+      (id) => this.karts.kart(id),
+      this.camera,
+      this.options.playerColour ?? (() => DEFAULT_TAG_COLOUR),
+      view === 'chase',
+    );
     this.onUpdate(frameSeconds);
     if (draw) this.renderer.render(this.scene, this.camera);
   }

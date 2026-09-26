@@ -26,6 +26,8 @@ export interface LobbySlot {
   id: string;
   racer: string;
   nickname: string;
+  /** CSS colour of the player's name (name tags and results, MK-55); older builds didn't send it. */
+  colour?: string;
 }
 
 /** The host's Start: every device builds the same race from it and the host's settings. */
@@ -77,7 +79,12 @@ export function allReady(members: readonly RoomMember[]): boolean {
  * sorts them: host first, then join order), so it's the same on every device.
  */
 export function lobbySlots(members: readonly RoomMember[]): LobbySlot[] {
-  return members.map((m) => ({ id: m.id, racer: m.racer, nickname: m.nickname }));
+  return members.map((m) => ({
+    id: m.id,
+    racer: m.racer,
+    nickname: m.nickname,
+    colour: m.colour,
+  }));
 }
 
 /** The kart a member drives in `start` (-1 if they aren't in it: they joined after the start). */

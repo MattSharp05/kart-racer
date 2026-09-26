@@ -1,0 +1,83 @@
+/* Online results (MK-55): all 8 karts, the people in their colours; fits a 667×375 phone. */
+.menus .online-results {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  min-width: min(84vw, 420px);
+  font-size: 15px;
+}
+
+.menus .online-results li {
+  display: grid;
+  grid-template-columns: 3em 1fr auto 5.5em;
+  gap: 8px;
+  padding: 2px 6px;
+  border-left: 5px solid transparent;
+  border-radius: 6px;
+  text-align: left;
+  font-variant-numeric: tabular-nums;
+}
+
+.menus .online-results .racer {
+  opacity: 0.75;
+  font-weight: 500;
+}
+
+.menus .online-results .time {
+  text-align: right;
+}
+
+.menus .online-results li.human {
+  border-left-color: var(--player-colour, var(--color-cream));
+  background: rgb(255 255 255 / 0.12);
+}
+
+.menus .online-results li.human .name {
+  color: var(--player-colour, #fff);
+  text-shadow: 0 1px 2px rgb(0 0 0 / 0.6);
+}
+
+.menus .online-results li.you {
+  outline: 2px solid var(--color-gold);
+}
+
+.menus .online-results-status {
+  margin: 0;
+  font-size: 14px;
+  color: var(--color-mint);
+}
+
+.menus .online-results-status:empty {
+  display: none;
+}
+
+.menu-onlineResults button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* Short landscape phones: tighten everything so nothing scrolls. */
+@media (max-height: 430px) {
+  .menu-panel.menu-onlineResults {
+    gap: 6px;
+    padding: 8px 14px;
+  }
+
+  .menus .online-results {
+    font-size: 12px;
+  }
+
+  .menus .online-results li {
+    padding: 0 6px;
+    line-height: 1.25;
+  }
+
+  .menus .online-results-status {
+    font-size: 12px;
+  }
+
+  .menu-onlineResults .actions button {
+    min-height: 44px;
+    padding: 6px 14px;
+  }
+}
