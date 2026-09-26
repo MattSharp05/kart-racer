@@ -158,6 +158,10 @@ test.describe('left-handed layout (MK-53)', () => {
     const stored = await page.evaluate(() => localStorage.getItem('kart-racer:settings'));
     expect(JSON.parse(stored ?? '{}')).toMatchObject({ hand: 'left' });
     await page.locator('.menu-settings button', { hasText: 'Back' }).click();
+    // The controls guide names the thumb that steers now.
+    await page.locator('.menu-paused button', { hasText: 'How to play' }).click();
+    await expect(page.locator('.how-to-play')).toContainText('Right thumb');
+    await page.locator('.how-to-play button', { hasText: 'Got it' }).click();
     await page.locator('.menu-paused button', { hasText: 'Resume' }).click();
     await expect(controls).toBeVisible();
     const vw = page.viewportSize()!;

@@ -33,6 +33,11 @@ export function setTouchHand(hand: Hand): void {
   for (const controls of allControls) controls.root.dataset.hand = hand;
 }
 
+/** The hand the touch controls are laid out for (MK-53). */
+export function touchHand(): Hand {
+  return currentHand;
+}
+
 /**
  * On-screen controls for phones and tablets (MK-23): a steering zone for one thumb, and
  * Drift / Item / Brake buttons for the other (right-handed by default; see `setTouchHand`). Auto-accelerates once the player has touched the
