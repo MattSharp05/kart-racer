@@ -10,6 +10,13 @@ import { FROSTPEAK_PASS, SNOWBALLS, SNOWBALL, frostpeakPass } from './sim';
 
 const TOP_SPEED = tuning.topSpeed[150];
 
+/** A kart on the pass at `t` in a 150cc session (the timing of these scenarios assumes 150cc speeds). */
+function kartAt(seed: number, t: number, options: Parameters<typeof kartOnTrack>[3] = {}) {
+  const state = kartOnTrack(seed, frostpeakPass.id, t, options);
+  state.engineClass = 150;
+  return state;
+}
+
 /** A full 150cc race from the countdown: you + 7 AI, the player starting 5th–8th (seeded). */
 function race(seed: number) {
   const rng = raceSetupRng(seed);
@@ -65,8 +72,8 @@ const scenarios: Scenario[] = [
     defaultSeed: 1,
     setup: (seed) => {
       const { lake } = FROSTPEAK_PASS;
-      const t = FROSTPEAK_PASS.tAt(lake.x + lake.radius, lake.z - 45);
-      return { state: kartOnTrack(seed, frostpeakPass.id, t, { speed: TOP_SPEED * 0.9 }) };
+      const t = FROSTPEAK_PASS.tAt(lake.x + lake.radius, lake.z - 30);
+      return { state: kartAt(seed, t, { speed: TOP_SPEED * 0.9 }) };
     },
   },
   {
@@ -78,7 +85,7 @@ const scenarios: Scenario[] = [
       const [first] = SNOWBALLS;
       const lane = FROSTPEAK_PASS.descent.lanes[0] ?? 0;
       const t = FROSTPEAK_PASS.tAt(lane + SNOWBALL_LEAD_METRES, FROSTPEAK_PASS.descent.z);
-      const state = kartOnTrack(seed, frostpeakPass.id, t, { speed: TOP_SPEED });
+      const state = kartAt(seed, t, { speed: TOP_SPEED });
       const cross = first ? snowballCrossingTick(first) : 0;
       const period = Math.round(SNOWBALL.period / DT);
       // A whole period in, so the tick clock never starts negative.
@@ -95,7 +102,7 @@ const scenarios: Scenario[] = [
     setup: (seed) => {
       const { tunnel, hairpin } = FROSTPEAK_PASS;
       const t = FROSTPEAK_PASS.tAt((tunnel.x0 + tunnel.x1) / 2, hairpin.z - hairpin.radius);
-      const state = kartOnTrack(seed, frostpeakPass.id, t, {
+      const state = kartAt(seed, t, {
         lateral: 3,
         speed: TOP_SPEED * 0.6,
         boost: tuning.mushroomSeconds,

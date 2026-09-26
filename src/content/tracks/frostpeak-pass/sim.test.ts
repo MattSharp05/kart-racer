@@ -177,6 +177,15 @@ describe('Frostpeak Pass ice', () => {
   });
 });
 
+describe('Frostpeak Pass ice scenario', () => {
+  it('frostpeak-ice: a 150cc kart that holds W is out on the lake ice 2 s later', () => {
+    const start = scenarios.get('frostpeak-ice')!.setup(1).state;
+    expect(start.engineClass).toBe(150);
+    const kart = run(start, 120, () => ({ throttle: 1 })).state.karts[0]!;
+    expect(groundAt(frostpeakPass, kart.position).surface).toBe('ice');
+  });
+});
+
 describe('Frostpeak Pass snowballs', () => {
   it('each lane rolls one snowball per period, a third of a period apart, over its lane only', () => {
     const crossings = SNOWBALLS.map((ball) => snowballCrossingTick(ball));
@@ -245,11 +254,8 @@ describe('Frostpeak Pass snowballs', () => {
   });
 
   it('frostpeak-snowballs: holding W gets you run over; braking lets it roll past', () => {
-    const setup = () => {
-      const state = scenarios.get('frostpeak-snowballs')!.setup(1).state;
-      state.engineClass = 150;
-      return state;
-    };
+    // As loaded from the link: the scenario sets its own engine class.
+    const setup = () => scenarios.get('frostpeak-snowballs')!.setup(1).state;
     const held = run(setup(), Math.round((SNOWBALL_LEAD_SECONDS + 1.5) / DT), () => ({
       throttle: 1,
     }));
@@ -323,7 +329,6 @@ describe('Frostpeak Pass tunnel', () => {
 
   it('frostpeak-tunnel: holding W with the boost carries you through onto the exit leg', () => {
     const start = scenarios.get('frostpeak-tunnel')!.setup(1).state;
-    start.engineClass = 150;
     const exit = hairpin.z + hairpin.radius;
     const { frames } = run(start, 240, (s) =>
       s.karts[0]!.position.z < exit - 20
