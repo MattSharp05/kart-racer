@@ -168,9 +168,10 @@ describe('Ink Cloud (MK-68)', () => {
       expect(share).toBeLessThan(0.45);
     });
 
-    it('stays clear of the touch buttons (bottom right) and stick (bottom left)', () => {
+    it('stays clear of the touch buttons (bottom right), stick (bottom left) and pause (right)', () => {
       expect(coverage((x, y) => x > 72 && y > 55)).toBe(0);
       expect(coverage((x, y) => x < 30 && y > 70)).toBe(0);
+      expect(coverage((x) => x > 88)).toBe(0);
     });
   });
 });
