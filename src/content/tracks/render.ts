@@ -3,6 +3,7 @@ import type { TrackGeometry } from '../../sim/splineTrack';
 import { Registry } from '../registry';
 import duneCanyon from './dune-canyon/render';
 import frostpeakPass from './frostpeak-pass/render';
+import neonHarbour from './neon-harbour/render';
 import type { TrackTheme } from './theme';
 
 /**
@@ -25,4 +26,4 @@ export interface TrackView {
 export const trackViews = new Registry<TrackView>('track view');
 
 // One line per track folder that has a `render.ts`, alphabetical.
-for (const view of [duneCanyon, frostpeakPass]) trackViews.register(view);
+for (const view of [duneCanyon, frostpeakPass, neonHarbour]) trackViews.register(view);

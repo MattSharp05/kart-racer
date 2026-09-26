@@ -15,6 +15,7 @@ import { KartRenderer, type KartPoseFilter } from './karts';
 import { NameTags } from './nameTags';
 import { AdaptiveQuality } from './quality';
 import { createScene } from './scene';
+import { trackTheme } from './theme';
 import { createTrackView, overviewCamera, type TrackViewUpdate } from './trackView';
 
 /** Longest real frame we feed the sim, so a backgrounded tab doesn't cause a huge catch-up. */
@@ -102,7 +103,7 @@ export class World {
     this.followId = options.follow;
     if (this.view === 'overview') overviewCamera(this.camera, options.track);
     this.lineup = new LineupCamera(this.camera);
-    this.karts = new KartRenderer(this.scene);
+    this.karts = new KartRenderer(this.scene, undefined, trackTheme(options.track).night ?? false);
     this.chaseCamera = new ChaseCamera(this.camera);
     // Juice (MK-27). Shake and FOV kick respect reduced motion (OS setting or &reduced-motion=1).
     this.chaseCamera.reducedMotion = options.reducedMotion;
