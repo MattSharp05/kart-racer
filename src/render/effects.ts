@@ -151,13 +151,14 @@ export class Effects {
 
     // Continuous: boost trail and off-road dust (every other tick per kart keeps it light).
     if ((tick + kart.id) % 2 !== 0) return;
-    const back = { x: Math.sin(kart.heading), z: Math.cos(kart.heading) };
+    const at = this.drawnAt(kart);
+    const back = { x: Math.sin(at.heading), z: Math.cos(at.heading) };
     if (kart.boostTimer > 0 || kart.starTimer > 0) {
       const colour = TRAIL_COLOURS[(tick + kart.id) % TRAIL_COLOURS.length] ?? WHITE;
       this.spawn({
-        x: kart.position.x + back.x * 1.3,
-        y: kart.position.y + 0.45,
-        z: kart.position.z + back.z * 1.3,
+        x: at.x + back.x * 1.3,
+        y: at.y + 0.45,
+        z: at.z + back.z * 1.3,
         vx: back.x * 2 + (hash(tick, kart.id, 1) - 0.5),
         vy: 0.6,
         vz: back.z * 2 + (hash(tick, kart.id, 2) - 0.5),
@@ -172,9 +173,9 @@ export class Effects {
       const surface = groundAt(getTrack(state.trackId), kart.position).surface;
       if (surface === 'offroad' || surface === 'rough') {
         this.spawn({
-          x: kart.position.x + back.x * 1.1,
-          y: kart.position.y + 0.2,
-          z: kart.position.z + back.z * 1.1,
+          x: at.x + back.x * 1.1,
+          y: at.y + 0.2,
+          z: at.z + back.z * 1.1,
           vx: (hash(tick, kart.id, 3) - 0.5) * 2,
           vy: 1.5 + hash(tick, kart.id, 4),
           vz: (hash(tick, kart.id, 5) - 0.5) * 2,
@@ -186,6 +187,16 @@ export class Effects {
         });
       }
     }
+  }
+
+  /**
+   * Where kart `kart` is drawn: its model, which online smoothing may have moved off the sim's
+   * position (MK-45), so effects stay on the kart.
+   */
+  private drawnAt(kart: KartState): { x: number; y: number; z: number; heading: number } {
+    const root = this.karts.kart(kart.id);
+    if (!root) return { ...kart.position, heading: kart.heading };
+    return { x: root.position.x, y: root.position.y, z: root.position.z, heading: root.rotation.y };
   }
 
   private squash(id: number, amount: number, kart: KartState, tick: number): void {
@@ -209,13 +220,14 @@ export class Effects {
     life: number,
     up = 3,
   ): void {
+    const at = this.drawnAt(kart);
     for (let i = 0; i < count; i += 1) {
       const a = hash(tick, kart.id, i) * Math.PI * 2;
       const r = 0.4 + hash(tick, i, kart.id) * 0.6;
       this.spawn({
-        x: kart.position.x,
-        y: kart.position.y + 1,
-        z: kart.position.z,
+        x: at.x,
+        y: at.y + 1,
+        z: at.z,
         vx: Math.cos(a) * speed * r,
         vy: up + hash(i, tick, kart.id) * speed * 0.6,
         vz: Math.sin(a) * speed * r,

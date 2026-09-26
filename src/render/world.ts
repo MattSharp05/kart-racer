@@ -4,13 +4,13 @@ import type { Game } from '../game/game';
 import type { RenderInfo } from '../game/testApi';
 import type { ScenarioView } from '../scenarios/registry';
 import type { TrackDef } from '../sim/track';
-import { tuning } from '../sim/tuning';
+import { DT, tuning } from '../sim/tuning';
 import type { InputFrame } from '../sim/types';
 import { AiDebugView } from './aiDebug';
 import { ChaseCamera, LineupCamera } from './camera';
 import { Effects } from './effects';
 import { ItemBoxRenderer } from './itemBoxes';
-import { KartRenderer } from './karts';
+import { KartRenderer, type KartPoseFilter } from './karts';
 import { AdaptiveQuality } from './quality';
 import { createScene } from './scene';
 import { createTrackView, overviewCamera } from './trackView';
@@ -42,6 +42,8 @@ export interface WorldOptions {
   playerInputs: () => InputFrame[];
   reducedMotion: boolean;
   aiDebug: boolean;
+  /** Where karts are drawn, if not straight from the sim (an online client's smoothing, MK-45). */
+  poseFilter?: () => KartPoseFilter | null | undefined;
 }
 
 /**
@@ -71,6 +73,8 @@ export class World {
   /** Render parts that get cheaper in low-quality mode register here. */
   private readonly lowQualityHooks: ((low: boolean) => void)[];
   private framesSinceChange = 0;
+  /** Tick (plus alpha) drawn last frame, for the pose filter's clock while paused. */
+  private lastSimTime = 0;
 
   constructor(
     canvas: HTMLCanvasElement,
@@ -135,7 +139,13 @@ export class World {
   render(frameSeconds: number, snapCamera = false, draw = true): void {
     const { game, view, followId } = this;
     const state = game.state;
-    this.karts.sync(game.previousState, state, game.alpha, this.options.playerInputs());
+    const filter = this.options.poseFilter?.() ?? undefined;
+    // Offsets decay with real time while the race runs; paused, with the ticks stepped (so a test's
+    // `step` decays them like real play would, and a still frame keeps them).
+    const simTime = state.tick + game.alpha;
+    filter?.frame(game.paused ? Math.max(0, simTime - this.lastSimTime) * DT : frameSeconds);
+    this.lastSimTime = simTime;
+    this.karts.sync(game.previousState, state, game.alpha, this.options.playerInputs(), filter);
     this.itemBoxes.sync(state, state.tick / 60);
     for (const renderer of this.itemRenderers) renderer.sync(state, state.tick / 60);
     this.aiDebug?.sync(state);
