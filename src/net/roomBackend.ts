@@ -1,3 +1,6 @@
+import type { LobbySettings, LobbyStart } from './lobbyState';
+import type { Signal } from './webrtc';
+
 /**
  * Where rooms live (MK-40): a Supabase Realtime channel `room:<CODE>` with presence in production
  * (`roomBackendSupabase.ts`), a BroadcastChannel between tabs of one browser for `?net=local`
@@ -11,7 +14,7 @@ export interface MemberInfo {
   colour: string;
   /** The racer (kart) the player picked. */
   racer: string;
-  /** Ready to start (the lobby's host settings and start are MK-47). */
+  /** Ready to start (MK-47). */
   ready: boolean;
 }
 
@@ -28,6 +31,20 @@ export interface RoomMember extends MemberInfo {
    * who gets the last seat when two players join at once (ADR 0005: the host is the authority).
    */
   seats?: string[];
+  /** Host only: the lobby's track, cc and items (MK-47). */
+  lobby?: LobbySettings;
+  /** Host only: the race the host started (MK-47); everyone in its slots joins it. */
+  start?: LobbyStart;
+}
+
+/** A room-wide message: WebRTC signaling for a started race (MK-47), addressed by member id. */
+export interface RoomSignal {
+  /** The start (`LobbyStart.id`) the signal belongs to. */
+  race: string;
+  from: string;
+  /** A member id, or null for everyone. */
+  to: string | null;
+  signal: Signal;
 }
 
 /** One device's view of a room's channel. */
@@ -38,6 +55,10 @@ export interface RoomChannel {
   onSync(handler: () => void): void;
   /** Shows (or updates) this device's presence to the room. */
   track(member: RoomMember): Promise<void>;
+  /** Sends `message` to the others in the room (best effort, like presence). */
+  broadcast(message: RoomSignal): void;
+  /** Calls `handler` for every message the others broadcast; returns the unsubscribe function. */
+  onBroadcast(handler: (message: RoomSignal) => void): () => void;
   /** Leaves the room: the others see this device go. */
   close(): void;
 }

@@ -1,8 +1,11 @@
 import { SoundManager } from '../audio/soundManager';
+import { racers } from '../content/racers';
+import { tracks } from '../content/tracks';
 import type { World } from '../render/world';
 import { attractMode, sunnyLineup } from '../scenarios/menus';
 import type { ScenarioView } from '../scenarios/registry';
 import { isKartId, KART_IDS, type KartId } from '../sim/data/karts';
+import { createRace } from '../sim/race/createRace';
 import type { EngineClass } from '../sim/tuning';
 import type { SimEvent, SimState } from '../sim/types';
 import { Hud } from '../ui/hud/hud';
@@ -25,9 +28,10 @@ import {
   saveProfile,
   type Profile,
 } from './profile';
+import type { OnlineLaunch } from './online';
 import { recordFinish, recordLines, resultLines } from './results';
 import { RoomFlow, type RoomService } from './roomFlow';
-import { DEFAULT_SEED, type Launch, type RaceSession } from './session';
+import { DEFAULT_SEED, localKartOf, type Launch, type RaceSession } from './session';
 import { readPrefs, writePrefs } from './storage/prefs';
 import type { RecordUpdate } from './storage/records';
 import { hasSeenHowToPlay, markHowToPlaySeen } from './storage/settings';
@@ -40,6 +44,8 @@ const LAUNCH_RESULTS_DELAY_MS = 300;
 const ENGINE_CLASSES = [50, 100, 150] as const;
 /** A room name for a player who hasn't picked one (scenarios skip the nickname screen). */
 const DEFAULT_ROOM_NICKNAME = 'Player';
+/** An online race that hasn't started after this long goes back to the lobby, ms (MK-47). */
+const ONLINE_CONNECT_TIMEOUT_MS = 20_000;
 
 /**
  * The screen flow (MK-35): title → kart select → cc select → race ⇄ pause → results → (again,
@@ -62,6 +68,8 @@ export class Flow {
   /** What the local player's finish did to the track records, for the results screen. */
   private recordUpdate: RecordUpdate | undefined;
   private readonly rooms: RoomFlow;
+  /** When this device's online race began connecting (`performance.now()`), 0 when not racing online. */
+  private onlineSince = 0;
 
   constructor(
     private readonly session: RaceSession,
@@ -94,6 +102,16 @@ export class Flow {
         };
       },
       () => this.showTitleScreen(),
+      {
+        tracks: tracks.list().filter((t) => !t.testOnly),
+        racers: racers.list(),
+        onRace: this.startOnlineRace,
+        onStartFailed: (message) => this.abortOnlineRace(message),
+        onRoomEnded: () => this.leaveOnlineRace(),
+        onRacer: (racer) => {
+          if (isKartId(racer)) this.chosenKart = racer;
+        },
+      },
     );
 
     this.pauseButton = createPauseButton(() => this.pauseRace());
@@ -125,6 +143,7 @@ export class Flow {
         followId: world.followId,
       });
       session.controls.touch.setActive(menu === 'none' && !this.rotatePrompt.shown);
+      this.watchOnlineRace();
     };
   }
 
@@ -190,6 +209,8 @@ export class Flow {
   };
 
   private readonly showTitle = (): void => {
+    this.rooms.leave();
+    this.onlineSince = 0;
     this.session.stop();
     this.load(attractMode(DEFAULT_SEED + this.raceCount), 'chase');
     // An AI race runs behind the title; the "player" kart drives itself too.
@@ -234,6 +255,8 @@ export class Flow {
   };
 
   private readonly showKartSelect = (): void => {
+    this.rooms.leave();
+    this.onlineSince = 0;
     if (this.screens.current !== 'ccSelect') this.load(sunnyLineup(DEFAULT_SEED), 'lineup');
     this.pauseButton.hidden = true;
     this.session.game.resume();
@@ -262,6 +285,9 @@ export class Flow {
   };
 
   private readonly startRace = (): void => {
+    // A local race (also "Again" after an online one): not in a room any more.
+    this.rooms.leave();
+    this.onlineSince = 0;
     this.raceCount += 1;
     this.screens.hide();
     this.beforeLoad();
@@ -274,6 +300,56 @@ export class Flow {
     this.session.game.resume();
     this.pauseButton.hidden = false;
   };
+
+  /**
+   * An online race from the lobby (MK-47): this device's placeholder of the race (its own kart
+   * `local`), then the host or client steps it. Online races don't pause.
+   */
+  private readonly startOnlineRace = (launch: OnlineLaunch): void => {
+    this.screens.hide();
+    this.beforeLoad();
+    const state = createRace(launch.race);
+    this.session.load(state);
+    this.world.reset('chase', localKartOf(state));
+    this.session.goOnline(launch, (kartId) => this.world.reset('chase', kartId));
+    this.session.game.resume();
+    this.pauseButton.hidden = true;
+    this.onlineSince = performance.now();
+  };
+
+  /**
+   * An online race that can't go on sends this device back to the lobby: nobody connected in time
+   * (a player's link failed or they left before it opened), or the host ended it mid-race.
+   */
+  private watchOnlineRace(): void {
+    const online = this.session.online;
+    if (!this.onlineSince || !online || this.screens.current !== 'none') return;
+    const net = online.info();
+    const host = net.role === 'host';
+    if (net.ended) {
+      this.abortOnlineRace(host ? undefined : 'The host ended the race.');
+    } else if (!net.started && performance.now() - this.onlineSince > ONLINE_CONNECT_TIMEOUT_MS) {
+      this.abortOnlineRace(
+        host
+          ? "Couldn't connect to every player. Try again."
+          : "Couldn't reach the host. Try again.",
+      );
+    }
+  }
+
+  private abortOnlineRace(message?: string): void {
+    this.leaveOnlineRace();
+    this.rooms.backToLobby(message);
+  }
+
+  /** Stops this device's online race, if any, and puts the title's AI race back behind the menus. */
+  private leaveOnlineRace(): void {
+    if (!this.onlineSince) return;
+    this.onlineSince = 0;
+    this.load(attractMode(DEFAULT_SEED + this.raceCount), 'chase');
+    this.session.game.setAutopilot(this.session.localKartId, true);
+    this.session.game.resume();
+  }
 
   private readonly pauseRace = (): void => {
     const game = this.session.game;

@@ -1,10 +1,12 @@
 import type { MemberInfo, RoomBackend, RoomChannel, RoomMember } from './roomBackend';
+import type { Signal, SignalingChannel } from './webrtc';
 
 /**
  * Rooms (MK-40, PRD v2 flows 2–3): a host creates a room and gets a 4-character code; friends join
  * with the code or the link `/?room=CODE`. Members and their lobby info are presence on the room's
  * channel (`RoomBackend`: Supabase in production, BroadcastChannel for `?net=local`). Nothing is
- * stored: the room ends when the host leaves. The lobby screen (host settings, start) is MK-47.
+ * stored: the room ends when the host leaves. The lobby's settings, racers, ready and start travel
+ * in presence too (`lobbyState.ts`, MK-47).
  */
 
 /** 32 characters without the look-alikes 0/O and 1/I. */
@@ -16,6 +18,9 @@ export const MAX_ROOM_PLAYERS = 4;
 export const CREATE_ATTEMPTS = 5;
 
 export type { MemberInfo, RoomMember } from './roomBackend';
+
+/** What a member can change about itself: its info, and (host) the lobby settings and start. */
+export type MemberUpdate = Partial<MemberInfo & Pick<RoomMember, 'lobby' | 'start'>>;
 
 /** Why a room couldn't be joined, or ended. */
 export type RoomError = 'not-found' | 'full' | 'host-left' | 'code-taken' | 'unavailable';
@@ -205,6 +210,11 @@ export class Room {
     return this.self.isHost;
   }
 
+  /** The host as this device sees it (itself, on the host). */
+  get host(): RoomMember | undefined {
+    return this.members.find((m) => m.isHost);
+  }
+
   /** Calls `listener` whenever `members` changes; returns the unsubscribe function. */
   onChange(listener: () => void): () => void {
     this.changeListeners.add(listener);
@@ -217,12 +227,42 @@ export class Room {
     return () => this.endListeners.delete(listener);
   }
 
-  /** Changes what this device shows the room (racer, ready…; MK-47). */
-  async update(info: Partial<MemberInfo>): Promise<void> {
+  /** Changes what this device shows the room (racer, ready; the host's settings and start). */
+  async update(info: MemberUpdate): Promise<void> {
     if (this.left) return;
     this.self = { ...this.self, ...info };
     this.sync();
     await this.channel.track(this.self);
+  }
+
+  /**
+   * WebRTC signaling for race `race` (a `LobbyStart.id`) over the room's channel, addressed by
+   * member id (MK-47). Signals of other races, and from or to other members, are ignored.
+   */
+  signaling(race: string): SignalingChannel {
+    const peerId = this.self.id;
+    const counts = { sent: 0, received: 0 };
+    const handlers: ((from: string, signal: Signal) => void)[] = [];
+    const stop = this.channel.onBroadcast((message) => {
+      if (message.race !== race || message.from === peerId) return;
+      if (message.to !== null && message.to !== peerId) return;
+      counts.received += 1;
+      for (const handler of handlers) handler(message.from, message.signal);
+    });
+    return {
+      peerId,
+      counts,
+      send: (to, signal) => {
+        if (this.left) return;
+        counts.sent += 1;
+        this.channel.broadcast({ race, from: peerId, to, signal });
+      },
+      onSignal: (handler) => handlers.push(handler),
+      close: () => {
+        handlers.length = 0;
+        stop();
+      },
+    };
   }
 
   /** Leaves the room; the host leaving ends it for everyone. */

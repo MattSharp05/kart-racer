@@ -76,6 +76,8 @@ function fakeBackend(occupied: Record<string, RoomMember[]>) {
           return Promise.resolve();
         },
         close: () => undefined,
+        broadcast: () => undefined,
+        onBroadcast: () => () => undefined,
       };
       return Promise.resolve(channel);
     },
@@ -180,6 +182,8 @@ describe('joinRoom', () => {
             return Promise.resolve();
           },
           close: () => undefined,
+          broadcast: () => undefined,
+          onBroadcast: () => () => undefined,
         });
       },
     });
@@ -300,5 +304,58 @@ describe('rooms over the local backend', () => {
     await guest.update({ racer: 'boulder', ready: true });
     await until(() => host.members[1]?.racer === 'boulder');
     expect(host.members[1]?.ready).toBe(true);
+  });
+
+  it('the host’s lobby settings and start reach everyone (MK-47)', async () => {
+    const code = freshCode();
+    const host = keep(await createRoom(backend, INFO, { code }));
+    const guest = keep(await joinRoom(backend, code, INFO));
+    await host.update({ lobby: { trackId: 'sunny-circuit', cc: 50, itemsOn: false } });
+    await until(() => guest.host?.lobby?.cc === 50);
+    const start = { id: 'r1', seed: 7, slots: [] };
+    await host.update({ start });
+    await until(() => guest.host?.start?.id === 'r1');
+    expect(guest.host?.lobby?.itemsOn).toBe(false);
+  });
+
+  it('signaling reaches only its race and its addressee', async () => {
+    const code = freshCode();
+    const host = keep(await createRoom(backend, INFO, { code }));
+    const a = keep(await joinRoom(backend, code, INFO));
+    const b = keep(await joinRoom(backend, code, INFO));
+    const got: string[] = [];
+    const listen = (room: Room, race: string) => {
+      const channel = room.signaling(race);
+      channel.onSignal((from, signal) =>
+        got.push(`${race}:${channel.peerId}<-${from}:${signal.kind}`),
+      );
+      return channel;
+    };
+    const hostSignals = listen(host, 'r1');
+    const aSignals = listen(a, 'r1');
+    listen(b, 'r1');
+    const old = listen(b, 'r0');
+    hostSignals.send(null, { kind: 'host-ready' });
+    hostSignals.send(a.selfId, { kind: 'offer', sdp: 'x' });
+    aSignals.send(host.selfId, { kind: 'answer', sdp: 'y' });
+    await until(() => got.length >= 4);
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    expect(got.sort()).toEqual(
+      [
+        `r1:${a.selfId}<-${host.selfId}:host-ready`,
+        `r1:${b.selfId}<-${host.selfId}:host-ready`,
+        `r1:${a.selfId}<-${host.selfId}:offer`,
+        `r1:${host.selfId}<-${a.selfId}:answer`,
+      ].sort(),
+    );
+    expect(hostSignals.counts).toEqual({ sent: 2, received: 1 });
+    // A closed channel hears nothing more.
+    old.close();
+    aSignals.close();
+    hostSignals.send(null, { kind: 'host-ready' });
+    await until(() => got.length === 5);
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    expect(got).toHaveLength(5);
+    expect(got[4]).toBe(`r1:${b.selfId}<-${host.selfId}:host-ready`);
   });
 });

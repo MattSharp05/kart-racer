@@ -1,4 +1,4 @@
-import type { RoomBackend, RoomChannel, RoomMember } from './roomBackend';
+import type { RoomBackend, RoomChannel, RoomMember, RoomSignal } from './roomBackend';
 
 /**
  * `?net=local` rooms (MK-40): presence over a BroadcastChannel, so tabs (or Playwright pages) of
@@ -25,7 +25,8 @@ export const LOCAL_ROOM_TIMING: LocalRoomTiming = {
 type PresenceMessage =
   | { type: 'hello'; from: string }
   | { type: 'state'; member: RoomMember }
-  | { type: 'bye'; id: string };
+  | { type: 'bye'; id: string }
+  | { type: 'signal'; message: RoomSignal };
 
 export function localRoomBackend(timing: LocalRoomTiming = LOCAL_ROOM_TIMING): RoomBackend {
   return {
@@ -45,6 +46,7 @@ class LocalRoomChannel implements RoomChannel {
   private readonly others = new Map<string, { member: RoomMember; heardAt: number }>();
   private self: RoomMember | null = null;
   private readonly handlers: (() => void)[] = [];
+  private readonly broadcastHandlers = new Set<(message: RoomSignal) => void>();
   private readonly timer: ReturnType<typeof setInterval>;
   private closed = false;
 
@@ -76,9 +78,19 @@ class LocalRoomChannel implements RoomChannel {
     return Promise.resolve();
   }
 
+  broadcast(message: RoomSignal): void {
+    if (!this.closed) this.post({ type: 'signal', message });
+  }
+
+  onBroadcast(handler: (message: RoomSignal) => void): () => void {
+    this.broadcastHandlers.add(handler);
+    return () => this.broadcastHandlers.delete(handler);
+  }
+
   close(): void {
     if (this.closed) return;
     this.closed = true;
+    this.broadcastHandlers.clear();
     clearInterval(this.timer);
     if (this.self) this.post({ type: 'bye', id: this.selfId });
     this.channel.close();
@@ -93,6 +105,8 @@ class LocalRoomChannel implements RoomChannel {
       const known = this.others.get(msg.member.id);
       this.others.set(msg.member.id, { member: msg.member, heardAt: Date.now() });
       if (!known || JSON.stringify(known.member) !== JSON.stringify(msg.member)) this.sync();
+    } else if (msg.type === 'signal') {
+      for (const handler of [...this.broadcastHandlers]) handler(msg.message);
     } else if (this.others.delete(msg.id)) {
       this.sync();
     }

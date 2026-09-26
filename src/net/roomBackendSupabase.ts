@@ -1,5 +1,5 @@
 import type { RealtimeChannel, SupabaseClient } from '@supabase/supabase-js';
-import type { RoomBackend, RoomChannel, RoomMember } from './roomBackend';
+import type { RoomBackend, RoomChannel, RoomMember, RoomSignal } from './roomBackend';
 
 /**
  * Production rooms (MK-40, ADR 0006): room `CODE` is the Supabase Realtime channel `room:CODE`,
@@ -51,6 +51,7 @@ export function supabaseRoomBackend(): RoomBackend {
 
 class SupabaseRoomChannel implements RoomChannel {
   private readonly handlers: (() => void)[] = [];
+  private readonly broadcastHandlers = new Set<(message: RoomSignal) => void>();
   private closed = false;
   /** Our presence, shown again after a rejoin. */
   private tracked: RoomMember | null = null;
@@ -68,6 +69,11 @@ class SupabaseRoomChannel implements RoomChannel {
     return new Promise((resolve, reject) => {
       let joined = false;
       let synced = false;
+      // Race signaling (MK-47) rides the room's channel as Broadcast (not sent back to ourselves).
+      this.channel.on('broadcast', { event: 'signal' }, ({ payload }) => {
+        if (this.closed) return;
+        for (const handler of [...this.broadcastHandlers]) handler(payload as RoomSignal);
+      });
       this.channel.on('presence', { event: 'sync' }, () => {
         synced = true;
         resolve();
@@ -93,9 +99,20 @@ class SupabaseRoomChannel implements RoomChannel {
       const meta = metas[0];
       if (!meta) return [];
       // Only the member fields (presence adds its own `presence_ref`).
-      const { id, nickname, colour, racer, ready, isHost, joinedAt, seats } = meta;
+      const { id, nickname, colour, racer, ready, isHost, joinedAt, seats, lobby, start } = meta;
       return [
-        { id, nickname, colour, racer, ready, isHost, joinedAt, ...(seats ? { seats } : {}) },
+        {
+          id,
+          nickname,
+          colour,
+          racer,
+          ready,
+          isHost,
+          joinedAt,
+          ...(seats ? { seats } : {}),
+          ...(lobby ? { lobby } : {}),
+          ...(start ? { start } : {}),
+        },
       ];
     });
   }
@@ -111,9 +128,20 @@ class SupabaseRoomChannel implements RoomChannel {
     if (result !== 'ok') throw new Error(`Supabase presence track: ${result}`);
   }
 
+  broadcast(message: RoomSignal): void {
+    if (this.closed) return;
+    void this.channel.send({ type: 'broadcast', event: 'signal', payload: message });
+  }
+
+  onBroadcast(handler: (message: RoomSignal) => void): () => void {
+    this.broadcastHandlers.add(handler);
+    return () => this.broadcastHandlers.delete(handler);
+  }
+
   close(): void {
     if (this.closed) return;
     this.closed = true;
+    this.broadcastHandlers.clear();
     void this.supabase.removeChannel(this.channel);
   }
 }
