@@ -3,8 +3,9 @@ import type { ItemId } from '../types';
 
 /**
  * Chance of each item by race position (MK-16), assembled from each registered item's `odds`.
- * Row 0 = 1st place … row 7 = 8th. Leaders mostly get defensive items (banana, green shell); the
- * back of the pack gets catch-up items (star, lightning).
+ * Row 0 = 1st place … row 7 = 8th; each row sums to 1 (MK-72). Leaders mostly get defensive items
+ * (banana, green shell, bubble shield, oil); the back of the pack gets catch-up items (star,
+ * turbo trio, magnet, phase, lightning). The MK-72 balance run: `pnpm item-balance`.
  */
 export function oddsTable(): Record<ItemId, number>[] {
   return Array.from({ length: ODDS_ROWS }, (_, row) =>

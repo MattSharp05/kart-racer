@@ -120,13 +120,19 @@ export interface AiItemContext {
   straightAhead: (metres: number) => number;
   /** Signed metres along the lap from `fromS` to `toS` (positive = ahead). */
   aheadMetres: (fromS: number, toS: number) => number;
+  /**
+   * Held for over `ai.itemGiveUp` s (MK-72): stop waiting for the ideal moment and take any
+   * sensible one. A hook that still says no is overruled after `ai.itemForceUse` s.
+   */
+  giveUp: boolean;
 }
 
 /**
  * Whether the AI uses its item this tick (MK-21), and how. Each new item gets a seeded thinking
  * delay (shorter for aggressive drivers); then it waits for the right moment:
  * Mushroom on a straight, Banana when someone is close behind, Green when someone is lined up
- * ahead, Red when anyone is ahead, Star/Lightning soon. After `itemGiveUp` s it uses it anyway.
+ * ahead, Red when anyone is ahead, Star/Lightning soon. After `itemGiveUp` s it uses it anyway
+ * (items with an `aiUse` hook decide for themselves, up to `itemForceUse` s).
  */
 export function aiItemInput(
   kart: KartState,
@@ -161,9 +167,10 @@ export function aiItemInput(
   // Pressing on consecutive ticks counts as one press; let go every other tick so it re-triggers.
   if (kart.item.buttonHeld) return {};
   const giveUp = (ai.itemHeld ?? 0) > cfg.itemGiveUp;
+  const forced = (ai.itemHeld ?? 0) > cfg.itemForceUse;
   const use = (extra: Partial<InputFrame> = {}): Partial<InputFrame> => ({ item: true, ...extra });
 
-  const input = itemTactic(item, kart, ai, state, geometry, straightAhead, giveUp, use);
+  const input = itemTactic(item, kart, ai, state, geometry, straightAhead, giveUp, forced, use);
   // A multi-use item (MK-52) stays in the slot: think again before each use.
   if (input.item && kart.item.uses > 1) ai.itemDelay = undefined;
   return input;
@@ -178,6 +185,7 @@ function itemTactic(
   geometry: TrackGeometry,
   straightAhead: (metres: number) => number,
   giveUp: boolean,
+  forced: boolean,
   use: (extra?: Partial<InputFrame>) => Partial<InputFrame>,
 ): Partial<InputFrame> {
   const cfg = tuning.ai;
@@ -227,8 +235,11 @@ function itemTactic(
         geometry,
         straightAhead,
         aheadMetres: (fromS, toS) => aheadMetres(geometry, fromS, toS),
+        giveUp,
       });
-      if (decision === false) return giveUp ? use() : {};
+      // The hook decides what giving up means for its item (MK-72): a Hornet Swarm from 1st has
+      // no one to chase, so it waits. Only a slot jammed for `itemForceUse` s is used regardless.
+      if (decision === false) return forced ? use() : {};
       return use(decision === true ? {} : decision);
     }
   }

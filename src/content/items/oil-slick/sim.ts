@@ -44,8 +44,8 @@ export default {
   id: 'oil-slick',
   name: 'Oil Slick',
   order: 120,
-  // Front and mid (1st place … 8th place); relative weights, the balance pass (MK-72) tunes them.
-  odds: [0.2, 0.15, 0.12, 0.1, 0.05, 0, 0, 0],
+  // Front and mid (1st place … 8th place); balanced in MK-72 (each row sums to 1).
+  odds: [0.08, 0.07, 0.06, 0.04, 0.02, 0, 0, 0],
   onUse: (kart, state) => {
     // On the road under where it lands, even when dropped mid-air (like a banana).
     const slick = spawnEntity(state, 'oil-slick', kart);
@@ -53,7 +53,9 @@ export default {
     if (ground.surface !== 'out') slick.position = { ...slick.position, y: ground.height };
   },
   // AI: drop it when someone is close behind.
-  aiUse: (kart, state, { geometry, aheadMetres }) => {
+  aiUse: (kart, state, { geometry, aheadMetres, giveUp }) => {
+    // Given up waiting: drop it anyway, it's a trap for whoever comes next.
+    if (giveUp) return true;
     const range = tuning.ai.bananaDropRange;
     const myS = geometry.project(kart.position).s;
     return state.karts.some((other) => {
