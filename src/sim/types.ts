@@ -143,6 +143,23 @@ export interface KartState {
   shrinkTimer: number;
   /** The AI driver's personality and memory, on karts with `controller: 'ai'` (MK-14). */
   ai?: AiState;
+  /** Timed item effects on this kart (MK-52): shields, magnet pulls, ink… Oldest first. */
+  effects: KartEffect[];
+}
+
+/**
+ * A timed effect on a kart (MK-52), defined by an item (`ItemContent.effects`) and driven by its
+ * hooks (`sim/items/effects.ts`). Plain data so it travels in the online snapshot.
+ */
+export interface KartEffect {
+  /** A registered effect id. */
+  kind: string;
+  /** Ticks left; the effect ends (its `onExpire` runs) when this reaches 0. */
+  ticksLeft: number;
+  /** The kart that caused it (−1 = none). */
+  by: number;
+  /** The effect's own numbers (e.g. hits a shield can still block). */
+  data: number[];
 }
 
 export type RacePhase = 'free' | 'countdown' | 'racing' | 'finished';
@@ -192,8 +209,34 @@ export interface ShellEntity {
   targetId: number;
 }
 
+/**
+ * A general item entity (MK-52): a projectile or area whose behaviour (straight, homing, returning,
+ * area) and collision rules come from its registered spec (`ItemContent.entities`).
+ */
+export interface ItemEntity {
+  id: number;
+  kind: 'item';
+  /** The registered entity spec that drives it. */
+  spec: string;
+  position: Vec3;
+  /** Travel direction on the XZ plane (unit vector). */
+  direction: { x: number; z: number };
+  /** m/s (0 for areas). */
+  speed: number;
+  /** Ticks since it was spawned. */
+  age: number;
+  ownerId: number;
+  /** Homing: the kart it chases (−1 = none). */
+  targetId: number;
+  /** Returning: 0 = flying out, 1 = coming back. */
+  returning: 0 | 1;
+  bounces: number;
+  /** The spec's own numbers. */
+  data: number[];
+}
+
 /** Things in the world other than karts. */
-export type Entity = ItemBoxEntity | BananaEntity | ShellEntity;
+export type Entity = ItemBoxEntity | BananaEntity | ShellEntity | ItemEntity;
 
 /** What hit a kart: the item's id, or `squash` (run over while shrunk). */
 export type HitKind = ItemId | 'squash';
@@ -201,6 +244,8 @@ export type HitKind = ItemId | 'squash';
 /** A kart's item slot. */
 export interface KartItem {
   held: ItemId | null;
+  /** Uses left of the held item (MK-52: multi-use items; 0 when the slot is empty). */
+  uses: number;
   /** Seconds left of the roulette spin (0 = not spinning). */
   roulette: number;
   /** Whether the item button was held last tick (to use items on press, not hold). */
@@ -249,7 +294,12 @@ export type SimEvent =
   | { type: 'boostPad'; kartId: number }
   | { type: 'launch'; kartId: number }
   | { type: 'trick'; kartId: number }
-  | { type: 'land'; kartId: number; airTime: number };
+  | { type: 'land'; kartId: number; airTime: number }
+  /**
+   * An item's own moment (MK-52): a shield popping, ink splatting… `fx` names it; the item's view
+   * maps it to a sound and, for `kartId`'s player, a screen overlay.
+   */
+  | { type: 'itemFx'; kartId: number; item: ItemId; fx: string };
 
 export interface StepResult {
   state: SimState;

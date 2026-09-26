@@ -1,7 +1,11 @@
 import { itemViews } from '../content/items/render';
 import type { SimEvent } from '../sim/types';
+import { soundRecipe } from './soundRegistry';
 
-export type SoundId =
+/** A built-in sound (`synth.ts`) or a registered one, `<item>.<name>` (`soundRegistry.ts`). */
+export type SoundId = BuiltinSoundId | `${string}.${string}`;
+
+export type BuiltinSoundId =
   | 'countBeep'
   | 'goBeep'
   | 'rocket'
@@ -123,6 +127,11 @@ export function cueFor(event: SimEvent, laps = 3): SoundCue | null {
       return event.airTime > 0.3
         ? { id: 'land', scope: 'player', kartId: event.kartId, volume: Math.min(1, event.airTime) }
         : null;
+    case 'itemFx': {
+      // Registered by the item's view (`sounds: { [fx]: recipe }`); silent without one.
+      const id = `${event.item}.${event.fx}` as const;
+      return soundRecipe(id) ? { id, scope: 'near', kartId: event.kartId } : null;
+    }
     default: {
       const unhandled: never = event;
       throw new Error(`No sound mapping for ${JSON.stringify(unhandled)}`);

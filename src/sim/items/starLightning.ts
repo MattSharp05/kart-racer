@@ -26,7 +26,7 @@ export function useLightning(kart: KartState, state: SimState, events: SimEvent[
   for (const other of state.karts) {
     if (other.id === kart.id || other.starTimer > 0 || other.respawnTimer > 0) continue;
     hitKart(other, kart.id, 'lightning', events);
-    other.item = { ...other.item, held: null, roulette: 0 };
+    other.item = { ...other.item, held: null, uses: 0, roulette: 0 };
     other.shrinkTimer = shrinkSeconds(positionOf(state, other.id), state.karts.length);
   }
 }

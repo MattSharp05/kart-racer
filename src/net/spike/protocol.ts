@@ -134,8 +134,10 @@ export function encodeSnapshot(
   w.u8(state.karts.length);
   for (const kart of state.karts) writeKart(w, kart);
   for (const id of state.positions) w.u8(id);
-  w.u8(state.entities.length);
-  for (const entity of state.entities) writeEntity(w, entity);
+  // The spike predates general item entities (MK-52); it leaves them out.
+  const entities = state.entities.filter((e): e is SpikeEntity => e.kind !== 'item');
+  w.u8(entities.length);
+  for (const entity of entities) writeEntity(w, entity);
   return w.bytes();
 }
 
@@ -312,7 +314,9 @@ function readKart(r: ByteReader, k: KartState): void {
 
 const ENTITY_KIND = { itemBox: 1, banana: 2, green: 3, red: 4 } as const;
 
-function writeEntity(w: ByteWriter, e: Entity): void {
+type SpikeEntity = Exclude<Entity, { kind: 'item' }>;
+
+function writeEntity(w: ByteWriter, e: SpikeEntity): void {
   const kind = e.kind === 'shell' ? ENTITY_KIND[e.colour] : ENTITY_KIND[e.kind];
   w.u8(kind).u16(e.id);
   writePos(w, e.position);

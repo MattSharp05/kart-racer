@@ -1,10 +1,11 @@
-import { items } from '../../content/items';
+import { availableItems } from '../../sim/items';
 import { positionOf } from '../../sim/race';
 import { raceTime } from '../../sim/raceFlow';
 import type { ItemId, KartItem, SimEvent, SimState } from '../../sim/types';
 import { formatTime, ordinal } from './format';
 import { itemIcon, itemName } from './icons';
 import { Minimap } from './minimap';
+import { ScreenEffects } from './screenEffects';
 import './hud.css';
 
 export { formatTime, ordinal } from './format';
@@ -32,6 +33,7 @@ export class Hud {
   private readonly wrongWay = div('hud-wrong-way');
   private readonly minimap = new Minimap();
   private readonly screenFlash = div('hud-flash');
+  private readonly screenEffects = new ScreenEffects();
   private centreUntil = 0;
   private readonly shown = new Map<HTMLElement, string>();
 
@@ -46,6 +48,7 @@ export class Hud {
       this.centre,
       this.wrongWay,
       this.minimap.root,
+      this.screenEffects.root,
       this.screenFlash,
     );
     document.body.append(this.root);
@@ -64,6 +67,7 @@ export class Hud {
       }
       if (event.type === 'lightning') this.lightningFlash();
     }
+    this.screenEffects.onEvents(events, kartId, now);
   }
 
   /** A white screen flash when anyone uses Lightning (MK-20). */
@@ -128,6 +132,7 @@ export class Hud {
 
     this.updateItem(kart.item, now);
     this.minimap.update(state, kart.id);
+    this.screenEffects.update(kart, now);
   }
 
   /** Item slot: cycles icons during the roulette, then shows the held item. */
@@ -135,7 +140,7 @@ export class Hud {
     let item: ItemId | null = null;
     let rolling = false;
     if (slot.roulette) {
-      const all = items.ids();
+      const all = availableItems();
       item = all[Math.floor(now / 90) % all.length] ?? null;
       rolling = true;
     } else if (slot.held) {
@@ -145,7 +150,10 @@ export class Hud {
     this.item.dataset.item = rolling ? 'roulette' : (item ?? '');
     // Key hint while an item is ready (QA round 2: players didn't know how to use it).
     const hint = item && !rolling ? '<span class="hud-item-key"></span>' : '';
-    this.set(this.item, item ? itemIcon(item) + hint : '');
+    // Uses left of a multi-use item (MK-52).
+    const uses =
+      item && !rolling && slot.uses > 1 ? `<span class="hud-item-uses">×${slot.uses}</span>` : '';
+    this.set(this.item, item ? itemIcon(item) + hint + uses : '');
     this.item.title = item && !rolling ? itemName(item) : '';
   }
 

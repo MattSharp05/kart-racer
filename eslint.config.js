@@ -20,10 +20,16 @@ export default tseslint.config(
     languageOptions: { globals: { ...globals.browser, ...globals.node } },
   },
   {
-    // Content (ADR 0007) follows the sim rules too, except each piece's `render.ts`.
+    // Content (ADR 0007) follows the sim rules too, except each piece's `render.ts` and the
+    // `views.ts` registry of item views (MK-52).
     files: ['src/sim/**/*.ts', 'src/content/**/*.ts'],
     // Tests may time themselves (perf budgets); only runtime sim code must stay pure.
-    ignores: ['src/sim/**/*.test.ts', 'src/content/**/*.test.ts', 'src/content/**/render.ts'],
+    ignores: [
+      'src/sim/**/*.test.ts',
+      'src/content/**/*.test.ts',
+      'src/content/**/render.ts',
+      'src/content/**/views.ts',
+    ],
     rules: {
       'no-restricted-imports': [
         'error',

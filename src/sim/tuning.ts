@@ -172,6 +172,9 @@ export const tuning = {
   redLookAhead: 8,
   /** Red shell: max turn rate, rad/s. */
   redTurnRate: 6,
+  // --- General item entities (MK-52) ---
+  /** An entity touches a kart only within this height difference, m. */
+  itemHitHeight: 2,
   // --- AI (MK-14) ---
   ai: {
     /** Look-ahead along the racing line = base + speed × this, m. */

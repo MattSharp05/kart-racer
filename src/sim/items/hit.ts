@@ -2,6 +2,7 @@ import { cancelDrift } from '../drift';
 import { scale } from '../math';
 import { tuning } from '../tuning';
 import type { HitKind, KartState, SimEvent } from '../types';
+import { effectsBlockHit } from './effects';
 
 /** Whether items can hit this kart right now. */
 export function canBeHit(kart: KartState): boolean {
@@ -16,10 +17,12 @@ export function canBeHit(kart: KartState): boolean {
 /**
  * The generic item hit (MK-17): the kart spins out, losing most of its speed and all control for
  * `spinSeconds`, then stays invulnerable a little longer. Drifts and boosts are cancelled.
- * Returns false (and does nothing) if the kart can't be hit.
+ * Returns false (and does nothing) if the kart can't be hit, or one of its effects (a shield,
+ * MK-52) cancels the hit.
  */
 export function hitKart(kart: KartState, by: number, kind: HitKind, events: SimEvent[]): boolean {
   if (!canBeHit(kart)) return false;
+  if (effectsBlockHit(kart, { by, kind }, events)) return false;
   kart.speed *= tuning.hitSpeedFactor;
   kart.velocity = scale(kart.velocity, tuning.hitSpeedFactor);
   cancelDrift(kart, events);
