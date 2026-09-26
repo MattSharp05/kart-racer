@@ -27,7 +27,7 @@ const folders = (kind: string) =>
     .sort();
 
 describe('content registries', () => {
-  it('list 6 real tracks plus the test tracks, 4 racers and 8 items (+ the test kit), in order', () => {
+  it('list 6 real tracks plus the test tracks, 7 racers and 8 items (+ the test kit), in order', () => {
     expect(
       tracks
         .list()
@@ -47,7 +47,15 @@ describe('content registries', () => {
         .filter((t) => t.testOnly)
         .map((t) => t.id),
     ).toEqual(['test-oval', 'test-pad', 'hazard-test']);
-    expect(racers.ids()).toEqual(['maple', 'pixie', 'boulder', 'swoop']);
+    expect(racers.ids()).toEqual([
+      'maple',
+      'pixie',
+      'boulder',
+      'swoop',
+      'sprocket',
+      'juniper',
+      'blaze',
+    ]);
     expect(
       items
         .list()

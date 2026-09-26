@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { scenarios } from '../scenarios';
 import { standingsOf } from '../net/host';
+import { kartDef } from '../sim/data/karts';
+import type { SimState } from '../sim/types';
 import { onlineResultLines, playerColour, recordFinish, recordLines } from './results';
 import { getRecord, recordStorage, saveRaceRecord } from './storage/records';
 import { MemoryStore, OverlayStore } from './storage/store';
@@ -57,6 +59,7 @@ describe('recordFinish', () => {
 
 describe('online result lines (MK-55)', () => {
   const state = () => scenarios.get('online-results')!.setup(1).state;
+  const racerName = (s: SimState, kartId: number) => kartDef(s.karts[kartId]!.kartType).name;
 
   it("lists all 8 from the host's standings, people marked in their colours, AI plain", () => {
     const s = state();
@@ -69,7 +72,7 @@ describe('online result lines (MK-55)', () => {
     expect(lines[1]).toMatchObject({ name: 'Maya', you: true, human: true, colour: '#111111' });
     expect(lines[1]?.time).toBeCloseTo(62.08, 1);
     // An AI kart: its racer's name, no colour; the last two are still racing.
-    expect(lines[2]).toMatchObject({ name: 'Pixie', human: false });
+    expect(lines[2]).toMatchObject({ name: racerName(s, standingsOf(s)[2]!.kartId), human: false });
     expect(lines[2]?.colour).toBeUndefined();
     expect(lines.slice(6).every((l) => l.time === undefined)).toBe(true);
   });
@@ -77,7 +80,10 @@ describe('online result lines (MK-55)', () => {
   it("the host's frozen standings win over this device's live order", () => {
     const s = state();
     const standings = [...standingsOf(s)].reverse();
-    expect(onlineResultLines(s, standings, 0).map((l) => l.name)[0]).toBe('Swoop');
+    // The last kart is an AI: its racer's name.
+    expect(onlineResultLines(s, standings, 0).map((l) => l.name)[0]).toBe(
+      racerName(s, standings[0]!.kartId),
+    );
     // No standings yet: the live order.
     expect(onlineResultLines(s, null, 0).map((l) => l.name)[0]).toBe('Bob');
   });

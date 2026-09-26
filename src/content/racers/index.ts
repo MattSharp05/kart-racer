@@ -1,7 +1,10 @@
 import { Registry } from '../registry';
+import blaze from './blaze/sim';
 import boulder from './boulder/sim';
+import juniper from './juniper/sim';
 import maple from './maple/sim';
 import pixie from './pixie/sim';
+import sprocket from './sprocket/sim';
 import swoop from './swoop/sim';
 
 /** A racer's 1–5 stats (PRD → Karts). The MVP four each total 12. */
@@ -31,4 +34,10 @@ export interface RacerContent {
 export const racers = new Registry<RacerContent>('racer');
 
 // One line per racer folder, alphabetical (a unit test checks none is missing).
-for (const racer of [boulder, maple, pixie, swoop]) racers.register(racer);
+racers.register(blaze);
+racers.register(boulder);
+racers.register(juniper);
+racers.register(maple);
+racers.register(pixie);
+racers.register(sprocket);
+racers.register(swoop);
