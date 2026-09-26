@@ -12,7 +12,7 @@ import { onlineRace, scriptedInput, TICK_MS } from './testRace';
  * The netcode lab (MK-73, test-only like `testRace.ts`): a whole online race over loopback under a
  * simulated network, every client drawing one frame per tick through its `NetSmoother`, measured
  * the way a player would notice it. The soak test, the tuning sweep and the budgets in
- * `netTuning.perf.test.ts` all run on it.
+ * `netTuning.test.ts` all run on it.
  */
 
 const HZ = Math.round(1 / DT);
