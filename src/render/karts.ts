@@ -31,28 +31,54 @@ function lerpAngle(a: number, b: number, t: number): number {
   return a + delta * t;
 }
 
+/** A drawn kart pose; a `KartPoseFilter` moves it in place. */
+export interface KartPose {
+  x: number;
+  y: number;
+  z: number;
+  heading: number;
+}
+
+/**
+ * Moves where karts are drawn without touching the sim (online render smoothing, MK-45: the
+ * client's `NetSmoother`). `pose` is kart `kartId` interpolated `alpha` from tick `tick - 1` to `tick`.
+ */
+export interface KartPoseFilter {
+  frame(seconds: number): void;
+  adjust(kartId: number, pose: KartPose, tick: number, alpha: number): void;
+}
+
 /** Kart meshes driven by sim state, interpolated between ticks. */
 export class KartRenderer {
   private readonly models: KartModel[] = [];
   private readonly types: KartId[] = [];
   /** Last sim tick the wheels were advanced for, so they spin once per tick, not per frame. */
   private wheelTick = -1;
+  private readonly pose: KartPose = { x: 0, y: 0, z: 0, heading: 0 };
 
   constructor(
     private readonly scene: THREE.Scene,
     private readonly factory: KartModelFactory = new PrimitiveKartFactory(),
   ) {}
 
-  sync(previous: SimState, current: SimState, alpha: number, inputs: readonly InputFrame[] = []) {
+  sync(
+    previous: SimState,
+    current: SimState,
+    alpha: number,
+    inputs: readonly InputFrame[] = [],
+    filter?: KartPoseFilter,
+  ) {
+    const pose = this.pose;
     current.karts.forEach((kart, i) => {
       const model = this.models[i] ?? this.createModel(kart);
       const before = previous.karts[i] ?? kart;
-      model.root.position.set(
-        before.position.x + (kart.position.x - before.position.x) * alpha,
-        before.position.y + (kart.position.y - before.position.y) * alpha,
-        before.position.z + (kart.position.z - before.position.z) * alpha,
-      );
-      model.root.rotation.y = lerpAngle(before.heading, kart.heading, alpha);
+      pose.x = before.position.x + (kart.position.x - before.position.x) * alpha;
+      pose.y = before.position.y + (kart.position.y - before.position.y) * alpha;
+      pose.z = before.position.z + (kart.position.z - before.position.z) * alpha;
+      pose.heading = lerpAngle(before.heading, kart.heading, alpha);
+      filter?.adjust(i, pose, current.tick, alpha);
+      model.root.position.set(pose.x, pose.y, pose.z);
+      model.root.rotation.y = pose.heading;
 
       if (current.tick !== this.wheelTick) {
         const ticks = this.wheelTick < 0 ? 0 : current.tick - this.wheelTick;

@@ -294,6 +294,25 @@ export const tuning = {
   wrongWaySeconds: 1.5,
   /** A kart further than this past a wall line is on its far side (e.g. a shortcut), not in it, m. */
   wallMaxPenetration: 3,
+  // --- Online (MK-45): how a client shows the predicted race. Protocol constants: net/config.ts ---
+  net: {
+    /** A correction from a snapshot is blended out over this long, s, so karts never teleport. */
+    smoothingSeconds: 0.15,
+    /** Corrections bigger than this snap at once (respawns, hits the client didn't foresee), m. */
+    snapDistance: 3,
+    /** Ticks the client runs ahead beyond a full RTT, so its inputs reach the host in time. */
+    inputDelayTicks: 2,
+    /**
+     * How other players' karts are drawn: `predict` (their last known input, like the rest of the
+     * race) or `interpolate` (the host's snapshots, `interpolationSeconds` in the past).
+     */
+    remoteKarts: 'predict' as RemoteKartMode,
+    /** How far behind the newest snapshot interpolated remote karts are drawn, s. */
+    interpolationSeconds: 0.1,
+  },
 };
+
+/** See `tuning.net.remoteKarts`. */
+export type RemoteKartMode = 'predict' | 'interpolate';
 
 export type Tuning = typeof tuning;
