@@ -1,4 +1,5 @@
 import { resolveKartCollisions } from './collisions';
+import { hazardGrip, trackHazards, updateHazards } from './hazards';
 import { updateKart } from './kart';
 import { updateRace } from './race';
 import { afterRace, beforeMovement } from './raceFlow';
@@ -28,11 +29,15 @@ export function step(state: SimState, inputs: readonly InputFrame[], dt = DT): S
   if (frozen) return { state: next, events };
 
   const positionsBefore = new Map(next.karts.map((kart) => [kart.id, kart.position]));
+  const hazards = trackHazards(track);
   for (const kart of next.karts) {
     if (isRespawning(kart)) continue;
     const input = kart.spinTimer > 0 ? NEUTRAL_INPUT : (resolved[kart.id] ?? NEUTRAL_INPUT);
-    updateKart(kart, input, next.engineClass, track, dt, events);
+    const grip = hazards.length ? hazardGrip(hazards, next.tick, kart.position) : 1;
+    updateKart(kart, input, next.engineClass, track, dt, events, { tick: next.tick, grip });
   }
+  // Hazards (MK-49) push, spin or squash karts that touch them; their poses depend only on the tick.
+  if (hazards.length) updateHazards(next, hazards, events);
   // Karts being carried by the pickup drone don't collide.
   resolveKartCollisions(
     next.karts.filter((kart) => !isRespawning(kart)),

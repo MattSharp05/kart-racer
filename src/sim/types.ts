@@ -195,8 +195,8 @@ export interface ShellEntity {
 /** Things in the world other than karts. */
 export type Entity = ItemBoxEntity | BananaEntity | ShellEntity;
 
-/** What hit a kart: the item's id, or `squash` (run over while shrunk). */
-export type HitKind = ItemId | 'squash';
+/** What hit a kart: the item's id, `squash` (run over while shrunk) or a track `hazard` (MK-49). */
+export type HitKind = ItemId | 'squash' | 'hazard';
 
 /** A kart's item slot. */
 export interface KartItem {

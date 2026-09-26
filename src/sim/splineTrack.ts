@@ -1,3 +1,4 @@
+import type { HazardDef } from './hazards/types';
 import type { Vec3 } from './math';
 
 /** One control point of a closed track centreline. Points are listed in driving order. */
@@ -15,7 +16,8 @@ export interface TrackRange {
   to: number;
 }
 
-export type ZoneSurface = 'boostPad' | 'offroad';
+/** Surfaces a zone can lay on the track; what each one does is in `sim/surfaces.ts` (MK-49). */
+export type ZoneSurface = 'boostPad' | 'offroad' | 'ice' | 'sand' | 'conveyor';
 
 /** A patch of special surface, e.g. a boost pad or a grass cut, by track position and lateral offset. */
 export interface SurfaceZone extends TrackRange {
@@ -23,6 +25,11 @@ export interface SurfaceZone extends TrackRange {
   lateralMin: number;
   lateralMax: number;
   type: ZoneSurface;
+  /**
+   * Conveyors: which way the belt runs, radians from the driving direction (0 = with the track,
+   * π/2 = towards its right, π = backwards). Its speed is `tuning.surfaces.conveyorSpeed`.
+   */
+  flowAngle?: number;
 }
 
 export interface WallGap extends TrackRange {
@@ -53,6 +60,8 @@ export interface SplineTrackDef {
   itemBoxRows?: { t: number; laterals: number[] }[];
   /** AI racing line: lateral offset (m) at evenly spaced lap fractions i / length (MK-14). */
   aiLine?: number[];
+  /** Moving, rotating, periodic and zone hazards (MK-49); their state is a pure function of tick. */
+  hazards?: HazardDef[];
 }
 
 /** A resampled point on the centreline, evenly spaced along its length. */
@@ -72,7 +81,7 @@ export interface TrackSample {
 }
 
 /** `rough` = deep grass on shortcuts: slower than the verges, so a cut only pays with a boost. */
-export type Surface = 'road' | 'offroad' | 'rough' | 'boostPad' | 'out';
+export type Surface = 'road' | 'rough' | 'out' | ZoneSurface;
 
 export interface TrackProjection {
   /** Distance along the lap, m, in [0, length). */
@@ -85,6 +94,8 @@ export interface TrackProjection {
   groundY: number;
   width: number;
   surface: Surface;
+  /** The surface zone here, if any (conveyors read their `flowAngle` from it). */
+  zone?: SurfaceZone;
   /** Unit right-normal of the track here (XZ). */
   normal: { x: number; z: number };
   /** Unit tangent of the track here (XZ). */
@@ -274,13 +285,15 @@ export class TrackGeometry {
     const s = ((wrap(best.i, n) + f) / n) * this.length;
     const t = s / this.length;
     const width = a.width + (b.width - a.width) * f;
+    const zone = this.zoneAt(t, lateral);
     return {
       s,
       t,
       lateral,
       groundY: a.y + (b.y - a.y) * f,
       width,
-      surface: this.surfaceAt(t, lateral, width),
+      surface: zone ? zone.type : this.baseSurface(lateral, width),
+      ...(zone ? { zone } : {}),
       normal,
       tangent: { x: normal.z, z: -normal.x },
     };
@@ -335,11 +348,13 @@ export class TrackGeometry {
     return width / 2 + this.def.offroadWidth;
   }
 
-  private surfaceAt(t: number, lateral: number, width: number): Surface {
-    const zone = this.def.surfaceZones.find(
+  private zoneAt(t: number, lateral: number): SurfaceZone | undefined {
+    return this.def.surfaceZones.find(
       (z) => inRange(t, z) && lateral >= z.lateralMin && lateral <= z.lateralMax,
     );
-    if (zone) return zone.type;
+  }
+
+  private baseSurface(lateral: number, width: number): Surface {
     const distance = Math.abs(lateral);
     if (distance <= width / 2) return 'road';
     if (distance <= this.wallOffset(width)) return 'offroad';
