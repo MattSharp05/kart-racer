@@ -11,6 +11,7 @@ import { rngInt, rngPick } from '../sim/rng';
 import { DT, tuning, type EngineClass } from '../sim/tuning';
 import { NEUTRAL_INPUT, type SimState } from '../sim/types';
 import { recordStorage, type TrackRecord } from '../game/storage/records';
+import { SETTINGS_KEY, SETTINGS_VERSION } from '../game/storage/settings';
 import type { Scenario } from './registry';
 
 const sunny = trackGeometry(sunnyCircuit);
@@ -276,6 +277,22 @@ export const raceScenarios: Scenario[] = [
       const player = state.karts[0];
       if (player) player.item.held = 'red';
       return { state };
+    },
+  },
+  {
+    name: 'race-touch-left',
+    group: 'Race',
+    description:
+      'Left-handed touch layout (MK-53): buttons bottom-left, steering on the right half. Just after GO with 7 AI, holding a Mushroom.',
+    defaultSeed: 1,
+    setup: (seed) => {
+      const state = racingSince(sunnyRace(seed, { karts: 8, ai: true }), 0.5);
+      const player = state.karts[0];
+      if (player) player.item.held = 'mushroom';
+      return {
+        state,
+        storage: { [SETTINGS_KEY]: JSON.stringify({ version: SETTINGS_VERSION, hand: 'left' }) },
+      };
     },
   },
   {

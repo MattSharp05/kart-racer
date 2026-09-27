@@ -176,9 +176,13 @@ describe('Ink Cloud (MK-68)', () => {
       expect(share).toBeLessThan(0.45);
     });
 
-    it('stays clear of the touch buttons (bottom right), stick (bottom left) and pause (right)', () => {
+    it('stays clear of the touch buttons and stick for either hand (MK-53), and of pause (right)', () => {
+      // Right hand: buttons bottom right, stick bottom left.
       expect(coverage((x, y) => x > 72 && y > 55)).toBe(0);
       expect(coverage((x, y) => x < 30 && y > 70)).toBe(0);
+      // Left hand: the mirror image.
+      expect(coverage((x, y) => x < 28 && y > 55)).toBe(0);
+      expect(coverage((x, y) => x > 70 && y > 70)).toBe(0);
       expect(coverage((x) => x > 88)).toBe(0);
     });
   });
