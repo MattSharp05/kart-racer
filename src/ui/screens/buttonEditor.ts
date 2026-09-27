@@ -200,8 +200,6 @@ registerScreen('buttonEditor', (panel, { store, onClose }) => {
       down.preventDefault();
       const box = safeBox();
       const start = circleOf(name, box);
-      const positions = ensurePositions(box);
-      const from = positions[name];
       const others = TOUCH_BUTTONS.filter((n) => n !== name).map((n) => circleOf(n, box));
       // Screen px → layout px: the outer edge is on the right for a right hand.
       const sign = hand === 'left' ? 1 : -1;
@@ -220,7 +218,8 @@ registerScreen('buttonEditor', (panel, { store, onClose }) => {
         dragging = true;
         window.clearTimeout(timer);
         current = { ...start, x: start.x + sign * dx, y: start.y - dy };
-        positions[name] = toPosition(current, box.area);
+        // A long-press alone keeps the default arrangement; a drag fixes every button's place.
+        ensurePositions(box)[name] = toPosition(current, box.area);
         render();
       };
       const end = (e: PointerEvent) => {
@@ -233,7 +232,7 @@ registerScreen('buttonEditor', (panel, { store, onClose }) => {
         if (!dragging) return;
         const placed = dropButton(current, others, box.area);
         // On another button: snap back to where the drag began.
-        positions[name] = placed ? toPosition(placed, box.area) : from;
+        ensurePositions(box)[name] = toPosition(placed ?? start, box.area);
         render();
       };
       window.addEventListener('pointermove', move);
