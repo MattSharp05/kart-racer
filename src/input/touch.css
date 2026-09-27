@@ -19,8 +19,8 @@
   pointer-events: auto;
 }
 
-.touch-controls[data-steering='tilt'] .touch-steer {
-  /* Tilt steering (MK-54): no drag zone; the buttons stay. */
+.touch-controls[data-steering='tilt'] .touch-stick {
+  /* Tilt steering (MK-54): no drag stick. The zone stays, invisible: a tap there starts driving. */
   display: none;
 }
 

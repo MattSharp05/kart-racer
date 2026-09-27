@@ -24,8 +24,9 @@ let currentSteering: Steering = 'drag';
 const allControls = new Set<TouchControls>();
 
 /**
- * Drag or tilt steering (MK-54). With tilt the drag zone is hidden (the buttons stay) and the kart
- * accelerates without a first touch; `input/tilt.ts` supplies the steering. Applies at once.
+ * Drag or tilt steering (MK-54). With tilt the drag stick is hidden and dragging doesn't steer
+ * (`input/tilt.ts` does); the buttons stay, and a tap on the zone still starts the auto-accelerate,
+ * so the player picks when to go (throttle held too long before GO stalls). Applies at once.
  */
 export function setTouchSteering(steering: Steering): void {
   currentSteering = steering;
@@ -68,7 +69,7 @@ export class TouchControls {
       zone.setPointerCapture?.(e.pointerId);
     });
     zone.addEventListener('pointermove', (e) => {
-      if (e.pointerId !== this.steerPointer) return;
+      if (e.pointerId !== this.steerPointer || currentSteering === 'tilt') return;
       this.steer = steerFromDrag(e.clientX - this.steerStartX);
       this.stick.style.transform = `translateX(${this.steer * STEER_MAX_PX}px)`;
     });
@@ -151,11 +152,10 @@ export class TouchControls {
   read(): InputFrame {
     if (!this.live) return NEUTRAL_INPUT;
     const braking = this.held.has('brake');
-    const tilting = currentSteering === 'tilt';
     return {
-      throttle: (this.engaged || tilting) && !braking ? 1 : 0,
+      throttle: this.engaged && !braking ? 1 : 0,
       brake: braking ? 1 : 0,
-      steer: tilting ? 0 : this.steer,
+      steer: currentSteering === 'tilt' ? 0 : this.steer,
       drift: this.held.has('drift'),
       item: this.held.has('item'),
     };

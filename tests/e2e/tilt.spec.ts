@@ -35,6 +35,13 @@ async function tiltRight(page: Page, degrees: number): Promise<void> {
   }, degrees);
 }
 
+/** Taps the steering zone, which in tilt mode starts driving, and drags it (which must not steer). */
+async function tapToGo(page: Page): Promise<void> {
+  const zone = page.locator('.touch-steer');
+  await zone.dispatchEvent('pointerdown', { pointerId: 7, clientX: 100, clientY: 300 });
+  await zone.dispatchEvent('pointermove', { pointerId: 7, clientX: 40, clientY: 300 });
+}
+
 /** Runs `ticks` sim ticks without drawing and returns the player's heading. */
 function headingAfter(page: Page, ticks: number): Promise<number> {
   return page.evaluate((n) => window.__game!.step(n, { render: false }).karts[0]!.heading, ticks);
@@ -47,7 +54,7 @@ async function openSteering(page: Page) {
 }
 
 test.describe('tilt steering (MK-54)', () => {
-  test('phones: race-tilt hides the drag zone, and tilting 25° right is full right lock', async ({
+  test('phones: race-tilt hides the drag stick, and tilting 25° right is full right lock', async ({
     page,
   }, info) => {
     test.skip(!isPhone(info.project.name));
@@ -57,10 +64,12 @@ test.describe('tilt steering (MK-54)', () => {
     const controls = page.locator('.touch-controls');
     await expect(controls).toBeVisible();
     await expect(controls).toHaveAttribute('data-steering', 'tilt');
-    await expect(page.locator('.touch-steer')).toBeHidden();
+    await expect(page.locator('.touch-stick')).toBeHidden();
     await expect(page.locator('.touch-drift')).toBeVisible();
 
     const start = await headingAfter(page, 0);
+    // A tap on the (invisible) zone starts the auto-accelerate; dragging there doesn't steer.
+    await tapToGo(page);
     await tiltRight(page, 25);
     const tilted = await headingAfter(page, 30);
 
@@ -74,10 +83,16 @@ test.describe('tilt steering (MK-54)', () => {
     expect(tilted).toBeCloseTo(fullLock, 4);
   });
 
-  test('phones: tilting inside the dead zone steers straight', async ({ page }, info) => {
+  test('phones: no throttle until a tap; tilting inside the dead zone steers straight', async ({
+    page,
+  }, info) => {
     test.skip(!isPhone(info.project.name));
     await loadScenario(page, 'race-tilt', { paused: true });
-    const start = await headingAfter(page, 0);
+    // Tilt alone doesn't drive: holding throttle through the countdown would stall the engine.
+    const idle = await page.evaluate(() => window.__game!.step(30, { render: false }).karts[0]!);
+    expect(Math.abs(idle.speed)).toBeLessThan(0.5);
+    const start = idle.heading;
+    await tapToGo(page);
     await tiltRight(page, 2);
     const heading = await headingAfter(page, 30);
     // The track curves a little; a steered kart turns far more than this in half a second.
@@ -139,7 +154,7 @@ test.describe('tilt steering (MK-54)', () => {
     await page.locator('.menu-settings button', { hasText: 'Back' }).click();
     await page.locator('.menu-paused button', { hasText: 'Resume' }).click();
     await expect(page.locator('.touch-controls')).toBeVisible();
-    await expect(page.locator('.touch-steer')).toBeHidden();
+    await expect(page.locator('.touch-stick')).toBeHidden();
   });
 
   test('phones: saved Tilt asks again on the first tap; refused → Drag with a notice', async ({
@@ -153,6 +168,6 @@ test.describe('tilt steering (MK-54)', () => {
     await page.locator('.touch-brake').click();
     await expect(page.locator('.toast')).toContainText('Drag');
     await expect(controls).toHaveAttribute('data-steering', 'drag');
-    await expect(page.locator('.touch-steer')).toBeVisible();
+    await expect(page.locator('.touch-stick')).toBeVisible();
   });
 });
