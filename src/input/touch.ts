@@ -1,4 +1,3 @@
-import type { Hand } from '../game/storage/settings';
 import {
   buttonScale,
   defaultButtonLayout,
@@ -6,6 +5,7 @@ import {
   type ButtonLayout,
   type TouchButtonName,
 } from './buttonLayout';
+import type { Hand, Steering } from '../game/storage/settings';
 import { NEUTRAL_INPUT, type InputFrame } from '../sim/types';
 import { isTextEntry } from './keyboard';
 import './touch.css';
@@ -26,11 +26,22 @@ export function isTouchDevice(): boolean {
 
 type ButtonName = TouchButtonName;
 
-/** The hand the controls are laid out for (MK-53), and every live set of controls to update. */
+/** The hand (MK-53) and steering (MK-54) the controls follow, and every live set to update. */
 let currentHand: Hand = 'right';
 /** The button sizes and positions (MK-57). */
 let currentLayout: ButtonLayout = defaultButtonLayout();
+let currentSteering: Steering = 'drag';
 const allControls = new Set<TouchControls>();
+
+/**
+ * Drag or tilt steering (MK-54). With tilt the drag stick is hidden and dragging doesn't steer
+ * (`input/tilt.ts` does); the buttons stay, and a tap on the zone still starts the auto-accelerate,
+ * so the player picks when to go (throttle held too long before GO stalls). Applies at once.
+ */
+export function setTouchSteering(steering: Steering): void {
+  currentSteering = steering;
+  for (const controls of allControls) controls.root.dataset.steering = steering;
+}
 
 /**
  * Lays the touch controls out for `hand` (MK-53): Left mirrors them, buttons left and steering
@@ -40,6 +51,11 @@ const allControls = new Set<TouchControls>();
 export function setTouchHand(hand: Hand): void {
   currentHand = hand;
   for (const controls of allControls) controls.root.dataset.hand = hand;
+}
+
+/** How the touch controls steer (MK-54). */
+export function touchSteering(): Steering {
+  return currentSteering;
 }
 
 /** The hand the touch controls are laid out for (MK-53). */
@@ -99,6 +115,7 @@ export class TouchControls {
     this.root.className = 'touch-controls';
     this.root.dataset.hand = currentHand;
     applyButtonLayout(this.root, currentLayout);
+    this.root.dataset.steering = currentSteering;
     this.root.hidden = true;
     allControls.add(this);
 
@@ -115,7 +132,7 @@ export class TouchControls {
       zone.setPointerCapture?.(e.pointerId);
     });
     zone.addEventListener('pointermove', (e) => {
-      if (e.pointerId !== this.steerPointer) return;
+      if (e.pointerId !== this.steerPointer || currentSteering === 'tilt') return;
       this.steer = steerFromDrag(e.clientX - this.steerStartX);
       this.stick.style.transform = `translateX(${this.steer * STEER_MAX_PX}px)`;
     });
@@ -190,13 +207,18 @@ export class TouchControls {
     if (!active) this.held.clear();
   }
 
+  /** Whether the controls are on screen and driving (not hidden, no menu open). */
+  get live(): boolean {
+    return this.shown && this.active;
+  }
+
   read(): InputFrame {
-    if (!this.shown || !this.active) return NEUTRAL_INPUT;
+    if (!this.live) return NEUTRAL_INPUT;
     const braking = this.held.has('brake');
     return {
       throttle: this.engaged && !braking ? 1 : 0,
       brake: braking ? 1 : 0,
-      steer: this.steer,
+      steer: currentSteering === 'tilt' ? 0 : this.steer,
       drift: this.held.has('drift'),
       item: this.held.has('item'),
     };
