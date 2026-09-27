@@ -1,0 +1,89 @@
+/* Button editor (MK-57): the race stays visible behind a light tint; the toolbar sits at the top
+   and the preview buttons where they'll be in the race. */
+.menus[data-screen='buttonEditor'] {
+  place-items: start center;
+  background: rgb(10 30 60 / 0.2);
+}
+
+.menu-buttonEditor {
+  padding: 0;
+  background: none;
+}
+
+/* Above the preview (which is inside the panel too). */
+.button-editor-toolbar {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  padding: 8px 14px 10px;
+  border-radius: 18px;
+  background: rgb(0 0 0 / 0.55);
+}
+
+.menu-buttonEditor h2 {
+  font-size: clamp(16px, 3vw, 22px);
+}
+
+.button-editor-hint {
+  margin: 0;
+  font-size: 13px;
+  opacity: 0.85;
+}
+
+.button-editor-size-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.button-editor-size-label {
+  min-width: 9em;
+  text-align: right;
+}
+
+.button-editor-size {
+  width: min(40vw, 220px);
+  accent-color: var(--color-gold);
+}
+
+.menu-buttonEditor .actions button {
+  padding: 8px 14px;
+}
+
+/* The preview is a `.touch-controls` (fixed, full screen) under the toolbar. */
+.button-editor-preview {
+  z-index: 0;
+}
+
+/* The safe area: measured for the layout maths, and a tap on it clears a long-press selection. */
+.button-editor-safe {
+  position: absolute;
+  inset: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px)
+    env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);
+  border: 2px dashed rgb(255 255 255 / 0.25);
+  box-sizing: border-box;
+  pointer-events: auto;
+}
+
+.button-editor-preview .touch-button {
+  display: grid;
+  place-items: center;
+  box-sizing: border-box;
+  cursor: grab;
+  user-select: none;
+}
+
+.button-editor-preview .touch-button.selected {
+  border-color: var(--color-gold);
+  box-shadow: 0 0 0 4px rgb(255 209 102 / 0.5);
+}
+
+/* Settings → Controls → Buttons: a pill like the other controls rows. */
+.menus .settings-buttons-edit {
+  padding: 8px 16px;
+  border-radius: 999px;
+}

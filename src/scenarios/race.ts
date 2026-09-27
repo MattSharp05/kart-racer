@@ -1,3 +1,4 @@
+import type { ButtonLayout } from '../input/buttonLayout';
 import { KART_IDS, type KartId } from '../sim/data/karts';
 import { lineOffsetAt } from '../sim/ai/racingLine';
 import { sunnyCircuit } from '../content/tracks/sunny-circuit/sim';
@@ -292,6 +293,27 @@ export const raceScenarios: Scenario[] = [
       return {
         state,
         storage: { [SETTINGS_KEY]: JSON.stringify({ version: SETTINGS_VERSION, hand: 'left' }) },
+      };
+    },
+  },
+  {
+    name: 'race-touch-custom',
+    group: 'Race',
+    description:
+      'Custom touch buttons (MK-57): 125% size, Drift moved up and inwards, Item small and further in, Brake low in the corner. Just after GO with 7 AI, holding a Mushroom.',
+    defaultSeed: 1,
+    setup: (seed) => {
+      const state = racingSince(sunnyRace(seed, { karts: 8, ai: true }), 0.5);
+      const player = state.karts[0];
+      if (player) player.item.held = 'mushroom';
+      const buttons: ButtonLayout = {
+        scale: 1.25,
+        sizes: { drift: 1, item: 0.8, brake: 1 },
+        positions: { drift: { x: 24, y: 40 }, item: { x: 40, y: 18 }, brake: { x: 8, y: 18 } },
+      };
+      return {
+        state,
+        storage: { [SETTINGS_KEY]: JSON.stringify({ version: SETTINGS_VERSION, buttons }) },
       };
     },
   },

@@ -1,4 +1,11 @@
 import type { Hand } from '../game/storage/settings';
+import {
+  buttonScale,
+  defaultButtonLayout,
+  TOUCH_BUTTONS,
+  type ButtonLayout,
+  type TouchButtonName,
+} from './buttonLayout';
 import { NEUTRAL_INPUT, type InputFrame } from '../sim/types';
 import { isTextEntry } from './keyboard';
 import './touch.css';
@@ -17,10 +24,12 @@ export function isTouchDevice(): boolean {
   return window.matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints > 0;
 }
 
-type ButtonName = 'drift' | 'item' | 'brake';
+type ButtonName = TouchButtonName;
 
 /** The hand the controls are laid out for (MK-53), and every live set of controls to update. */
 let currentHand: Hand = 'right';
+/** The button sizes and positions (MK-57). */
+let currentLayout: ButtonLayout = defaultButtonLayout();
 const allControls = new Set<TouchControls>();
 
 /**
@@ -36,6 +45,37 @@ export function setTouchHand(hand: Hand): void {
 /** The hand the touch controls are laid out for (MK-53). */
 export function touchHand(): Hand {
   return currentHand;
+}
+
+/**
+ * Sizes and places the Drift / Item / Brake buttons (MK-57). Applies at once to every live set of
+ * controls; controls created later start with it.
+ */
+export function setTouchLayout(layout: ButtonLayout): void {
+  currentLayout = layout;
+  for (const controls of allControls) applyButtonLayout(controls.root, layout);
+}
+
+/**
+ * Writes `layout` onto a `.touch-controls` root (the live controls, or the button editor's
+ * preview) as CSS custom properties: `--touch-<button>-scale` always, and with custom positions
+ * `data-layout="custom"` plus `--touch-<button>-x` / `-y` (% of the safe area from its outer edge
+ * and bottom; `touch.css` turns them into left/right for the hand).
+ */
+export function applyButtonLayout(root: HTMLElement, layout: ButtonLayout): void {
+  for (const name of TOUCH_BUTTONS) {
+    root.style.setProperty(`--touch-${name}-scale`, String(buttonScale(layout, name)));
+    const position = layout.positions?.[name];
+    if (position) {
+      root.style.setProperty(`--touch-${name}-x`, `${position.x}%`);
+      root.style.setProperty(`--touch-${name}-y`, `${position.y}%`);
+    } else {
+      root.style.removeProperty(`--touch-${name}-x`);
+      root.style.removeProperty(`--touch-${name}-y`);
+    }
+  }
+  if (layout.positions) root.dataset.layout = 'custom';
+  else delete root.dataset.layout;
 }
 
 /**
@@ -58,6 +98,7 @@ export class TouchControls {
   constructor() {
     this.root.className = 'touch-controls';
     this.root.dataset.hand = currentHand;
+    applyButtonLayout(this.root, currentLayout);
     this.root.hidden = true;
     allControls.add(this);
 
