@@ -11,16 +11,16 @@ export interface InkBlot {
 }
 
 /**
- * The big splats (x, y, radius). They sit in the top two thirds and the middle, clear of the
- * bottom corners where the touch stick and buttons are (MK-68 Mobile AC) and of the right edge
- * (the pause button).
+ * The big splats (x, y, radius). They sit in the top two thirds and the middle, clear of both
+ * bottom corners, where the touch stick and buttons are (MK-68 Mobile AC) whichever hand they're
+ * laid out for (MK-53 mirrors them), and of the right edge (the pause button).
  */
 const SPLATS: readonly InkBlot[] = [
   { x: 24, y: 26, r: 18 },
   { x: 58, y: 20, r: 15 },
-  { x: 44, y: 48, r: 17 },
+  { x: 46, y: 48, r: 17 },
   { x: 73, y: 29, r: 9 },
-  { x: 12, y: 56, r: 9 },
+  { x: 50, y: 68, r: 9 },
   { x: 63, y: 46, r: 9 },
 ];
 /** Droplets thrown out round each splat. */

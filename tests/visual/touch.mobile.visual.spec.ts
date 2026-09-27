@@ -13,6 +13,12 @@ test('hud-mid-race with touch controls (paused)', async ({ page }, info) => {
   await expect(page).toHaveScreenshot(`hud-mid-race-${info.project.name}.png`);
 });
 
+test('left-handed touch layout, MK-53 (paused)', async ({ page }, info) => {
+  await loadScenario(page, 'race-touch-left', { paused: true });
+  await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(resolve)));
+  await expect(page).toHaveScreenshot(`race-touch-left-${info.project.name}.png`);
+});
+
 test('how to play, touch version (paused)', async ({ page }, info) => {
   await loadScenario(page, 'menu-how-to-play', { paused: true });
   await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(resolve)));

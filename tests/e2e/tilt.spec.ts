@@ -202,4 +202,13 @@ test.describe('tilt steering (MK-54)', () => {
     await expect(controls).toHaveAttribute('data-steering', 'tilt');
     await expect(page.locator('.toast')).toHaveCount(0);
   });
+
+  test('phones: with Tilt, the controls guide says to tilt the phone', async ({ page }, info) => {
+    test.skip(!isPhone(info.project.name));
+    await loadScenario(page, 'race-tilt', { paused: true });
+    await page.locator('.pause-button').click();
+    await page.locator('.menu-paused button', { hasText: 'How to play' }).click();
+    await expect(page.locator('.how-to-play')).toContainText('Tilt the phone');
+    await expect(page.locator('.how-to-play')).not.toContainText('Drag left / right');
+  });
 });

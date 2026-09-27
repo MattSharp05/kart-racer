@@ -24,6 +24,8 @@ test('settings with Tilt chosen: sensitivity and Calibrate (paused)', async ({ p
   await page.locator('.steering-setting').getByRole('button', { name: 'Tilt' }).click();
   await expect(page.locator('.tilt-options')).toBeVisible();
   await page.locator('.menu-settings .settings-back').focus();
+  // Show the tilt options: the settings body scrolls on a phone.
+  await page.locator('.settings-body').evaluate((el) => (el.scrollTop = el.scrollHeight));
   await page.waitForTimeout(100);
   await expect(page).toHaveScreenshot(`settings-tilt-${info.project.name}.png`);
 });

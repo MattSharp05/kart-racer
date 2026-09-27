@@ -1,4 +1,4 @@
-import type { Steering } from '../game/storage/settings';
+import type { Hand, Steering } from '../game/storage/settings';
 import { NEUTRAL_INPUT, type InputFrame } from '../sim/types';
 import { isTextEntry } from './keyboard';
 import './touch.css';
@@ -19,7 +19,8 @@ export function isTouchDevice(): boolean {
 
 type ButtonName = 'drift' | 'item' | 'brake';
 
-/** How the controls steer (MK-54), and every live set of controls to update. */
+/** The hand (MK-53) and steering (MK-54) the controls follow, and every live set to update. */
+let currentHand: Hand = 'right';
 let currentSteering: Steering = 'drag';
 const allControls = new Set<TouchControls>();
 
@@ -34,8 +35,28 @@ export function setTouchSteering(steering: Steering): void {
 }
 
 /**
- * On-screen controls for phones and tablets (MK-23): a steering zone for the left thumb, and
- * Drift / Item / Brake buttons for the right. Auto-accelerates once the player has touched the
+ * Lays the touch controls out for `hand` (MK-53): Left mirrors them, buttons left and steering
+ * right. Applies at once, mid-race too; controls created later start with it. The layout itself is
+ * CSS custom properties on `.touch-controls`, switched by its `data-hand`.
+ */
+export function setTouchHand(hand: Hand): void {
+  currentHand = hand;
+  for (const controls of allControls) controls.root.dataset.hand = hand;
+}
+
+/** How the touch controls steer (MK-54). */
+export function touchSteering(): Steering {
+  return currentSteering;
+}
+
+/** The hand the touch controls are laid out for (MK-53). */
+export function touchHand(): Hand {
+  return currentHand;
+}
+
+/**
+ * On-screen controls for phones and tablets (MK-23): a steering zone for one thumb, and
+ * Drift / Item / Brake buttons for the other (right-handed by default; see `setTouchHand`). Auto-accelerates once the player has touched the
  * controls. Hidden on keyboard devices, and as soon as a key is pressed.
  */
 export class TouchControls {
@@ -52,6 +73,7 @@ export class TouchControls {
 
   constructor() {
     this.root.className = 'touch-controls';
+    this.root.dataset.hand = currentHand;
     this.root.dataset.steering = currentSteering;
     this.root.hidden = true;
     allControls.add(this);

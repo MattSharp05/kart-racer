@@ -1,5 +1,17 @@
 /* Touch controls (MK-23). */
 .touch-controls {
+  /* The layout (MK-53): every side-dependent value lives here, so the left-handed layout below only
+     swaps values. Right hand (default): steering on the left, buttons on the right. */
+  --touch-edge-left: max(16px, env(safe-area-inset-left));
+  --touch-edge-right: max(16px, env(safe-area-inset-right));
+  --touch-steer-left: 0;
+  --touch-steer-right: auto;
+  --touch-stick-left: calc(var(--touch-edge-left) + 60px);
+  --touch-stick-right: auto;
+  --touch-buttons-left: auto;
+  --touch-buttons-right: var(--touch-edge-right);
+  /* Drift (the big one) goes in the outer corner, under the thumb. */
+  --touch-buttons-areas: 'item  .' 'brake drift';
   position: fixed;
   inset: 0;
   pointer-events: none;
@@ -10,9 +22,21 @@
   display: none;
 }
 
+/* Left hand (MK-53, Settings → Controls → Hand): the mirror image. */
+.touch-controls[data-hand='left'] {
+  --touch-steer-left: auto;
+  --touch-steer-right: 0;
+  --touch-stick-left: auto;
+  --touch-stick-right: calc(var(--touch-edge-right) + 60px);
+  --touch-buttons-left: var(--touch-edge-left);
+  --touch-buttons-right: auto;
+  --touch-buttons-areas: '.     item' 'drift brake';
+}
+
 .touch-steer {
   position: absolute;
-  left: 0;
+  left: var(--touch-steer-left);
+  right: var(--touch-steer-right);
   bottom: 0;
   width: 45%;
   height: 60%;
@@ -26,7 +50,8 @@
 
 .touch-stick {
   position: absolute;
-  left: calc(max(16px, env(safe-area-inset-left)) + 60px);
+  left: var(--touch-stick-left);
+  right: var(--touch-stick-right);
   bottom: calc(max(16px, env(safe-area-inset-bottom)) + 20px);
   width: 64px;
   height: 64px;
@@ -37,13 +62,12 @@
 
 .touch-buttons {
   position: absolute;
-  right: max(16px, env(safe-area-inset-right));
+  left: var(--touch-buttons-left);
+  right: var(--touch-buttons-right);
   bottom: max(16px, env(safe-area-inset-bottom));
   display: grid;
   grid-template-columns: auto auto;
-  grid-template-areas:
-    'item  .'
-    'brake drift';
+  grid-template-areas: var(--touch-buttons-areas);
   gap: 12px;
   align-items: end;
   pointer-events: auto;

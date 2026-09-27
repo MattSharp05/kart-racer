@@ -280,6 +280,22 @@ export const raceScenarios: Scenario[] = [
     },
   },
   {
+    name: 'race-touch-left',
+    group: 'Race',
+    description:
+      'Left-handed touch layout (MK-53): buttons bottom-left, steering on the right half. Just after GO with 7 AI, holding a Mushroom.',
+    defaultSeed: 1,
+    setup: (seed) => {
+      const state = racingSince(sunnyRace(seed, { karts: 8, ai: true }), 0.5);
+      const player = state.karts[0];
+      if (player) player.item.held = 'mushroom';
+      return {
+        state,
+        storage: { [SETTINGS_KEY]: JSON.stringify({ version: SETTINGS_VERSION, hand: 'left' }) },
+      };
+    },
+  },
+  {
     name: 'ai-drift-corner',
     group: 'Race',
     description:
