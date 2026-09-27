@@ -1,0 +1,46 @@
+/* Steering setting (MK-54): Drag / Tilt, and tilt's sensitivity slider and Calibrate. */
+.tilt-options {
+  display: grid;
+  gap: 8px;
+}
+
+.tilt-options[hidden],
+.steering-message[hidden] {
+  display: none;
+}
+
+.tilt-slider {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1 1 160px;
+  max-width: 240px;
+}
+
+.tilt-slider input[type='range'] {
+  flex: 1;
+  min-width: 0;
+  min-height: 32px;
+  accent-color: var(--color-gold);
+}
+
+.tilt-sensitivity-value {
+  min-width: 3ch;
+  font-weight: 800;
+  text-align: right;
+}
+
+.tilt-hint {
+  flex: 1 1 200px;
+  font-size: 14px;
+  opacity: 0.85;
+}
+
+.steering-message {
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: rgb(255 209 102 / 0.2);
+  color: #fff;
+  font-size: 14px;
+}

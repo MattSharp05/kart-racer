@@ -1,4 +1,4 @@
-import { isTouchDevice, touchHand } from '../../input/touch';
+import { isTouchDevice, touchHand, touchSteering } from '../../input/touch';
 import './howToPlay.css';
 
 const KEYBOARD: [string, string][] = [
@@ -11,9 +11,14 @@ const KEYBOARD: [string, string][] = [
   ['Esc', 'Pause'],
 ];
 
-/** Touch controls; the steering thumb is the one away from the buttons (MK-53 Hand setting). */
+/**
+ * Touch controls; the steering thumb is the one away from the buttons (MK-53 Hand setting), or the
+ * whole phone with tilt steering (MK-54).
+ */
 const touchRows = (): [string, string][] => [
-  [touchHand() === 'left' ? 'Right thumb' : 'Left thumb', 'Drag left / right to steer'],
+  touchSteering() === 'tilt'
+    ? ['Tilt the phone', 'Turn it like a steering wheel to steer']
+    : [touchHand() === 'left' ? 'Right thumb' : 'Left thumb', 'Drag left / right to steer'],
   ['(automatic)', 'Accelerates once you touch the screen'],
   ['Drift', 'Hold through a corner, let go for a boost'],
   ['Item', 'Use the item you picked up'],

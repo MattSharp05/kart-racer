@@ -437,4 +437,17 @@ export const raceScenarios: Scenario[] = [
       return { state, follow: 1 };
     },
   },
+  {
+    name: 'race-tilt',
+    group: 'Race',
+    description:
+      'Tilt steering on (MK-54): the drag zone is gone, the buttons stay; turn the phone like a wheel to steer (on iPhone the first tap asks for motion access). Just after GO with 7 AI.',
+    defaultSeed: 1,
+    setup: (seed) => ({
+      state: racingSince(sunnyRace(seed, { karts: 8, ai: true }), 0.5),
+      storage: {
+        [SETTINGS_KEY]: JSON.stringify({ version: SETTINGS_VERSION, steering: 'tilt' }),
+      },
+    }),
+  },
 ];

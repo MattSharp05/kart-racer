@@ -4,6 +4,15 @@ import { readJson, type KeyValueStore } from './store';
 export type Hand = 'right' | 'left';
 export const HANDS: readonly Hand[] = ['right', 'left'];
 
+/** How a phone steers (MK-54): dragging the steering zone, or tilting the phone. */
+export type Steering = 'drag' | 'tilt';
+export const STEERINGS: readonly Steering[] = ['drag', 'tilt'];
+
+/** Tilt sensitivity (MK-54): the tilt, degrees, that gives full steering lock. */
+export const TILT_SENSITIVITY = { min: 10, max: 40, default: 25 } as const;
+/** The calibrated neutral tilt (MK-54) is kept within ± this many degrees. */
+export const TILT_NEUTRAL_MAX = 60;
+
 /**
  * Player settings (MK-37), stored as one versioned JSON object. A new setting adds a field with
  * its default below; a change of meaning bumps `SETTINGS_VERSION` and adds a step to `migrate()`.
@@ -21,6 +30,12 @@ export interface Settings {
   deviceId: string;
   /** Touch layout (MK-53): which side the Drift / Item / Brake buttons are on. */
   hand: Hand;
+  /** Phone steering (MK-54): drag (default) or tilt. */
+  steering: Steering;
+  /** Degrees of tilt for full steering lock (MK-54), `TILT_SENSITIVITY.min`–`.max`. */
+  tiltSensitivity: number;
+  /** The calibrated "straight ahead" tilt, degrees, right positive (MK-54). */
+  tiltNeutral: number;
 }
 
 export const SETTINGS_KEY = 'kart-racer:settings';
@@ -33,6 +48,9 @@ const DEFAULTS: Settings = {
   colour: '',
   deviceId: '',
   hand: 'right',
+  steering: 'drag',
+  tiltSensitivity: TILT_SENSITIVITY.default,
+  tiltNeutral: 0,
 };
 
 /** Keys the MVP stored settings under, one per setting (read once by the v0 → v1 migration). */
@@ -70,7 +88,24 @@ function sanitize(values: Record<string, unknown>): Settings {
     if (typeof value === typeof DEFAULTS[name]) Object.assign(settings, { [name]: value });
   }
   if (!HANDS.includes(settings.hand)) settings.hand = DEFAULTS.hand;
+  if (!STEERINGS.includes(settings.steering)) settings.steering = DEFAULTS.steering;
+  settings.tiltSensitivity = clampFinite(
+    settings.tiltSensitivity,
+    TILT_SENSITIVITY.min,
+    TILT_SENSITIVITY.max,
+    DEFAULTS.tiltSensitivity,
+  );
+  settings.tiltNeutral = clampFinite(
+    settings.tiltNeutral,
+    -TILT_NEUTRAL_MAX,
+    TILT_NEUTRAL_MAX,
+    DEFAULTS.tiltNeutral,
+  );
   return settings;
+}
+
+function clampFinite(value: number, min: number, max: number, fallback: number): number {
+  return Number.isFinite(value) ? Math.min(max, Math.max(min, value)) : fallback;
 }
 
 export function readSettings(store: KeyValueStore): Settings {
