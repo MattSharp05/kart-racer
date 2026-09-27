@@ -22,6 +22,9 @@ const SPARK_COLOURS = [0xfff3b0, 0x3fa9ff, 0xff9a1f, 0xb15cff] as const;
 /** Kart headlights on night tracks: lamps this far forward and high, this wide, lighting this far, m. */
 const KART_HEADLIGHTS = [1.05, 0.4, 1.2, 9] as const;
 
+/** Scratch object for posing each spark instance. */
+const spark = new THREE.Object3D();
+
 /** Deterministic 0..1 noise so sparks look random but freeze exactly when the sim is paused. */
 function noise(seed: number): number {
   const x = Math.sin(seed * 12.9898) * 43758.5453;
@@ -165,19 +168,21 @@ export class KartRenderer {
       cluster.visible = showSparks;
       if (!showSparks) return;
       const size = kart.drift.tier === 0 ? 0.5 : 1;
-      cluster.children.forEach((spark, n) => {
-        const mesh = spark as THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>;
-        mesh.material.color.setHex(colour);
+      cluster.material.color.setHex(colour);
+      for (let n = 0; n < cluster.count; n += 1) {
         const r = noise(tick * 7 + n * 13 + side * 101);
-        const angle = (n / cluster.children.length) * Math.PI * 2 + r;
-        mesh.position.set(
+        const angle = (n / cluster.count) * Math.PI * 2 + r;
+        spark.position.set(
           Math.cos(angle) * 0.25 * size,
           Math.abs(Math.sin(angle)) * 0.3 * size,
           r * 0.4,
         );
-        mesh.rotation.set(-0.6 - r * 0.6, angle * 0.3, 0);
-        mesh.scale.setScalar(size * (0.6 + r * 0.8));
-      });
+        spark.rotation.set(-0.6 - r * 0.6, angle * 0.3, 0);
+        spark.scale.setScalar(size * (0.6 + r * 0.8));
+        spark.updateMatrix();
+        cluster.setMatrixAt(n, spark.matrix);
+      }
+      cluster.instanceMatrix.needsUpdate = true;
     });
 
     // Respawn: drone overhead while carried, then blink while invulnerable.

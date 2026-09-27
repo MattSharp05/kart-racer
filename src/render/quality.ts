@@ -23,6 +23,8 @@ export class AdaptiveQuality {
   private windowTime = 0;
   private windowFrames = 0;
   private slowFor = 0;
+  /** `&quality=low` (MK-71): held at the floor, whatever the frame times say. */
+  private pinned = false;
 
   constructor(
     devicePixelRatio: number,
@@ -32,8 +34,20 @@ export class AdaptiveQuality {
     this.pixelRatio = this.maxRatio;
   }
 
+  /**
+   * Goes straight to what adaptive quality ends at on a slow device (pixel ratio 1, low-quality
+   * mode) and stays there: `&quality=low`, to check that floor on any machine (MK-71).
+   */
+  forceLow(): void {
+    this.pinned = true;
+    this.pixelRatio = MIN_RATIO;
+    this.lowQuality = true;
+    this.apply(this.pixelRatio, this.lowQuality);
+  }
+
   /** Call once per rendered frame with its real duration, seconds. Pauses are ignored. */
   frame(seconds: number): void {
+    if (this.pinned) return;
     if (seconds <= 0 || seconds > 0.2) return; // paused, tab hidden, or a one-off hitch
     this.windowTime += seconds;
     this.windowFrames += 1;
