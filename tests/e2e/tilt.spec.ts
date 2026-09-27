@@ -205,6 +205,8 @@ test.describe('tilt steering (MK-54)', () => {
 
   test('phones: with Tilt, the controls guide says to tilt the phone', async ({ page }, info) => {
     test.skip(!isPhone(info.project.name));
+    // The pause tap asks for motion access (Chrome has the iOS API too): allowed.
+    await mockPermission(page, 'granted');
     await loadScenario(page, 'race-tilt', { paused: true });
     await page.locator('.pause-button').click();
     await page.locator('.menu-paused button', { hasText: 'How to play' }).click();

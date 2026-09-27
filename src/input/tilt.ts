@@ -74,7 +74,7 @@ export function steerFromTilt(angle: number, options: TiltOptions): number {
   return Math.sign(offset) * Math.min(1, past / range);
 }
 
-type PermissionFn = () => Promise<'granted' | 'denied' | 'default'>;
+type PermissionFn = () => Promise<string>;
 
 function permissionFn(): PermissionFn | undefined {
   const ctor = (window as { DeviceOrientationEvent?: { requestPermission?: PermissionFn } })
@@ -84,19 +84,23 @@ function permissionFn(): PermissionFn | undefined {
     : undefined;
 }
 
-/** The answer to a motion-access request: `failed` = the browser wouldn't ask (not from a tap). */
+/**
+ * The answer to a motion-access request. `failed`: the browser didn't ask (not from a tap, which
+ * throws on iOS; Chrome can answer `prompt`); nothing was refused.
+ */
 export type TiltPermission = 'granted' | 'denied' | 'failed';
 
 /**
  * Asks for motion access (MK-54). iOS needs `DeviceOrientationEvent.requestPermission()`, which only
- * works from a tap (anything else throws: `failed`, nothing was refused); elsewhere there's nothing
- * to ask, only whether the browser has the event. Once granted, iOS answers again without a prompt.
+ * works from a tap; elsewhere there's nothing to ask, only whether the browser has the event. Once
+ * granted, iOS answers again without a prompt.
  */
 export async function requestTiltPermission(): Promise<TiltPermission> {
   const request = permissionFn();
   if (!request) return 'DeviceOrientationEvent' in window ? 'granted' : 'denied';
   try {
-    return (await request()) === 'granted' ? 'granted' : 'denied';
+    const answer = await request();
+    return answer === 'granted' || answer === 'denied' ? answer : 'failed';
   } catch {
     return 'failed';
   }

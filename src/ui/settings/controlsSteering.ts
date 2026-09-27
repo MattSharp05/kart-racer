@@ -149,8 +149,8 @@ registerSettingsSection({
         return;
       }
       // Asked from this tap: iOS only shows its prompt from a user gesture.
-      const granted = (await requestTiltPermission()) === 'granted';
-      if (!granted) {
+      // Only a refusal falls back: `failed` means nothing was asked (Chrome's `prompt`).
+      if ((await requestTiltPermission()) === 'denied') {
         show(fallBackToDrag(store).steering);
         message.textContent = TILT_DENIED_MESSAGE;
         message.hidden = false;
