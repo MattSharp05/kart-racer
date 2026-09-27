@@ -74,14 +74,17 @@
 }
 
 .touch-button {
-  min-width: 56px;
-  min-height: 56px;
+  /* Size (MK-57): each button's base size times `--touch-<name>-scale`, set by the button editor's
+     layout (`applyButtonLayout`); 1 = the default look. */
+  --touch-button-size: calc(var(--touch-button-base, 60px) * var(--touch-button-scale, 1));
+  width: var(--touch-button-size);
+  height: var(--touch-button-size);
   border: 3px solid rgb(255 255 255 / 0.7);
   border-radius: 50%;
   background: rgb(0 0 0 / 0.35);
   color: #fff;
   font:
-    700 13px system-ui,
+    700 calc(13px * var(--touch-button-scale, 1)) system-ui,
     sans-serif;
   touch-action: none;
 }
@@ -92,18 +95,53 @@
 
 .touch-drift {
   grid-area: drift;
-  width: 84px;
-  height: 84px;
+  --touch-button-base: 84px;
+  --touch-button-scale: var(--touch-drift-scale, 1);
+  --touch-button-x: var(--touch-drift-x);
+  --touch-button-y: var(--touch-drift-y);
 }
 
 .touch-item {
   grid-area: item;
-  width: 60px;
-  height: 60px;
+  --touch-button-scale: var(--touch-item-scale, 1);
+  --touch-button-x: var(--touch-item-x);
+  --touch-button-y: var(--touch-item-y);
 }
 
 .touch-brake {
   grid-area: brake;
-  width: 60px;
-  height: 60px;
+  --touch-button-scale: var(--touch-brake-scale, 1);
+  --touch-button-x: var(--touch-brake-x);
+  --touch-button-y: var(--touch-brake-y);
+}
+
+/* Custom positions (MK-57): the buttons group covers the safe area and each button's centre sits
+   `--touch-<name>-x` from the outer edge (right, or left for a left hand) and `-y` from the
+   bottom, clamped so it stays on screen whatever the phone. */
+.touch-controls[data-layout='custom'] .touch-buttons {
+  inset: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px)
+    env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);
+  display: block;
+  pointer-events: none;
+}
+
+.touch-controls[data-layout='custom'] .touch-button {
+  --touch-button-outer: clamp(
+    0px,
+    calc(var(--touch-button-x) - var(--touch-button-size) / 2),
+    calc(100% - var(--touch-button-size))
+  );
+  position: absolute;
+  right: var(--touch-button-outer);
+  bottom: clamp(
+    0px,
+    calc(var(--touch-button-y) - var(--touch-button-size) / 2),
+    calc(100% - var(--touch-button-size))
+  );
+  pointer-events: auto;
+}
+
+.touch-controls[data-layout='custom'][data-hand='left'] .touch-button {
+  right: auto;
+  left: var(--touch-button-outer);
 }

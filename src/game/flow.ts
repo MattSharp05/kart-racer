@@ -24,6 +24,7 @@ import '../ui/screens/nickname';
 import '../ui/screens/onlineResults';
 import { createPauseButton } from '../ui/screens/pause';
 import '../ui/screens/results';
+import '../ui/screens/buttonEditor';
 import '../ui/screens/settings';
 import '../ui/screens/title';
 import '../ui/screens/trackSelect';
@@ -250,6 +251,13 @@ export class Flow {
         game.setAutopilot(launch.localKartId, true);
         this.showSettings();
         break;
+      case 'buttonEditor':
+        // Pause menu → Settings → Customise buttons, so Save / Back walk back through them.
+        this.pauseButton.hidden = false;
+        this.pauseRace();
+        this.showSettings();
+        this.showButtonEditor();
+        break;
       case 'racerSelect':
         this.showRacerSelect();
         break;
@@ -333,7 +341,26 @@ export class Flow {
     this.screens.show('settings', {
       store: this.store,
       sound: this.soundControl,
+      editButtons: this.showButtonEditor,
       onBack: () => this.screens.back(),
+    });
+  };
+
+  /**
+   * The touch button editor (MK-57) over Settings, with the race behind it held still; Save or
+   * Cancel returns to Settings.
+   */
+  private readonly showButtonEditor = (): void => {
+    const game = this.session.game;
+    const wasPaused = game.paused;
+    // Online the race goes on for everyone else (MK-55): only the player's view stops.
+    if (!this.session.online) game.pause();
+    this.screens.show('buttonEditor', {
+      store: this.store,
+      onClose: () => {
+        if (!wasPaused && !this.session.online) game.resume();
+        this.screens.back();
+      },
     });
   };
 

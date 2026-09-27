@@ -57,6 +57,19 @@ export const menuScenarios: Scenario[] = [
     setup: (seed) => ({ state: attractMode(seed), screen: 'settings' }),
   },
   {
+    name: 'button-editor',
+    group: 'Menus',
+    description:
+      'Touch button editor (MK-57) over a paused race: drag Drift / Item / Brake, size slider (long-press for one button), Reset, Save. Saves to your real settings.',
+    defaultSeed: 1,
+    setup: (seed) => {
+      const state = sunnyRace(seed, { karts: 8, ai: true });
+      state.phase = 'racing';
+      state.race.goTick = -Math.round(15 / DT);
+      return { state, screen: 'buttonEditor' };
+    },
+  },
+  {
     name: 'first-launch',
     group: 'Menus',
     description:

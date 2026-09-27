@@ -7,7 +7,7 @@ import { playerColour } from './game/results';
 import { RaceSession, resolveLaunch } from './game/session';
 import { browserStore, OverlayStore, readSettings } from './game/storage';
 import { installTestApi } from './game/testApi';
-import { setTouchHand } from './input/touch';
+import { setTouchHand, setTouchLayout } from './input/touch';
 import { localRoomBackend } from './net/roomBackendLocal';
 import { supabaseRoomBackend } from './net/roomBackendSupabase';
 import { launchLeaderboard } from './records/leaderboardMock';
@@ -24,8 +24,9 @@ if (!canvas) throw new Error('Missing #game canvas');
 const params = parseLaunchParams(window.location.search);
 const launch = resolveLaunch(params);
 const store = launch.storage ? new OverlayStore(browserStore(), launch.storage) : browserStore();
-// The saved touch layout (MK-53), before the controls are built.
+// The saved touch layout (MK-53, MK-57), before the controls are built.
 setTouchHand(readSettings(store).hand);
+setTouchLayout(readSettings(store).buttons);
 // The saved steering (MK-54): drag or tilt, before the controls are built.
 restoreSteering(store);
 const session = new RaceSession(launch.state);

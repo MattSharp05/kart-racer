@@ -1,3 +1,8 @@
+import {
+  defaultButtonLayout,
+  sanitizeButtonLayout,
+  type ButtonLayout,
+} from '../../input/buttonLayout';
 import { readJson, type KeyValueStore } from './store';
 
 /** Which hand holds the phone's buttons (MK-53): right = buttons right, steering left. */
@@ -30,6 +35,8 @@ export interface Settings {
   deviceId: string;
   /** Touch layout (MK-53): which side the Drift / Item / Brake buttons are on. */
   hand: Hand;
+  /** Touch button sizes and positions (MK-57, Settings → Controls → Customise buttons). */
+  buttons: ButtonLayout;
   /** Phone steering (MK-54): drag (default) or tilt. */
   steering: Steering;
   /** Degrees of tilt for full steering lock (MK-54), `TILT_SENSITIVITY.min`–`.max`. */
@@ -48,6 +55,7 @@ const DEFAULTS: Settings = {
   colour: '',
   deviceId: '',
   hand: 'right',
+  buttons: defaultButtonLayout(),
   steering: 'drag',
   tiltSensitivity: TILT_SENSITIVITY.default,
   tiltNeutral: 0,
@@ -82,12 +90,13 @@ function storedVersion(data: Record<string, unknown>): number {
 
 /** Keeps only known fields of the right type; everything else falls back to the default. */
 function sanitize(values: Record<string, unknown>): Settings {
-  const settings = { ...DEFAULTS };
+  const settings = { ...DEFAULTS, buttons: defaultButtonLayout() };
   for (const name of Object.keys(DEFAULTS) as (keyof Settings)[]) {
     const value = values[name];
     if (typeof value === typeof DEFAULTS[name]) Object.assign(settings, { [name]: value });
   }
   if (!HANDS.includes(settings.hand)) settings.hand = DEFAULTS.hand;
+  settings.buttons = sanitizeButtonLayout(values.buttons);
   if (!STEERINGS.includes(settings.steering)) settings.steering = DEFAULTS.steering;
   settings.tiltSensitivity = clampFinite(
     settings.tiltSensitivity,

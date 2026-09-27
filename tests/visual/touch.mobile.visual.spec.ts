@@ -19,6 +19,12 @@ test('left-handed touch layout, MK-53 (paused)', async ({ page }, info) => {
   await expect(page).toHaveScreenshot(`race-touch-left-${info.project.name}.png`);
 });
 
+test('custom touch buttons, MK-57 (paused)', async ({ page }, info) => {
+  await loadScenario(page, 'race-touch-custom', { paused: true });
+  await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(resolve)));
+  await expect(page).toHaveScreenshot(`race-touch-custom-${info.project.name}.png`);
+});
+
 test('how to play, touch version (paused)', async ({ page }, info) => {
   await loadScenario(page, 'menu-how-to-play', { paused: true });
   await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(resolve)));
@@ -32,6 +38,7 @@ for (const name of [
   'race-finished',
   'settings',
   'menu-paused',
+  'button-editor',
 ]) {
   test(`${name} on phones (paused)`, async ({ page }, info) => {
     await loadScenario(page, name, { paused: true });
