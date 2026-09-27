@@ -95,7 +95,7 @@ export const drivingScenarios: Scenario[] = [
   {
     name: 'kart-lineup',
     group: 'Karts',
-    description: 'All four karts parked side by side: Maple, Pixie, Boulder, Swoop.',
+    description: 'Every racer parked side by side, in racer select order.',
     defaultSeed: 1,
     setup: (seed) => ({
       state: createSimState({

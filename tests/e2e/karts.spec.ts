@@ -2,10 +2,18 @@ import { expect, test } from '@playwright/test';
 import { getState, loadScenario } from './helpers';
 
 test.describe('karts', () => {
-  test('kart-lineup shows all four karts', async ({ page }) => {
+  test('kart-lineup shows every registered racer', async ({ page }) => {
     await loadScenario(page, 'kart-lineup', { paused: true });
     const state = await getState(page);
-    expect(state.karts.map((k) => k.kartType)).toEqual(['maple', 'pixie', 'boulder', 'swoop']);
+    expect(state.karts.map((k) => k.kartType)).toEqual([
+      'maple',
+      'pixie',
+      'boulder',
+      'swoop',
+      'sprocket',
+      'juniper',
+      'blaze',
+    ]);
   });
 
   test('&kart=boulder drives the test pad as Boulder', async ({ page }) => {
