@@ -19,6 +19,11 @@
   pointer-events: auto;
 }
 
+.touch-controls[data-steering='tilt'] .touch-steer {
+  /* Tilt steering (MK-54): no drag zone; the buttons stay. */
+  display: none;
+}
+
 .touch-stick {
   position: absolute;
   left: calc(max(16px, env(safe-area-inset-left)) + 60px);

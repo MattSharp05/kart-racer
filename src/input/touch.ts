@@ -1,3 +1,4 @@
+import type { Steering } from '../game/storage/settings';
 import { NEUTRAL_INPUT, type InputFrame } from '../sim/types';
 import { isTextEntry } from './keyboard';
 import './touch.css';
@@ -18,6 +19,19 @@ export function isTouchDevice(): boolean {
 
 type ButtonName = 'drift' | 'item' | 'brake';
 
+/** How the controls steer (MK-54), and every live set of controls to update. */
+let currentSteering: Steering = 'drag';
+const allControls = new Set<TouchControls>();
+
+/**
+ * Drag or tilt steering (MK-54). With tilt the drag zone is hidden (the buttons stay) and the kart
+ * accelerates without a first touch; `input/tilt.ts` supplies the steering. Applies at once.
+ */
+export function setTouchSteering(steering: Steering): void {
+  currentSteering = steering;
+  for (const controls of allControls) controls.root.dataset.steering = steering;
+}
+
 /**
  * On-screen controls for phones and tablets (MK-23): a steering zone for the left thumb, and
  * Drift / Item / Brake buttons for the right. Auto-accelerates once the player has touched the
@@ -37,7 +51,9 @@ export class TouchControls {
 
   constructor() {
     this.root.className = 'touch-controls';
+    this.root.dataset.steering = currentSteering;
     this.root.hidden = true;
+    allControls.add(this);
 
     const zone = document.createElement('div');
     zone.className = 'touch-steer';
@@ -127,13 +143,19 @@ export class TouchControls {
     if (!active) this.held.clear();
   }
 
+  /** Whether the controls are on screen and driving (not hidden, no menu open). */
+  get live(): boolean {
+    return this.shown && this.active;
+  }
+
   read(): InputFrame {
-    if (!this.shown || !this.active) return NEUTRAL_INPUT;
+    if (!this.live) return NEUTRAL_INPUT;
     const braking = this.held.has('brake');
+    const tilting = currentSteering === 'tilt';
     return {
-      throttle: this.engaged && !braking ? 1 : 0,
+      throttle: (this.engaged || tilting) && !braking ? 1 : 0,
       brake: braking ? 1 : 0,
-      steer: this.steer,
+      steer: tilting ? 0 : this.steer,
       drift: this.held.has('drift'),
       item: this.held.has('item'),
     };

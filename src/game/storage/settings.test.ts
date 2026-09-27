@@ -15,8 +15,15 @@ import {
 } from './settings';
 import { MemoryStore, type KeyValueStore } from './store';
 
-/** The MK-42 profile fields, empty until the player picks a nickname. */
-const NO_PROFILE = { nickname: '', colour: '', deviceId: '' };
+/** The MK-42 profile fields, empty until the player picks a nickname, and MK-54's tilt defaults. */
+const NO_PROFILE = {
+  nickname: '',
+  colour: '',
+  deviceId: '',
+  steering: 'drag',
+  tiltSensitivity: 25,
+  tiltNeutral: 0,
+};
 
 /** A store holding what the MVP (before MK-37) saved, keys and formats exactly as it wrote them. */
 function mvpStore(): MemoryStore {
@@ -86,6 +93,18 @@ describe('settings', () => {
       seenHowToPlay: true,
       ...NO_PROFILE,
     });
+  });
+
+  it('keeps tilt steering settings (MK-54), sanitising bad values', () => {
+    const store = new MemoryStore();
+    const saved = updateSettings(store, { steering: 'tilt', tiltSensitivity: 15, tiltNeutral: -8 });
+    expect(saved).toMatchObject({ steering: 'tilt', tiltSensitivity: 15, tiltNeutral: -8 });
+    expect(readSettings(store)).toMatchObject(saved);
+    expect(migrate({ version: 1, steering: 'wheel' }, store).steering).toBe('drag');
+    expect(migrate({ version: 1, tiltSensitivity: 90 }, store).tiltSensitivity).toBe(40);
+    expect(migrate({ version: 1, tiltSensitivity: 2 }, store).tiltSensitivity).toBe(10);
+    expect(migrate({ version: 1, tiltSensitivity: null }, store).tiltSensitivity).toBe(25);
+    expect(migrate({ version: 1, tiltNeutral: 200 }, store).tiltNeutral).toBe(60);
   });
 
   it('survives broken storage', () => {
