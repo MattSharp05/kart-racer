@@ -170,4 +170,36 @@ test.describe('tilt steering (MK-54)', () => {
     await expect(controls).toHaveAttribute('data-steering', 'drag');
     await expect(page.locator('.touch-stick')).toBeVisible();
   });
+
+  test('phones: a request iOS refuses to show (no tap) keeps Tilt and asks again', async ({
+    page,
+  }, info) => {
+    test.skip(!isPhone(info.project.name));
+    // First call throws (as iOS does without a tap), the next is allowed.
+    await page.addInitScript(() => {
+      const w = window as unknown as { DeviceOrientationEvent?: object };
+      w.DeviceOrientationEvent ??= {};
+      let calls = 0;
+      Object.assign(w.DeviceOrientationEvent, {
+        requestPermission: () => {
+          calls += 1;
+          (window as unknown as { permissionCalls: number }).permissionCalls = calls;
+          return calls === 1
+            ? Promise.reject(new Error('NotAllowedError'))
+            : Promise.resolve('granted');
+        },
+      });
+    });
+    await loadScenario(page, 'race-tilt', { paused: true });
+    const controls = page.locator('.touch-controls');
+    await page.locator('.touch-brake').click();
+    await page.locator('.touch-brake').click();
+    await expect
+      .poll(() =>
+        page.evaluate(() => (window as unknown as { permissionCalls?: number }).permissionCalls),
+      )
+      .toBe(2);
+    await expect(controls).toHaveAttribute('data-steering', 'tilt');
+    await expect(page.locator('.toast')).toHaveCount(0);
+  });
 });

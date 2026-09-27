@@ -15,10 +15,14 @@ import './controlsSteering.css';
 /** Shown when motion access is refused (MK-54). */
 export const TILT_DENIED_MESSAGE = 'Motion access was not allowed, so steering stays on Drag.';
 
+/** Open Steering sections, to show a change made elsewhere (the launch fallback). */
+const openViews = new Set<() => void>();
+
 /** Saves drag steering and applies it: tilt was refused. */
 function fallBackToDrag(store: KeyValueStore): Settings {
   const settings = updateSettings(store, { steering: 'drag' });
   applySteering(settings);
+  openViews.forEach((refresh) => refresh());
   return settings;
 }
 
@@ -31,17 +35,22 @@ export function restoreSteering(store: KeyValueStore): void {
   const settings = readSettings(store);
   applySteering(settings);
   if (settings.steering !== 'tilt' || !tiltNeedsPermission()) return;
+  const listen = (on: boolean) => {
+    const method = on ? 'addEventListener' : 'removeEventListener';
+    window[method]('touchend', ask);
+    window[method]('click', ask);
+  };
   const ask = () => {
-    window.removeEventListener('touchend', ask);
-    window.removeEventListener('click', ask);
-    void requestTiltPermission().then((granted) => {
-      if (granted || readSettings(store).steering !== 'tilt') return;
+    listen(false);
+    void requestTiltPermission().then((answer) => {
+      if (answer === 'granted' || readSettings(store).steering !== 'tilt') return;
+      // A swipe isn't a tap: iOS wouldn't ask. Try again on the next one.
+      if (answer === 'failed') return listen(true);
       fallBackToDrag(store);
       showToast(TILT_DENIED_MESSAGE);
     });
   };
-  window.addEventListener('touchend', ask);
-  window.addEventListener('click', ask);
+  listen(true);
 }
 
 /** `12.5` → `"13° right"`, `-4` → `"4° left"`, `0` → `"level"`. */
@@ -140,7 +149,7 @@ registerSettingsSection({
         return;
       }
       // Asked from this tap: iOS only shows its prompt from a user gesture.
-      const granted = await requestTiltPermission();
+      const granted = (await requestTiltPermission()) === 'granted';
       if (!granted) {
         show(fallBackToDrag(store).steering);
         message.textContent = TILT_DENIED_MESSAGE;
@@ -153,6 +162,14 @@ registerSettingsSection({
 
     show(saved.steering);
     parent.append(field.el, message, options);
-    return undefined;
+    const refresh = () => {
+      if (!parent.isConnected) {
+        openViews.delete(refresh);
+        return;
+      }
+      show(readSettings(store).steering);
+    };
+    openViews.add(refresh);
+    return refresh;
   },
 });
