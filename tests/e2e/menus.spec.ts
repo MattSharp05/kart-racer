@@ -2,6 +2,9 @@ import { expect, test } from '@playwright/test';
 import { enterNickname, getState, loadScenario } from './helpers';
 
 test('title → kart select → engine class → track → race with 8 karts', async ({ page }) => {
+  // Four menus, each drawn over the 10-racer lineup in software WebGL on CI: 30 s was too tight
+  // on main after MK-63's two-row lineup (30.9 s, twice). Same budget as the other menu flows.
+  test.setTimeout(60_000);
   await page.goto('/');
   await page.waitForFunction(() => window.__game?.ready === true);
   // First visit: the nickname (MK-42), then the controls guide.
