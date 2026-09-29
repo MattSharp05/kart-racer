@@ -7,7 +7,7 @@ import { spawnEntity } from '../../../sim/items/entities';
 import { giveItem } from '../../../sim/items';
 import { forwardFromHeading, wrapAngleDelta } from '../../../sim/math';
 import { trackGeometry } from '../../../sim/track';
-import { tuning } from '../../../sim/tuning';
+import { DT, tuning } from '../../../sim/tuning';
 import { sunnyCircuit } from '../../tracks/sunny-circuit/sim';
 import {
   NEUTRAL_INPUT,
@@ -17,7 +17,7 @@ import {
   type SimEvent,
   type SimState,
 } from '../../../sim/types';
-import oilSlick, { SLICK_TICKS, SLIDE_TICKS } from './sim';
+import oilSlick, { SLICK_TICKS, SLIDE_DRAG, SLIDE_SPINS, SLIDE_TICKS } from './sim';
 
 /** Steps `ticks` ticks with kart 0 on `input` (the AI drives itself), collecting events. */
 function run(state: SimState, ticks: number, input: Partial<InputFrame> = {}) {
@@ -73,7 +73,7 @@ describe('Oil Slick (MK-65)', () => {
     expect(slicks(state)).toHaveLength(0);
   });
 
-  it('the AI behind drives through: it slides for exactly the tuned time, without spinning out, then recovers', () => {
+  it('the AI behind drives through: it slides and spins round for exactly the tuned time, without a spin-out stop, then recovers', () => {
     let { state } = dropped();
     let ticks = 0;
     while (!hasEffect(state.karts[1]!, 'oil-slick') && ticks < 120) {
@@ -126,6 +126,32 @@ describe('Oil Slick (MK-65)', () => {
     const oiled = pathTurn(true);
     expect(normal).toBeGreaterThan(0.3);
     expect(oiled).toBeLessThan(normal * 0.35);
+  });
+
+  it('spins the kart round a full turn, whatever the player presses, then it drives on the same way (QA round 2)', () => {
+    let state = padKart();
+    const start = state.karts[0]!.heading;
+    applyEffect(state.karts[0]!, 'oil-slick', SLIDE_TICKS, state, []);
+    let turned = 0;
+    let previous = start;
+    for (let i = 0; i < SLIDE_TICKS; i += 1) {
+      // Flooring it the whole time: no traction on oil, so it doesn't matter which way it faces.
+      state = run(state, 1, { throttle: 1 }).state;
+      const kart = state.karts[0]!;
+      turned += wrapAngleDelta(kart.heading - previous);
+      previous = kart.heading;
+      expect(kart.spinTimer).toBe(0);
+    }
+    expect(Math.abs(turned)).toBeCloseTo(2 * Math.PI * SLIDE_SPINS, 1);
+    const kart = state.karts[0]!;
+    expect(hasEffect(kart, 'oil-slick')).toBe(false);
+    expect(Math.abs(wrapAngleDelta(kart.heading - start))).toBeLessThan(0.05);
+    // Only the slide's drag slowed it, and it goes the way it points again.
+    expect(Math.hypot(kart.velocity.x, kart.velocity.z)).toBeCloseTo(
+      20 * (1 - SLIDE_DRAG * DT) ** SLIDE_TICKS,
+      0,
+    );
+    expect(slipAngle(kart)).toBeLessThan(0.1);
   });
 
   it('can’t get its owner in the first second, nor a kart with a star', () => {
