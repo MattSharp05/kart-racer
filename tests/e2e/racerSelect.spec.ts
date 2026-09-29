@@ -36,6 +36,8 @@ test('keyboard: arrows move through the grid, Enter chooses, Esc goes back', asy
     .locator('.racer-card')
     .evaluateAll((cards) => cards.map((c) => (c as HTMLElement).dataset.racer ?? ''));
   expect(ids).toHaveLength(10);
+  // All 10 are real racers since MK-64: no stand-ins left.
+  expect(ids.filter((id) => id.startsWith('stand-in-'))).toEqual([]);
   const first = ids[0] ?? '';
   // Start from the first card whatever the saved pref.
   await card(page, first).click();

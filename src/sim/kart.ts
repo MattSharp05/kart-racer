@@ -134,7 +134,7 @@ export function updateKart(
     if (effect.wobble && effect.wobbleHz) {
       yaw += effect.wobble * Math.sin(2 * Math.PI * effect.wobbleHz * env.tick * dt);
     }
-    chargeDrift(kart, input, dt, events);
+    chargeDrift(kart, input, dt, events, physics.driftCharge);
   } else {
     const direction = forwardSpeed >= 0 ? 1 : -1;
     yaw =

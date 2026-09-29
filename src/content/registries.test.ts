@@ -27,7 +27,7 @@ const folders = (kind: string) =>
     .sort();
 
 describe('content registries', () => {
-  it('list 6 real tracks plus the test tracks, 7 racers and 8 items (+ the test kit), in order', () => {
+  it('list 6 real tracks plus the test tracks, 10 racers and 8 items (+ the test kit), in order', () => {
     expect(
       tracks
         .list()
@@ -55,6 +55,9 @@ describe('content registries', () => {
       'sprocket',
       'juniper',
       'blaze',
+      'coral',
+      'tundra',
+      'nova',
     ]);
     expect(
       items

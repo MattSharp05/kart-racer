@@ -83,6 +83,8 @@ export const tuning = {
   driftGrip: 2.5,
   /** Extra charge rate when steering fully into the drift (1 = double speed). */
   driftChargeBonus: 0.5,
+  /** Drift charge rate × this for racers with `strongDrift` (Coral, MK-64): tiers come sooner. */
+  strongDriftCharge: 1.15,
   /** Seconds of charge needed for tier 1 (blue), 2 (orange), 3 (purple). */
   driftTiers: [0.8, 1.6, 2.6] as [number, number, number],
   /** Mini-turbo boost length for tier 1, 2, 3, s. */
