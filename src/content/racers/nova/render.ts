@@ -3,7 +3,7 @@ import type { RacerView } from '../render';
 
 /** Points on Nova's star-shaped hull. */
 const STAR_POINTS = 5;
-const STAR_OUTER = 0.8;
+const STAR_OUTER = 0.82;
 const STAR_INNER = 0.36;
 
 /** A flat five-pointed star in the XZ plane, `thickness` tall, one point facing forward (−Z). */
@@ -43,11 +43,12 @@ export default {
     const top = shape.chassisY + h / 2;
     const gold = lambert(palette.accent);
     const glow = lambert(0xfff3b0);
+    // The star deck sits on the chassis, above the wheels, so it's the kart's silhouette.
     const hull = new THREE.Mesh(starGeometry(STAR_OUTER, STAR_INNER, 0.12), lambert(palette.body));
-    hull.position.y = shape.chassisY - 0.08;
-    // A small gold star on the nose.
+    hull.position.y = top - 0.04;
+    // A small gold star on the front point.
     const badge = new THREE.Mesh(starGeometry(0.16, 0.07, 0.04), gold);
-    badge.position.set(0, top, -0.45);
+    badge.position.set(0, top + 0.08, -0.5);
     body.add(hull, badge);
     // Saturn ring round the cockpit, tilted a little.
     const ring = new THREE.Mesh(new THREE.TorusGeometry(0.5, 0.035, 4, 20), glow);
