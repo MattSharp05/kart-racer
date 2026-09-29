@@ -23,7 +23,7 @@ import { tuning } from '../src/sim/tuning';
  * (items on), and every mean place is within 1.0 of the field's 4.5 (items on).
  *
  * Minutes of CPU, so it runs the races in parallel child processes (this same file, one shard
- * each) and is never part of `pnpm test` (`racerBalance.balance.test.ts` is the CI smoke).
+ * each) and is never part of `pnpm test` (`racerBalance.smoke.test.ts` is the CI smoke).
  * `RACES=30` runs fewer, `FIRST=100` other seeds, `ITEMS=on|off` one half only, `WORKERS=n` sets the processes (default:
  * the CPU count), `TUNING='{"stats":{"speedPerPoint":0.02}}'` overrides tuning values for a sweep.
  */

@@ -10,7 +10,7 @@ import { createRace, raceSetupRng, type RacerSlot } from './createRace';
 /**
  * The racer balance simulation (MK-88): seeded all-AI races where every racer is on the grid
  * equally often, over every race track and engine class. `scripts/racerBalance.lab.ts` runs 100 of
- * them with items on and off (`pnpm racer-balance`); `racerBalance.balance.test.ts` is the 20-race
+ * them with items on and off (`pnpm racer-balance`); `racerBalance.smoke.test.ts` is the 20-race
  * CI smoke; the `race-balance` scenario is one of these races to watch.
  */
 
