@@ -74,15 +74,19 @@ export function driftYawRate(kart: KartState, input: InputFrame): number {
   return -kart.drift.direction * rate;
 }
 
-/** Builds up mini-turbo charge and reports new tiers. */
+/**
+ * Builds up mini-turbo charge and reports new tiers. `rate` is the racer's charge multiplier
+ * (`KartPhysics.driftCharge`: 1, or more for a strong-drift racer).
+ */
 export function chargeDrift(
   kart: KartState,
   input: InputFrame,
   dt: number,
   events: SimEvent[],
+  rate = 1,
 ): void {
   const into = Math.max(0, steerIntoDrift(kart, input));
-  const charge = kart.drift.charge + dt * (1 + tuning.driftChargeBonus * into);
+  const charge = kart.drift.charge + dt * rate * (1 + tuning.driftChargeBonus * into);
   const tier = tuning.driftTiers.filter((threshold) => charge >= threshold).length as DriftTier;
   if (tier > kart.drift.tier) events.push({ type: 'driftTier', kartId: kart.id, tier });
   kart.drift = { ...kart.drift, charge, tier };

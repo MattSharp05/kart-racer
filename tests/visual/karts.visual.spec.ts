@@ -7,8 +7,8 @@ test('kart lineup (paused)', async ({ page }) => {
   await expect(page).toHaveScreenshot('kart-lineup.png');
 });
 
-// MK-63: the new racers on the racer select's turntable (paused: the showcase angle).
-for (const id of ['sprocket', 'juniper', 'blaze']) {
+// MK-63, MK-64: the new racers on the racer select's turntable (paused: the showcase angle).
+for (const id of ['sprocket', 'juniper', 'blaze', 'coral', 'tundra', 'nova']) {
   test(`racer preview: ${id} (paused)`, async ({ page }) => {
     await loadScenario(page, `racer-preview-${id}`, { paused: true });
     await expect(page.locator('.racer-picker')).toHaveAttribute('data-racer', id);

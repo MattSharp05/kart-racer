@@ -13,6 +13,9 @@ test.describe('karts', () => {
       'sprocket',
       'juniper',
       'blaze',
+      'coral',
+      'tundra',
+      'nova',
     ]);
   });
 

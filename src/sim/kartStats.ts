@@ -12,16 +12,19 @@ export interface KartPhysics {
   /** Multiplier on normal and drift turn rates. */
   handling: number;
   weight: number;
+  /** Drift mini-turbo charge rate multiplier (1 = normal; strong-drift racers charge faster). */
+  driftCharge: number;
 }
 
 /** Turns a kart's 1–5 stats into physics numbers for an engine class. */
 export function kartPhysics(kartType: KartId, engineClass: EngineClass): KartPhysics {
-  const { stats } = kartDef(kartType);
+  const { stats, strongDrift } = kartDef(kartType);
   const { speedPerPoint, accelerationPerPoint, handlingPerPoint } = tuning.stats;
   return {
     topSpeed: tuning.topSpeed[engineClass] * (1 + (stats.speed - NEUTRAL_STAT) * speedPerPoint),
     timeTo95: tuning.timeTo95 * (1 - (stats.acceleration - NEUTRAL_STAT) * accelerationPerPoint),
     handling: 1 + (stats.handling - NEUTRAL_STAT) * handlingPerPoint,
     weight: stats.weight,
+    driftCharge: strongDrift ? tuning.strongDriftCharge : 1,
   };
 }

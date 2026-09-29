@@ -33,6 +33,7 @@ export function openTuningPanel(): GUI {
   drift.add(tuning.driftTiers, 0, 0.1, 5, 0.05).name('blue at (s)');
   drift.add(tuning.driftTiers, 1, 0.1, 6, 0.05).name('orange at (s)');
   drift.add(tuning.driftTiers, 2, 0.1, 8, 0.05).name('purple at (s)');
+  drift.add(tuning, 'strongDriftCharge', 1, 2, 0.05).name('strong-drift charge ×');
   drift.add(tuning.miniTurboSeconds, 0, 0, 3, 0.05).name('blue boost (s)');
   drift.add(tuning.miniTurboSeconds, 1, 0, 3, 0.05).name('orange boost (s)');
   drift.add(tuning.miniTurboSeconds, 2, 0, 3, 0.05).name('purple boost (s)');

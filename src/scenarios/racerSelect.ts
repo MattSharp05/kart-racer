@@ -10,9 +10,9 @@ export const FULL_ROSTER = 10;
 const STAND_IN_PAINTS = [0x3a86ff, 0x8338ec, 0xff006e, 0xfb5607, 0x06d6a0, 0x118ab2];
 
 /**
- * Until MK-63/MK-64 add the six new racers: registers stand-ins (copies of the registered racers'
- * stats and shapes, own names and paints) so the grid has 10 cards. Only for this scenario's page;
- * registers nothing once 10 real racers exist, and only once per page.
+ * Pads the grid to 10 cards with stand-ins (copies of the registered racers' stats and shapes, own
+ * names and paints) while fewer than 10 real racers exist. Since MK-64 there are 10, so it registers
+ * nothing; it stays for layout checks if the roster ever shrinks. Only for this scenario's page.
  */
 function registerStandIns(): void {
   const real = racers.list().filter((r) => !r.id.startsWith('stand-in-'));

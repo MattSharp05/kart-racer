@@ -9,8 +9,8 @@ import { NEUTRAL_INPUT, type SimState } from '../src/sim/types';
 
 /**
  * The racer balance smoke test (MK-63): `pnpm racer-balance`. 20 seeded 8-AI races with items on,
- * spread over every race track, each with every racer on the grid (plus one seeded extra), then
- * checks that no racer wins more than 40% of them. Minutes of CPU, so never part of `pnpm test`.
+ * spread over every race track, each with every racer on the grid (seeded extras up to 8, or a
+ * seeded 8 when there are more racers), then checks that no racer wins more than 40% of them. Minutes of CPU, so never part of `pnpm test`.
  * `RACES=6` runs fewer; `RACERS=maple,pixie,boulder,swoop` races only those.
  */
 const RACES = Number(process.env.RACES ?? 20);
@@ -19,10 +19,19 @@ const RACERS = process.env.RACERS ? process.env.RACERS.split(',') : KART_IDS;
 const MAX_WIN_SHARE = 0.4;
 const KARTS = 8;
 
-/** Every racer once, seeded extras up to 8, on a shuffled grid. */
+/**
+ * Every racer once, seeded extras up to 8, on a shuffled grid. With more than 8 racers (MK-64: 10),
+ * a seeded 8 of them, so each race leaves a different 2 out.
+ */
 function mixedRace(seed: number, trackId: string): SimState {
   const rng = raceSetupRng(seed);
   const kartIds = [...RACERS];
+  if (kartIds.length > KARTS) {
+    for (let i = kartIds.length - 1; i > 0; i -= 1) {
+      const j = rngInt(rng, 0, i);
+      [kartIds[i], kartIds[j]] = [kartIds[j] ?? '', kartIds[i] ?? ''];
+    }
+  }
   while (kartIds.length < KARTS) kartIds.push(rngPick(rng, RACERS));
   const slots = Array.from({ length: KARTS }, (_, i) => i);
   for (let i = slots.length - 1; i > 0; i -= 1) {
@@ -54,6 +63,8 @@ it(`racer balance over ${RACES} races`, { timeout: 30 * 60_000 }, () => {
   const trackIds = raceTrackIds();
   const wins: Record<string, number> = {};
   const places: Record<string, number[]> = {};
+  /** Races each racer was on the grid for (by seed). */
+  const entries: Record<string, number[]> = {};
   for (let i = 0; i < RACES; i += 1) {
     const seed = i + 1;
     const trackId = trackIds[i % trackIds.length] ?? 'sunny-circuit';
@@ -61,15 +72,19 @@ it(`racer balance over ${RACES} races`, { timeout: 30 * 60_000 }, () => {
     expect(order, `race ${seed} on ${trackId}: everyone finishes`).toHaveLength(KARTS);
     const winner = order[0] ?? '?';
     wins[winner] = (wins[winner] ?? 0) + 1;
-    order.forEach((id, place) => (places[id] ??= []).push(place + 1));
+    order.forEach((id, place) => {
+      (places[id] ??= []).push(place + 1);
+      (entries[id] ??= []).push(seed);
+    });
   }
   const lines = [
     `races: ${RACES} on ${trackIds.join(', ')}`,
-    'racer | wins | share | mean place',
+    'racer | races | wins | share | mean place',
     ...RACERS.map((id) => {
       const mine = places[id] ?? [];
       const mean = mine.reduce((a, b) => a + b, 0) / Math.max(mine.length, 1);
-      return `${id} | ${wins[id] ?? 0} | ${(((wins[id] ?? 0) / RACES) * 100).toFixed(0)}% | ${mean.toFixed(2)}`;
+      const entered = new Set(entries[id] ?? []).size;
+      return `${id} | ${entered} | ${wins[id] ?? 0} | ${(((wins[id] ?? 0) / RACES) * 100).toFixed(0)}% | ${mean.toFixed(2)}`;
     }),
   ];
   process.stdout.write(`${lines.join('\n')}\n`);
