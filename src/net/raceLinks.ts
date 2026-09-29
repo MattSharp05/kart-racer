@@ -60,10 +60,18 @@ export function webRtcRaceLinks(
         signaling.close();
       };
     },
-    join: (onFailed) => ({
-      transport: new PendingTransport(joinHost(signaling, () => onFailed('unreachable'))),
-      stop: () => signaling.close(),
-    }),
+    join: (onFailed) => {
+      const cancel = new AbortController();
+      const link = joinHost(signaling, () => onFailed('unreachable'), cancel.signal);
+      return {
+        // Closed before it connects (the race was left): stop signaling and drop the connection.
+        transport: new PendingTransport(link, () => {
+          cancel.abort();
+          signaling.close();
+        }),
+        stop: () => signaling.close(),
+      };
+    },
     ...(kartOf ? { kartOf } : {}),
   };
 }
@@ -75,7 +83,11 @@ export function webRtcRaceLinks(
 export class PendingTransport extends BaseTransport {
   private inner: Transport | null = null;
 
-  constructor(link: Promise<Transport>) {
+  /** `onCloseEarly`: called when this link closes before `link` resolves. */
+  constructor(
+    link: Promise<Transport>,
+    private readonly onCloseEarly: () => void = () => undefined,
+  ) {
     super();
     void link.then((transport) => {
       if (this.state === 'closed') return transport.close();
@@ -95,6 +107,7 @@ export class PendingTransport extends BaseTransport {
   override close(): void {
     if (this.state === 'closed') return;
     super.close();
-    this.inner?.close();
+    if (this.inner) this.inner.close();
+    else this.onCloseEarly();
   }
 }

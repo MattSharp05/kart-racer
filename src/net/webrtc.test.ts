@@ -101,7 +101,21 @@ describe('WebRTC signaling (MK-73)', () => {
     await vi.runOnlyPendingTimersAsync();
     vi.advanceTimersByTime(SIGNAL_RETRY_MS * 5);
     expect(client.kinds().filter((k) => k === 'join')).toHaveLength(4);
-    expect(client.sent.at(-1)).toEqual({ to: 'host', signal: { kind: 'answer', sdp: 'answer-sdp' } });
+    expect(client.sent.at(-1)).toEqual({
+      to: 'host',
+      signal: { kind: 'answer', sdp: 'answer-sdp' },
+    });
+  });
+
+  it('client stops asking and closes its connection when cancelled', () => {
+    const client = fakeSignaling('guest');
+    const cancel = new AbortController();
+    void joinHost(client.channel, () => undefined, cancel.signal);
+    vi.advanceTimersByTime(SIGNAL_RETRY_MS);
+    cancel.abort();
+    vi.advanceTimersByTime(SIGNAL_RETRY_MS * 5);
+    expect(client.kinds()).toEqual(['join', 'join']);
+    expect(FakePeerConnection.all[0]!.signalingState).toBe('closed');
   });
 
   it('client gives up asking after SIGNAL_RETRIES repeats', () => {

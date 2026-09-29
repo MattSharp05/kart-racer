@@ -53,6 +53,10 @@ export function connectFailedMessage(names: readonly string[]): string {
     : `Couldn't connect to every player. ${CONNECT_HINT}`;
 }
 
+/** A client connected to the host whose race still waits for someone else (MK-73). */
+export const WAITING_FOR_OTHERS = 'Waiting for the other players to connect…';
+export const OTHERS_FAILED_MESSAGE = "The race couldn't start: not every player could connect.";
+
 /** Why this device can't go on in its online race (MK-70). */
 export type RaceLoss = 'dropped' | 'host-lost';
 
@@ -97,6 +101,8 @@ export class OnlineRace {
   /** Host: karts whose player's link couldn't connect (MK-73). */
   private readonly failedKarts = new Set<number>();
   private closeRoom: () => void = () => undefined;
+  /** A client's link to the host (open once WebRTC connects). */
+  private hostLink: Transport | null = null;
 
   /**
    * @param onLocalKart Called when a client learns which kart it drives (the host's Start).
@@ -170,7 +176,21 @@ export class OnlineRace {
         .filter((i) => !joined.has(i))
         .map((i) => this.playerName(i));
     }
-    return [this.hostName()];
+    // Connected to the host: the race waits for someone else, not for us.
+    return this.hostLink?.state === 'open' ? [] : [this.hostName()];
+  }
+
+  /** The HUD line while the race waits to start (MK-73), or null once it runs. */
+  waitingLine(): string | null {
+    if (this.info().started || this.info().ended) return null;
+    const names = this.waitingFor();
+    return names.length > 0 ? `Connecting to ${nameList(names)}…` : WAITING_FOR_OTHERS;
+  }
+
+  /** Why the race couldn't start in time (MK-73): whom this device couldn't connect to. */
+  timeoutMessage(): string {
+    const names = this.waitingFor();
+    return this.client && names.length === 0 ? OTHERS_FAILED_MESSAGE : connectFailedMessage(names);
   }
 
   /**
@@ -270,6 +290,7 @@ export class OnlineRace {
       // A link that fails once the race runs is the host going quiet (`lost`, MK-70).
       if (this.client?.started !== true) this.ended = reason;
     });
+    this.hostLink = join.transport;
     const client = new OnlineClient(this.link(join.transport));
     this.client = client;
     const smoother = new NetSmoother(client);

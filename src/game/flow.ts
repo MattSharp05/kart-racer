@@ -38,7 +38,7 @@ import {
   type Profile,
 } from './profile';
 import { standingsOf } from '../net/host';
-import { connectFailedMessage, nameList, type OnlineLaunch, type RaceLoss } from './online';
+import { connectFailedMessage, type OnlineLaunch, type RaceLoss } from './online';
 import { Leaderboard, supabaseLeaderboard, submitFinish } from '../records/leaderboard';
 import { onlineResultLines, recordFinish, recordLines, resultLines } from './results';
 import { RoomFlow, type RoomService } from './roomFlow';
@@ -494,8 +494,7 @@ export class Flow {
     if (racing && lost && !this.raceOver()) return this.showConnectionLost(lost);
     const net = online.info();
     // Still connecting (MK-73): say to whom, rather than a countdown standing still on 3.
-    const waiting = net.ended ? [] : online.waitingFor();
-    if (waiting.length > 0) this.hud.waiting = `Connecting to ${nameList(waiting)}…`;
+    this.hud.waiting = online.waitingLine();
     if (!this.onlineSince) return;
     if (screen === 'onlineResults') {
       // The host's final standings arrived, or another kart finished: redraw the results.
@@ -513,7 +512,7 @@ export class Flow {
       if (this.raceOver()) return;
       this.abortOnlineRace(host ? undefined : 'The host ended the race.');
     } else if (!net.started && performance.now() - this.onlineSince > ONLINE_CONNECT_TIMEOUT_MS) {
-      this.abortOnlineRace(connectFailedMessage(waiting));
+      this.abortOnlineRace(online.timeoutMessage());
     }
   }
 

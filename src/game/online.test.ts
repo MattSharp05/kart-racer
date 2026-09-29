@@ -2,10 +2,18 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { onlineScenarios } from '../scenarios/online';
 import { createRace } from '../sim/race/createRace';
 import { NEUTRAL_INPUT, type InputFrame, type SimState } from '../sim/types';
+import { createLoopbackPair } from '../net/netsim';
 import { PendingTransport, type RaceLinks } from '../net/raceLinks';
 import type { JoinFailure } from '../net/localRoom';
 import type { Transport } from '../net/transport';
-import { connectFailedMessage, nameList, OnlineRace, type OnlineLaunch } from './online';
+import {
+  connectFailedMessage,
+  nameList,
+  OnlineRace,
+  OTHERS_FAILED_MESSAGE,
+  WAITING_FOR_OTHERS,
+  type OnlineLaunch,
+} from './online';
 
 const races: OnlineRace[] = [];
 afterEach(() => {
@@ -91,6 +99,29 @@ describe('OnlineRace (MK-46)', () => {
   });
 });
 
+describe('a client connected to the host, waiting for someone else (MK-73)', () => {
+  it("doesn't blame the host", () => {
+    const { links } = fakeLinks({});
+    let open!: (transport: Transport) => void;
+    const opened = new Promise<Transport>((resolve) => (open = resolve));
+    const client = new OnlineRace({
+      ...lobbyLaunch('client', links),
+      links: {
+        ...links,
+        join: () => ({ transport: new PendingTransport(opened), stop: () => undefined }),
+      },
+    });
+    races.push(client);
+    expect(client.waitingLine()).toBe('Connecting to Hosty…');
+    open(createLoopbackPair()[0]);
+    return vi.waitFor(() => {
+      expect(client.waitingFor()).toEqual([]);
+      expect(client.waitingLine()).toBe(WAITING_FOR_OTHERS);
+      expect(client.timeoutMessage()).toBe(OTHERS_FAILED_MESSAGE);
+    });
+  });
+});
+
 /** A link that never connects. */
 function idleTransport(): Transport {
   return new PendingTransport(new Promise(() => undefined));
@@ -159,6 +190,7 @@ describe('connecting before the race runs (MK-73)', () => {
     const client = open(lobbyLaunch('client', links));
     expect(client.waitingFor()).toEqual(['Hosty']);
     expect(client.unreachable()).toEqual([]);
+    expect(client.waitingLine()).toBe('Connecting to Hosty…');
     calls.joinFailed?.('unreachable');
     expect(client.unreachable()).toEqual(['Hosty']);
     expect(client.info().ended).toBe('unreachable');

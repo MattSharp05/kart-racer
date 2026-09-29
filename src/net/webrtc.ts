@@ -180,11 +180,13 @@ export function hostPeers(
 
 /**
  * Client: announces itself (every `SIGNAL_RETRY_MS` until the host offers), then answers;
- * resolves once the channel opens. `onFailed` hears if the connection fails (MK-73).
+ * resolves once the channel opens. `onFailed` hears if the connection fails (MK-73); `cancel`
+ * gives up on a connection that isn't needed any more.
  */
 export function joinHost(
   signaling: SignalingChannel,
   onFailed: () => void = () => undefined,
+  cancel?: AbortSignal,
 ): Promise<WebRtcTransport> {
   return new Promise((resolve) => {
     const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
@@ -197,6 +199,11 @@ export function joinHost(
         clearInterval(retry);
       } else signaling.send(null, { kind: 'join' });
     }, SIGNAL_RETRY_MS);
+    // Left before connecting (MK-73): stop asking and let the connection go.
+    cancel?.addEventListener('abort', () => {
+      clearInterval(retry);
+      pc.close();
+    });
     watchFailure(pc, onFailed);
     pc.onicecandidate = (event) => {
       if (event.candidate && hostId) {
