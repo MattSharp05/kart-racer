@@ -31,6 +31,21 @@ jobs:
       - run: pnpm build
       - run: pnpm check:bundle
 
+  # The racer balance smoke (MK-88): 20 full 8-AI races, a couple of minutes of CPU, so it runs
+  # beside the checks instead of slowing the unit step (and the e2e jobs waiting on it).
+  balance:
+    name: Racer balance smoke
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm test:balance
+
   # Does this change touch anything the browser tests exercise? Docs/config-only PRs skip e2e and
   # visual (a settings-file PR once spent 20 min on e2e). Pushes to main always run everything.
   changes:
