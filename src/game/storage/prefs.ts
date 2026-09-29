@@ -8,7 +8,7 @@ export interface Prefs {
   track?: string;
 }
 
-const PREFS_KEY = 'kart-racer:prefs';
+export const PREFS_KEY = 'kart-racer:prefs';
 
 export function readPrefs(store: KeyValueStore): Prefs {
   return readJson(store, PREFS_KEY) as Prefs;

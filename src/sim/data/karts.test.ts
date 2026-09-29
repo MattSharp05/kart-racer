@@ -23,8 +23,8 @@ function timeTo95(kartType: KartId): number {
 }
 
 describe('kart roster', () => {
-  it('has four karts with equal stat totals', () => {
-    expect(KART_IDS).toHaveLength(4);
+  it('has the MVP four plus the v2 racers, all with equal stat totals', () => {
+    expect(KART_IDS.slice(0, 4)).toEqual(['maple', 'pixie', 'boulder', 'swoop']);
     const totals = KART_IDS.map(total);
     expect(new Set(totals).size).toBe(1);
   });
@@ -49,10 +49,12 @@ describe('kart roster', () => {
     for (const id of KART_IDS) if (id !== 'pixie') expect(times.pixie).toBeLessThan(times[id]!);
   });
 
-  it('Swoop turns tightest', () => {
+  it('Swoop turns tightest (level with Juniper, MK-63)', () => {
     const handling = (id: KartId) => kartPhysics(id, 100).handling;
+    expect(handling('juniper')).toBe(handling('swoop'));
     for (const id of KART_IDS)
-      if (id !== 'swoop') expect(handling('swoop')).toBeGreaterThan(handling(id));
+      if (id !== 'swoop' && id !== 'juniper')
+        expect(handling('swoop')).toBeGreaterThan(handling(id));
   });
 
   it('a Boulder on the test pad really does out-run a Maple', () => {

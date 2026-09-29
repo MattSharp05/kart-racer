@@ -1,4 +1,5 @@
 import { racers, type RacerContent } from '../content/racers';
+import { PREFS_KEY } from '../game/storage/prefs';
 import { racerViews, type RacerView } from '../content/racers/render';
 import { sunnyLineup } from './menus';
 import type { Scenario } from './registry';
@@ -39,6 +40,24 @@ function registerStandIns(): void {
   }
 }
 
+/**
+ * Racer select opened on one racer (MK-63): its card chosen and the turntable on its kart. One per
+ * registered racer, so new racers get theirs by registering.
+ */
+const racerPreviewScenarios: Scenario[] = racers.list().map(({ id, name }) => ({
+  name: `racer-preview-${id}`,
+  group: 'Karts',
+  description: `Racer select on ${name}: the card, stats and the kart on the turntable.`,
+  defaultSeed: 1,
+  setup: (seed) => ({
+    state: sunnyLineup(seed),
+    view: 'lineup',
+    screen: 'racerSelect',
+    // The racer select opens on the saved pick (in memory only: the player's own is untouched).
+    storage: { [PREFS_KEY]: JSON.stringify({ kart: id }) },
+  }),
+}));
+
 export const racerSelectScenarios: Scenario[] = [
   {
     name: 'racer-select',
@@ -59,4 +78,5 @@ export const racerSelectScenarios: Scenario[] = [
       return { state: sunnyLineup(seed), view: 'lineup', screen: 'racerSelect' };
     },
   },
+  ...racerPreviewScenarios,
 ];

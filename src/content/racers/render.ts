@@ -1,9 +1,12 @@
 import type * as THREE from 'three';
 import type { KartColours, KartShape } from '../../render/kartModels';
 import { Registry } from '../registry';
+import blaze from './blaze/render';
 import boulder from './boulder/render';
+import juniper from './juniper/render';
 import maple from './maple/render';
 import pixie from './pixie/render';
+import sprocket from './sprocket/render';
 import swoop from './swoop/render';
 
 /** What a racer's details builder gets: the kart body to add meshes to, and its paint. */
@@ -32,4 +35,10 @@ export interface RacerView {
 export const racerViews = new Registry<RacerView>('racer view');
 
 // One line per racer folder, alphabetical (a unit test checks none is missing).
-for (const view of [boulder, maple, pixie, swoop]) racerViews.register(view);
+racerViews.register(blaze);
+racerViews.register(boulder);
+racerViews.register(juniper);
+racerViews.register(maple);
+racerViews.register(pixie);
+racerViews.register(sprocket);
+racerViews.register(swoop);
