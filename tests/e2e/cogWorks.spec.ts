@@ -7,28 +7,30 @@ import { getState, loadScenario, setInput, step } from './helpers';
 const FULL_RACE = ['desktop-chrome'];
 
 test.describe('Cog Works (MK-62)', () => {
-  test('track-cog-works: an autopilot race finishes 3 laps with no console errors', async ({
-    page,
-  }, info) => {
-    test.skip(!FULL_RACE.includes(info.project.name), 'full race runs on desktop-chrome');
-    test.setTimeout(240_000);
-    const errors: string[] = [];
-    page.on('console', (m) => {
-      if (m.type() === 'error') errors.push(m.text());
-    });
-    page.on('pageerror', (e) => errors.push(e.message));
-    await loadScenario(page, 'track-cog-works', { paused: true });
-    expect((await getState(page)).trackId).toBe('cog-works');
-    await page.evaluate(() => window.__game!.setAutopilot(0, true));
-    let state = await getState(page);
-    for (let i = 0; i < 20 && state.karts[0]!.race.finishTick === undefined; i += 1) {
-      state = await step(page, 900);
-    }
-    expect(state.karts[0]!.race.finishTick).toBeDefined();
-    expect(state.karts[0]!.race.lapTimes).toHaveLength(3);
-    await expect(page.locator('.menu-results')).toBeVisible({ timeout: 10_000 });
-    expect(errors).toEqual([]);
-  });
+  test(
+    'track-cog-works: an autopilot race finishes 3 laps with no console errors',
+    { tag: '@full' },
+    async ({ page }, info) => {
+      test.skip(!FULL_RACE.includes(info.project.name), 'full race runs on desktop-chrome');
+      test.setTimeout(240_000);
+      const errors: string[] = [];
+      page.on('console', (m) => {
+        if (m.type() === 'error') errors.push(m.text());
+      });
+      page.on('pageerror', (e) => errors.push(e.message));
+      await loadScenario(page, 'track-cog-works', { paused: true });
+      expect((await getState(page)).trackId).toBe('cog-works');
+      await page.evaluate(() => window.__game!.setAutopilot(0, true));
+      let state = await getState(page);
+      for (let i = 0; i < 20 && state.karts[0]!.race.finishTick === undefined; i += 1) {
+        state = await step(page, 900);
+      }
+      expect(state.karts[0]!.race.finishTick).toBeDefined();
+      expect(state.karts[0]!.race.lapTimes).toHaveLength(3);
+      await expect(page.locator('.menu-results')).toBeVisible({ timeout: 10_000 });
+      expect(errors).toEqual([]);
+    },
+  );
 
   test('track-cog-works mid-race stays within 150 draw calls and 150k triangles', async ({
     page,

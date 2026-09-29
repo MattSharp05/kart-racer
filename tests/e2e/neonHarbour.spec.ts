@@ -8,28 +8,30 @@ import { getState, loadScenario, setInput, step } from './helpers';
 const FULL_RACE = ['desktop-chrome'];
 
 test.describe('Neon Harbour (MK-60)', () => {
-  test('track-neon-harbour: an autopilot race finishes 3 laps with no console errors', async ({
-    page,
-  }, info) => {
-    test.skip(!FULL_RACE.includes(info.project.name), 'full race runs on desktop-chrome');
-    test.setTimeout(240_000);
-    const errors: string[] = [];
-    page.on('console', (m) => {
-      if (m.type() === 'error') errors.push(m.text());
-    });
-    page.on('pageerror', (e) => errors.push(e.message));
-    await loadScenario(page, 'track-neon-harbour', { paused: true });
-    expect((await getState(page)).trackId).toBe('neon-harbour');
-    await page.evaluate(() => window.__game!.setAutopilot(0, true));
-    let state = await getState(page);
-    for (let i = 0; i < 20 && state.karts[0]!.race.finishTick === undefined; i += 1) {
-      state = await step(page, 900);
-    }
-    expect(state.karts[0]!.race.finishTick).toBeDefined();
-    expect(state.karts[0]!.race.lapTimes).toHaveLength(3);
-    await expect(page.locator('.menu-results')).toBeVisible({ timeout: 10_000 });
-    expect(errors).toEqual([]);
-  });
+  test(
+    'track-neon-harbour: an autopilot race finishes 3 laps with no console errors',
+    { tag: '@full' },
+    async ({ page }, info) => {
+      test.skip(!FULL_RACE.includes(info.project.name), 'full race runs on desktop-chrome');
+      test.setTimeout(240_000);
+      const errors: string[] = [];
+      page.on('console', (m) => {
+        if (m.type() === 'error') errors.push(m.text());
+      });
+      page.on('pageerror', (e) => errors.push(e.message));
+      await loadScenario(page, 'track-neon-harbour', { paused: true });
+      expect((await getState(page)).trackId).toBe('neon-harbour');
+      await page.evaluate(() => window.__game!.setAutopilot(0, true));
+      let state = await getState(page);
+      for (let i = 0; i < 20 && state.karts[0]!.race.finishTick === undefined; i += 1) {
+        state = await step(page, 900);
+      }
+      expect(state.karts[0]!.race.finishTick).toBeDefined();
+      expect(state.karts[0]!.race.lapTimes).toHaveLength(3);
+      await expect(page.locator('.menu-results')).toBeVisible({ timeout: 10_000 });
+      expect(errors).toEqual([]);
+    },
+  );
 
   test('track-neon-harbour mid-race stays within 150 draw calls and 150k triangles', async ({
     page,
