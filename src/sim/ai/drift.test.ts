@@ -76,10 +76,14 @@ describe('rubber-banding', () => {
   });
 
   // With the player parked every AI is equally far ahead, so each gets the same −10% and the pack
-  // can't close up. A driving player (the autopilot at 85%) is the meaningful case.
+  // can't close up. A driving player (the autopilot at 85%) is the meaningful case. Since MK-88 the
+  // racers are balanced, so the pack only spreads out if its drivers differ: skills 0.74–0.98.
   it('with the player racing, the AI pack finishes closer together with it than without', () => {
     const spread = (rubberBand: boolean) => {
       let s = sunnyRace(3, { karts: 8, ai: true });
+      s.karts.forEach((kart, i) => {
+        if (kart.ai) kart.ai.skill = 0.7 + 0.04 * i;
+      });
       s.race.rubberBand = rubberBand;
       for (let i = 0; i < 60 * 60 * 4; i += 1) {
         s = step(s, [autopilotInput(s.karts[0]!, geometry, 0.85)]).state;

@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import type { SimEvent } from '../../src/sim/types';
-import { step } from './helpers';
+import { getState, step } from './helpers';
 
 test('ai-drift-corner&ai-debug=1: an AI drifts through the hairpin for a mini-turbo', async ({
   page,
@@ -21,4 +21,16 @@ test('ai-holding-green: within 180 ticks the AI has fired a green shell', async 
   expect(events).toContainEqual(
     expect.objectContaining({ type: 'itemUsed', kartId: 1, item: 'green' }),
   );
+});
+
+test('race-balance: 8 different AI racers are racing, and they keep going', async ({ page }) => {
+  await page.goto('/?scenario=race-balance&paused=1');
+  await page.waitForFunction(() => window.__game?.ready === true);
+  const before = await getState(page);
+  expect(before.phase).toBe('racing');
+  expect(new Set(before.karts.map((k) => k.kartType)).size).toBe(8);
+  expect(before.karts.every((k) => k.controller === 'ai')).toBe(true);
+  const after = await step(page, 120);
+  // Two seconds on, the pack is still moving.
+  expect(after.karts.filter((k) => k.speed > 5).length).toBeGreaterThanOrEqual(6);
 });

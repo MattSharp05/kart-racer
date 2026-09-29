@@ -33,6 +33,12 @@ describe('AI item use', () => {
         const state = sunnyRace(seed, { karts: 8, ai: true });
         state.karts[0]!.position = geometry.pointAt(0.5, -geometry.wallOffset(16) + 1);
         state.race.rubberBand = false;
+        // Since MK-88 the racers are balanced and an even AI pack stays tight, so the back-markers
+        // (the only ones offered lightning) mostly reach boxes the leaders just broke. Drivers of
+        // different skill (0.74–0.98) string the pack out, so the back finds fresh boxes too.
+        state.karts.forEach((kart, i) => {
+          if (kart.ai) kart.ai.skill = 0.7 + 0.04 * i;
+        });
         const { events } = run(state, 60 * 60 * 4, (s) =>
           s.karts.slice(1).every((k) => k.race.finishTick !== undefined),
         );
