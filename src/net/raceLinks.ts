@@ -1,4 +1,4 @@
-import { hostLocalRoom, joinLocalRoom, type LocalRoomJoin } from './localRoom';
+import { hostLocalRoom, joinLocalRoom, type JoinFailure, type LocalRoomJoin } from './localRoom';
 import { BaseTransport, type Transport } from './transport';
 import { hostPeers, joinHost, type SignalingChannel } from './webrtc';
 
@@ -9,12 +9,15 @@ import { hostPeers, joinHost, type SignalingChannel } from './webrtc';
  */
 export interface RaceLinks {
   /**
-   * Host: offers each new client's link to `accept` (false = no kart for it). Returns a function
-   * that stops accepting.
+   * Host: offers each new client's link to `accept` (false = no kart for it); `onFailed` hears of a
+   * client whose link couldn't connect (MK-73). Returns a function that stops accepting.
    */
-  host(accept: (transport: Transport, clientId: string) => boolean): () => void;
+  host(
+    accept: (transport: Transport, clientId: string) => boolean,
+    onFailed?: (clientId: string) => void,
+  ): () => void;
   /** Client: the link to the host, usable at once (packets flow once it connects). */
-  join(onFailed: (reason: string) => void): LocalRoomJoin;
+  join(onFailed: (reason: JoinFailure) => void): LocalRoomJoin;
   /** Host: the kart client `clientId` drives (default: the free remote karts in join order). */
   kartOf?(clientId: string): number | undefined;
 }
@@ -43,18 +46,22 @@ export function webRtcRaceLinks(
   kartOf?: (clientId: string) => number | undefined,
 ): RaceLinks {
   return {
-    host: (accept) => {
+    host: (accept, onFailed) => {
       let accepting = true;
-      hostPeers(signaling, (transport, peerId) => {
-        if (!accepting || !accept(transport, peerId)) transport.close();
-      });
+      hostPeers(
+        signaling,
+        (transport, peerId) => {
+          if (!accepting || !accept(transport, peerId)) transport.close();
+        },
+        (peerId) => accepting && onFailed?.(peerId),
+      );
       return () => {
         accepting = false;
         signaling.close();
       };
     },
-    join: () => ({
-      transport: new PendingTransport(joinHost(signaling)),
+    join: (onFailed) => ({
+      transport: new PendingTransport(joinHost(signaling, () => onFailed('unreachable'))),
       stop: () => signaling.close(),
     }),
     ...(kartOf ? { kartOf } : {}),

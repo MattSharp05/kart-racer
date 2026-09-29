@@ -34,6 +34,25 @@ export interface OnlineLaunch {
   vanishAtTick?: number;
 }
 
+/**
+ * After "Couldn't connect to …" (MK-73): phones on mobile data often can't reach another device
+ * directly (no relay server yet, MK-75); the same Wi-Fi usually can.
+ */
+const CONNECT_HINT = 'Try again, or put both devices on the same Wi-Fi.';
+
+/** "Sam", "Sam and Alex", "Sam, Alex and Jo". */
+export function nameList(names: readonly string[]): string {
+  if (names.length <= 1) return names[0] ?? '';
+  return `${names.slice(0, -1).join(', ')} and ${names.at(-1) ?? ''}`;
+}
+
+/** Why an online race couldn't start (MK-73): who this device couldn't connect to. */
+export function connectFailedMessage(names: readonly string[]): string {
+  return names.length > 0
+    ? `Couldn't connect to ${nameList(names)}. ${CONNECT_HINT}`
+    : `Couldn't connect to every player. ${CONNECT_HINT}`;
+}
+
 /** Why this device can't go on in its online race (MK-70). */
 export type RaceLoss = 'dropped' | 'host-lost';
 
@@ -75,6 +94,8 @@ export class OnlineRace {
   private readonly expectedPlayers: number;
   private lastSnapshotTick = -1;
   private ended: string | null = null;
+  /** Host: karts whose player's link couldn't connect (MK-73). */
+  private readonly failedKarts = new Set<number>();
   private closeRoom: () => void = () => undefined;
 
   /**
@@ -135,6 +156,30 @@ export class OnlineRace {
     if (!client) return null;
     if (client.ended === 'dropped') return 'dropped';
     return client.hostLost ? 'host-lost' : null;
+  }
+
+  /**
+   * Before the race runs (MK-73): the names of the players this device is still connecting to (a
+   * client: the host). Empty once it runs.
+   */
+  waitingFor(): string[] {
+    if (this.info().started) return [];
+    if (this.host) {
+      const joined = new Set(this.host.peers.map((p) => p.kartId));
+      return this.remoteKarts()
+        .filter((i) => !joined.has(i))
+        .map((i) => this.playerName(i));
+    }
+    return [this.hostName()];
+  }
+
+  /**
+   * Players whose link couldn't connect before the race ran (MK-73; WebRTC's ICE failed): the host
+   * names the clients, a client the host. Empty while connecting still has a chance.
+   */
+  unreachable(): string[] {
+    if (this.host) return [...this.failedKarts].map((i) => this.playerName(i));
+    return this.client?.started !== true && this.ended === 'unreachable' ? [this.hostName()] : [];
   }
 
   /** What the `?netdebug=1` overlay shows (MK-45). */
@@ -198,12 +243,18 @@ export class OnlineRace {
     // Clients get the remote karts in the order they join, unless the lobby assigned them.
     const freeKarts = racers.flatMap((r, i) => (r.controller === 'remote' ? [i] : []));
     const links = this.launch.links ?? localRaceLinks(this.launch.room);
-    this.closeRoom = links.host((transport, clientId) => {
-      const kartId = links.kartOf ? links.kartOf(clientId) : freeKarts.shift();
-      if (kartId === undefined) return false;
-      host.addClient(this.link(transport), kartId);
-      return true;
-    });
+    this.closeRoom = links.host(
+      (transport, clientId) => {
+        const kartId = links.kartOf ? links.kartOf(clientId) : freeKarts.shift();
+        if (kartId === undefined) return false;
+        host.addClient(this.link(transport), kartId);
+        return true;
+      },
+      (clientId) => {
+        const kartId = links.kartOf?.(clientId);
+        if (kartId !== undefined && !this.everyoneJoined()) this.failedKarts.add(kartId);
+      },
+    );
     return (state, inputs): StepResult => {
       // The countdown waits for everyone (the lobby's job from MK-47 on).
       if (!this.everyoneJoined()) return { state, events: [] };
@@ -215,7 +266,10 @@ export class OnlineRace {
 
   private startClient(): Stepper {
     const links = this.launch.links ?? localRaceLinks(this.launch.room);
-    const join = links.join((reason) => (this.ended = reason));
+    const join = links.join((reason) => {
+      // A link that fails once the race runs is the host going quiet (`lost`, MK-70).
+      if (this.client?.started !== true) this.ended = reason;
+    });
     const client = new OnlineClient(this.link(join.transport));
     this.client = client;
     const smoother = new NetSmoother(client);
@@ -243,6 +297,21 @@ export class OnlineRace {
       const hostEvents = client.takeEvents().map((e) => e.event);
       return { state: client.state, events: [...hostEvents, ...cosmetic] };
     };
+  }
+
+  /** The other humans' karts in this device's race (before Start, a client's placeholder). */
+  private remoteKarts(): number[] {
+    return this.launch.race.racers.flatMap((r, i) => (r.controller === 'remote' ? [i] : []));
+  }
+
+  private playerName(kartId: number): string {
+    return this.launch.race.racers[kartId]?.name ?? `Player ${kartId + 1}`;
+  }
+
+  /** The host drives kart 0 (the lobby seats it first). */
+  private hostName(): string {
+    const host = this.launch.race.racers[0];
+    return (host?.controller === 'remote' ? host.name : undefined) ?? 'the host';
   }
 
   private everyoneJoined(): boolean {

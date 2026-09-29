@@ -38,7 +38,7 @@ import {
   type Profile,
 } from './profile';
 import { standingsOf } from '../net/host';
-import type { OnlineLaunch, RaceLoss } from './online';
+import { connectFailedMessage, nameList, type OnlineLaunch, type RaceLoss } from './online';
 import { Leaderboard, supabaseLeaderboard, submitFinish } from '../records/leaderboard';
 import { onlineResultLines, recordFinish, recordLines, resultLines } from './results';
 import { RoomFlow, type RoomService } from './roomFlow';
@@ -169,7 +169,21 @@ export class Flow {
           // Kept for next time, so a player who drops and rejoins keeps their pick (MK-70).
           this.savePrefs();
         },
-        onLobby: () => this.leaveOnlineRace(),
+        onLobby: () => {
+          // The host gave up before the race ran (a player couldn't connect or left, MK-73).
+          const online = this.session.online;
+          const stuck = online !== null && this.onlineSince > 0 && !online.info().started;
+          this.leaveOnlineRace();
+          return stuck ? "The race couldn't start. The host will try again." : undefined;
+        },
+        onPlayerLeft: (name) => {
+          // Before the race runs, it can't without them (MK-73); once it runs, the host's drops
+          // hand their kart to the AI (MK-70).
+          const online = this.session.online;
+          if (online && this.onlineSince > 0 && !online.info().started) {
+            this.abortOnlineRace(`${name} left the room.`);
+          }
+        },
       },
     );
 
@@ -464,6 +478,7 @@ export class Flow {
    * (a player's link failed or they left before it opened), or the host ended it mid-race.
    */
   private watchOnlineRace(): void {
+    this.hud.waiting = null;
     const online = this.session.online;
     if (!online) return;
     // Players who dropped (MK-70): everyone hears about it; the AI drives their kart now. Online
@@ -477,6 +492,10 @@ export class Flow {
     const racing = screen === 'none' || screen === 'paused';
     const lost = online.lost();
     if (racing && lost && !this.raceOver()) return this.showConnectionLost(lost);
+    const net = online.info();
+    // Still connecting (MK-73): say to whom, rather than a countdown standing still on 3.
+    const waiting = net.ended ? [] : online.waitingFor();
+    if (waiting.length > 0) this.hud.waiting = `Connecting to ${nameList(waiting)}…`;
     if (!this.onlineSince) return;
     if (screen === 'onlineResults') {
       // The host's final standings arrived, or another kart finished: redraw the results.
@@ -484,18 +503,17 @@ export class Flow {
       return;
     }
     if (screen !== 'none' && screen !== 'paused') return;
-    const net = online.info();
     const host = net.role === 'host';
-    if (net.ended) {
+    const unreachable = online.unreachable();
+    if (!net.started && unreachable.length > 0) {
+      // WebRTC couldn't connect (MK-73): no use waiting for the timeout.
+      this.abortOnlineRace(connectFailedMessage(unreachable));
+    } else if (net.ended) {
       // The race was over (everyone finished) when the host moved on: the results still show.
       if (this.raceOver()) return;
       this.abortOnlineRace(host ? undefined : 'The host ended the race.');
     } else if (!net.started && performance.now() - this.onlineSince > ONLINE_CONNECT_TIMEOUT_MS) {
-      this.abortOnlineRace(
-        host
-          ? "Couldn't connect to every player. Try again."
-          : "Couldn't reach the host. Try again.",
-      );
+      this.abortOnlineRace(connectFailedMessage(waiting));
     }
   }
 
