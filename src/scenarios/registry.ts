@@ -11,6 +11,7 @@ export type MenuScreen =
   | 'paused'
   | 'howToPlay'
   | 'settings'
+  | 'buttonEditor'
   | 'nickname'
   | 'onlineResults'
   | 'leaderboard';

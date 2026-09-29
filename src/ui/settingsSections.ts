@@ -19,6 +19,8 @@ export type SettingsGroupId = (typeof SETTINGS_GROUPS)[number]['id'];
 export interface SettingsContext {
   store: KeyValueStore;
   sound?: SoundControl;
+  /** Opens the touch button editor (MK-57) over the settings. */
+  editButtons?: () => void;
 }
 
 export interface SettingsSection {

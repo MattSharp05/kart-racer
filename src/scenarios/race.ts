@@ -1,3 +1,4 @@
+import type { ButtonLayout } from '../input/buttonLayout';
 import { KART_IDS, type KartId } from '../sim/data/karts';
 import { lineOffsetAt } from '../sim/ai/racingLine';
 import { sunnyCircuit } from '../content/tracks/sunny-circuit/sim';
@@ -11,6 +12,7 @@ import { rngInt, rngPick } from '../sim/rng';
 import { DT, tuning, type EngineClass } from '../sim/tuning';
 import { NEUTRAL_INPUT, type SimState } from '../sim/types';
 import { recordStorage, type TrackRecord } from '../game/storage/records';
+import { SETTINGS_KEY, SETTINGS_VERSION } from '../game/storage/settings';
 import type { Scenario } from './registry';
 
 const sunny = trackGeometry(sunnyCircuit);
@@ -279,6 +281,43 @@ export const raceScenarios: Scenario[] = [
     },
   },
   {
+    name: 'race-touch-left',
+    group: 'Race',
+    description:
+      'Left-handed touch layout (MK-53): buttons bottom-left, steering on the right half. Just after GO with 7 AI, holding a Mushroom.',
+    defaultSeed: 1,
+    setup: (seed) => {
+      const state = racingSince(sunnyRace(seed, { karts: 8, ai: true }), 0.5);
+      const player = state.karts[0];
+      if (player) player.item.held = 'mushroom';
+      return {
+        state,
+        storage: { [SETTINGS_KEY]: JSON.stringify({ version: SETTINGS_VERSION, hand: 'left' }) },
+      };
+    },
+  },
+  {
+    name: 'race-touch-custom',
+    group: 'Race',
+    description:
+      'Custom touch buttons (MK-57): 125% size, Drift moved up and inwards, Item small and further in, Brake low in the corner. Just after GO with 7 AI, holding a Mushroom.',
+    defaultSeed: 1,
+    setup: (seed) => {
+      const state = racingSince(sunnyRace(seed, { karts: 8, ai: true }), 0.5);
+      const player = state.karts[0];
+      if (player) player.item.held = 'mushroom';
+      const buttons: ButtonLayout = {
+        scale: 1.25,
+        sizes: { drift: 1, item: 0.8, brake: 1 },
+        positions: { drift: { x: 24, y: 40 }, item: { x: 40, y: 18 }, brake: { x: 8, y: 18 } },
+      };
+      return {
+        state,
+        storage: { [SETTINGS_KEY]: JSON.stringify({ version: SETTINGS_VERSION, buttons }) },
+      };
+    },
+  },
+  {
     name: 'ai-drift-corner',
     group: 'Race',
     description:
@@ -419,5 +458,18 @@ export const raceScenarios: Scenario[] = [
       }
       return { state, follow: 1 };
     },
+  },
+  {
+    name: 'race-tilt',
+    group: 'Race',
+    description:
+      'Tilt steering on (MK-54): the drag zone is gone, the buttons stay; turn the phone like a wheel to steer (on iPhone the first tap asks for motion access). Just after GO with 7 AI.',
+    defaultSeed: 1,
+    setup: (seed) => ({
+      state: racingSince(sunnyRace(seed, { karts: 8, ai: true }), 0.5),
+      storage: {
+        [SETTINGS_KEY]: JSON.stringify({ version: SETTINGS_VERSION, steering: 'tilt' }),
+      },
+    }),
   },
 ];

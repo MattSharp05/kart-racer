@@ -1,5 +1,17 @@
 /* Touch controls (MK-23). */
 .touch-controls {
+  /* The layout (MK-53): every side-dependent value lives here, so the left-handed layout below only
+     swaps values. Right hand (default): steering on the left, buttons on the right. */
+  --touch-edge-left: max(16px, env(safe-area-inset-left));
+  --touch-edge-right: max(16px, env(safe-area-inset-right));
+  --touch-steer-left: 0;
+  --touch-steer-right: auto;
+  --touch-stick-left: calc(var(--touch-edge-left) + 60px);
+  --touch-stick-right: auto;
+  --touch-buttons-left: auto;
+  --touch-buttons-right: var(--touch-edge-right);
+  /* Drift (the big one) goes in the outer corner, under the thumb. */
+  --touch-buttons-areas: 'item  .' 'brake drift';
   position: fixed;
   inset: 0;
   pointer-events: none;
@@ -10,18 +22,36 @@
   display: none;
 }
 
+/* Left hand (MK-53, Settings → Controls → Hand): the mirror image. */
+.touch-controls[data-hand='left'] {
+  --touch-steer-left: auto;
+  --touch-steer-right: 0;
+  --touch-stick-left: auto;
+  --touch-stick-right: calc(var(--touch-edge-right) + 60px);
+  --touch-buttons-left: var(--touch-edge-left);
+  --touch-buttons-right: auto;
+  --touch-buttons-areas: '.     item' 'drift brake';
+}
+
 .touch-steer {
   position: absolute;
-  left: 0;
+  left: var(--touch-steer-left);
+  right: var(--touch-steer-right);
   bottom: 0;
   width: 45%;
   height: 60%;
   pointer-events: auto;
 }
 
+.touch-controls[data-steering='tilt'] .touch-stick {
+  /* Tilt steering (MK-54): no drag stick. The zone stays, invisible: a tap there starts driving. */
+  display: none;
+}
+
 .touch-stick {
   position: absolute;
-  left: calc(max(16px, env(safe-area-inset-left)) + 60px);
+  left: var(--touch-stick-left);
+  right: var(--touch-stick-right);
   bottom: calc(max(16px, env(safe-area-inset-bottom)) + 20px);
   width: 64px;
   height: 64px;
@@ -32,27 +62,29 @@
 
 .touch-buttons {
   position: absolute;
-  right: max(16px, env(safe-area-inset-right));
+  left: var(--touch-buttons-left);
+  right: var(--touch-buttons-right);
   bottom: max(16px, env(safe-area-inset-bottom));
   display: grid;
   grid-template-columns: auto auto;
-  grid-template-areas:
-    'item  .'
-    'brake drift';
+  grid-template-areas: var(--touch-buttons-areas);
   gap: 12px;
   align-items: end;
   pointer-events: auto;
 }
 
 .touch-button {
-  min-width: 56px;
-  min-height: 56px;
+  /* Size (MK-57): each button's base size times `--touch-<name>-scale`, set by the button editor's
+     layout (`applyButtonLayout`); 1 = the default look. */
+  --touch-button-size: calc(var(--touch-button-base, 60px) * var(--touch-button-scale, 1));
+  width: var(--touch-button-size);
+  height: var(--touch-button-size);
   border: 3px solid rgb(255 255 255 / 0.7);
   border-radius: 50%;
   background: rgb(0 0 0 / 0.35);
   color: #fff;
   font:
-    700 13px system-ui,
+    700 calc(13px * var(--touch-button-scale, 1)) system-ui,
     sans-serif;
   touch-action: none;
 }
@@ -63,18 +95,53 @@
 
 .touch-drift {
   grid-area: drift;
-  width: 84px;
-  height: 84px;
+  --touch-button-base: 84px;
+  --touch-button-scale: var(--touch-drift-scale, 1);
+  --touch-button-x: var(--touch-drift-x);
+  --touch-button-y: var(--touch-drift-y);
 }
 
 .touch-item {
   grid-area: item;
-  width: 60px;
-  height: 60px;
+  --touch-button-scale: var(--touch-item-scale, 1);
+  --touch-button-x: var(--touch-item-x);
+  --touch-button-y: var(--touch-item-y);
 }
 
 .touch-brake {
   grid-area: brake;
-  width: 60px;
-  height: 60px;
+  --touch-button-scale: var(--touch-brake-scale, 1);
+  --touch-button-x: var(--touch-brake-x);
+  --touch-button-y: var(--touch-brake-y);
+}
+
+/* Custom positions (MK-57): the buttons group covers the safe area and each button's centre sits
+   `--touch-<name>-x` from the outer edge (right, or left for a left hand) and `-y` from the
+   bottom, clamped so it stays on screen whatever the phone. */
+.touch-controls[data-layout='custom'] .touch-buttons {
+  inset: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px)
+    env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);
+  display: block;
+  pointer-events: none;
+}
+
+.touch-controls[data-layout='custom'] .touch-button {
+  --touch-button-outer: clamp(
+    0px,
+    calc(var(--touch-button-x) - var(--touch-button-size) / 2),
+    calc(100% - var(--touch-button-size))
+  );
+  position: absolute;
+  right: var(--touch-button-outer);
+  bottom: clamp(
+    0px,
+    calc(var(--touch-button-y) - var(--touch-button-size) / 2),
+    calc(100% - var(--touch-button-size))
+  );
+  pointer-events: auto;
+}
+
+.touch-controls[data-layout='custom'][data-hand='left'] .touch-button {
+  right: auto;
+  left: var(--touch-button-outer);
 }

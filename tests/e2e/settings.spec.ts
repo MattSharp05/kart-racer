@@ -104,12 +104,25 @@ test.describe('settings screen (MK-43)', () => {
         };
       });
     await expect(panel).toBeVisible();
-    expect(await measure()).toEqual({
-      inside: true,
-      backInView: true,
-      bodyScrolls: false,
-      small: 0,
+    // MK-43's criterion at 667×375: the panel fits, Back is in view, no button under 44 px. Since
+    // MK-54 + MK-57 the Controls group is taller than the panel, so the groups may scroll here too;
+    // every control must still scroll fully into view inside the panel.
+    expect(await measure()).toMatchObject({ inside: true, backInView: true, small: 0 });
+    const unreachable = await panel.evaluate((el) => {
+      const body = el.querySelector('.settings-body')!;
+      const view = body.getBoundingClientRect();
+      const missed: string[] = [];
+      for (const control of body.querySelectorAll<HTMLElement>('button, input')) {
+        if (control.getBoundingClientRect().width === 0) continue;
+        control.scrollIntoView({ block: 'nearest' });
+        const r = control.getBoundingClientRect();
+        if (r.top < view.top - 1 || r.bottom > view.bottom + 1)
+          missed.push(control.textContent ?? '');
+      }
+      body.scrollTop = 0;
+      return missed;
     });
+    expect(unreachable).toEqual([]);
 
     // More sections than fit (simulated with a very short screen): the groups scroll, Back stays.
     await page.setViewportSize({ width: 667, height: 200 });

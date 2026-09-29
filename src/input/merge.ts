@@ -1,8 +1,8 @@
 import type { InputFrame } from '../sim/types';
 
 /**
- * Combines inputs from several devices (keyboard now, touch in MK-23): the stronger value
- * wins on each axis, buttons are OR-ed.
+ * Combines inputs from several devices (keyboard, touch from MK-23, tilt from MK-54): the stronger
+ * value wins on each axis, buttons are OR-ed.
  */
 export function mergeInputs(...frames: InputFrame[]): InputFrame {
   return frames.reduce(

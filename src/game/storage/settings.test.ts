@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { DEFAULT_BUTTON_LAYOUT, type ButtonLayout } from '../../input/buttonLayout';
 import { readPrefs, writePrefs } from './prefs';
 import { readBests } from './records';
 import {
@@ -15,8 +16,20 @@ import {
 } from './settings';
 import { MemoryStore, type KeyValueStore } from './store';
 
-/** The MK-42 profile fields, empty until the player picks a nickname. */
-const NO_PROFILE = { nickname: '', colour: '', deviceId: '' };
+/**
+ * The MK-42 profile fields, empty until the player picks a nickname, MK-53's default hand, MK-57's
+ * default button layout and MK-54's tilt defaults.
+ */
+const NO_PROFILE = {
+  nickname: '',
+  colour: '',
+  deviceId: '',
+  hand: 'right',
+  buttons: DEFAULT_BUTTON_LAYOUT,
+  steering: 'drag',
+  tiltSensitivity: 25,
+  tiltNeutral: 0,
+};
 
 /** A store holding what the MVP (before MK-37) saved, keys and formats exactly as it wrote them. */
 function mvpStore(): MemoryStore {
@@ -86,6 +99,62 @@ describe('settings', () => {
       seenHowToPlay: true,
       ...NO_PROFILE,
     });
+  });
+
+  it('keeps the touch hand (MK-53); anything but left/right reads as right', () => {
+    const store = new MemoryStore();
+    expect(updateSettings(store, { hand: 'left' }).hand).toBe('left');
+    expect(readSettings(store).hand).toBe('left');
+    expect(migrate({ version: 1, hand: 'middle' }, store).hand).toBe('right');
+    expect(migrate({ version: 1, hand: 1 }, store).hand).toBe('right');
+  });
+
+  it('keeps the touch button layout (MK-57); malformed parts read as the default', () => {
+    const store = new MemoryStore();
+    const layout: ButtonLayout = {
+      scale: 1.25,
+      sizes: { drift: 1.5, item: 1, brake: 0.75 },
+      positions: { drift: { x: 12, y: 30 }, item: { x: 30, y: 20 }, brake: { x: 45, y: 12 } },
+    };
+    expect(updateSettings(store, { buttons: layout }).buttons).toEqual(layout);
+    expect(readSettings(store).buttons).toEqual(layout);
+    const broken = migrate(
+      {
+        version: 1,
+        buttons: {
+          scale: 9,
+          sizes: { drift: 'big', item: 0.1 },
+          positions: { drift: { x: 12, y: 30 } },
+        },
+      },
+      store,
+    ).buttons;
+    expect(broken).toEqual({
+      scale: 1.5,
+      sizes: { drift: 1, item: 0.75, brake: 1 },
+      positions: null,
+    });
+    expect(migrate({ version: 1, buttons: 'x' }, store).buttons).toEqual(DEFAULT_BUTTON_LAYOUT);
+    const offScreen = migrate(
+      {
+        version: 1,
+        buttons: { ...layout, positions: { ...layout.positions, drift: { x: -5, y: 140 } } },
+      },
+      store,
+    ).buttons;
+    expect(offScreen.positions?.drift).toEqual({ x: 0, y: 100 });
+  });
+
+  it('keeps tilt steering settings (MK-54), sanitising bad values', () => {
+    const store = new MemoryStore();
+    const saved = updateSettings(store, { steering: 'tilt', tiltSensitivity: 15, tiltNeutral: -8 });
+    expect(saved).toMatchObject({ steering: 'tilt', tiltSensitivity: 15, tiltNeutral: -8 });
+    expect(readSettings(store)).toMatchObject(saved);
+    expect(migrate({ version: 1, steering: 'wheel' }, store).steering).toBe('drag');
+    expect(migrate({ version: 1, tiltSensitivity: 90 }, store).tiltSensitivity).toBe(40);
+    expect(migrate({ version: 1, tiltSensitivity: 2 }, store).tiltSensitivity).toBe(10);
+    expect(migrate({ version: 1, tiltSensitivity: null }, store).tiltSensitivity).toBe(25);
+    expect(migrate({ version: 1, tiltNeutral: 200 }, store).tiltNeutral).toBe(60);
   });
 
   it('survives broken storage', () => {

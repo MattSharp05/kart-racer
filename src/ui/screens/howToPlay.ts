@@ -1,4 +1,4 @@
-import { isTouchDevice } from '../../input/touch';
+import { isTouchDevice, touchHand, touchSteering } from '../../input/touch';
 import './howToPlay.css';
 
 const KEYBOARD: [string, string][] = [
@@ -11,8 +11,14 @@ const KEYBOARD: [string, string][] = [
   ['Esc', 'Pause'],
 ];
 
-const TOUCH: [string, string][] = [
-  ['Left thumb', 'Drag left / right to steer'],
+/**
+ * Touch controls; the steering thumb is the one away from the buttons (MK-53 Hand setting), or the
+ * whole phone with tilt steering (MK-54).
+ */
+const touchRows = (): [string, string][] => [
+  touchSteering() === 'tilt'
+    ? ['Tilt the phone', 'Turn it like a steering wheel to steer']
+    : [touchHand() === 'left' ? 'Right thumb' : 'Left thumb', 'Drag left / right to steer'],
   ['(automatic)', 'Accelerates once you touch the screen'],
   ['Drift', 'Hold through a corner, let go for a boost'],
   ['Item', 'Use the item you picked up'],
@@ -63,7 +69,7 @@ export class HowToPlay {
   open(onClose?: () => void): void {
     this.onClose = onClose;
     const touch = isTouchDevice();
-    const rows = (touch ? TOUCH : KEYBOARD)
+    const rows = (touch ? touchRows() : KEYBOARD)
       .map(([key, what]) => `<tr><th><kbd>${key}</kbd></th><td>${what}</td></tr>`)
       .join('');
     this.root.innerHTML = `
