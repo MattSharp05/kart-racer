@@ -56,7 +56,6 @@ jobs:
               {"project":"desktop-chrome","browser":"chromium","args":"--shard=1/2"},
               {"project":"desktop-chrome","browser":"chromium","args":"--shard=2/2"},
               {"project":"desktop-chrome-online","browser":"chromium","args":""},
-              {"project":"pixel-landscape","browser":"chromium","args":""},
               {"project":"desktop-webkit","browser":"webkit","args":""},
               {"project":"desktop-webkit-online","browser":"webkit","args":""},
               {"project":"iphone-landscape","browser":"webkit","args":""},

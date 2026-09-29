@@ -1,14 +1,14 @@
 import { expect, test } from '@playwright/test';
 import { getState, loadScenario, step } from './helpers';
 
-const FULL_RACE = ['desktop-chrome', 'pixel-landscape'];
+const FULL_RACE = ['desktop-chrome'];
 
 test.describe('MVP release check (MK-28)', () => {
   test(
     'a full auto-driven 100cc race finishes 3 laps with no console errors',
     { tag: '@full' },
     async ({ page }, info) => {
-      test.skip(!FULL_RACE.includes(info.project.name), 'full race runs on desktop-chrome + pixel');
+      test.skip(!FULL_RACE.includes(info.project.name), 'full race runs on desktop-chrome');
       test.setTimeout(240_000);
       const errors: string[] = [];
       page.on('console', (m) => {

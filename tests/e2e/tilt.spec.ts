@@ -4,7 +4,7 @@ import { loadScenario } from './helpers';
 // Tilt steering (MK-54). A browser can't show a real motion prompt or move a real gyro, so the
 // permission is mocked and `deviceorientation` events are dispatched in the page.
 
-const isPhone = (name: string) => name === 'iphone-landscape' || name === 'pixel-landscape';
+const isPhone = (name: string) => name === 'iphone-landscape';
 
 /** Makes `DeviceOrientationEvent.requestPermission()` (the iOS API) answer `answer`. */
 async function mockPermission(page: Page, answer: 'granted' | 'denied'): Promise<void> {

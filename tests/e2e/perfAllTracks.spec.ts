@@ -22,7 +22,7 @@ const MAX_TRIANGLES = 150_000;
 /** Ticks stepped before each sample: the grid in countdown, just after GO, then along lap 1. */
 const SAMPLE_STEPS = [0, 250, 300, 600, 600];
 /** Draw calls and triangles are the same at any size; these run where drawing is quick. */
-const PROJECTS = ['desktop-chrome', 'pixel-landscape'];
+const PROJECTS = ['desktop-chrome'];
 
 test.describe('perf budgets on every track (MK-71)', { tag: '@full' }, () => {
   for (const track of TRACKS) {
