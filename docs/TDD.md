@@ -77,7 +77,10 @@ docs/                TDD.md, decisions/, CREDITS.md
 - **Mobile:** layout fits viewport, no overflow/scroll, touch controls hit targets ≥ 44 px, rotate prompt in portrait.
 - **Visual:** Playwright `toHaveScreenshot` on paused scenarios (deterministic frame), chromium only, run in the official Playwright Docker image in CI; baselines generated/updated in CI (`pnpm test:visual:update` workflow dispatch). Tolerance `maxDiffPixelRatio: 0.02`. Screenshots attached to tickets for QA.
 - **Perf:** `sim.step` for 8 karts < 1 ms average (unit bench, node); render budget < 150 draw calls and < 150k triangles on the race scenario (asserted via `renderer.info` in e2e). Real-device smoothness is [Manual].
-- **CI (GitHub Actions, blocks merge):** install → lint → typecheck → unit → perf → build → bundle budget, then in parallel: e2e as one job per Playwright project (≈5 min instead of ≈20 min serially) and visual. PRs that only touch docs, `*.md` or `.claude/` skip e2e and visual; pushes to main always run everything. Playwright report uploaded per project as an artifact.
+- **CI (GitHub Actions, blocks merge), two levels (MK-89):**
+  - **PR gate, every job ≤ 5 min, all in parallel:** lint/format/typecheck/build/bundle; unit + sim perf; desktop-chrome e2e split over 2 runners without `@full` tests. Only when relevant: iPhone e2e and visual (UI, input, render, CSS), online e2e and netsoak (`src/net/`, online screens). CI, test-config or dependency changes run the full suite. Docs-only PRs skip browser tests.
+  - **Main (every push), the full suite:** every device project, `@full` tests (full 3-lap races, all-tracks perf budgets), netsoak, visual. A red main is fixed before the next merge.
+  - Why: a PR's CI took 24–28 min (desktop-chrome 19 min, mostly full races) and was about half of every ticket's time in the v2 run.
 
 ## Environments & deploy
 

@@ -24,7 +24,7 @@ const SAMPLE_STEPS = [0, 250, 300, 600, 600];
 /** Draw calls and triangles are the same at any size; these run where drawing is quick. */
 const PROJECTS = ['desktop-chrome', 'pixel-landscape'];
 
-test.describe('perf budgets on every track (MK-71)', () => {
+test.describe('perf budgets on every track (MK-71)', { tag: '@full' }, () => {
   for (const track of TRACKS) {
     test(`track-${track}: every sampled frame stays within ${MAX_CALLS} draw calls and ${MAX_TRIANGLES / 1000}k triangles`, async ({
       page,
