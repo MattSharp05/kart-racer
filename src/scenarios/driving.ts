@@ -11,6 +11,10 @@ const WALL_GAP = 10;
 const ANGLED_HIT = (35 * Math.PI) / 180;
 const TIER_NAMES = { 1: 'blue', 2: 'orange', 3: 'purple' } as const;
 const LINEUP_SPACING = 3.2;
+/** Distance from the lineup's front row back to its second row, m. */
+const LINEUP_ROW_GAP = 5;
+/** Racers per row in the lineup (two rows). */
+const LINEUP_PER_ROW = Math.ceil(KART_IDS.length / 2);
 
 export const drivingScenarios: Scenario[] = [
   {
@@ -95,17 +99,26 @@ export const drivingScenarios: Scenario[] = [
   {
     name: 'kart-lineup',
     group: 'Karts',
-    description: 'Every racer parked side by side, in racer select order.',
+    description: 'Every racer parked in two rows, in racer select order.',
     defaultSeed: 1,
     setup: (seed) => ({
       state: createSimState({
         seed,
         trackId: 'test-pad',
-        karts: KART_IDS.map((kartType, i) => ({
-          kartType,
-          position: vec3((i - (KART_IDS.length - 1) / 2) * LINEUP_SPACING, 0, 0),
-          heading: 0,
-        })),
+        karts: KART_IDS.map((kartType, i) => {
+          const row = Math.floor(i / LINEUP_PER_ROW);
+          const inRow = Math.min(LINEUP_PER_ROW, KART_IDS.length - row * LINEUP_PER_ROW);
+          return {
+            kartType,
+            // Heading 0 faces −Z, so the second row sits behind at +Z.
+            position: vec3(
+              ((i % LINEUP_PER_ROW) - (inRow - 1) / 2) * LINEUP_SPACING,
+              0,
+              row * LINEUP_ROW_GAP,
+            ),
+            heading: 0,
+          };
+        }),
       }),
       view: 'lineup',
     }),
