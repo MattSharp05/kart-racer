@@ -1,10 +1,12 @@
 import { entitySpecs, type RegisteredEntitySpec } from '../../content/items/registries';
 import { forwardFromHeading } from '../math';
 import { positionOf } from '../race';
+import { lapAimPoint } from '../routes';
 import { getTrack, trackGeometry } from '../track';
 import { tuning } from '../tuning';
 import type { ItemEntity, ItemId, KartState, SimEvent, SimState } from '../types';
 import { nextEntityId } from './banana';
+import { itemEdge } from './edges';
 import { isIntangible } from './effects';
 import { hitKart } from './hit';
 import { steerTowards } from './shell';
@@ -234,11 +236,11 @@ function steer(entity: ItemEntity, spec: RegisteredEntitySpec, state: SimState, 
     target.position.z - entity.position.z,
   );
   if (m.followTrackBeyond !== undefined && d > m.followTrackBeyond && track.kind === 'spline') {
-    const geometry = trackGeometry(track);
-    const here = geometry.project(entity.position);
-    const ahead = geometry.pointAt(
-      here.t + (m.lookAhead ?? m.followTrackBeyond) / geometry.length,
-      0,
+    const ahead = lapAimPoint(
+      trackGeometry(track),
+      entity.position,
+      m.lookAhead ?? m.followTrackBeyond,
+      target.position,
     );
     steerTowards(entity, ahead.x, ahead.z, maxTurn);
     return;
@@ -255,6 +257,7 @@ function move(
 ): boolean {
   if (spec.movement.type === 'area') return true;
   steer(entity, spec, state, dt);
+  const from = entity.position;
   entity.position = {
     x: entity.position.x + entity.direction.x * entity.speed * dt,
     y: entity.position.y,
@@ -262,36 +265,38 @@ function move(
   };
   const track = getTrack(state.trackId);
   if (track.kind !== 'spline') return true;
-  const geometry = trackGeometry(track);
-  const p = geometry.project(entity.position);
-  const wall = geometry.wallOffset(p.width) - spec.radius;
-  if (spec.walls !== 'ghost' && Math.abs(p.lateral) > wall) {
-    const side = p.lateral >= 0 ? 1 : -1;
-    if (!geometry.hasWall(p.t, side === 1 ? 'right' : 'left')) {
-      if (p.surface === 'out') return false; // off the edge where there's no wall
-    } else {
-      if (spec.walls === 'break') return false;
-      entity.bounces += 1;
-      if (entity.bounces > (spec.maxBounces ?? 0)) return false;
-      // Reflect off the wall (its normal points out of the track on this side) and step back.
-      const n = { x: p.normal.x * side, z: p.normal.z * side };
-      const into = entity.direction.x * n.x + entity.direction.z * n.z;
-      if (into > 0) {
-        entity.direction = {
-          x: entity.direction.x - 2 * into * n.x,
-          z: entity.direction.z - 2 * into * n.z,
-        };
-      }
-      const over = Math.abs(p.lateral) - wall;
-      entity.position = {
-        ...entity.position,
-        x: entity.position.x - n.x * over,
-        z: entity.position.z - n.z * over,
+  if (spec.walls === 'ghost') {
+    const ground = trackGeometry(track).project(entity.position);
+    if (ground.surface !== 'out') entity.position = { ...entity.position, y: ground.groundY };
+    return true;
+  }
+  const edge = itemEdge(track, trackGeometry(track), from, entity.position, spec.radius);
+  if (edge.kind === 'fall') return false; // off the edge where there's no wall
+  if (edge.kind === 'wall') {
+    if (spec.walls === 'break') return false;
+    entity.bounces += 1;
+    if (entity.bounces > (spec.maxBounces ?? 0)) return false;
+    // Reflect off the wall and step back.
+    const n = edge.normal;
+    const into = entity.direction.x * n.x + entity.direction.z * n.z;
+    if (into > 0) {
+      entity.direction = {
+        x: entity.direction.x - 2 * into * n.x,
+        z: entity.direction.z - 2 * into * n.z,
       };
     }
+    entity.position = {
+      ...entity.position,
+      x: entity.position.x - n.x * edge.over,
+      z: entity.position.z - n.z * edge.over,
+    };
+    entity.position = {
+      ...entity.position,
+      y: trackGeometry(track).project(entity.position).groundY,
+    };
+    return true;
   }
-  const ground = geometry.project(entity.position);
-  if (ground.surface !== 'out') entity.position = { ...entity.position, y: ground.groundY };
+  entity.position = { ...entity.position, y: edge.y };
   return true;
 }
 
