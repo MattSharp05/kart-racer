@@ -1,5 +1,12 @@
 name: CI
 
+# Two levels (MK-89):
+# - Pull requests run a fast gate, every job ≤ 5 min, in parallel: lint/types/build, unit, and
+#   desktop-chrome e2e without the long `@full` tests (split over two runners). Other browser jobs,
+#   netsoak and visual only run when the PR touches what they test.
+# - Pushes to main (and manual runs) run the full suite: every device, `@full` tests, netsoak,
+#   visual. A red main is fixed before anything else merges.
+
 on:
   pull_request:
   push:
@@ -11,8 +18,63 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # What does this change touch? Decides which of the slower jobs a PR needs.
+  changes:
+    name: What changed
+    runs-on: ubuntu-latest
+    outputs:
+      full: ${{ steps.diff.outputs.full }}
+      app: ${{ steps.diff.outputs.app }}
+      net: ${{ steps.diff.outputs.net }}
+      visual: ${{ steps.diff.outputs.visual }}
+      e2e: ${{ steps.diff.outputs.e2e }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: diff
+        run: |
+          # Pushes to main and manual runs: everything.
+          if [ "${{ github.event_name }}" != "pull_request" ]; then
+            full=true; app=true; net=true; visual=true
+          else
+            changed=$(git diff --name-only "origin/${{ github.base_ref }}...HEAD")
+            echo "$changed"
+            has() { echo "$changed" | grep -qE "$1" && echo true || echo false; }
+            # CI, test config or dependency changes can affect every job: run the full suite.
+            full=$(has '^(\.github/|playwright(\.visual)?\.config\.ts$|vite\.config|package\.json$|pnpm-lock\.yaml$|tsconfig)')
+            # Anything outside docs, markdown and Claude settings counts as an app change.
+            app=$(echo "$changed" | grep -vE '^(docs/|\.claude/)|\.md$' | grep -q . && echo true || echo false)
+            net=$(has '^(src/net/|supabase/|tests/e2e/online|tests/e2e/(lobby|rooms|netSpike)|src/ui/screens/(online|lobby|connectionLost))')
+            # UI, input, styles and rendering: phone layout (iPhone) and screenshots.
+            visual=$(has '^(src/ui/|src/input/|src/render/|src/content/.*/render|index\.html|src/.*\.css$|tests/visual/)')
+            if [ "$full" = true ]; then app=true; net=true; visual=true; fi
+          fi
+          # Browser jobs for this run, as a matrix.
+          if [ "$full" = true ]; then
+            e2e='[
+              {"project":"desktop-chrome","browser":"chromium","args":"--shard=1/2"},
+              {"project":"desktop-chrome","browser":"chromium","args":"--shard=2/2"},
+              {"project":"desktop-chrome-online","browser":"chromium","args":""},
+              {"project":"desktop-webkit","browser":"webkit","args":""},
+              {"project":"desktop-webkit-online","browser":"webkit","args":""},
+              {"project":"iphone-landscape","browser":"webkit","args":""},
+              {"project":"ipad","browser":"webkit","args":""}]'
+          else
+            e2e='[
+              {"project":"desktop-chrome","browser":"chromium","args":"--shard=1/2 --grep-invert @full"},
+              {"project":"desktop-chrome","browser":"chromium","args":"--shard=2/2 --grep-invert @full"}'
+            [ "$visual" = true ] && e2e="$e2e"',{"project":"iphone-landscape","browser":"webkit","args":"--grep-invert @full"}'
+            [ "$net" = true ] && e2e="$e2e"',{"project":"desktop-chrome-online","browser":"chromium","args":"--grep-invert @full"}'
+            e2e="$e2e]"
+          fi
+          {
+            echo "full=$full"; echo "app=$app"; echo "net=$net"; echo "visual=$visual"
+            echo "e2e=$(echo "$e2e" | tr -d '\n' | tr -s ' ')"
+          } >> "$GITHUB_OUTPUT"
+
   checks:
-    name: Lint, types, unit, build
+    name: Lint, types, build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -25,14 +87,25 @@ jobs:
       - run: pnpm lint
       - run: pnpm format:check
       - run: pnpm typecheck
-      - run: pnpm test
-      - run: pnpm test:perf
-      - run: pnpm test:netsoak
-      - run: pnpm build
+      # `pnpm build` would type-check a second time.
+      - run: pnpm exec vite build
       - run: pnpm check:bundle
 
-  # The racer balance smoke (MK-88): 20 full 8-AI races, a couple of minutes of CPU, so it runs
-  # beside the checks instead of slowing the unit step (and the e2e jobs waiting on it).
+  unit:
+    name: Unit + sim perf
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm test
+      - run: pnpm test:perf
+
+  # The racer balance smoke (MK-88): 20 full 8-AI races, ~2 min of CPU, beside the unit job.
   balance:
     name: Racer balance smoke
     runs-on: ubuntu-latest
@@ -46,47 +119,12 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm test:balance
 
-  # Does this change touch anything the browser tests exercise? Docs/config-only PRs skip e2e and
-  # visual (a settings-file PR once spent 20 min on e2e). Pushes to main always run everything.
-  changes:
-    name: What changed
+  # The netcode soak: always on main, on PRs only when netcode changes.
+  netsoak:
+    name: Net soak
+    needs: changes
+    if: needs.changes.outputs.net == 'true'
     runs-on: ubuntu-latest
-    outputs:
-      app: ${{ steps.diff.outputs.app }}
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - id: diff
-        run: |
-          if [ "${{ github.event_name }}" != "pull_request" ]; then
-            echo "app=true" >> "$GITHUB_OUTPUT"; exit 0
-          fi
-          changed=$(git diff --name-only "origin/${{ github.base_ref }}...HEAD")
-          echo "$changed"
-          # Anything outside docs, markdown and Claude settings counts as an app change.
-          app=$(echo "$changed" | grep -vE '^(docs/|\.claude/)|\.md$' | head -1)
-          echo "app=$([ -n "$app" ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
-
-  e2e:
-    # One job per Playwright project, in parallel (they used to run one after another: ~20 min).
-    # The multi-page online specs have their own `*-online` projects and jobs (MK-80), so they
-    # run one at a time on a runner of their own instead of starving each other and the rest.
-    name: E2E (${{ matrix.project }})
-    needs: [checks, changes]
-    if: needs.changes.outputs.app == 'true'
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - { project: desktop-chrome, browser: chromium }
-          - { project: desktop-chrome-online, browser: chromium }
-          - { project: pixel-landscape, browser: chromium }
-          - { project: desktop-webkit, browser: webkit }
-          - { project: desktop-webkit-online, browser: webkit }
-          - { project: iphone-landscape, browser: webkit }
-          - { project: ipad, browser: webkit }
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -95,21 +133,46 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - run: pnpm test:netsoak
+
+  e2e:
+    # Runs alongside the other jobs (it used to wait for them). The online specs have their own
+    # `*-online` projects, one test at a time (MK-80).
+    name: E2E (${{ matrix.project }} ${{ matrix.args }})
+    needs: changes
+    if: needs.changes.outputs.app == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.changes.outputs.e2e) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ matrix.browser }}-${{ hashFiles('pnpm-lock.yaml') }}
       - run: pnpm exec playwright install --with-deps ${{ matrix.browser }}
-      - run: pnpm test:e2e --project=${{ matrix.project }}
+      - run: pnpm test:e2e --project=${{ matrix.project }} ${{ matrix.args }}
         env:
           CI: 'true'
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
-          name: playwright-report-${{ matrix.project }}
+          name: playwright-report-${{ matrix.project }}-${{ strategy.job-index }}
           path: playwright-report
           retention-days: 7
 
   visual:
     name: Visual (screenshot baselines)
-    needs: [checks, changes]
-    if: needs.changes.outputs.app == 'true'
+    needs: changes
+    if: needs.changes.outputs.visual == 'true'
     runs-on: ubuntu-latest
     # Same image every time so screenshots are pixel-comparable (docs/TDD.md → Testing).
     container: mcr.microsoft.com/playwright:v1.63.0-noble

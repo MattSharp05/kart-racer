@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import { loadScenario } from './helpers';
 
-const isPhone = (name: string) => name === 'iphone-landscape' || name === 'pixel-landscape';
+const isPhone = (name: string) => name === 'iphone-landscape';
 const SETTINGS_KEY = 'kart-racer:settings';
 
 /** The editor's copy of a button (the race's own controls are hidden under the menus). */

@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 import type { SimEvent } from '../../src/sim/types';
 import { enterNickname, loadScenario, step } from './helpers';
 
-const isPhone = (name: string) => name === 'iphone-landscape' || name === 'pixel-landscape';
+const isPhone = (name: string) => name === 'iphone-landscape';
 
 test.describe('touch controls', () => {
   test('desktop: touch controls are hidden', async ({ page }, info) => {

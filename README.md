@@ -18,7 +18,7 @@ pnpm dev                                       # http://localhost:5173 (also on 
 | ------------------ | ------------------------------------------------------------- |
 | `pnpm check`       | Everything CI runs locally: lint, typecheck, unit, build, e2e |
 | `pnpm test`        | Unit tests (Vitest)                                           |
-| `pnpm test:e2e`    | Playwright on desktop Chrome/Safari, iPhone, Pixel, iPad      |
+| `pnpm test:e2e`    | Playwright on desktop Chrome/Safari, iPhone, iPad             |
 | `pnpm test:visual` | Screenshot tests — run in CI (Docker image) so pixels match   |
 
 ## CI & deploys

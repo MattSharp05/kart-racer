@@ -30,7 +30,7 @@ test.describe('HUD', () => {
   });
 
   test('phones: HUD fits and does not overlap the touch controls', async ({ page }, info) => {
-    test.skip(!['iphone-landscape', 'pixel-landscape'].includes(info.project.name));
+    test.skip(info.project.name !== 'iphone-landscape');
     await loadScenario(page, 'hud-mid-race', { paused: true });
     await expect(page.locator('.touch-controls')).toBeVisible();
     const rects = await page.evaluate(() => {

@@ -73,11 +73,14 @@ docs/                TDD.md, decisions/, CREDITS.md
 
 - **Unit (Vitest):** all of `sim/` — physics curves, drift tiers, lap counting, item odds, AI steering — run headless by stepping the sim with scripted inputs. Target: every sim module has tests; determinism test (same seed + inputs ⇒ identical state hash).
 - **Test API:** `window.__game` (always present; tiny): `getState()`, `pause()`, `resume()`, `step(n)`, `setInput(playerIdx, InputFrame | null)`, `events()`. E2E tests pause, inject inputs, step N ticks, assert on state — no flaky real-time waiting.
-- **E2E (Playwright):** load scenarios, drive via test API and real keyboard/touch, assert state + DOM. Projects: `desktop-chrome`, `desktop-webkit` (each with an `-online` twin that runs only the multi-page online specs, one at a time, MK-80), `iphone-landscape` (WebKit, iPhone 15), `pixel-landscape` (Chromium, Pixel 7), `ipad`.
+- **E2E (Playwright):** load scenarios, drive via test API and real keyboard/touch, assert state + DOM. Projects: `desktop-chrome`, `desktop-webkit` (each with an `-online` twin that runs only the multi-page online specs, one at a time, MK-80), `iphone-landscape` (WebKit, iPhone 15), `ipad`. (`pixel-landscape` was dropped in MK-89: 16 min a run of software 3D at its resolution, and it duplicated desktop-chrome's engine and iPhone's layout.)
 - **Mobile:** layout fits viewport, no overflow/scroll, touch controls hit targets ≥ 44 px, rotate prompt in portrait.
 - **Visual:** Playwright `toHaveScreenshot` on paused scenarios (deterministic frame), chromium only, run in the official Playwright Docker image in CI; baselines generated/updated in CI (`pnpm test:visual:update` workflow dispatch). Tolerance `maxDiffPixelRatio: 0.02`. Screenshots attached to tickets for QA.
 - **Perf:** `sim.step` for 8 karts < 1 ms average (unit bench, node); render budget < 150 draw calls and < 150k triangles on the race scenario (asserted via `renderer.info` in e2e). Real-device smoothness is [Manual].
-- **CI (GitHub Actions, blocks merge):** install → lint → typecheck → unit → perf → build → bundle budget, then in parallel: e2e as one job per Playwright project (≈5 min instead of ≈20 min serially) and visual. PRs that only touch docs, `*.md` or `.claude/` skip e2e and visual; pushes to main always run everything. Playwright report uploaded per project as an artifact.
+- **CI (GitHub Actions, blocks merge), two levels (MK-89):**
+  - **PR gate, every job ≤ 5 min, all in parallel:** lint/format/typecheck/build/bundle; unit + sim perf; desktop-chrome e2e split over 2 runners without `@full` tests. Only when relevant: iPhone e2e and visual (UI, input, render, CSS), online e2e and netsoak (`src/net/`, online screens). CI, test-config or dependency changes run the full suite. Docs-only PRs skip browser tests.
+  - **Main (every push), the full suite:** every device project, `@full` tests (full 3-lap races, all-tracks perf budgets), netsoak, visual. A red main is fixed before the next merge.
+  - Why: a PR's CI took 24–28 min (desktop-chrome 19 min, mostly full races) and was about half of every ticket's time in the v2 run.
 
 ## Environments & deploy
 
