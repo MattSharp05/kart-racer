@@ -8,20 +8,31 @@ import { sunnyRace } from './race';
 import type { Scenario } from './registry';
 
 const sunny = trackGeometry(sunnyCircuit);
-/** Where the kart-select lineup is parked: on the main straight, just past the line. */
+/** Where the lineup's front row is parked: on the main straight, just past the line. */
 const LINEUP_T = 0.03;
 const LINEUP_SPACING = 3.2;
+/** Distance from the lineup's front row back to its second row, m. */
+const LINEUP_ROW_GAP = 5;
 
-/** The four karts side by side on Sunny's main straight (kart select background). */
+/**
+ * Every racer parked on Sunny's main straight (racer/track select background), in racer select
+ * order, in two rows so the whole roster stays on the 16 m road.
+ */
 export function sunnyLineup(seed: number): SimState {
+  const perRow = Math.ceil(KART_IDS.length / 2);
   return createSimState({
     seed,
     trackId: 'sunny-circuit',
-    karts: KART_IDS.map((kartType, i) => ({
-      kartType,
-      position: sunny.pointAt(LINEUP_T, (i - (KART_IDS.length - 1) / 2) * LINEUP_SPACING),
-      heading: sunny.headingAt(LINEUP_T),
-    })),
+    karts: KART_IDS.map((kartType, i) => {
+      const row = Math.floor(i / perRow);
+      const inRow = Math.min(perRow, KART_IDS.length - row * perRow);
+      const t = LINEUP_T - (row * LINEUP_ROW_GAP) / sunny.length;
+      return {
+        kartType,
+        position: sunny.pointAt(t, ((i % perRow) - (inRow - 1) / 2) * LINEUP_SPACING),
+        heading: sunny.headingAt(t),
+      };
+    }),
   });
 }
 
