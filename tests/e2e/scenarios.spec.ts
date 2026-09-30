@@ -78,9 +78,10 @@ test.describe('scenario links', () => {
  * Every scenario loads without errors (MK-80): in chunks of a few, so the chunks spread over the
  * workers and each stays well inside its test timeout (one test for all ~100 took 3.5–4 min
  * on pixel-landscape and grew with every track and item). The test above checks the chunks cover
- * exactly what /dev lists.
+ * exactly what /dev lists. The sweep takes ~8 min of test time per device, so it runs on main only
+ * (`@full`, MK-89); `src/scenarios/registry.test.ts` builds every scenario in every PR's unit run.
  */
-test.describe('every scenario loads', () => {
+test.describe('every scenario loads', { tag: '@full' }, () => {
   for (let first = 0; first < ALL_SCENARIOS.length; first += SCENARIOS_PER_TEST) {
     const names = ALL_SCENARIOS.slice(first, first + SCENARIOS_PER_TEST);
     test(`${first + 1}–${first + names.length}: ${names.join(', ')}`, async ({ page }) => {

@@ -30,51 +30,56 @@ async function hud(page: Page) {
 }
 
 test.describe('online client prediction under lag', () => {
-  test("the client's HUD position and lap match the host's at the finish", async ({ context }) => {
-    test.setTimeout(150_000);
-    const room = await openRoom(context, 2, { laps: 1, netsim: NETSIM });
-    const [host, client] = room.pages as [Page, Page];
-    const kartId = (await netInfo(client))!.kartId;
-    await autopilotAll(room.pages);
+  // A full race (~75 s): main only (MK-89).
+  test(
+    "the client's HUD position and lap match the host's at the finish",
+    { tag: '@full' },
+    async ({ context }) => {
+      test.setTimeout(150_000);
+      const room = await openRoom(context, 2, { laps: 1, netsim: NETSIM });
+      const [host, client] = room.pages as [Page, Page];
+      const kartId = (await netInfo(client))!.kartId;
+      await autopilotAll(room.pages);
 
-    // Race until the host has the client's kart over the line.
-    let hostState = await state(host);
-    for (
-      let ticks = 0;
-      hostState.karts[kartId]!.race.finishTick === undefined && ticks < MAX_TICKS;
-      ticks += BATCH
-    ) {
-      await stepAll(room.pages, BATCH, REAL_TIME);
+      // Race until the host has the client's kart over the line.
+      let hostState = await state(host);
+      for (
+        let ticks = 0;
+        hostState.karts[kartId]!.race.finishTick === undefined && ticks < MAX_TICKS;
+        ticks += BATCH
+      ) {
+        await stepAll(room.pages, BATCH, REAL_TIME);
+        hostState = await state(host);
+      }
+      expect(hostState.karts[kartId]!.race.finishTick).toBeDefined();
+      // The lag is real time: keep stepping until the host's finish has reached the client.
+      await expect
+        .poll(
+          async () => {
+            await stepAll(room.pages, 6, REAL_TIME);
+            return (await state(client)).karts[kartId]!.race.finishTick;
+          },
+          // No backoff between polls: the results screen covers the HUD 2.5 s after the finish, and
+          // a busy CI runner (other online specs in parallel) can spend that in poll gaps (MK-55).
+          { timeout: 20_000, intervals: [0] },
+        )
+        .toBe(hostState.karts[kartId]!.race.finishTick);
+
       hostState = await state(host);
-    }
-    expect(hostState.karts[kartId]!.race.finishTick).toBeDefined();
-    // The lag is real time: keep stepping until the host's finish has reached the client.
-    await expect
-      .poll(
-        async () => {
-          await stepAll(room.pages, 6, REAL_TIME);
-          return (await state(client)).karts[kartId]!.race.finishTick;
-        },
-        // No backoff between polls: the results screen covers the HUD 2.5 s after the finish, and
-        // a busy CI runner (other online specs in parallel) can spend that in poll gaps (MK-55).
-        { timeout: 20_000, intervals: [0] },
-      )
-      .toBe(hostState.karts[kartId]!.race.finishTick);
-
-    hostState = await state(host);
-    const place = hostState.positions.indexOf(kartId) + 1;
-    const shown = await hud(client);
-    expect(shown.position).toBe(String(place));
-    expect(shown.lap).toBe(`LAP 1/1`);
-    // The client's own standings agree with the host's for every kart finished by the newest
-    // snapshot the client has (AI karts may have finished on the host since).
-    const clientState = await state(client);
-    const seen = (await netInfo(client))!.lastSnapshotTick;
-    const finished = hostState.positions.filter(
-      (id) => (hostState.karts[id]!.race.finishTick ?? Infinity) <= seen,
-    );
-    expect(clientState.positions.slice(0, finished.length)).toEqual(finished);
-  });
+      const place = hostState.positions.indexOf(kartId) + 1;
+      const shown = await hud(client);
+      expect(shown.position).toBe(String(place));
+      expect(shown.lap).toBe(`LAP 1/1`);
+      // The client's own standings agree with the host's for every kart finished by the newest
+      // snapshot the client has (AI karts may have finished on the host since).
+      const clientState = await state(client);
+      const seen = (await netInfo(client))!.lastSnapshotTick;
+      const finished = hostState.positions.filter(
+        (id) => (hostState.karts[id]!.race.finishTick ?? Infinity) <= seen,
+      );
+      expect(clientState.positions.slice(0, finished.length)).toEqual(finished);
+    },
+  );
 
   test('?netdebug=1 shows RTT, loss, snapshot age, re-simulation and corrections', async ({
     context,

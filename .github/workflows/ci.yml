@@ -146,6 +146,9 @@ jobs:
     needs: changes
     if: needs.changes.outputs.app == 'true'
     runs-on: ubuntu-latest
+    # Browsers and their system packages come with the image (same one as the visual job). Installing
+    # them per job (`playwright install --with-deps`, an apt run) took 15 s to 7.5 min (MK-89).
+    container: mcr.microsoft.com/playwright:v1.63.0-noble
     strategy:
       fail-fast: false
       matrix:
@@ -158,14 +161,10 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - uses: actions/cache@v4
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ matrix.browser }}-${{ hashFiles('pnpm-lock.yaml') }}
-      - run: pnpm exec playwright install --with-deps ${{ matrix.browser }}
       - run: pnpm test:e2e --project=${{ matrix.project }} ${{ matrix.args }}
         env:
           CI: 'true'
+          HOME: /root
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
