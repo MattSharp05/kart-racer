@@ -54,6 +54,9 @@ export const SNOWBALL_LEAD_METRES = 60;
 /** …this long before its snowball rolls over the middle of the road, s (≈ the time to get there). */
 export const SNOWBALL_LEAD_SECONDS = SNOWBALL_LEAD_METRES / TOP_SPEED;
 
+/** The jump scenario starts this far before the valley kicker, at top speed, m. */
+export const JUMP_LEAD_METRES = 40;
+
 /** Frostpeak Pass (MK-59): registered from this folder (`src/scenarios/index.ts` finds it). */
 const scenarios: Scenario[] = [
   {
@@ -110,6 +113,17 @@ const scenarios: Scenario[] = [
         headingOffset: -Math.PI / 2,
       });
       return { state };
+    },
+  },
+  {
+    name: 'frostpeak-jump',
+    group: 'Frostpeak Pass',
+    description: `At top speed on the valley straight, ${JUMP_LEAD_METRES} m before the snow kicker (MK-59 QA round 2). Hold W: you fly off its lip and land on the straight, then the S-bend through the pines.`,
+    defaultSeed: 1,
+    setup: (seed) => {
+      const { valley } = FROSTPEAK_PASS.jumps;
+      const t = FROSTPEAK_PASS.tAt(valley.x, valley.from + JUMP_LEAD_METRES);
+      return { state: kartAt(seed, t, { speed: TOP_SPEED }) };
     },
   },
 ];

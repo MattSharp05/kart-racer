@@ -119,7 +119,7 @@ export const tuning = {
   // --- Surfaces & hazards (MK-49) ---
   surfaces: {
     /** Ice: sideways grip (and drift grip) × this, so karts slide much further. */
-    iceGrip: 0.15,
+    iceGrip: 0.1,
     /** Sand: top speed as a fraction of road top speed. */
     sandSpeed: 0.7,
     /** Sand: while drifting, the kart's yaw wobbles by up to this, rad/s… */
