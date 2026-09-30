@@ -27,3 +27,5 @@ export function showErrorBanner(title: string, details: string[]): HTMLElement {
   document.body.append(banner);
   return banner;
 }
+
+// CI timing probe (not for merge).
