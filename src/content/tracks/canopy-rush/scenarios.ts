@@ -3,7 +3,7 @@ import { createRace, raceSetupRng, type RacerSlot } from '../../../sim/race/crea
 import { rngInt, rngPick } from '../../../sim/rng';
 import { tuning } from '../../../sim/tuning';
 import type { Scenario } from '../../../scenarios/registry';
-import { kartOnTrack } from '../../../scenarios/tracks';
+import { kartOnTrack, shellShot } from '../../../scenarios/tracks';
 import { hazardPose } from '../../../sim/hazards';
 import { nearestOnRoute, pointOnRoute, routeInfos } from '../../../sim/routes';
 import { createSimState } from '../../../sim/state';
@@ -120,6 +120,9 @@ function deer(seed: number) {
 }
 
 /** Canopy Rush (MK-61): registered from this folder (`src/scenarios/index.ts` finds it). */
+/** The ruins shell scenario: you and the kart ahead at these points of the ruins path. */
+export const RUINS_SHOT = { from: 4, to: 8 };
+
 const scenarios: Scenario[] = [
   {
     name: 'track-canopy-rush',
@@ -172,6 +175,20 @@ const scenarios: Scenario[] = [
       'At top speed on the jungle floor road, 2.5 s before a deer bounds out of the bushes, across the road and over the far wall (MK-61 QA round 2). Hold W and it runs into you; ease off or steer round it.',
     defaultSeed: 1,
     setup: (seed) => ({ state: deer(seed) }),
+  },
+  {
+    name: 'canopy-ruins-red',
+    group: 'Canopy Rush',
+    description:
+      'Parked in the ruins below the bridges, in 2nd, holding a red shell; the leader is parked further down the stone path. Fire it (Space / the item button): it follows the path and hits them (MK-62 QA round 2).',
+    defaultSeed: 1,
+    setup: (seed) => {
+      const path = CANOPY_RUSH.ruinsPath;
+      const from = path[RUINS_SHOT.from];
+      const at = path[RUINS_SHOT.to];
+      if (!from || !at) throw new Error('canopy-ruins-red: the ruins path is too short');
+      return { state: shellShot(seed, canopyRush.id, from, at) };
+    },
   },
 ];
 

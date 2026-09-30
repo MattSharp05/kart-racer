@@ -39,6 +39,8 @@ export interface GroundInfo {
   surface: Surface;
   /** Conveyors: unit direction the belt runs (XZ). */
   flow?: { x: number; z: number };
+  /** Conveyors: the belt's speed as a multiple of `tuning.surfaces.conveyorSpeed`. */
+  flowScale?: number;
 }
 
 /** Ground height and surface under a position. */
@@ -54,6 +56,7 @@ export function groundAt(track: TrackDef, position: Vec3): GroundInfo {
       const cos = Math.cos(angle ?? 0);
       const sin = Math.sin(angle ?? 0);
       ground.flow = { x: tangent.x * cos + normal.x * sin, z: tangent.z * cos + normal.z * sin };
+      ground.flowScale = projection.zone?.speedScale ?? 1;
     }
     return ground;
   }

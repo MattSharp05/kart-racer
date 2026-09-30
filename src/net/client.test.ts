@@ -233,7 +233,18 @@ describe('OnlineClient prediction for the player (MK-45)', () => {
       tick();
       clock.advance(TICK_MS);
     }
-    host.state.karts[CLIENT_KART]!.position.x += 1;
+    // Knock it 1 m sideways towards the side with more room: landing on a neighbour would bump it
+    // back (MK-88: which side has room depends on where the AI happen to be).
+    const me = host.state.karts[CLIENT_KART]!;
+    const room = (side: number) =>
+      Math.min(
+        ...host.state.karts
+          .filter((k) => k !== me && Math.abs(k.position.z - me.position.z) < 4)
+          .map((k) => (k.position.x - me.position.x) * side)
+          .filter((d) => d > 0),
+      );
+    const side = room(1) >= room(-1) ? 1 : -1;
+    me.position.x += side;
     const reconciled = client.stats.reconciled;
     for (let i = 0; i < 12 && client.stats.reconciled === reconciled; i += 1) {
       tick();
@@ -241,8 +252,8 @@ describe('OnlineClient prediction for the player (MK-45)', () => {
     }
     const own = client.takeCorrections().filter((c) => c.kartId === CLIENT_KART);
     expect(own).toHaveLength(1);
-    // Drawn at old + (−1 m): where it was, before blending over to the host's position.
-    expect(own[0]!.dx).toBeCloseTo(-1, 1);
+    // Drawn at old − the knock: where it was, before blending over to the host's position.
+    expect(own[0]!.dx).toBeCloseTo(-side, 1);
     expect(Math.abs(own[0]!.dz)).toBeLessThan(0.1);
     expect(client.stats.lastCorrection).toBeCloseTo(1, 1);
     expect(client.takeCorrections()).toEqual([]); // taken once

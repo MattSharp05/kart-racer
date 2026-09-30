@@ -49,8 +49,11 @@ export function hostLocalRoom(
   return () => control.close();
 }
 
-/** Why joining ended without a race. */
-export type JoinFailure = 'full';
+/**
+ * Why joining ended without a race: the room was full, or the link to the host couldn't connect
+ * (WebRTC, MK-73).
+ */
+export type JoinFailure = 'full' | 'unreachable';
 
 /** A client's side of a local room: its link to the host, usable at once. */
 export interface LocalRoomJoin {

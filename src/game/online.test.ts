@@ -2,7 +2,18 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { onlineScenarios } from '../scenarios/online';
 import { createRace } from '../sim/race/createRace';
 import { NEUTRAL_INPUT, type InputFrame, type SimState } from '../sim/types';
-import { OnlineRace, type OnlineLaunch } from './online';
+import { createLoopbackPair } from '../net/netsim';
+import { PendingTransport, type RaceLinks } from '../net/raceLinks';
+import type { JoinFailure } from '../net/localRoom';
+import type { Transport } from '../net/transport';
+import {
+  connectFailedMessage,
+  nameList,
+  OnlineRace,
+  OTHERS_FAILED_MESSAGE,
+  WAITING_FOR_OTHERS,
+  type OnlineLaunch,
+} from './online';
 
 const races: OnlineRace[] = [];
 afterEach(() => {
@@ -85,5 +96,103 @@ describe('OnlineRace (MK-46)', () => {
     open(launchOf('online-race-2p', 'client', 'online-c'));
     const third = open(launchOf('online-race-2p', 'client', 'online-c'));
     await vi.waitFor(() => expect(third.info().ended).toBe('full'));
+  });
+});
+
+describe('a client connected to the host, waiting for someone else (MK-73)', () => {
+  it("doesn't blame the host", () => {
+    const { links } = fakeLinks({});
+    let open!: (transport: Transport) => void;
+    const opened = new Promise<Transport>((resolve) => (open = resolve));
+    const client = new OnlineRace({
+      ...lobbyLaunch('client', links),
+      links: {
+        ...links,
+        join: () => ({ transport: new PendingTransport(opened), stop: () => undefined }),
+      },
+    });
+    races.push(client);
+    expect(client.waitingLine()).toBe('Connecting to Hosty…');
+    open(createLoopbackPair()[0]);
+    return vi.waitFor(() => {
+      expect(client.waitingFor()).toEqual([]);
+      expect(client.waitingLine()).toBe(WAITING_FOR_OTHERS);
+      expect(client.timeoutMessage()).toBe(OTHERS_FAILED_MESSAGE);
+    });
+  });
+});
+
+/** A link that never connects. */
+function idleTransport(): Transport {
+  return new PendingTransport(new Promise(() => undefined));
+}
+
+/** Race links that never connect by themselves: the test says who joins and whose link fails. */
+function fakeLinks(kartOf: Record<string, number>) {
+  const calls: {
+    accept?: (transport: Transport, clientId: string) => boolean;
+    hostFailed?: (clientId: string) => void;
+    joinFailed?: (reason: JoinFailure) => void;
+  } = {};
+  const links: RaceLinks = {
+    host: (accept, onFailed) => {
+      calls.accept = accept;
+      if (onFailed) calls.hostFailed = onFailed;
+      return () => undefined;
+    },
+    join: (onFailed) => {
+      calls.joinFailed = onFailed;
+      return { transport: idleTransport(), stop: () => undefined };
+    },
+    kartOf: (clientId) => kartOf[clientId],
+  };
+  return { links, calls };
+}
+
+/** A lobby race of 3 humans (host Hosty first, as the lobby seats it) from `role`'s side. */
+function lobbyLaunch(role: OnlineLaunch['role'], links: RaceLinks): OnlineLaunch {
+  const base = launchOf('online-race-4p', role, 'unused');
+  const names = ['Hosty', 'Sam', 'Alex'];
+  const self = role === 'host' ? 0 : 1;
+  const racers = base.race.racers.map((r, i) =>
+    i < names.length
+      ? { ...r, name: names[i], controller: i === self ? ('local' as const) : ('remote' as const) }
+      : { ...r, controller: 'ai' as const },
+  );
+  return { ...base, race: { ...base.race, racers }, links };
+}
+
+describe('connecting before the race runs (MK-73)', () => {
+  it('lists names the way the lobby says them', () => {
+    expect(nameList(['Sam'])).toBe('Sam');
+    expect(nameList(['Sam', 'Alex'])).toBe('Sam and Alex');
+    expect(nameList(['Sam', 'Alex', 'Jo'])).toBe('Sam, Alex and Jo');
+    expect(connectFailedMessage(['Sam'])).toMatch(/^Couldn't connect to Sam\. /);
+    expect(connectFailedMessage([])).toMatch(/^Couldn't connect to every player\. /);
+  });
+
+  it("host: waits for the players who haven't connected, and names the ones whose link failed", () => {
+    const { links, calls } = fakeLinks({ 'id-sam': 1, 'id-alex': 2 });
+    const host = open(lobbyLaunch('host', links));
+    expect(host.waitingFor()).toEqual(['Sam', 'Alex']);
+    expect(host.unreachable()).toEqual([]);
+
+    // Sam connects; Alex's link fails (ICE found no way through).
+    expect(calls.accept?.(idleTransport(), 'id-sam')).toBe(true);
+    expect(host.waitingFor()).toEqual(['Alex']);
+    calls.hostFailed?.('id-alex');
+    expect(host.unreachable()).toEqual(['Alex']);
+    expect(host.info().started).toBe(false);
+  });
+
+  it('client: waits for the host, and knows when the link to it failed', () => {
+    const { links, calls } = fakeLinks({});
+    const client = open(lobbyLaunch('client', links));
+    expect(client.waitingFor()).toEqual(['Hosty']);
+    expect(client.unreachable()).toEqual([]);
+    expect(client.waitingLine()).toBe('Connecting to Hosty…');
+    calls.joinFailed?.('unreachable');
+    expect(client.unreachable()).toEqual(['Hosty']);
+    expect(client.info().ended).toBe('unreachable');
   });
 });

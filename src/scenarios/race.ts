@@ -5,6 +5,7 @@ import { sunnyCircuit } from '../content/tracks/sunny-circuit/sim';
 import { forwardFromHeading } from '../sim/math';
 import { allAiRace, raceTrackIds } from '../sim/items/balance';
 import { createRace, raceSetupRng, type RacerSlot } from '../sim/race/createRace';
+import { balanceRace } from '../sim/race/racerBalance';
 import { raceTime } from '../sim/raceFlow';
 import { step } from '../sim/step';
 import { trackGeometry } from '../sim/track';
@@ -174,6 +175,19 @@ export function allItemsRace(seed: number): SimState {
   const trackIds = raceTrackIds();
   const trackId = trackIds[(((seed - 1) % trackIds.length) + trackIds.length) % trackIds.length];
   let state = allAiRace(seed, trackId ?? sunnyCircuit.id);
+  while (state.phase !== 'racing' || raceTime(state) < ALL_ITEMS_SKIP_SECONDS) {
+    state = step(state, [NEUTRAL_INPUT]).state;
+  }
+  return state;
+}
+
+/**
+ * The racer balance race (MK-88): balance race `seed − 1` of `pnpm racer-balance` (8 different
+ * racers, all AI, items on; the seed picks the track, engine class and the 2 racers sitting out),
+ * fast-forwarded `ALL_ITEMS_SKIP_SECONDS` into the race.
+ */
+export function racerBalanceRace(seed: number): SimState {
+  let state = balanceRace(Math.max(0, seed - 1), { itemsOn: true });
   while (state.phase !== 'racing' || raceTime(state) < ALL_ITEMS_SKIP_SECONDS) {
     state = step(state, [NEUTRAL_INPUT]).state;
   }
@@ -430,6 +444,16 @@ export const raceScenarios: Scenario[] = [
     setup: (seed) => {
       const state = allItemsRace(seed);
       return { state, follow: state.positions[3] ?? 0 };
+    },
+  },
+  {
+    name: 'race-balance',
+    group: 'Race',
+    description: `Watch 8 different racers (all AI, items on) in racer balance race #seed (MK-88), fast-forwarded ${ALL_ITEMS_SKIP_SECONDS} s in; the camera follows whoever leads then. Seeds 1–100 are \`pnpm racer-balance\`'s races: the seed picks the track, class and the 2 racers sitting out.`,
+    defaultSeed: 1,
+    setup: (seed) => {
+      const state = racerBalanceRace(seed);
+      return { state, follow: state.positions[0] ?? 0 };
     },
   },
   {

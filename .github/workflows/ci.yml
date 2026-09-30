@@ -2,8 +2,8 @@ name: CI
 
 # Two levels (MK-89):
 # - Pull requests run a fast gate, every job ≤ 5 min, in parallel: lint/types/build, unit, and
-#   desktop-chrome e2e without the long `@full` tests (split over two runners). Other browser jobs,
-#   netsoak and visual only run when the PR touches what they test.
+#   desktop-chrome e2e without the long `@full` tests (split over four runners; two took 8–9.5 min).
+#   Other browser jobs, netsoak and visual only run when the PR touches what they test.
 # - Pushes to main (and manual runs) run the full suite: every device, `@full` tests, netsoak,
 #   visual. A red main is fixed before anything else merges.
 
@@ -53,8 +53,10 @@ jobs:
           # Browser jobs for this run, as a matrix.
           if [ "$full" = true ]; then
             e2e='[
-              {"project":"desktop-chrome","browser":"chromium","args":"--shard=1/2"},
-              {"project":"desktop-chrome","browser":"chromium","args":"--shard=2/2"},
+              {"project":"desktop-chrome","browser":"chromium","args":"--shard=1/4"},
+              {"project":"desktop-chrome","browser":"chromium","args":"--shard=2/4"},
+              {"project":"desktop-chrome","browser":"chromium","args":"--shard=3/4"},
+              {"project":"desktop-chrome","browser":"chromium","args":"--shard=4/4"},
               {"project":"desktop-chrome-online","browser":"chromium","args":""},
               {"project":"desktop-webkit","browser":"webkit","args":""},
               {"project":"desktop-webkit-online","browser":"webkit","args":""},
@@ -62,8 +64,10 @@ jobs:
               {"project":"ipad","browser":"webkit","args":""}]'
           else
             e2e='[
-              {"project":"desktop-chrome","browser":"chromium","args":"--shard=1/2 --grep-invert @full"},
-              {"project":"desktop-chrome","browser":"chromium","args":"--shard=2/2 --grep-invert @full"}'
+              {"project":"desktop-chrome","browser":"chromium","args":"--shard=1/4 --grep-invert @full"},
+              {"project":"desktop-chrome","browser":"chromium","args":"--shard=2/4 --grep-invert @full"},
+              {"project":"desktop-chrome","browser":"chromium","args":"--shard=3/4 --grep-invert @full"},
+              {"project":"desktop-chrome","browser":"chromium","args":"--shard=4/4 --grep-invert @full"}'
             [ "$visual" = true ] && e2e="$e2e"',{"project":"iphone-landscape","browser":"webkit","args":"--grep-invert @full"}'
             [ "$net" = true ] && e2e="$e2e"',{"project":"desktop-chrome-online","browser":"chromium","args":"--grep-invert @full"}'
             e2e="$e2e]"
@@ -104,6 +108,20 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm test
       - run: pnpm test:perf
+
+  # The racer balance smoke (MK-88): 20 full 8-AI races, ~2 min of CPU, beside the unit job.
+  balance:
+    name: Racer balance smoke
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm test:balance
 
   # The netcode soak: always on main, on PRs only when netcode changes.
   netsoak:
