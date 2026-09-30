@@ -128,18 +128,33 @@ function gridSlots() {
 }
 
 /**
- * The belts: heading south, the left lane (east side) runs forward, the right lane backward. Their
- * speed is `tuning.surfaces.conveyorSpeed`.
+ * The backward belt runs this many times `tuning.surfaces.conveyorSpeed` (MK-62 QA round 2: "make
+ * the red slow you down even more"); the forward one runs at 1×.
  */
-const belt = (flowAngle: number, lateralMin: number, lateralMax: number): SurfaceZone => ({
+export const BACKWARD_BELT_SCALE = 2;
+
+/**
+ * The belts: heading south, the left lane (east side) runs forward, the right lane backward. Their
+ * speed is `tuning.surfaces.conveyorSpeed` × `speedScale`.
+ */
+const belt = (
+  flowAngle: number,
+  lateralMin: number,
+  lateralMax: number,
+  speedScale = 1,
+): SurfaceZone => ({
   from: tAt(CONVEYOR.x, CONVEYOR.z0),
   to: tAt(CONVEYOR.x, CONVEYOR.z1),
   lateralMin,
   lateralMax,
   type: 'conveyor',
   flowAngle,
+  ...(speedScale !== 1 ? { speedScale } : {}),
 });
-export const BELTS = { forward: belt(0, -W / 2, 0), backward: belt(Math.PI, 0, W / 2) };
+export const BELTS = {
+  forward: belt(0, -W / 2, 0),
+  backward: belt(Math.PI, 0, W / 2, BACKWARD_BELT_SCALE),
+};
 
 /** Crusher rhythm: seconds per cycle, and the share of it each piston stays down. */
 export const CRUSHER = { period: 3, closedFraction: 0.3 };

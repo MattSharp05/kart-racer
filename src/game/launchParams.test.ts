@@ -78,6 +78,12 @@ describe('online params (MK-46)', () => {
     ).toMatchObject({ net: 'local', role: 'client', room: 'r1', laps: 1, netdebug: true });
   });
 
+  it('reads &links=webrtc|blocked (MK-73) and ignores anything else', () => {
+    expect(parseLaunchParams('?net=local&links=webrtc').links).toBe('webrtc');
+    expect(parseLaunchParams('?net=local&links=blocked').links).toBe('blocked');
+    expect(parseLaunchParams('?net=local&links=carrier-pigeon').links).toBeUndefined();
+  });
+
   it('turns the round-trip &netsim=<rtt>,<jitter>,<loss%> into one-way conditions', () => {
     const netsim = parseLaunchParams('?netsim=200,50,8').netsim!;
     expect(netsim).toMatchObject({ lagMs: 100, jitterMs: 25 });

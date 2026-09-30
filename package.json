@@ -22,6 +22,7 @@
     "test:visual:update": "playwright test -c playwright.visual.config.ts --update-snapshots",
     "test:perf": "vitest run -c vitest.perf.config.ts",
     "test:netsoak": "vitest run -c vitest.netsoak.config.ts",
+    "test:balance": "vitest run -c vitest.balance.config.ts --silent=false",
     "test:soak": "playwright test -c playwright.soak.config.ts",
     "net:sweep": "vitest run -c vitest.lab.config.ts --reporter=verbose",
     "check:bundle": "node scripts/check-bundle-size.mjs",

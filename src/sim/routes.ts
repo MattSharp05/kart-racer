@@ -107,3 +107,45 @@ export function routeProgress(
   }
   return undefined;
 }
+
+/**
+ * The route `position` is on and how far along its path, m: off the main road near a route's path
+ * or, with `route` given, anywhere near that route's path (where it overlaps the road at its ends).
+ */
+function routeAt(geometry: TrackGeometry, position: Vec3, route?: RouteInfo) {
+  if (!route && geometry.project(position).surface !== 'out') return undefined;
+  for (const info of route ? [route] : routeInfos(geometry)) {
+    const near = nearestOnRoute(info, position);
+    if (near.distance <= info.route.halfWidth) return { info, along: near.along };
+  }
+  return undefined;
+}
+
+/**
+ * Where something following the lap (a red shell, a homing item) aims, `lookAhead` m on from
+ * `position` (MK-62 QA round 2). On the main road that's the road ahead; on a route it's down the
+ * route's path, then the road after it. When the kart it chases (`target`) has taken a route, it
+ * follows that route too: from where the route leaves the road (within `lookAhead` of it), or
+ * anywhere along it behind the target.
+ */
+export function lapAimPoint(
+  geometry: TrackGeometry,
+  position: Vec3,
+  lookAhead: number,
+  target?: Vec3,
+): Vec3 {
+  const length = geometry.length;
+  const chased = target ? routeAt(geometry, target) : undefined;
+  const on = (chased && routeAt(geometry, position, chased.info)) ?? routeAt(geometry, position);
+  if (on && (!chased || on.info !== chased.info || on.along <= chased.along)) {
+    const along = on.along + lookAhead;
+    if (along <= on.info.length) return pointOnRoute(on.info, along);
+    return geometry.pointAt(on.info.from + on.info.span + (along - on.info.length) / length, 0);
+  }
+  const t = geometry.project(position).t;
+  if (chased) {
+    const toStart = ((((chased.info.from - t) % 1) + 1) % 1) * length;
+    if (toStart <= lookAhead) return pointOnRoute(chased.info, lookAhead - toStart);
+  }
+  return geometry.pointAt(t + lookAhead / length, 0);
+}

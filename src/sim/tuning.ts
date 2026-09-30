@@ -16,12 +16,16 @@ export const tuning = {
   topSpeed: { 50: 20, 100: 24, 150: 28 } as Record<EngineClass, number>,
   /** Seconds to reach 95% of top speed from rest at full throttle (for a stat-3 kart). */
   timeTo95: 2.5,
-  /** How much each kart stat point away from 3 changes the physics (MK-7). */
+  /**
+   * How much each kart stat point away from 3 changes the physics (MK-7). MK-88 balanced them so
+   * a point of speed, acceleration or handling is worth about the same race time to the AI (~0.4–0.6%
+   * each, `pnpm racer-balance`): top speed was worth 5× the others and decided every race.
+   */
   stats: {
-    /** Top speed ±3% per point (±6% at 1 or 5). */
-    speedPerPoint: 0.03,
-    /** Time to top speed −12% per point (faster) above 3. */
-    accelerationPerPoint: 0.12,
+    /** Top speed ±0.6% per point (±1.2% at 1 or 5). Was 3% (MK-7) before MK-88. */
+    speedPerPoint: 0.006,
+    /** Time to top speed −10% per point (faster) above 3. Was 12% before MK-88. */
+    accelerationPerPoint: 0.1,
     /** Turn rates ±6% per point. */
     handlingPerPoint: 0.06,
   },
@@ -83,8 +87,11 @@ export const tuning = {
   driftGrip: 2.5,
   /** Extra charge rate when steering fully into the drift (1 = double speed). */
   driftChargeBonus: 0.5,
-  /** Drift charge rate × this for racers with `strongDrift` (Coral, MK-64): tiers come sooner. */
-  strongDriftCharge: 1.15,
+  /**
+   * Drift charge rate × this for racers with `strongDrift` (Coral, MK-64): tiers come sooner. 1.15
+   * made Coral the best racer by ~0.9% race time; 1.05 evens her out (MK-88).
+   */
+  strongDriftCharge: 1.05,
   /** Seconds of charge needed for tier 1 (blue), 2 (orange), 3 (purple). */
   driftTiers: [0.8, 1.6, 2.6] as [number, number, number],
   /** Mini-turbo boost length for tier 1, 2, 3, s. */
@@ -220,6 +227,11 @@ export const tuning = {
     steerGain: 2.6,
     /** Max sideways grip the AI plans corners with, m/s² (× skill). */
     cornerGrip: 26,
+    /**
+     * …× the kart's handling multiplier ^ this (MK-88), so handling is worth corner speed to the
+     * AI as it is to a player (0 = the AI ignores handling). Not on ice: sliding, all karts are alike.
+     */
+    cornerHandling: 1.5,
     /** How far ahead it checks for tight corners, m. */
     brakeHorizon: 45,
     /**

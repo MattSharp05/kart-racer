@@ -30,6 +30,8 @@ export interface SurfaceZone extends TrackRange {
    * π/2 = towards its right, π = backwards). Its speed is `tuning.surfaces.conveyorSpeed`.
    */
   flowAngle?: number;
+  /** Conveyors: this belt runs at `tuning.surfaces.conveyorSpeed` × this (default 1). */
+  speedScale?: number;
 }
 
 /**

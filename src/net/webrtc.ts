@@ -94,15 +94,54 @@ export interface SignalingChannel {
   close(): void;
 }
 
-/** Host: answers every `join` with an offer; resolves a transport per client as it connects. */
+/** How often a client repeats `join` until the host's offer arrives, ms (a broadcast can be lost). */
+export const SIGNAL_RETRY_MS = 1000;
+/** Repeats before the client stops asking (the lobby gives up on the race by then, MK-47). */
+export const SIGNAL_RETRIES = 20;
+
+/**
+ * Whether a peer connection can no longer connect (MK-73): ICE tried every candidate pair and none
+ * worked, typically a phone on mobile data behind a NAT that needs a relay (TURN). Checks
+ * `iceConnectionState` too: older Safari has no `connectionState`.
+ */
+export function connectionFailed(pc: RTCPeerConnection): boolean {
+  return pc.connectionState === 'failed' || pc.iceConnectionState === 'failed';
+}
+
+/** Calls `onFailed` once if `pc` fails to connect (see `connectionFailed`). */
+function watchFailure(pc: RTCPeerConnection, onFailed: () => void): void {
+  let failed = false;
+  const check = () => {
+    if (failed || !connectionFailed(pc)) return;
+    failed = true;
+    onFailed();
+  };
+  pc.addEventListener('connectionstatechange', check);
+  pc.addEventListener('iceconnectionstatechange', check);
+}
+
+/**
+ * Host: answers every `join` with an offer; resolves a transport per client as it connects.
+ * A repeated `join` (the client missed the offer) gets the same offer again. `onFailed` hears of
+ * a client whose connection failed.
+ */
 export function hostPeers(
   signaling: SignalingChannel,
   onClient: (transport: WebRtcTransport, peerId: string) => void,
+  onFailed: (peerId: string) => void = () => undefined,
 ): void {
   const peers = new Map<string, RTCPeerConnection>();
+  const offers = new Map<string, string>();
   signaling.onSignal((from, signal) => {
     if (signal.kind === 'join') {
-      if (peers.has(from)) return;
+      const known = peers.get(from);
+      if (known) {
+        const offer = offers.get(from);
+        if (offer && known.connectionState !== 'connected') {
+          signaling.send(from, { kind: 'offer', sdp: offer });
+        }
+        return;
+      }
       const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
       peers.set(from, pc);
       const channel = pc.createDataChannel('race', DATA_CHANNEL_OPTIONS);
@@ -110,6 +149,7 @@ export function hostPeers(
       transport.onStateChange((state) => {
         if (state === 'open') onClient(transport, from);
       });
+      watchFailure(pc, () => onFailed(from));
       pc.onicecandidate = (event) => {
         if (event.candidate)
           signaling.send(from, { kind: 'ice', candidate: event.candidate.toJSON() });
@@ -117,22 +157,54 @@ export function hostPeers(
       void pc
         .createOffer()
         .then((offer) => pc.setLocalDescription(offer))
-        .then(() => signaling.send(from, { kind: 'offer', sdp: pc.localDescription?.sdp ?? '' }));
+        .then(() => {
+          const sdp = pc.localDescription?.sdp ?? '';
+          offers.set(from, sdp);
+          signaling.send(from, { kind: 'offer', sdp });
+        });
     } else if (signal.kind === 'answer') {
-      void peers.get(from)?.setRemoteDescription({ type: 'answer', sdp: signal.sdp });
+      const pc = peers.get(from);
+      // A repeated offer can bring a second answer: only the first one counts.
+      if (pc?.signalingState === 'have-local-offer') {
+        void pc.setRemoteDescription({ type: 'answer', sdp: signal.sdp });
+      }
     } else if (signal.kind === 'ice') {
-      void peers.get(from)?.addIceCandidate(signal.candidate);
+      peers
+        .get(from)
+        ?.addIceCandidate(signal.candidate)
+        .catch(() => undefined);
     }
   });
   signaling.send(null, { kind: 'host-ready' });
 }
 
-/** Client: announces itself until the host offers, then answers; resolves once the channel opens. */
-export function joinHost(signaling: SignalingChannel): Promise<WebRtcTransport> {
+/**
+ * Client: announces itself (every `SIGNAL_RETRY_MS` until the host offers), then answers;
+ * resolves once the channel opens. `onFailed` hears if the connection fails (MK-73); `cancel`
+ * gives up on a connection that isn't needed any more.
+ */
+export function joinHost(
+  signaling: SignalingChannel,
+  onFailed: () => void = () => undefined,
+  cancel?: AbortSignal,
+): Promise<WebRtcTransport> {
   return new Promise((resolve) => {
     const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
     let hostId: string | null = null;
     const pendingIce: RTCIceCandidateInit[] = [];
+    let retries = 0;
+    const retry = setInterval(() => {
+      retries += 1;
+      if (hostId || pc.signalingState === 'closed' || retries > SIGNAL_RETRIES) {
+        clearInterval(retry);
+      } else signaling.send(null, { kind: 'join' });
+    }, SIGNAL_RETRY_MS);
+    // Left before connecting (MK-73): stop asking and let the connection go.
+    cancel?.addEventListener('abort', () => {
+      clearInterval(retry);
+      pc.close();
+    });
+    watchFailure(pc, onFailed);
     pc.onicecandidate = (event) => {
       if (event.candidate && hostId) {
         signaling.send(hostId, { kind: 'ice', candidate: event.candidate.toJSON() });
@@ -147,6 +219,7 @@ export function joinHost(signaling: SignalingChannel): Promise<WebRtcTransport> 
       if (signal.kind === 'host-ready' && !hostId) signaling.send(null, { kind: 'join' });
       else if (signal.kind === 'offer' && !hostId) {
         hostId = from;
+        clearInterval(retry);
         void pc
           .setRemoteDescription({ type: 'offer', sdp: signal.sdp })
           .then(() => Promise.all(pendingIce.map((c) => pc.addIceCandidate(c))))
@@ -157,8 +230,9 @@ export function joinHost(signaling: SignalingChannel): Promise<WebRtcTransport> 
           );
       } else if (signal.kind === 'ice' && (hostId === null || from === hostId)) {
         // Candidates can overtake the offer; hold them until the remote description is set.
-        if (hostId && pc.remoteDescription) void pc.addIceCandidate(signal.candidate);
-        else pendingIce.push(signal.candidate);
+        if (hostId && pc.remoteDescription) {
+          pc.addIceCandidate(signal.candidate).catch(() => undefined);
+        } else pendingIce.push(signal.candidate);
       }
     });
     signaling.send(null, { kind: 'join' });

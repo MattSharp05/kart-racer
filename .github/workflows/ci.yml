@@ -105,6 +105,20 @@ jobs:
       - run: pnpm test
       - run: pnpm test:perf
 
+  # The racer balance smoke (MK-88): 20 full 8-AI races, ~2 min of CPU, beside the unit job.
+  balance:
+    name: Racer balance smoke
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm test:balance
+
   # The netcode soak: always on main, on PRs only when netcode changes.
   netsoak:
     name: Net soak

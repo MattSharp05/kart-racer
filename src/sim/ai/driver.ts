@@ -44,7 +44,11 @@ export function aiInput(
   // Kart effects can make it drive worse (inked, MK-68): a nudge on the wheel, a shorter look-ahead.
   const impaired = effectsAiDriving(kart);
   const lookAhead = (cfg.lookAheadBase + speed * cfg.lookAheadPerSpeed) * impaired.lookAhead;
-  const top = kartPhysics(kart.kartType, engineClass).topSpeed * (ai.speedScale ?? 1);
+  const physics = kartPhysics(kart.kartType, engineClass);
+  const top = physics.topSpeed * (ai.speedScale ?? 1);
+  // A nimbler kart turns tighter at speed, so it plans corners with more grip (MK-88).
+  const nimble = physics.handling ** cfg.cornerHandling;
+  const cornerGrip = cfg.cornerGrip * ai.skill;
   // Cruising speed = 90–95% of top by skill, so a good player can beat it.
   const cruise = top * (tuning.ai.cruiseBase + tuning.ai.cruiseSkill * ai.skill);
 
@@ -60,7 +64,7 @@ export function aiInput(
       tick !== undefined ? routeDodgeOffset(kart, tick, geometry, route.info, route.along) : 0;
     const aim = routeAim(kart, route, lookAhead, cfg.brakeHorizon, dodge ?? 0);
     steer = clamp(-aim.error * cfg.steerGain, -1, 1);
-    if (aim.curvature > 1e-4) cornerSpeed = Math.sqrt((cfg.cornerGrip * ai.skill) / aim.curvature);
+    if (aim.curvature > 1e-4) cornerSpeed = Math.sqrt((cornerGrip * nimble) / aim.curvature);
   } else {
     const error = aimError(kart, geometry, line, ai, lookAhead);
     steer = clamp(-error * cfg.steerGain, -1, 1);
@@ -72,12 +76,14 @@ export function aiInput(
     drift = racing && wantsDrift(kart, ai, geometry, line, here, speed, top, engineClass, error);
     if (drift && !kart.driftHeld) steer = error > 0 ? -1 : 1; // full lock on the press picks the side
     const curvature = maxCurvatureAhead(geometry, line, here, cfg.brakeHorizon);
-    // On a slippery surface ahead (ice), corners are planned with its grip, so the AI slows before it.
+    // On a slippery surface ahead (ice), corners are planned with its grip, so the AI slows before
+    // it; there the kart slides whatever its handling, so handling adds nothing.
     const grip =
       curvature > 1e-4
         ? minGripAhead(geometry, line, here, cfg.brakeHorizon) ** cfg.lowGripCaution
         : 1;
-    if (curvature > 1e-4) cornerSpeed = Math.sqrt((cfg.cornerGrip * ai.skill * grip) / curvature);
+    if (curvature > 1e-4)
+      cornerSpeed = Math.sqrt((cornerGrip * (grip < 1 ? grip : nimble)) / curvature);
   }
   steer = clamp(steer + impaired.steer, -1, 1);
   const crusher = racing && tick !== undefined ? crusherSpeedLimit(kart, tick, geometry) : Infinity;
