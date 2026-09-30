@@ -21,7 +21,7 @@ test.describe('Hornet Swarm (MK-67)', () => {
     expect(hornets(state).map((h) => (h.kind === 'item' ? h.targetId : -1))).toEqual([1, 2, 3]);
 
     const hit = new Set<number>();
-    // A sting's wobble lasts 36 ticks: stepping 30 at a time sees every one.
+    // A sting's wobble lasts 54 ticks: stepping 30 at a time sees every one.
     for (let i = 0; i < 12 && hit.size < 3; i += 1) {
       state = await step(page, 30);
       for (const id of stung(state)) hit.add(id);

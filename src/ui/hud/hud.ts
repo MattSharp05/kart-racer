@@ -6,7 +6,7 @@ import { raceTime } from '../../sim/raceFlow';
 import { getTrack } from '../../sim/track';
 import type { ItemId, KartItem, SimEvent, SimState } from '../../sim/types';
 import { formatTime, ordinal } from './format';
-import { itemIcon, itemName } from './icons';
+import { iconShowsUses, itemIcon, itemName } from './icons';
 import { Minimap } from './minimap';
 import { ScreenEffects } from './screenEffects';
 import './hud.css';
@@ -180,10 +180,15 @@ export class Hud {
     this.item.dataset.item = rolling ? 'roulette' : (item ?? '');
     // Key hint while an item is ready (QA round 2: players didn't know how to use it).
     const hint = item && !rolling ? '<span class="hud-item-key"></span>' : '';
-    // Uses left of a multi-use item (MK-52).
+    // Uses left of a multi-use item (MK-52): drawn by its icon if it can (MK-65), else a badge.
+    const ready = item !== null && !rolling;
+    const drawsUses = item !== null && !rolling && iconShowsUses(item);
     const uses =
-      item && !rolling && slot.uses > 1 ? `<span class="hud-item-uses">×${slot.uses}</span>` : '';
-    this.set(this.item, item ? itemIcon(item) + hint + uses : '');
+      ready && !drawsUses && slot.uses > 1
+        ? `<span class="hud-item-uses">×${slot.uses}</span>`
+        : '';
+    this.item.dataset.uses = ready ? String(slot.uses) : '';
+    this.set(this.item, item ? itemIcon(item, ready ? slot.uses : undefined) + hint + uses : '');
     this.item.title = item && !rolling ? itemName(item) : '';
   }
 
@@ -194,7 +199,7 @@ export class Hud {
     this.set(
       this.incoming,
       chasing.length
-        ? `<span class="hud-incoming-alert">!</span>${chasing.map(itemIcon).join('')}`
+        ? `<span class="hud-incoming-alert">!</span>${chasing.map((item) => itemIcon(item)).join('')}`
         : '',
     );
     this.show(this.incoming, chasing.length > 0);

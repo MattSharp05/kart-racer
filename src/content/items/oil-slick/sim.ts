@@ -18,24 +18,29 @@ export const SLICK_TICKS = 15 * S;
 /** Its owner can't slip on it for this long after dropping it. */
 export const SLICK_OWNER_IMMUNE_TICKS = S;
 
-/** A kart that drives through slides this long, then recovers (no spin-out). */
-export const SLIDE_TICKS = S;
+/**
+ * A kart that drives through slides this long, then recovers (no spin-out stop). 1.4 s since QA
+ * round 2 ("even more dramatic"; was 1 s).
+ */
+export const SLIDE_TICKS = Math.round(1.4 * S);
 /**
  * While sliding, the kart keeps this fraction of the grip it would have: its path stays close to
  * the way it was going when it touched the oil, whatever way it points or steers.
  */
 export const SLIDE_GRIP = 0.12;
-/** Speed lost while sliding, 1/s (a mild drag, not a spin-out). */
-export const SLIDE_DRAG = 0.35;
+/** Speed lost while sliding, 1/s (a drag, not a spin-out stop: about 43 % over the slide). */
+export const SLIDE_DRAG = 0.4;
 /**
- * The kart fishtails: its heading swings to one side and back over the slide (yaw rate
- * `SLIDE_YAW · sin(2π · progress)`, rad/s), so it ends up pointing the way it started.
+ * The kart spins round this many full turns while it slides (QA round 2: it only fishtailed
+ * ±23° before). It spins up and winds down smoothly (yaw rate ∝ 1 − cos(2π · progress)), so it
+ * ends pointing the way it started and drives straight on.
  */
-export const SLIDE_YAW = 2.6;
+export const SLIDE_SPINS = 1;
 
 /**
  * Oil Slick (MK-65): dropped behind the kart, a 3 m puddle that stays for 15 s. A kart driving
- * through loses most of its grip for a second and slides (`oil-slick` kart effect), then recovers.
+ * through loses most of its grip and spins round once as it slides (`oil-slick` kart effect, 1.4 s),
+ * then recovers.
  * Karts that items can't hit (a star, just hit, respawning) or whose effects block the hit (a
  * shield, phasing: any effect with an `onHit` that cancels it) aren't affected.
  * Its look and sounds are in `./render.ts`.
@@ -70,8 +75,9 @@ export default {
   effects: [
     {
       id: 'oil-slick',
-      // data = [x, z, ticks, side]: the way the kart is sliding (unit), the ticks it has slid, and
-      // which way it fishtails (+1 = left: the side it was already sliding towards, if any).
+      // data = [x, z, ticks, side, speed]: the way the kart is sliding (unit), the ticks it has
+      // slid, which way it spins (+1 = left: the side it was already sliding towards, if any), and
+      // its sliding speed (no traction on oil: only the drag slows it, whatever the kart does).
       onApply: (kart, effect, _state, events) => {
         const speed = Math.hypot(kart.velocity.x, kart.velocity.z);
         const forward = forwardFromHeading(kart.heading);
@@ -81,7 +87,7 @@ export default {
             : [forward.x, forward.z];
         // Sliding towards the right of the nose (+X at heading 0) swings the nose left, and back.
         const right = -forward.z * x + forward.x * z;
-        effect.data = [x, z, 0, right < 0 ? -1 : 1];
+        effect.data = [x, z, 0, right < 0 ? -1 : 1, speed];
         cancelDrift(kart, events);
       },
       onTick: (kart, effect, _state, dt) => {
@@ -129,11 +135,14 @@ function slips(kart: KartState, by: number, events: SimEvent[]): boolean {
 
 /**
  * One tick of sliding, after the kart's own physics: pulls its velocity back towards the way it
- * was sliding (keeping `SLIDE_GRIP` of the turn it made), bleeds a little speed and fishtails.
+ * was sliding (keeping `SLIDE_GRIP` of the turn it made), bleeds some speed and spins the kart round.
  */
 function slide(kart: KartState, data: number[], dt: number): void {
   const [dirX = 0, dirZ = 0, ticks = 0, side = 1] = data;
-  const speed = Math.hypot(kart.velocity.x, kart.velocity.z) * Math.max(0, 1 - SLIDE_DRAG * dt);
+  // No traction: the kart's own throttle or brakes (it faces backwards half the spin) don't count.
+  const speed =
+    (data[4] ?? Math.hypot(kart.velocity.x, kart.velocity.z)) * Math.max(0, 1 - SLIDE_DRAG * dt);
+  data[4] = speed;
   let vx = dirX * speed * (1 - SLIDE_GRIP) + kart.velocity.x * SLIDE_GRIP;
   let vz = dirZ * speed * (1 - SLIDE_GRIP) + kart.velocity.z * SLIDE_GRIP;
   const blended = Math.hypot(vx, vz);
@@ -144,10 +153,11 @@ function slide(kart: KartState, data: number[], dt: number): void {
     data[1] = vz / speed;
   }
   kart.velocity = { x: vx, y: kart.velocity.y, z: vz };
-  const progress = ticks / SLIDE_TICKS;
-  kart.heading = wrapAngleDelta(
-    kart.heading + side * SLIDE_YAW * Math.sin(2 * Math.PI * progress) * dt,
-  );
+  // Yaw rate (rad/s) whose integral over the slide is exactly SLIDE_SPINS turns.
+  const progress = (ticks + 0.5) / SLIDE_TICKS;
+  const turn = (2 * Math.PI * SLIDE_SPINS) / (SLIDE_TICKS * DT);
+  const yawRate = turn * (1 - Math.cos(2 * Math.PI * progress));
+  kart.heading = wrapAngleDelta(kart.heading + side * yawRate * dt);
   data[2] = ticks + 1;
   const forward = forwardFromHeading(kart.heading);
   kart.speed = kart.velocity.x * forward.x + kart.velocity.z * forward.z;

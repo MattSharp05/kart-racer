@@ -7,6 +7,7 @@ import { homingOn, spawnEntity, updateItemEntities } from '../../../sim/items/en
 import { screenHit } from '../../../sim/items/hit';
 import { createSimState } from '../../../sim/state';
 import { step } from '../../../sim/step';
+import { wrapAngleDelta } from '../../../sim/math';
 import { trackGeometry } from '../../../sim/track';
 import { DT, tuning } from '../../../sim/tuning';
 import {
@@ -82,7 +83,7 @@ describe('Hornet Swarm (MK-67)', () => {
     expect(hornets(state)).toHaveLength(0);
   }, 30_000);
 
-  it('a sting is the tuned bump: speed × 0.7, a 0.6 s wobble, unhittable meanwhile', () => {
+  it('a sting is the tuned bump: speed × 0.5, a 0.9 s wobble, unhittable meanwhile (QA round 2)', () => {
     let state = hornetsOnTarget(1);
     const events: SimEvent[] = [];
     const before = state.karts[1]!.speed;
@@ -90,7 +91,8 @@ describe('Hornet Swarm (MK-67)', () => {
     const target = state.karts[1]!;
     expect(stings(events).map((e) => e.kartId)).toEqual([1]);
     expect(getEffect(target, 'hornet-swarm')?.ticksLeft).toBe(STING_TICKS);
-    expect(STING_TICKS).toBe(36);
+    expect(STING_TICKS).toBe(54);
+    expect(STING_SPEED_FACTOR).toBe(0.5);
     expect(target.speed).toBeCloseTo(before * STING_SPEED_FACTOR, 6);
     expect(target.spinTimer).toBe(0);
     expect(target.invulnerableTimer).toBe(STING_GAP_SECONDS);
@@ -106,6 +108,27 @@ describe('Hornet Swarm (MK-67)', () => {
     expect(swung).toBeGreaterThan(0.05);
     expect(state.karts[1]!.heading).toBeCloseTo(heading, 2);
     expect(hasEffect(state.karts[1]!, 'hornet-swarm')).toBe(false);
+  });
+
+  it('takes away most of the steering while the kart wobbles (QA round 2: "loose more control")', () => {
+    /** How far a kart at 20 m/s on the test pad turns over a sting's length of full steering. */
+    const turned = (stung: boolean) => {
+      let state = createSimState({ seed: 1, karts: [{ speed: 20 }] });
+      if (stung) applyEffect(state.karts[0]!, 'hornet-swarm', STING_TICKS, state, []);
+      let total = 0;
+      let last = state.karts[0]!.heading;
+      for (let i = 0; i < STING_TICKS; i += 1) {
+        state = run(state, 1, { throttle: 1, steer: 1 }).state;
+        total += wrapAngleDelta(state.karts[0]!.heading - last);
+        last = state.karts[0]!.heading;
+      }
+      return Math.abs(total);
+    };
+    // The wobble's swings cancel over its whole cycles: what's left is the damped steering.
+    const free = turned(false);
+    expect(free).toBeGreaterThan(0.5);
+    // Well under the free turn (the halved speed alone would leave most of it).
+    expect(turned(true)).toBeLessThan(free * 0.6);
   });
 
   it('only stings its own target, never its owner', () => {

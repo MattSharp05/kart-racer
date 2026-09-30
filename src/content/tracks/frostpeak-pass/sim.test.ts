@@ -85,11 +85,11 @@ describe('Frostpeak Pass data', () => {
     }
   });
 
-  it('has 4 item box rows, the lake ice and 3 snowball lanes; no checkpoint the tunnel skips', () => {
+  it('has 4 item box rows, the lake ice and 5 snowball lanes; no checkpoint the tunnel skips', () => {
     expect(frostpeakPass.itemBoxRows).toHaveLength(4);
     expect(frostpeakPass.surfaceZones).toEqual([lakeIce]);
     expect(frostpeakPass.hazards).toEqual(SNOWBALLS);
-    expect(SNOWBALLS).toHaveLength(3);
+    expect(SNOWBALLS).toHaveLength(5);
     const entry = FROSTPEAK_PASS.tAt(tunnel.x0, hairpin.z - hairpin.radius);
     const exit = FROSTPEAK_PASS.tAt(tunnel.x0, hairpin.z + hairpin.radius);
     for (const t of frostpeakPass.checkpoints) expect(t > entry && t < exit).toBe(false);
@@ -129,6 +129,20 @@ describe('Frostpeak Pass ice', () => {
     expect(onRoad).toBeLessThan(2);
     expect(onIce).toBeGreaterThan(onRoad * 3);
     expect(onIce).toBeGreaterThan(5);
+  });
+
+  it('QA round 2: the ice lets you slide more (grip 0.1, was 0.15)', () => {
+    const at = FROSTPEAK_PASS.tAt(lake.x, lake.z + lake.radius);
+    const saved = tuning.surfaces.iceGrip;
+    try {
+      tuning.surfaces.iceGrip = 0.15;
+      const before = slide(at, 2);
+      tuning.surfaces.iceGrip = saved;
+      expect(saved).toBe(0.1);
+      expect(slide(at, 2)).toBeGreaterThan(before * 1.15);
+    } finally {
+      tuning.surfaces.iceGrip = saved;
+    }
   });
 
   it('the AI plans the lake with the ice grip, so it enters slower than it otherwise would', () => {
@@ -187,11 +201,15 @@ describe('Frostpeak Pass ice scenario', () => {
 });
 
 describe('Frostpeak Pass snowballs', () => {
-  it('each lane rolls one snowball per period, a third of a period apart, over its lane only', () => {
+  it('each lane rolls one snowball per period, evenly spread over it, over its lane only', () => {
     const crossings = SNOWBALLS.map((ball) => snowballCrossingTick(ball));
-    const third = PERIOD_TICKS / 3;
-    expect((crossings[1]! - crossings[0]! + PERIOD_TICKS) % PERIOD_TICKS).toBeCloseTo(third, -1);
-    expect((crossings[2]! - crossings[1]! + PERIOD_TICKS) % PERIOD_TICKS).toBeCloseTo(third, -1);
+    const gap = PERIOD_TICKS / SNOWBALLS.length;
+    for (let i = 1; i < crossings.length; i += 1) {
+      expect((crossings[i]! - crossings[i - 1]! + PERIOD_TICKS) % PERIOD_TICKS).toBeCloseTo(
+        gap,
+        -1,
+      );
+    }
     SNOWBALLS.forEach((ball, i) => {
       const lane = descent.lanes[i]!;
       const laneT = FROSTPEAK_PASS.tAt(lane, descent.z);
@@ -392,5 +410,52 @@ describe('Frostpeak Pass race', () => {
       back.some((p) => Math.hypot(p.x - player.position.x, p.z - player.position.z) < 0.5),
     ).toBe(true);
     expect(pole).toBeDefined();
+  });
+});
+
+describe('Frostpeak Pass jumps and turns (MK-59 QA round 2)', () => {
+  const { jumps } = FROSTPEAK_PASS;
+
+  it.each([
+    ['valley', jumps.valley, -1],
+    ['lake', jumps.lake, 1],
+  ] as const)(
+    'the %s kicker throws a kart at speed into the air; it lands on the road',
+    (_, jump, dir) => {
+      const t = FROSTPEAK_PASS.tAt(jump.x, jump.from - dir * 40);
+      const state = kartOnTrack(1, 'frostpeak-pass', t, { speed: TOP });
+      state.engineClass = 150;
+      const { frames, events } = run(state, 300, autopilot);
+      const airborne = frames.filter((f) => !f.karts[0]!.grounded).length;
+      expect(airborne * DT).toBeGreaterThan(0.3);
+      expect(events.filter((e) => e.type === 'respawn')).toHaveLength(0);
+      const end = frames.at(-1)!.karts[0]!;
+      expect(end.grounded).toBe(true);
+      expect(geometry.project(end.position).surface).not.toBe('out');
+    },
+  );
+
+  it('has more turns than before: the valley S, the climb chicane and the S to the lake', () => {
+    // Heading changes of over 15° between samples 20 m apart, counted along the lap.
+    const step = 20;
+    let turns = 0;
+    let turning = false;
+    for (let s = 0; s < geometry.length; s += step) {
+      const a = geometry.headingAt(s / geometry.length);
+      const b = geometry.headingAt((s + step) / geometry.length);
+      const bend = Math.abs(Math.atan2(Math.sin(b - a), Math.cos(b - a)));
+      if (bend > (15 * Math.PI) / 180 && !turning) turns += 1;
+      turning = bend > (15 * Math.PI) / 180;
+    }
+    expect(turns).toBeGreaterThanOrEqual(8);
+  });
+
+  it('frostpeak-jump: holding W you fly off the valley kicker and land on the road', () => {
+    const state = scenarios.get('frostpeak-jump')!.setup(1).state;
+    expect(state.engineClass).toBe(150);
+    const { frames, events } = run(state, 180, () => ({ throttle: 1 }));
+    expect(frames.some((f) => !f.karts[0]!.grounded)).toBe(true);
+    expect(events.filter((e) => e.type === 'respawn')).toHaveLength(0);
+    expect(frames.at(-1)!.karts[0]!.grounded).toBe(true);
   });
 });

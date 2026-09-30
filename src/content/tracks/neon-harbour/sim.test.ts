@@ -246,37 +246,44 @@ describe('Neon Harbour warehouse', () => {
 
 describe('Neon Harbour race', () => {
   it('8 AI race 3 laps at 150cc: all finish under 3 min, nobody stuck, under 1 traffic hit each', () => {
-    let s = createRace({
-      trackId: 'neon-harbour',
-      racers: Array.from({ length: 8 }, (_, i) => ({
-        kartId: KART_IDS[i % KART_IDS.length]!,
-        controller: 'ai' as const,
-      })),
-      engineClass: 150,
-      itemsOn: true,
-      seed: 1,
-    });
-    const stuckFor = new Map<number, number>();
-    let worst = 0;
+    // Traffic hits averaged over two races: one race's count swings with the items (seed 1 alone
+    // went from 2 to 8 when Oil Slick got its spin in MK-65's QA round 2, with a single slip in the
+    // race; over seeds 1–8 the total stayed at 29).
     let hits = 0;
-    for (let i = 0; i < 60 * 60 * 4; i += 1) {
-      const result = step(s, []);
-      s = result.state;
-      hits += result.events.filter((e) => e.type === 'kartHit' && e.kind === 'hazard').length;
-      if (s.phase === 'countdown') continue;
-      for (const kart of s.karts) {
-        if (kart.race.finishTick !== undefined) continue;
-        const t = Math.abs(kart.speed) < 1 ? (stuckFor.get(kart.id) ?? 0) + DT : 0;
-        stuckFor.set(kart.id, t);
-        worst = Math.max(worst, t);
+    let karts = 0;
+    for (const seed of [1, 2]) {
+      let s = createRace({
+        trackId: 'neon-harbour',
+        racers: Array.from({ length: 8 }, (_, i) => ({
+          kartId: KART_IDS[i % KART_IDS.length]!,
+          controller: 'ai' as const,
+        })),
+        engineClass: 150,
+        itemsOn: true,
+        seed,
+      });
+      const stuckFor = new Map<number, number>();
+      let worst = 0;
+      for (let i = 0; i < 60 * 60 * 4; i += 1) {
+        const result = step(s, []);
+        s = result.state;
+        hits += result.events.filter((e) => e.type === 'kartHit' && e.kind === 'hazard').length;
+        if (s.phase === 'countdown') continue;
+        for (const kart of s.karts) {
+          if (kart.race.finishTick !== undefined) continue;
+          const t = Math.abs(kart.speed) < 1 ? (stuckFor.get(kart.id) ?? 0) + DT : 0;
+          stuckFor.set(kart.id, t);
+          worst = Math.max(worst, t);
+        }
+        if (s.karts.every((k) => k.race.finishTick !== undefined)) break;
       }
-      if (s.karts.every((k) => k.race.finishTick !== undefined)) break;
+      const times = s.karts.map((k) => ((k.race.finishTick ?? Infinity) - s.race.goTick) * DT);
+      expect(Math.max(...times)).toBeLessThan(180);
+      expect(worst).toBeLessThanOrEqual(5);
+      karts += s.karts.length;
     }
-    const times = s.karts.map((k) => ((k.race.finishTick ?? Infinity) - s.race.goTick) * DT);
-    expect(Math.max(...times)).toBeLessThan(180);
-    expect(worst).toBeLessThanOrEqual(5);
-    expect(hits / s.karts.length).toBeLessThan(1);
-  });
+    expect(hits / karts).toBeLessThan(1);
+  }, 60_000);
 
   it('track-neon-harbour: a 150cc race of you + 7 AI in countdown, you starting 5th–8th', () => {
     const state = scenarios.get('track-neon-harbour')!.setup(1).state;
