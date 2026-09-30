@@ -9,6 +9,16 @@ import type { TrackTheme } from '../theme';
 const W = 16;
 /** The frozen lake is wider. */
 const LAKE_W = 24;
+/** The snow kickers' lip height, m (MK-59 QA round 2: jumps). */
+const KICKER_Y = 2.2;
+/**
+ * The two snow kickers (world z along a straight going north / south, the lip and where it starts):
+ * one in the valley after the start, one on the run down to the lake.
+ */
+const VALLEY_JUMP = { x: 0, from: 66, lip: 52 };
+const LAKE_JUMP = { x: 85, from: 76, lip: 90 };
+/** The kicker drops away this far past its lip, m. */
+const KICKER_DROP = 1.5;
 /** Height of the summit (the hairpin and the tunnel floor), m. */
 const SUMMIT_Y = 13;
 /** Summit hairpin (right, east → west through the east) at the top of the climb. */
@@ -55,26 +65,35 @@ function arc(
 
 /**
  * Frostpeak Pass (MK-59): a snowy mountain pass. Driving order, starting in the pine valley heading
- * north (−Z): right sweeper → the climb east along the mountain's north flank → the summit hairpin
- * (its inside is the snowbank with the tunnel shortcut) → the descent west along the south flank,
- * where snowballs roll down across the road in 3 lanes → left turn south → the wide frozen-lake
- * U-turn home, on ice.
+ * north (−Z): a snow kicker → a left-right S through the pines → right sweeper → the climb east
+ * along the mountain's north flank, with a chicane → the summit hairpin (its inside is the snowbank
+ * with the tunnel shortcut) → the descent west along the south flank, where snowballs roll down
+ * across the road in 5 lanes → left turn south → an S-bend and a second kicker → the wide
+ * frozen-lake U-turn home, on ice. (QA round 2 added the S-bends, the chicane, the kickers and two
+ * snowball lanes.)
  */
 const points: SplinePoint[] = [
   // Valley straight (start/finish at the first point).
   p(0, 100),
-  p(0, 60),
-  p(0, 20),
-  p(0, -15),
-  p(0, -45),
+  p(0, 80),
+  // The valley kicker: up to its lip, then the snow drops away.
+  p(VALLEY_JUMP.x, VALLEY_JUMP.from),
+  p(VALLEY_JUMP.x, VALLEY_JUMP.lip, KICKER_Y),
+  p(VALLEY_JUMP.x, VALLEY_JUMP.lip - KICKER_DROP),
+  p(0, 34),
+  // The S through the pines: left, then right.
+  p(-14, 8),
+  p(-26, -18),
+  p(-20, -44),
   // Turn 1: right sweeper, starting the climb.
-  p(8, -78, 0.5),
-  p(30, -102, 1.5),
+  p(-2, -72, 0.5),
+  p(26, -100, 1.5),
   p(62, -114, 3),
-  // The climb.
-  p(100, -116, 5),
-  p(140, -115, 7.5),
-  p(175, -113, 10),
+  // The climb, with a chicane (left, then right).
+  p(100, -118, 5),
+  p(128, -132, 6.5),
+  p(158, -126, 8.5),
+  p(185, -113, 10.5),
   p(205, -111, 11.8),
   p(235, -110, SUMMIT_Y),
   p(HAIRPIN.x, HAIRPIN.z - HAIRPIN.radius, SUMMIT_Y),
@@ -87,12 +106,18 @@ const points: SplinePoint[] = [
   p(175, -34, 9.5),
   p(145, -34, 7),
   p(115, -36, 4.5),
-  // Left turn south, down to the lake.
+  // Left turn south, down to the lake, and an S (left, then right).
   p(92, -28, 2.5),
   p(84, -6, 1),
-  p(LAKE.x + LAKE.radius, 25),
-  p(LAKE.x + LAKE.radius, 70, 0, 20),
-  p(LAKE.x + LAKE.radius, 105, 0, LAKE_W),
+  p(94, 18, 0.3),
+  p(106, 40),
+  p(98, 60),
+  // The lake kicker, then the lake opens out.
+  p(LAKE_JUMP.x, LAKE_JUMP.from),
+  p(LAKE_JUMP.x, LAKE_JUMP.lip, KICKER_Y),
+  p(LAKE_JUMP.x, LAKE_JUMP.lip + KICKER_DROP),
+  p(LAKE.x + LAKE.radius, 100, 0, 20),
+  p(LAKE.x + LAKE.radius, 110, 0, LAKE_W),
   // The frozen lake U-turn.
   p(LAKE.x + LAKE.radius, LAKE.z, 0, LAKE_W),
   ...arc(LAKE, 0, Math.PI, 10, 0, LAKE_W),
@@ -137,8 +162,8 @@ const tunnelGap = (z: number, x0: number, x1: number) => {
   return { from: Math.min(a, b), to: Math.max(a, b), side: 'right' as const };
 };
 
-/** Where the descent runs and its snowball lanes cross it (world x of each lane). */
-const DESCENT = { z: -34, lanes: [200, 165, 130] };
+/** Where the descent runs and its snowball lanes cross it (world x of each lane, 5 since QA round 2). */
+const DESCENT = { z: -34, lanes: [220, 197, 174, 151, 128] };
 /** Ridge between the climb and the descent that the snowballs roll down: its crest, m. */
 const RIDGE = { z: -70, height: 9 };
 /** How far past the road's far edge a snowball rolls before it drops off the hillside, m. */
@@ -181,8 +206,10 @@ function snowball(x: number, phase: number): MoverHazard {
 /** Snowballs: rolling speed (m/s), collider radius (m) and how often each lane gets one (s). */
 export const SNOWBALL = { speed: 12, radius: 1.6, period: 10 };
 
-/** The 3 lanes' snowballs, a third of a period apart (uphill lane first). */
-export const SNOWBALLS: MoverHazard[] = DESCENT.lanes.map((x, i) => snowball(x, -i / 3));
+/** The lanes' snowballs, spread evenly over a period (uphill lane first). */
+export const SNOWBALLS: MoverHazard[] = DESCENT.lanes.map((x, i, lanes) =>
+  snowball(x, -i / lanes.length),
+);
 
 /** The frozen lake's ice: the U-turn's middle, all but the outside edge (packed snow, grippy). */
 const lakeIce = {
@@ -202,16 +229,21 @@ export const frostpeakPass: SplineTrackDef = {
   ],
   surfaceZones: [lakeIce],
   // No checkpoint in the hairpin: the tunnel skips it.
-  checkpoints: [0, tAt(62, -114), tAt(205, -111), tAt(175, -34), tAt(85, 40)],
+  checkpoints: [0, tAt(62, -114), tAt(205, -111), tAt(175, -34), tAt(106, 40)],
+  // The snow kickers: each ramp ends at its lip, which throws karts into the air.
+  ramps: [
+    { from: tAt(VALLEY_JUMP.x, VALLEY_JUMP.from), to: tAt(VALLEY_JUMP.x, VALLEY_JUMP.lip) },
+    { from: tAt(LAKE_JUMP.x, LAKE_JUMP.from), to: tAt(LAKE_JUMP.x, LAKE_JUMP.lip) },
+  ],
   // The tunnel floor, on the summit (deep snow: it only pays with a boost).
   shortcuts: [{ y: SUMMIT_Y, polygon: [...TUNNEL_FLOOR] }],
   gridSlots: gridSlots(),
   aiLine: computeRacingLine(geometry),
   itemBoxRows: [
-    { t: tAt(0, -15), laterals: [-4.5, -1.5, 1.5, 4.5] },
-    { t: tAt(140, -115), laterals: [-4.5, -1.5, 1.5, 4.5] },
-    { t: tAt(235, -34), laterals: [-4.5, -1.5, 1.5, 4.5] },
-    { t: tAt(85, 70), laterals: [-4.5, -1.5, 1.5, 4.5] },
+    { t: tAt(-26, -18), laterals: [-4.5, -1.5, 1.5, 4.5] },
+    { t: tAt(100, -118), laterals: [-4.5, -1.5, 1.5, 4.5] },
+    { t: tAt(245, -34), laterals: [-4.5, -1.5, 1.5, 4.5] },
+    { t: tAt(94, 18), laterals: [-4.5, -1.5, 1.5, 4.5] },
   ],
   hazards: SNOWBALLS,
 };
@@ -227,6 +259,7 @@ export const FROSTPEAK_PASS = {
   summitY: SUMMIT_Y,
   descent: DESCENT,
   ridge: RIDGE,
+  jumps: { valley: VALLEY_JUMP, lake: LAKE_JUMP },
   tAt,
 };
 
