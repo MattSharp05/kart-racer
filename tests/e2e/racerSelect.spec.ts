@@ -6,29 +6,38 @@ import { getState, loadScenario } from './helpers';
 
 const picker = (page: Page) => page.locator('.menu-racerSelect .racer-picker');
 const card = (page: Page, id: string) => page.locator(`.racer-card[data-racer="${id}"]`);
+/** Racers whose "choosing … starts a race" test also runs on PRs. */
+const PR_RACERS = 2;
 
 // One test per registered racer, so the six new ones (MK-63, MK-64) are covered by registering.
-for (const { id, name } of racers.list()) {
-  test(`choosing ${name} starts a race with kart ${id} and remembers it`, async ({ page }) => {
-    await loadScenario(page, 'racer-select');
-    await card(page, id).click();
-    await expect(picker(page)).toHaveAttribute('data-racer', id);
-    await expect(picker(page).locator('h3')).toHaveText(name);
-    await page.locator('.menu-racerSelect button.primary').click();
-    await expect(page.locator('.menu-ccSelect')).toBeVisible();
-    // Remembered (prefs) as soon as it's chosen: the racer select opens on it again.
-    const prefs = await page.evaluate(() => localStorage.getItem('kart-racer:prefs'));
-    expect(JSON.parse(prefs ?? '{}')).toMatchObject({ kart: id });
-    await page.keyboard.press('Escape');
-    await expect(picker(page)).toHaveAttribute('data-racer', id);
-    await page.locator('.menu-racerSelect button.primary').click();
-    await page.locator('.menu-ccSelect button', { hasText: '100' }).click();
-    await page.locator('.menu-trackSelect button.primary').click();
-    await expect(page.locator('.menus .menu-panel')).toHaveCount(0);
-    const state = await getState(page);
-    expect(state.karts[state.localKartId]?.kartType).toBe(id);
-  });
-}
+// Each starts a race (20–31 s on CI): PRs run the first two, main runs all (`@full`, MK-89).
+racers.list().forEach(({ id, name }, index) => {
+  const tag = index < PR_RACERS ? [] : ['@full'];
+  test(
+    `choosing ${name} starts a race with kart ${id} and remembers it`,
+    { tag },
+    async ({ page }) => {
+      test.setTimeout(60_000);
+      await loadScenario(page, 'racer-select');
+      await card(page, id).click();
+      await expect(picker(page)).toHaveAttribute('data-racer', id);
+      await expect(picker(page).locator('h3')).toHaveText(name);
+      await page.locator('.menu-racerSelect button.primary').click();
+      await expect(page.locator('.menu-ccSelect')).toBeVisible();
+      // Remembered (prefs) as soon as it's chosen: the racer select opens on it again.
+      const prefs = await page.evaluate(() => localStorage.getItem('kart-racer:prefs'));
+      expect(JSON.parse(prefs ?? '{}')).toMatchObject({ kart: id });
+      await page.keyboard.press('Escape');
+      await expect(picker(page)).toHaveAttribute('data-racer', id);
+      await page.locator('.menu-racerSelect button.primary').click();
+      await page.locator('.menu-ccSelect button', { hasText: '100' }).click();
+      await page.locator('.menu-trackSelect button.primary').click();
+      await expect(page.locator('.menus .menu-panel')).toHaveCount(0);
+      const state = await getState(page);
+      expect(state.karts[state.localKartId]?.kartType).toBe(id);
+    },
+  );
+});
 
 test('keyboard: arrows move through the grid, Enter chooses, Esc goes back', async ({ page }) => {
   await loadScenario(page, 'racer-select-full', { paused: true });

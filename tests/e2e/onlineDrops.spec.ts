@@ -96,65 +96,69 @@ async function openRoomLink(context: BrowserContext, code: string, name: string)
 }
 
 test.describe('drops and rejoin', () => {
-  test('a player who closes their page mid-race: the AI takes over, the race completes, and they rejoin the next race', async ({
-    context,
-  }) => {
-    test.setTimeout(300_000);
-    const room = await openLobby(context, 3, {
-      laps: 1,
-      racers: [undefined, undefined, 'boulder'],
-    });
-    const [host, ann, bob] = room.pages as [Page, Page, Page];
-    expect((await state(bob)).karts[2]?.kartType).toBe('boulder');
-    await pauseAll(room.pages);
-    await autopilotAll(room.pages);
-    await stepAll(room.pages, 60 * 5);
-    const stayers = [host, ann];
-    for (const page of stayers) await recordToasts(page);
+  // A full race and a rejoin (~66 s): main only (MK-89).
+  test(
+    'a player who closes their page mid-race: the AI takes over, the race completes, and they rejoin the next race',
+    { tag: '@full' },
+    async ({ context }) => {
+      test.setTimeout(300_000);
+      const room = await openLobby(context, 3, {
+        laps: 1,
+        racers: [undefined, undefined, 'boulder'],
+      });
+      const [host, ann, bob] = room.pages as [Page, Page, Page];
+      expect((await state(bob)).karts[2]?.kartType).toBe('boulder');
+      await pauseAll(room.pages);
+      await autopilotAll(room.pages);
+      await stepAll(room.pages, 60 * 5);
+      const stayers = [host, ann];
+      for (const page of stayers) await recordToasts(page);
 
-    // Bob closes his tab: it says bye on the way out, and the host hands kart 2 to the AI.
-    await closeTab(bob);
-    await expect
-      .poll(
-        async () => {
-          await stepAll(stayers, 30, { render: true });
-          return (await state(ann)).karts[2]?.controller;
-        },
-        { timeout: 60_000 },
-      )
-      .toBe('ai');
-    for (const page of stayers) {
-      expect((await state(page)).karts[2]?.controller).toBe('ai');
-      await expect.poll(() => toasts(page)).toEqual(['Bob disconnected — AI takes over']);
-    }
+      // Bob closes his tab: it says bye on the way out, and the host hands kart 2 to the AI.
+      await closeTab(bob);
+      await expect
+        .poll(
+          async () => {
+            await stepAll(stayers, 30, { render: true });
+            return (await state(ann)).karts[2]?.controller;
+          },
+          { timeout: 60_000 },
+        )
+        .toBe('ai');
+      for (const page of stayers) {
+        expect((await state(page)).karts[2]?.controller).toBe('ai');
+        await expect.poll(() => toasts(page)).toEqual(['Bob disconnected — AI takes over']);
+      }
 
-    // The race finishes as usual: 8 rows, the same on both pages.
-    await raceToTheEnd(stayers);
-    const hostRows = await finalRows(host);
-    expect(hostRows).toHaveLength(8);
-    expect(await finalRows(ann)).toEqual(hostRows);
+      // The race finishes as usual: 8 rows, the same on both pages.
+      await raceToTheEnd(stayers);
+      const hostRows = await finalRows(host);
+      expect(hostRows).toHaveLength(8);
+      expect(await finalRows(ann)).toEqual(hostRows);
 
-    // Bob opens the room link again: back in the room's lobby, sitting this race out…
-    const back = await openRoomLink(context, room.code, 'Bob');
-    await expect(back.locator('.menu-lobby')).toBeVisible({ timeout: 20_000 });
-    await expect(back.locator('.lobby-players li')).toHaveCount(3, { timeout: 10_000 });
-    await expect(back.locator('.lobby-waiting')).toHaveText(
-      "A race is on. You'll be in the next one.",
-    );
-    // …with the racer he picked before.
-    await expect(back.locator('.lobby-racer')).toHaveAttribute('data-racer', 'boulder');
+      // Bob opens the room link again: back in the room's lobby, sitting this race out…
+      const back = await openRoomLink(context, room.code, 'Bob');
+      await expect(back.locator('.menu-lobby')).toBeVisible({ timeout: 20_000 });
+      await expect(back.locator('.lobby-players li')).toHaveCount(3, { timeout: 10_000 });
+      await expect(back.locator('.lobby-waiting')).toHaveText(
+        "A race is on. You'll be in the next one.",
+      );
+      // …with the racer he picked before.
+      await expect(back.locator('.lobby-racer')).toHaveAttribute('data-racer', 'boulder');
 
-    // …and in the next one when the host races again.
-    await host.getByRole('button', { name: 'Race again' }).click();
-    const pages = [host, ann, back];
-    for (const page of pages) await expect(page.locator('.menus')).toBeHidden({ timeout: 20_000 });
-    await waitForRaces(pages);
-    const again = await state(back);
-    expect(again.localKartId).toBe(2);
-    expect(again.karts[2]?.name).toBe('Bob');
-    expect(again.karts[2]?.kartType).toBe('boulder');
-    expect((await state(host)).karts[2]?.controller).toBe('remote');
-  });
+      // …and in the next one when the host races again.
+      await host.getByRole('button', { name: 'Race again' }).click();
+      const pages = [host, ann, back];
+      for (const page of pages)
+        await expect(page.locator('.menus')).toBeHidden({ timeout: 20_000 });
+      await waitForRaces(pages);
+      const again = await state(back);
+      expect(again.localKartId).toBe(2);
+      expect(again.karts[2]?.name).toBe('Bob');
+      expect(again.karts[2]?.kartType).toBe('boulder');
+      expect((await state(host)).karts[2]?.controller).toBe('remote');
+    },
+  );
 
   test('closing the host page takes everyone to "Host left" within 6 s', async ({ context }) => {
     test.setTimeout(180_000);

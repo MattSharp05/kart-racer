@@ -62,90 +62,99 @@ async function raceSettings(page: Page) {
 }
 
 test.describe('online race flow', () => {
-  test('4 players race to the same results; Race again puts everyone in a new race', async ({
-    context,
-  }) => {
-    test.setTimeout(300_000);
-    const room = await openLobby(context, 4, { laps: 1 });
-    const { host, clients, pages } = room;
-    const before = await Promise.all(pages.map(raceSettings));
-    const kartIds = await Promise.all(pages.map((p) => state(p).then((s) => s.localKartId)));
-    expect(kartIds).toEqual([0, 1, 2, 3]);
-    // Everyone's countdown runs on the host's ticks: the same go tick everywhere.
-    const goTicks = await Promise.all(pages.map((p) => state(p).then((s) => s.race.goTick)));
-    expect(new Set(goTicks).size).toBe(1);
+  // Full races (35–100 s each): main only (MK-89).
+  test(
+    '4 players race to the same results; Race again puts everyone in a new race',
+    { tag: '@full' },
+    async ({ context }) => {
+      test.setTimeout(300_000);
+      const room = await openLobby(context, 4, { laps: 1 });
+      const { host, clients, pages } = room;
+      const before = await Promise.all(pages.map(raceSettings));
+      const kartIds = await Promise.all(pages.map((p) => state(p).then((s) => s.localKartId)));
+      expect(kartIds).toEqual([0, 1, 2, 3]);
+      // Everyone's countdown runs on the host's ticks: the same go tick everywhere.
+      const goTicks = await Promise.all(pages.map((p) => state(p).then((s) => s.race.goTick)));
+      expect(new Set(goTicks).size).toBe(1);
 
-    await raceToTheEnd(pages);
+      await raceToTheEnd(pages);
 
-    // Every page shows the host's results: the same 8 rows, the 4 people highlighted.
-    const hostRows = await finalRows(host);
-    expect(hostRows).toHaveLength(8);
-    for (const client of clients) expect(await finalRows(client)).toEqual(hostRows);
-    for (const [i, page] of pages.entries()) {
-      await expect(page.locator('.online-results li.human')).toHaveCount(4);
-      await expect(page.locator('.online-results li.you')).toContainText(room.names[i]!);
-    }
-    // The host picks what's next; the others wait for it.
-    for (const client of clients) {
-      await expect(client.locator('.online-results-status')).toHaveText('Waiting for host…');
-      await expect(client.getByRole('button', { name: 'Race again' })).toHaveCount(0);
-    }
-    await expect(host.getByRole('button', { name: 'Next track' })).toBeEnabled();
-    const lastTick = (await state(host)).tick;
+      // Every page shows the host's results: the same 8 rows, the 4 people highlighted.
+      const hostRows = await finalRows(host);
+      expect(hostRows).toHaveLength(8);
+      for (const client of clients) expect(await finalRows(client)).toEqual(hostRows);
+      for (const [i, page] of pages.entries()) {
+        await expect(page.locator('.online-results li.human')).toHaveCount(4);
+        await expect(page.locator('.online-results li.you')).toContainText(room.names[i]!);
+      }
+      // The host picks what's next; the others wait for it.
+      for (const client of clients) {
+        await expect(client.locator('.online-results-status')).toHaveText('Waiting for host…');
+        await expect(client.getByRole('button', { name: 'Race again' })).toHaveCount(0);
+      }
+      await expect(host.getByRole('button', { name: 'Next track' })).toBeEnabled();
+      const lastTick = (await state(host)).tick;
 
-    // Race again: a new race with the same settings on every page.
-    await host.getByRole('button', { name: 'Race again' }).click();
-    for (const page of pages) {
-      await expect(page.locator('.menus')).toBeHidden({ timeout: 20_000 });
-      await expect.poll(() => state(page).then((s) => s.tick < lastTick)).toBe(true);
-    }
-    await waitForRaces(pages);
-    for (const [i, page] of pages.entries()) {
-      expect(await raceSettings(page)).toEqual(before[i]);
-      const s = await state(page);
-      expect(s.localKartId).toBe(i);
-      expect(s.phase).not.toBe('finished');
-    }
-  });
+      // Race again: a new race with the same settings on every page.
+      await host.getByRole('button', { name: 'Race again' }).click();
+      for (const page of pages) {
+        await expect(page.locator('.menus')).toBeHidden({ timeout: 20_000 });
+        await expect.poll(() => state(page).then((s) => s.tick < lastTick)).toBe(true);
+      }
+      await waitForRaces(pages);
+      for (const [i, page] of pages.entries()) {
+        expect(await raceSettings(page)).toEqual(before[i]);
+        const s = await state(page);
+        expect(s.localKartId).toBe(i);
+        expect(s.phase).not.toBe('finished');
+      }
+    },
+  );
 
-  test('Next track takes the host and everyone on the results back to the lobby', async ({
-    context,
-  }) => {
-    test.setTimeout(240_000);
-    const room = await openLobby(context, 2, { laps: 1 });
-    const [host, guest] = room.pages as [Page, Page];
-    await raceToTheEnd(room.pages);
-    await finalRows(guest);
-    await host.getByRole('button', { name: 'Next track' }).click();
-    for (const page of room.pages) {
-      await expect(page.locator('.menu-lobby')).toBeVisible({ timeout: 10_000 });
-      expect(await page.evaluate(() => window.__game!.net())).toBeNull();
-    }
-    // The host can pick again and start: the guest is still ready.
-    await expect(host.getByRole('combobox', { name: 'Track' })).toBeEnabled();
-    await expect(host.getByRole('button', { name: 'Start' })).toBeEnabled();
-  });
+  test(
+    'Next track takes the host and everyone on the results back to the lobby',
+    { tag: '@full' },
+    async ({ context }) => {
+      test.setTimeout(240_000);
+      const room = await openLobby(context, 2, { laps: 1 });
+      const [host, guest] = room.pages as [Page, Page];
+      await raceToTheEnd(room.pages);
+      await finalRows(guest);
+      await host.getByRole('button', { name: 'Next track' }).click();
+      for (const page of room.pages) {
+        await expect(page.locator('.menu-lobby')).toBeVisible({ timeout: 10_000 });
+        expect(await page.evaluate(() => window.__game!.net())).toBeNull();
+      }
+      // The host can pick again and start: the guest is still ready.
+      await expect(host.getByRole('combobox', { name: 'Track' })).toBeEnabled();
+      await expect(host.getByRole('button', { name: 'Start' })).toBeEnabled();
+    },
+  );
 
-  test("pausing on a client opens its menu but doesn't stop anyone's race", async ({ context }) => {
-    test.setTimeout(240_000);
-    const { pages, clients } = await openLobby(context, 3);
-    const pauser = clients[0]!;
-    await pauser.getByRole('button', { name: 'Pause' }).click();
-    await expect(pauser.locator('.menu-paused')).toBeVisible();
-    await expect(pauser.locator('.pause-note')).toHaveText('Race continues');
-    await expect(pauser.getByRole('button', { name: 'Restart race' })).toHaveCount(0);
-    expect(await pauser.evaluate(() => window.__game!.isPaused())).toBe(false);
+  test(
+    "pausing on a client opens its menu but doesn't stop anyone's race",
+    { tag: '@full' },
+    async ({ context }) => {
+      test.setTimeout(240_000);
+      const { pages, clients } = await openLobby(context, 3);
+      const pauser = clients[0]!;
+      await pauser.getByRole('button', { name: 'Pause' }).click();
+      await expect(pauser.locator('.menu-paused')).toBeVisible();
+      await expect(pauser.locator('.pause-note')).toHaveText('Race continues');
+      await expect(pauser.getByRole('button', { name: 'Restart race' })).toHaveCount(0);
+      expect(await pauser.evaluate(() => window.__game!.isPaused())).toBe(false);
 
-    // Every page's race keeps ticking while the menu is open, the pauser's own included.
-    const ticks = () => Promise.all(pages.map((p) => state(p).then((s) => s.tick)));
-    const start = await ticks();
-    await expect
-      .poll(async () => (await ticks()).every((t, i) => t > start[i]! + 30), { timeout: 20_000 })
-      .toBe(true);
-    for (const page of pages)
-      expect(await page.evaluate(() => window.__game!.isPaused())).toBe(false);
+      // Every page's race keeps ticking while the menu is open, the pauser's own included.
+      const ticks = () => Promise.all(pages.map((p) => state(p).then((s) => s.tick)));
+      const start = await ticks();
+      await expect
+        .poll(async () => (await ticks()).every((t, i) => t > start[i]! + 30), { timeout: 20_000 })
+        .toBe(true);
+      for (const page of pages)
+        expect(await page.evaluate(() => window.__game!.isPaused())).toBe(false);
 
-    await pauser.getByRole('button', { name: 'Resume' }).click();
-    await expect(pauser.locator('.menus')).toBeHidden();
-  });
+      await pauser.getByRole('button', { name: 'Resume' }).click();
+      await expect(pauser.locator('.menus')).toBeHidden();
+    },
+  );
 });
