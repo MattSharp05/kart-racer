@@ -79,4 +79,20 @@ test.describe('Canopy Rush (MK-61)', () => {
     expect(insidePolygon(kart.position.x, kart.position.z, [...CANOPY_RUSH.ruinsFloor])).toBe(true);
     expect(errors).toEqual([]);
   });
+
+  test('canopy-animals: holding W you run into the tapir crossing the trail and spin out', async ({
+    page,
+  }) => {
+    test.setTimeout(60_000);
+    const errors: string[] = [];
+    page.on('pageerror', (e) => errors.push(e.message));
+    await loadScenario(page, 'canopy-animals', { paused: true });
+    await setInput(page, 0, { throttle: 1 });
+    let spun = false;
+    for (let i = 0; i < 10 && !spun; i += 1) {
+      spun = (await step(page, 20)).karts[0]!.spinTimer > 0;
+    }
+    expect(spun).toBe(true);
+    expect(errors).toEqual([]);
+  });
 });

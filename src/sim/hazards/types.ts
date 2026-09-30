@@ -39,7 +39,16 @@ export interface MoverHazard extends HazardBase {
    * lights (a truck: longer, with a box on the back). Absent: a traffic kart.
    */
   vehicle?: { body: number; truck?: boolean };
+  /**
+   * Render only (MK-61 QA round 2): drawn as a low-poly animal of this species walking along its
+   * path, legs moving with its speed (a wild boar, a tapir or its calf, a deer). Absent: a traffic
+   * kart.
+   */
+  animal?: AnimalSpecies;
 }
+
+/** The animals a `mover` can be drawn as (their looks are in `render/hazards/animal.ts`). */
+export type AnimalSpecies = 'boar' | 'tapir' | 'tapirCalf' | 'deer';
 
 /** A bar spinning about `centre` (a swinging bridge beam, a windmill sail). */
 export interface RotatorHazard extends HazardBase {

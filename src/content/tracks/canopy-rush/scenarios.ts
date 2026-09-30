@@ -4,9 +4,17 @@ import { rngInt, rngPick } from '../../../sim/rng';
 import { tuning } from '../../../sim/tuning';
 import type { Scenario } from '../../../scenarios/registry';
 import { kartOnTrack } from '../../../scenarios/tracks';
-import { canopyRush, CANOPY_RUSH } from './sim';
+import { hazardPose } from '../../../sim/hazards';
+import { nearestOnRoute, pointOnRoute, routeInfos } from '../../../sim/routes';
+import { createSimState } from '../../../sim/state';
+import { trackGeometry } from '../../../sim/track';
+import { DT } from '../../../sim/tuning';
+import type { AnimalSpecies } from '../../../sim/hazards/types';
+import type { Vec3 } from '../../../sim/math';
+import { ANIMALS, canopyRush, CANOPY_RUSH } from './sim';
 
 const TOP_SPEED = tuning.topSpeed[150];
+const geometry = trackGeometry(canopyRush);
 
 /** A kart in the canopy at `t` in a 150cc session (the sway timing assumes 150cc speeds). */
 function kartAt(seed: number, t: number, options: Parameters<typeof kartOnTrack>[3] = {}) {
@@ -38,6 +46,78 @@ export const BRIDGE_START_TICK = 90;
 
 /** The shortcut scenario starts on the tree platform this far before the drop, facing it. */
 export const SHORTCUT_LEAD_METRES = 10;
+
+/** The animals scenario starts on the trail at top speed, this long before the tapir crosses it. */
+export const ANIMALS_LEAD_SECONDS = 2.5;
+
+/**
+ * When `animal` walks across a way, and where: the tick of its cycle when it's nearest the way's
+ * centreline (`nearest` gives the distance to it and how far along it that is, m).
+ */
+function crossingTime(
+  animal: AnimalSpecies,
+  nearest: (pose: Vec3) => { distance: number; along: number },
+) {
+  const mover = ANIMALS.find((a) => a.animal === animal);
+  if (!mover) throw new Error(`Canopy Rush: no ${animal}`);
+  let best = { tick: 0, along: 0, distance: Infinity };
+  for (let tick = 0; tick < Math.round(mover.period / DT); tick += 1) {
+    const pose = hazardPose(mover, tick);
+    if (pose.amount === 0) continue;
+    const near = nearest(pose);
+    if (near.distance < best.distance) best = { tick, along: near.along, distance: near.distance };
+  }
+  return { ...best, period: mover.period };
+}
+
+/** A kart at top speed at `at`, facing `ahead`, with the clock `lead` s before the crossing. */
+function beforeCrossing(
+  seed: number,
+  crossing: { tick: number; period: number },
+  at: Vec3,
+  ahead: Vec3,
+) {
+  const state = createSimState({
+    seed,
+    trackId: canopyRush.id,
+    engineClass: 150,
+    karts: [
+      {
+        position: at,
+        heading: Math.atan2(-(ahead.x - at.x), -(ahead.z - at.z)),
+        speed: TOP_SPEED,
+      },
+    ],
+  });
+  const periodTicks = Math.round(crossing.period / DT);
+  const lead = Math.round(ANIMALS_LEAD_SECONDS / DT);
+  state.tick = (((crossing.tick - lead) % periodTicks) + periodTicks) % periodTicks;
+  return state;
+}
+
+/** On the trail at top speed, timed so that holding W you run into the tapir as it crosses. */
+function tapir(seed: number) {
+  const info = routeInfos(geometry)[0];
+  if (!info) throw new Error('Canopy Rush: no trail');
+  const crossing = crossingTime('tapir', (pose) => nearestOnRoute(info, pose));
+  const along = crossing.along - TOP_SPEED * ANIMALS_LEAD_SECONDS;
+  return beforeCrossing(seed, crossing, pointOnRoute(info, along), pointOnRoute(info, along + 2));
+}
+
+/** On the jungle floor road at top speed, timed so the deer leaps across just in front of you. */
+function deer(seed: number) {
+  const crossing = crossingTime('deer', (pose) => {
+    const p = geometry.project(pose);
+    return { distance: Math.abs(p.lateral), along: p.s };
+  });
+  const t = (crossing.along - TOP_SPEED * ANIMALS_LEAD_SECONDS) / geometry.length;
+  return beforeCrossing(
+    seed,
+    crossing,
+    geometry.pointAt(t),
+    geometry.pointAt(t + 2 / geometry.length),
+  );
+}
 
 /** Canopy Rush (MK-61): registered from this folder (`src/scenarios/index.ts` finds it). */
 const scenarios: Scenario[] = [
@@ -76,6 +156,22 @@ const scenarios: Scenario[] = [
       // Heading south, the gap is on the right (west): turned a little that way.
       return { state: kartAt(seed, t, { speed: TOP_SPEED * 0.8, headingOffset: -0.45 }) };
     },
+  },
+  {
+    name: 'canopy-animals',
+    group: 'Canopy Rush',
+    description:
+      'At top speed on the animal trail below the bridges (MK-61 QA round 2), 2.5 s before a tapir and her calf walk across it. Hold W and you run into the tapir and spin out; steer round behind or in front of them and you get by.',
+    defaultSeed: 1,
+    setup: (seed) => ({ state: tapir(seed) }),
+  },
+  {
+    name: 'canopy-deer',
+    group: 'Canopy Rush',
+    description:
+      'At top speed on the jungle floor road, 2.5 s before a deer bounds out of the bushes, across the road and over the far wall (MK-61 QA round 2). Hold W and it runs into you; ease off or steer round it.',
+    defaultSeed: 1,
+    setup: (seed) => ({ state: deer(seed) }),
   },
 ];
 

@@ -54,15 +54,23 @@ export function aiRoute(kart: KartState, ai: AiState, geometry: TrackGeometry) {
 
 /**
  * Heading error (rad, positive = target to the left) to the point `distance` m further down the
- * route, and the tightest turn (1/m) on the route over the next `horizon` m, for corner speed.
+ * route (`offset` m to the right of it), and the tightest turn (1/m) on the route over the next `horizon` m, for corner speed.
  */
 export function routeAim(
   kart: KartState,
   route: NonNullable<ReturnType<typeof aiRoute>>,
   distance: number,
   horizon: number,
+  offset = 0,
 ) {
-  const target = pointOnRoute(route.info, route.along + distance);
+  const onPath = pointOnRoute(route.info, route.along + distance);
+  // `offset` m to the right of the path there (dodging, MK-61 QA round 2).
+  const next = pointOnRoute(route.info, route.along + distance + ROUTE_STEP);
+  const span = Math.hypot(next.x - onPath.x, next.z - onPath.z) || 1;
+  const target = {
+    x: onPath.x - ((next.z - onPath.z) / span) * offset,
+    z: onPath.z + ((next.x - onPath.x) / span) * offset,
+  };
   const desired = Math.atan2(-(target.x - kart.position.x), -(target.z - kart.position.z));
   // Only as far as the route goes (past its end the points bunch up and the angles mean nothing).
   const reach = Math.min(horizon, route.info.length - route.along - 2 * ROUTE_STEP);

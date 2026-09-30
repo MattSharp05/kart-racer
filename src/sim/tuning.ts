@@ -324,6 +324,8 @@ export const tuning = {
     hazardDodgeSeconds: 3,
     hazardDodgeMargin: 2.2,
     hazardDodgeRange: 110,
+    /** On a route (MK-61 QA round 2: the trail), the AI dodges within this far either side of it, m. */
+    routeDodgeHalfWidth: 7,
     /**
      * Crushers (MK-62): the AI times the next one within `crusherLookAhead` m. If it would be under
      * it while it's down (or moving), it slows to get there as it opens. It plans the crossing at
