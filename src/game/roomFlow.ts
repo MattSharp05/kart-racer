@@ -18,12 +18,13 @@ import {
   type Room,
 } from '../net/room';
 import type { RoomBackend } from '../net/roomBackend';
+import type { SignalingChannel } from '../net/webrtc';
 import type { Router } from '../ui/router';
 import '../ui/screens/join';
 import '../ui/screens/lobby';
 import type { LobbyChoice } from '../ui/screens/lobby';
 import '../ui/screens/online';
-import type { NetRole } from './launchParams';
+import type { NetRole, RaceLinkMode } from './launchParams';
 import type { OnlineLaunch } from './online';
 
 /** Where rooms live: Supabase, or BroadcastChannel between tabs for `?net=local` (MK-40). */
@@ -31,6 +32,11 @@ export interface RoomService {
   backend: RoomBackend;
   /** `?net=local`: links carry `&net=local` so they open the same kind of room. */
   local: boolean;
+  /**
+   * `?net=local&links=` (MK-73, tests and QA): the races of local rooms run over WebRTC as on
+   * Supabase (`webrtc`), or their signaling is dropped so they never connect (`blocked`).
+   */
+  links?: RaceLinkMode;
 }
 
 /** A launch straight into a room: `/?room=CODE`, or the `online-lobby` scenario. */
@@ -55,8 +61,13 @@ export interface LobbyHooks {
   onRoomEnded?: () => void;
   /** The player picked a racer (remembered for next time). */
   onRacer?: (racer: string) => void;
-  /** The host went back to the lobby after the race (Next track, MK-55): stop the race here. */
-  onLobby?: () => void;
+  /**
+   * The host went back to the lobby (Next track, MK-55; or it gave up starting, MK-73): stop the
+   * race here. Returns what the lobby should say, if anything.
+   */
+  onLobby?: () => string | undefined;
+  /** Host: a player in the race this device is running left the room (MK-73). */
+  onPlayerLeft?: (nickname: string) => void;
 }
 
 /** Shown in the lobby after Rejoin (MK-70): the AI finishes this race; the next one is yours. */
@@ -82,6 +93,8 @@ export class RoomFlow {
   private racing: string | null = null;
   /** The code of the room this device was last in: Rejoin comes back to it (MK-70). */
   private lastCode: string | null = null;
+  /** Host: the start being raced, to notice its players leaving the room (MK-73). */
+  private racingStart: LobbyStart | null = null;
   /** Laps of the host's races, if the launch set them (`&laps=`). */
   private laps: number | undefined;
 
@@ -150,6 +163,7 @@ export class RoomFlow {
     const room = this.room;
     if (!room?.isHost) return;
     this.racing = null;
+    this.racingStart = null;
     room.update({ start: undefined }).catch(() => undefined);
     this.showLobby(room);
   }
@@ -157,6 +171,7 @@ export class RoomFlow {
   /** Leaves the room (or stops creating or joining one). */
   leave(): void {
     this.racing = null;
+    this.racingStart = null;
     this.attempt += 1;
     this.room?.leave();
     this.room = null;
@@ -216,7 +231,10 @@ export class RoomFlow {
     });
     // The host's first settings (best effort: everyone shows the defaults until they arrive).
     if (room.isHost) void room.update({ lobby: defaultSettings(this.content()) });
-    room.onChange(() => this.checkStart(room));
+    room.onChange(() => {
+      this.checkStart(room);
+      this.checkLeft(room);
+    });
     this.showLobby(room);
   }
 
@@ -230,9 +248,17 @@ export class RoomFlow {
     else this.showOnline();
   }
 
-  /** Back to the room's lobby after a race (with why, if it didn't happen), or Online if it's gone. */
+  /**
+   * Back to the room's lobby after a race (with why, if it didn't happen), or Online if it's gone.
+   * A host giving up on its race clears its start, so everyone in it comes back too (MK-73).
+   */
   backToLobby(message?: string): void {
+    const room = this.room;
+    if (room?.isHost && this.racing && room.host?.start?.id === this.racing) {
+      room.update({ start: undefined }).catch(() => undefined);
+    }
     this.racing = null;
+    this.racingStart = null;
     if (this.room) this.showLobby(this.room, message);
     else this.showOnline(message);
   }
@@ -294,8 +320,7 @@ export class RoomFlow {
     if (room.isHost || this.room !== room) return;
     if (!start && this.racing) {
       this.racing = null;
-      this.lobby.onLobby?.();
-      this.showLobby(room);
+      this.showLobby(room, this.lobby.onLobby?.());
       return;
     }
     if (!start || this.started.has(start.id)) return;
@@ -305,16 +330,34 @@ export class RoomFlow {
     this.race(room, start);
   }
 
+  /** Host: tells the game about a player of the race it runs who left the room (MK-73). */
+  private checkLeft(room: Room): void {
+    const start = this.racingStart;
+    if (!room.isHost || this.room !== room || !start || this.racing !== start.id) return;
+    const present = new Set(room.members.map((m) => m.id));
+    const gone = start.slots.filter((slot) => !present.has(slot.id));
+    if (gone.length === 0) return;
+    // Each leaver once: they're no longer in this start's slots as far as this check goes.
+    this.racingStart = { ...start, slots: start.slots.filter((slot) => present.has(slot.id)) };
+    for (const slot of gone) this.lobby.onPlayerLeft?.(slot.nickname);
+  }
+
   private race(room: Room, start: LobbyStart): void {
     this.racing = start.id;
+    this.racingStart = start;
     const content = this.content();
     const clientKart = (clientId: string) => {
       const kart = kartOf(start, clientId);
       return kart > 0 ? kart : undefined;
     };
-    const links = this.rooms.local
-      ? localRaceLinks(`lobby-${room.code}-${start.id}`, room.selfId, clientKart)
-      : webRtcRaceLinks(room.signaling(start.id), clientKart);
+    const mode = this.rooms.links;
+    const links =
+      this.rooms.local && !mode
+        ? localRaceLinks(`lobby-${room.code}-${start.id}`, room.selfId, clientKart)
+        : webRtcRaceLinks(
+            mode === 'blocked' ? blocked(room.signaling(start.id)) : room.signaling(start.id),
+            clientKart,
+          );
     this.lobby.onRace?.({
       role: room.isHost ? 'host' : 'client',
       room: room.code,
@@ -331,4 +374,9 @@ export class RoomFlow {
     this.leave();
     this.onExit();
   };
+}
+
+/** Signaling that sends nothing (`&links=blocked`): the race never connects. */
+function blocked(signaling: SignalingChannel): SignalingChannel {
+  return { ...signaling, send: () => undefined };
 }

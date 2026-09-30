@@ -242,6 +242,7 @@ export class Room {
   signaling(race: string): SignalingChannel {
     const peerId = this.self.id;
     const counts = { sent: 0, received: 0 };
+    let closed = false;
     const handlers: ((from: string, signal: Signal) => void)[] = [];
     const stop = this.channel.onBroadcast((message) => {
       if (message.race !== race || message.from === peerId) return;
@@ -253,12 +254,13 @@ export class Room {
       peerId,
       counts,
       send: (to, signal) => {
-        if (this.left) return;
+        if (this.left || closed) return;
         counts.sent += 1;
         this.channel.broadcast({ race, from: peerId, to, signal });
       },
       onSignal: (handler) => handlers.push(handler),
       close: () => {
+        closed = true;
         handlers.length = 0;
         stop();
       },

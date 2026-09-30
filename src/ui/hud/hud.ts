@@ -33,6 +33,8 @@ export class Hud {
   private readonly item = div('hud-item');
   private readonly position = div('hud-position');
   private readonly centre = div('hud-centre');
+  /** An online race still connecting (MK-73): who it waits for, in place of the countdown. */
+  private readonly waitingLine = div('hud-waiting');
   private readonly wrongWay = div('hud-wrong-way');
   /** A hazard about to start, e.g. "SANDSTORM!" (MK-58). */
   private readonly hazard = div('hud-hazard-warning');
@@ -42,12 +44,20 @@ export class Hud {
   private readonly screenFlash = div('hud-flash');
   private readonly screenEffects = new ScreenEffects();
   private centreUntil = 0;
+  /**
+   * Set while an online race waits for its players to connect (MK-73), e.g. "Connecting to Sam…":
+   * shown instead of the countdown, which stands still on 3 until then.
+   */
+  waiting: string | null = null;
   private readonly shown = new Map<HTMLElement, string>();
 
   constructor() {
     this.timer.append(this.timerMain, this.lastLap);
     this.wrongWay.textContent = 'WRONG WAY';
     this.incoming.hidden = true;
+    // Outside the kart HUD: a client has no kart until the host's Start arrives.
+    this.waitingLine.hidden = true;
+    document.body.append(this.waitingLine);
     this.root.append(
       this.lap,
       this.timer,
@@ -101,6 +111,11 @@ export class Hud {
 
   /** Draws the HUD for kart `kartId` (the local player, MK-38). */
   update(state: SimState, kartId: number, now: number, menuOpen = false): void {
+    // Text, not HTML: it holds players' nicknames.
+    if (this.waitingLine.textContent !== (this.waiting ?? '')) {
+      this.waitingLine.textContent = this.waiting ?? '';
+    }
+    this.show(this.waitingLine, this.waiting !== null && !menuOpen);
     const kart = state.karts[kartId];
     const racing = state.phase !== 'free';
     if (!kart || state.trackId === 'test-pad' || menuOpen) {
@@ -136,7 +151,8 @@ export class Hud {
     this.set(this.hazard, warning ?? '');
     this.show(this.hazard, warning !== undefined);
 
-    if (state.phase === 'countdown' && this.centre.hidden) {
+    if (this.waiting !== null) this.show(this.centre, false);
+    else if (state.phase === 'countdown' && this.centre.hidden) {
       // Scenarios can start mid-countdown: show the current number.
       const left = Math.ceil((state.race.goTick - state.tick) / 60);
       if (left > 0 && left <= 3) this.flash(String(left), now, 1000);

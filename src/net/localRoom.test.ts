@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { hostLocalRoom, joinLocalRoom, type LocalRoomJoin } from './localRoom';
+import { hostLocalRoom, joinLocalRoom, type JoinFailure, type LocalRoomJoin } from './localRoom';
 import type { Transport } from './transport';
 
 const cleanup: (() => void)[] = [];
@@ -20,7 +20,7 @@ function host(room: string, slots: number) {
   return { links, accept };
 }
 
-function join(room: string, id: string, onFailed?: (reason: 'full') => void): LocalRoomJoin {
+function join(room: string, id: string, onFailed?: (reason: JoinFailure) => void): LocalRoomJoin {
   const joined = joinLocalRoom(room, id, onFailed);
   cleanup.push(() => {
     joined.stop();

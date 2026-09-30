@@ -231,6 +231,25 @@ body.touch .hud-item-key::after {
   -webkit-text-stroke: 2px rgb(0 0 0 / 0.3);
 }
 
+/* Outside .hud (a client has no kart HUD before Start): its own layer. */
+.hud-waiting {
+  position: fixed;
+  z-index: 5;
+  pointer-events: none;
+  font:
+    900 clamp(18px, 4vw, 32px) / 1.2 system-ui,
+    sans-serif;
+  top: 32%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  max-width: 90vw;
+  padding: 10px 20px;
+  border-radius: 12px;
+  background: rgb(0 0 0 / 0.55);
+  color: #fff;
+  text-align: center;
+}
+
 .hud-centre.pop {
   animation: hud-pop 0.35s ease-out;
 }
