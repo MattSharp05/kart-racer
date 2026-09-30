@@ -17,6 +17,11 @@ export interface ItemView {
   id: string;
   /** SVG body for the HUD item slot, drawn in a 64×64 viewBox. */
   icon: string;
+  /**
+   * A multi-use item's icon with `uses` uses left (MK-65 QA round 2: Turbo Trio shows 3, 2, then 1
+   * rockets). Items without it show `icon` with a "×n" badge.
+   */
+  iconFor?: (uses: number) => string;
   /** Sound when the item is used (`null` when its own sim event already makes one). */
   useSound: SoundId | null;
   /**

@@ -33,12 +33,20 @@ export const HORNET_RADIUS = 1.4;
 export const HORNET_SPAWN_DISTANCE = 2.5;
 export const HORNET_SPREAD = 0.3;
 
-/** A sting: the kart keeps this fraction of its speed… */
-export const STING_SPEED_FACTOR = 0.7;
-/** …and wobbles for 0.6 s: its heading swings `STING_WOBBLES` times each way, peak yaw rate rad/s. */
-export const STING_TICKS = Math.round(0.6 * S);
-export const STING_WOBBLES = 2;
-export const STING_YAW = 2;
+/**
+ * A sting (stronger since QA round 2: "more damage… lose more control and for a little longer"):
+ * the kart keeps this fraction of its speed (was 0.7)…
+ */
+export const STING_SPEED_FACTOR = 0.5;
+/**
+ * …and wobbles for 0.9 s (was 0.6 s; still shorter than a shell's 1 s spin-out): its heading
+ * swings `STING_WOBBLES` times each way (was 2), peak yaw rate rad/s (was 2)…
+ */
+export const STING_TICKS = Math.round(0.9 * S);
+export const STING_WOBBLES = 3;
+export const STING_YAW = 3.5;
+/** …and the player's own steering turns it only this much of the usual while it wobbles. */
+export const STING_CONTROL = 0.4;
 /**
  * After a sting the kart can't be hit for this long (seconds, the kart's usual invulnerability,
  * like a blocked hit's 0.5 s): as long as the wobble, so a swarm can't chain-stun anyone (at most
@@ -124,12 +132,15 @@ export default {
     {
       id: 'hornet-swarm',
       // The bump: speed lost and the drift cancelled (the boost is kept: lighter than a shell).
-      onApply: (kart, _effect, _state, events) => {
+      // data = [heading]: where the wobble left the kart last tick (to damp the player's steering).
+      onApply: (kart, effect, _state, events) => {
+        effect.data = [kart.heading];
         kart.speed *= STING_SPEED_FACTOR;
         kart.velocity = scale(kart.velocity, STING_SPEED_FACTOR);
         cancelDrift(kart, events);
       },
-      // The wobble: the heading swings each way and back (whole cycles, so it ends as it started).
+      // The wobble: the heading swings each way and back (whole cycles, so it ends as it started),
+      // and the player's steering only partly gets through.
       onTick: (kart, effect, _state, dt) => {
         if (kart.respawnTimer > 0) {
           effect.ticksLeft = 0;
@@ -137,7 +148,11 @@ export default {
         }
         const progress = 1 - effect.ticksLeft / STING_TICKS;
         const yaw = STING_YAW * Math.sin(2 * Math.PI * STING_WOBBLES * progress);
-        kart.heading = wrapAngleDelta(kart.heading + yaw * dt);
+        // The turn the kart made itself this tick (the player's steering) only counts in part.
+        const last = effect.data[0] ?? kart.heading;
+        const own = wrapAngleDelta(kart.heading - last) * STING_CONTROL;
+        kart.heading = wrapAngleDelta(last + own + yaw * dt);
+        effect.data[0] = kart.heading;
       },
     },
   ],
