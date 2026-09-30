@@ -190,7 +190,8 @@ export function updateKart(
   let position = add(kart.position, scale(vec3(horizontal.x, vy, horizontal.z), dt));
   if (effect.conveyor && under?.flow) {
     // A conveyor carries the kart along with the belt (its speed adds to the kart's own).
-    position = add(position, scale(vec3(under.flow.x, 0, under.flow.z), effect.conveyor * dt));
+    const belt = effect.conveyor * (under.flowScale ?? 1);
+    position = add(position, scale(vec3(under.flow.x, 0, under.flow.z), belt * dt));
   }
   const ground = groundAt(track, position);
   // A grounded kart sticks to the ground over small drops (downhills); only a sudden drop

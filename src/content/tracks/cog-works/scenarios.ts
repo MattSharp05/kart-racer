@@ -3,7 +3,7 @@ import { createRace, raceSetupRng, type RacerSlot } from '../../../sim/race/crea
 import { rngInt, rngPick } from '../../../sim/rng';
 import { tuning } from '../../../sim/tuning';
 import type { Scenario } from '../../../scenarios/registry';
-import { kartOnTrack } from '../../../scenarios/tracks';
+import { kartOnTrack, shellShot } from '../../../scenarios/tracks';
 import { BELTS, COG_WORKS, cogWorks } from './sim';
 
 const TOP_SPEED = tuning.topSpeed[150];
@@ -38,6 +38,9 @@ export const CRUSHERS_START_TICK = 12;
 
 /** The conveyor scenario starts this far before the belts, in the backward (right) lane. */
 export const CONVEYOR_LEAD_METRES = 10;
+
+/** The catwalk shell scenario: you this far along the catwalk, the kart ahead this far on, m. */
+export const CATWALK_SHOT = { from: 8, to: 80 };
 
 /** Cog Works (MK-62): registered from this folder (`src/scenarios/index.ts` finds it). */
 const scenarios: Scenario[] = [
@@ -74,6 +77,20 @@ const scenarios: Scenario[] = [
       const lateral = (BELTS.backward.lateralMin + BELTS.backward.lateralMax) / 2;
       const t = BELTS.backward.from - CONVEYOR_LEAD_METRES / COG_WORKS.length;
       return { state: kartAt(seed, t, { speed: TOP_SPEED, lateral }) };
+    },
+  },
+  {
+    name: 'cog-works-catwalk-red',
+    group: 'Cog Works',
+    description:
+      'Parked on the catwalk over the furnace, in 2nd, holding a red shell; the leader is parked further along the catwalk. Fire it (Space / the item button): it flies down the catwalk and hits them (MK-62 QA round 2).',
+    defaultSeed: 1,
+    setup: (seed) => {
+      const { catwalk, backZ, floorY } = COG_WORKS;
+      const at = (dx: number) => ({ x: catwalk.x0 - dx, y: floorY, z: backZ });
+      return {
+        state: shellShot(seed, cogWorks.id, at(CATWALK_SHOT.from), at(CATWALK_SHOT.to)),
+      };
     },
   },
 ];

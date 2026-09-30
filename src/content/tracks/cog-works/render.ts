@@ -549,10 +549,10 @@ function update(scenery: THREE.Object3D, ticks: number): void {
   // Belt chevrons: forward lane moving with the track, backward lane against it.
   const length = beltLength();
   const perLane = Math.ceil(length / CHEVRON_STEP);
-  const shift = (seconds * tuning.surfaces.conveyorSpeed) % CHEVRON_STEP;
   scratch.scale.setScalar(1);
   [BELTS.forward, BELTS.backward].forEach((belt, lane) => {
     const sign = lane === 0 ? 1 : -1;
+    const shift = (seconds * tuning.surfaces.conveyorSpeed * (belt.speedScale ?? 1)) % CHEVRON_STEP;
     const lateral = (belt.lateralMin + belt.lateralMax) / 2;
     for (let k = 0; k < perLane; k += 1) {
       const along = (k * CHEVRON_STEP + sign * shift + length) % length;

@@ -13,7 +13,15 @@ import { DT, tuning } from '../../../sim/tuning';
 import { NEUTRAL_INPUT, type InputFrame, type SimEvent, type SimState } from '../../../sim/types';
 import { tracks } from '..';
 import { CRUSHERS_START_TICK } from './scenarios';
-import { BELTS, CATWALK_ROUTE, COG_WORKS, CRUSHER, PISTONS, cogWorks } from './sim';
+import {
+  BACKWARD_BELT_SCALE,
+  BELTS,
+  CATWALK_ROUTE,
+  COG_WORKS,
+  CRUSHER,
+  PISTONS,
+  cogWorks,
+} from './sim';
 
 const geometry = trackGeometry(cogWorks);
 const { tAt, pistonX, gauntletZ, backZ, catwalk } = COG_WORKS;
@@ -134,14 +142,16 @@ describe('Cog Works conveyor belts', () => {
     return Math.hypot(to.x - from.x, to.z - from.z);
   }
 
-  it('the forward belt adds its speed to yours, the backward one takes it off', () => {
+  it('the forward belt adds its speed to yours, the backward one takes off twice as much', () => {
     const onBelt = BELTS.forward.from + 12 / COG_WORKS.length;
     // The same lanes on the start straight, with no belt.
     const road = groundSpeed(tAt(0, 90), -4);
     expect(road).toBeCloseTo(tuning.topSpeed[150], 0);
     const belt = tuning.surfaces.conveyorSpeed;
+    expect(BACKWARD_BELT_SCALE).toBe(2);
+    expect(BELTS.forward.speedScale ?? 1).toBe(1);
     expect(groundSpeed(onBelt, -4) - road).toBeCloseTo(belt, 0);
-    expect(groundSpeed(onBelt, 4) - road).toBeCloseTo(-belt, 0);
+    expect(groundSpeed(onBelt, 4) - road).toBeCloseTo(-belt * BACKWARD_BELT_SCALE, 0);
   });
 
   it('cog-works-conveyor: starts at top speed in the backward lane, just before the belts', () => {
