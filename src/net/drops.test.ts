@@ -66,7 +66,7 @@ describe('drops (MK-70)', () => {
     expect(stayer.takeDrops()).toEqual([2]);
     expect(stayer.state?.karts[2]?.controller).toBe('ai');
     expect(stayer.results).toEqual(host.results);
-  });
+  }, 60_000); // A whole online race over loopback: ~13 s of CPU, more on CI's 2-core runner.
 
   it('hands a kart to the AI on the next tick when its player says Bye or its link closes', () => {
     const race = onlineRace({ clients: 3, conditions: parseNetConditions('0,0,0') });
