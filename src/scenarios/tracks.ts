@@ -2,6 +2,7 @@ import { createSimState } from '../sim/state';
 import { getTrack, trackGeometry } from '../sim/track';
 import { SUNNY_INFIELD, sunnyCircuit } from '../content/tracks/sunny-circuit/sim';
 import { HAZARD_TEST } from '../content/tracks/hazard-test/sim';
+import type { Vec3 } from '../sim/math';
 import type { SplineTrackDef } from '../sim/splineTrack';
 import { nextEntityId } from '../sim/items/banana';
 import { tuning } from '../sim/tuning';
@@ -52,6 +53,34 @@ export function shellTarget(seed: number, item: 'green' | 'red', metres: number)
       },
     ],
   });
+  const [kart] = state.karts;
+  if (kart) kart.item.held = item;
+  return state;
+}
+
+/**
+ * Racing, the player (in 2nd) parked at `from` holding a shell, facing a parked kart (the leader)
+ * at `at`: for firing along a shortcut (MK-62 QA round 2). 150cc.
+ */
+export function shellShot(
+  seed: number,
+  trackId: string,
+  from: Vec3,
+  at: Vec3,
+  item: 'green' | 'red' = 'red',
+) {
+  const heading = Math.atan2(-(at.x - from.x), -(at.z - from.z));
+  const state = createSimState({
+    seed,
+    trackId,
+    phase: 'racing',
+    engineClass: 150,
+    karts: [
+      { position: from, heading },
+      { position: at, heading, kartType: 'swoop' },
+    ],
+  });
+  state.positions = [1, 0];
   const [kart] = state.karts;
   if (kart) kart.item.held = item;
   return state;

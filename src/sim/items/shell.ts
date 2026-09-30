@@ -1,9 +1,11 @@
 import { clamp, forwardFromHeading, type Vec3 } from '../math';
 import { positionOf } from '../race';
+import { lapAimPoint } from '../routes';
 import { getTrack, trackGeometry } from '../track';
 import { tuning } from '../tuning';
 import type { InputFrame, KartState, ShellEntity, SimEvent, SimState } from '../types';
 import { nextEntityId } from './banana';
+import { itemEdge } from './edges';
 import { isIntangible } from './effects';
 import { hitKart } from './hit';
 
@@ -77,9 +79,12 @@ function home(shell: ShellEntity, state: SimState, dt: number): void {
     steerTowards(shell, target.position.x, target.position.z, maxTurn);
     return;
   }
-  const geometry = trackGeometry(track);
-  const here = geometry.project(shell.position);
-  const ahead = geometry.pointAt(here.t + tuning.redLookAhead / geometry.length, 0);
+  const ahead = lapAimPoint(
+    trackGeometry(track),
+    shell.position,
+    tuning.redLookAhead,
+    target.position,
+  );
   steerTowards(shell, ahead.x, ahead.z, maxTurn);
 }
 
@@ -90,41 +95,37 @@ function home(shell: ShellEntity, state: SimState, dt: number): void {
 function moveShell(shell: ShellEntity, state: SimState, dt: number): boolean {
   const track = getTrack(state.trackId);
   if (shell.colour === 'red' && shell.targetId >= 0) home(shell, state, dt);
+  const from = shell.position;
   shell.position = {
     x: shell.position.x + shell.direction.x * shell.speed * dt,
     y: shell.position.y,
     z: shell.position.z + shell.direction.z * shell.speed * dt,
   };
   if (track.kind !== 'spline') return true;
-  const geometry = trackGeometry(track);
-  const p = geometry.project(shell.position);
-  const wall = geometry.wallOffset(p.width) - tuning.shellRadius;
-  const side = p.lateral >= 0 ? 1 : -1;
-  if (Math.abs(p.lateral) > wall) {
-    if (!geometry.hasWall(p.t, side === 1 ? 'right' : 'left')) {
-      if (p.surface === 'out') return false; // off the edge where there's no wall
-    } else {
-      if (shell.colour === 'red' && shell.targetId >= 0) return false;
-      shell.bounces += 1;
-      if (shell.bounces > tuning.greenShellBounces) return false;
-      // Reflect off the wall (its normal points out of the track on this side) and step back inside.
-      const n = { x: p.normal.x * side, z: p.normal.z * side };
-      const into = shell.direction.x * n.x + shell.direction.z * n.z;
-      if (into > 0) {
-        shell.direction = {
-          x: shell.direction.x - 2 * into * n.x,
-          z: shell.direction.z - 2 * into * n.z,
-        };
-      }
-      const over = Math.abs(p.lateral) - wall;
-      shell.position = {
-        ...shell.position,
-        x: shell.position.x - n.x * over,
-        z: shell.position.z - n.z * over,
+  const edge = itemEdge(track, trackGeometry(track), from, shell.position, tuning.shellRadius);
+  if (edge.kind === 'fall') return false; // off the edge where there's no wall
+  if (edge.kind === 'wall') {
+    if (shell.colour === 'red' && shell.targetId >= 0) return false;
+    shell.bounces += 1;
+    if (shell.bounces > tuning.greenShellBounces) return false;
+    // Reflect off the wall and step back inside.
+    const n = edge.normal;
+    const into = shell.direction.x * n.x + shell.direction.z * n.z;
+    if (into > 0) {
+      shell.direction = {
+        x: shell.direction.x - 2 * into * n.x,
+        z: shell.direction.z - 2 * into * n.z,
       };
     }
+    shell.position = {
+      ...shell.position,
+      x: shell.position.x - n.x * edge.over,
+      z: shell.position.z - n.z * edge.over,
+    };
+    shell.position = { ...shell.position, y: trackGeometry(track).project(shell.position).groundY };
+    return true;
   }
-  shell.position = { ...shell.position, y: geometry.project(shell.position).groundY };
+  shell.position = { ...shell.position, y: edge.y };
   return true;
 }
 

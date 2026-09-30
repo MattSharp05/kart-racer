@@ -4,6 +4,13 @@ import { oneWayOf, parseNetConditions, type NetConditions } from '../net/netsim'
 /** Online roles (`&role=`): the authoritative host or a predicting client (ADR 0005). */
 export type NetRole = 'host' | 'client';
 
+/** How a `?net=local` lobby's races link up (see `LaunchParams.links`). */
+export type RaceLinkMode = 'webrtc' | 'blocked';
+
+function isRaceLinkMode(text: string | null): text is RaceLinkMode {
+  return text === 'webrtc' || text === 'blocked';
+}
+
 /** What the URL asks the game to boot into: `/?scenario=<name>&seed=<n>&paused=1&tune=1&kart=<id>`. */
 export interface LaunchParams {
   scenario?: string;
@@ -26,6 +33,13 @@ export interface LaunchParams {
    * server (docs/TDD.md → v2 testing). Online scenarios default to it.
    */
   net?: 'local';
+  /**
+   * `&links=webrtc|blocked` (MK-73, tests and QA) with `?net=local` rooms: the lobby's races run on
+   * WebRTC data channels, as on Supabase, instead of BroadcastChannel (`webrtc`), or their
+   * signaling goes nowhere, so the race never connects, like a phone that can't reach the host
+   * (`blocked`).
+   */
+  links?: RaceLinkMode;
   /** `&role=host|client` in an online scenario (default host). */
   role?: NetRole;
   /** `&room=<id>`: tabs with the same room race each other. */
@@ -61,6 +75,7 @@ export function parseLaunchParams(search: string): LaunchParams {
   const role = params.get('role');
   const room = params.get('room') ?? undefined;
   const netsimText = params.get('netsim');
+  const linksText = params.get('links');
   const netsim = netsimText ? parseNetConditions(netsimText) : undefined;
   const laps = Number(params.get('laps') ?? '');
   const lb = params.get('lb');
@@ -70,6 +85,7 @@ export function parseLaunchParams(search: string): LaunchParams {
     ...(kart ? { kart } : {}),
     ...(item ? { item } : {}),
     ...(params.get('net') === 'local' ? { net: 'local' as const } : {}),
+    ...(isRaceLinkMode(linksText) ? { links: linksText } : {}),
     ...(role === 'host' || role === 'client' ? { role } : {}),
     ...(room ? { room } : {}),
     ...(netsim ? { netsim: oneWayOf(netsim) } : {}),
