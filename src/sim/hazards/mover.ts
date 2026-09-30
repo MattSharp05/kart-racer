@@ -6,15 +6,35 @@ function segmentLength(a: Vec3, b: Vec3): number {
   return Math.hypot(b.x - a.x, b.y - a.y, b.z - a.z);
 }
 
-/** Pose `distance` m along `path`'s first `segments` segments (the last one wraps to the start). */
-function along(path: Vec3[], segments: number, distance: number): HazardPose {
+/** A mover's segment lengths and their total, measured once per def (paths are immutable data). */
+const measured = new WeakMap<MoverHazard, { lengths: number[]; total: number }>();
+function measure(def: MoverHazard) {
+  let m = measured.get(def);
+  if (!m) {
+    const { path } = def;
+    // An open path doesn't join its end back to the start.
+    const segments = def.activeFraction !== undefined ? path.length - 1 : path.length;
+    const lengths: number[] = [];
+    for (let i = 0; i < segments; i += 1) {
+      const a = path[i];
+      const b = path[(i + 1) % path.length];
+      lengths.push(a && b ? segmentLength(a, b) : 0);
+    }
+    m = { lengths, total: lengths.reduce((sum, l) => sum + l, 0) };
+    measured.set(def, m);
+  }
+  return m;
+}
+
+/** Pose `distance` m along `path`'s segments (their `lengths`; the last one may wrap to the start). */
+function along(path: Vec3[], lengths: number[], distance: number): HazardPose {
   let remaining = distance;
-  for (let i = 0; i < segments; i += 1) {
+  for (let i = 0; i < lengths.length; i += 1) {
     const a = path[i];
     const b = path[(i + 1) % path.length];
     if (!a || !b) break;
-    const length = segmentLength(a, b);
-    if (remaining <= length || i === segments - 1) {
+    const length = lengths[i] ?? 0;
+    if (remaining <= length || i === lengths.length - 1) {
       const f = length > 0 ? Math.min(1, remaining / length) : 0;
       return {
         x: a.x + (b.x - a.x) * f,
@@ -40,19 +60,11 @@ const mover: HazardKind<MoverHazard> = {
   defaultEffect: 'spin',
   pose(def, ticks): HazardPose {
     const { path, activeFraction } = def;
-    const open = activeFraction !== undefined;
-    // An open path doesn't join its end back to the start.
-    const segments = open ? path.length - 1 : path.length;
-    let total = 0;
-    for (let i = 0; i < segments; i += 1) {
-      const a = path[i];
-      const b = path[(i + 1) % path.length];
-      if (a && b) total += segmentLength(a, b);
-    }
+    const { lengths, total } = measure(def);
     const cycle = cyclePhase(ticks, def.period, def.phase);
-    if (!open) return along(path, segments, cycle * total);
-    if (cycle >= activeFraction) return { ...along(path, segments, total), amount: 0 };
-    return along(path, segments, (cycle / activeFraction) * total);
+    if (activeFraction === undefined) return along(path, lengths, cycle * total);
+    if (cycle >= activeFraction) return { ...along(path, lengths, total), amount: 0 };
+    return along(path, lengths, (cycle / activeFraction) * total);
   },
   contact(def, pose, position, radius) {
     if (pose.amount === 0) return undefined;

@@ -48,6 +48,9 @@ const hazardHits = (events: SimEvent[], kartId = 0) =>
 
 /** Whether a vehicle is out on the street (not gone between its passes). */
 const onStreet = (pose: { amount: number }) => pose.amount > 0;
+/** On the city street itself (between its walls), not in a side street or a depot. */
+const onRoad = (pose: { amount: number; z: number }) =>
+  pose.amount > 0 && Math.abs(pose.z - city.z) < geometry.wallOffset(16);
 
 describe('Neon Harbour data', () => {
   it('is registered as a real (menu) track with a night theme', () => {
@@ -58,9 +61,10 @@ describe('Neon Harbour data', () => {
     expect(content.def).toBe(neonHarbour);
   });
 
-  it('is a valid, non-overlapping track of 1.0–1.3 km with a raised bridge', () => {
-    expect(geometry.length).toBeGreaterThan(1000);
-    expect(geometry.length).toBeLessThan(1300);
+  it('is a valid, non-overlapping track of 1.25–1.5 km with a raised bridge', () => {
+    // QA round 2: longer than the first version's 1.14 km.
+    expect(geometry.length).toBeGreaterThan(1250);
+    expect(geometry.length).toBeLessThan(1500);
     expect([...neonHarbour.checkpoints].sort((a, b) => a - b)).toEqual(neonHarbour.checkpoints);
     expect(neonHarbour.checkpoints[0]).toBe(0);
     expect(Math.max(...geometry.samples.map((s) => s.y))).toBeCloseTo(NEON_HARBOUR.bridgeY, 0);
@@ -119,21 +123,49 @@ describe('Neon Harbour traffic', () => {
         const pose = hazardPose(vehicle, tick);
         if (!onStreet(pose)) continue;
         up += 1;
-        // In one of the two lanes, within the city block, facing east (+X): oncoming.
-        expect(lanes.some((z) => Math.abs(pose.z - z) < 0.01)).toBe(true);
-        expect(pose.x).toBeGreaterThan(trafficX.rise - TRAFFIC.ramp);
-        expect(pose.x).toBeLessThan(trafficX.sink + TRAFFIC.ramp);
-        if (pose.y === 0) expect(Math.abs(pose.heading + Math.PI / 2)).toBeLessThan(0.01);
+        // Always at road level, within the block's two side streets: never under the road.
+        expect(pose.y).toBe(0);
+        expect(pose.x).toBeGreaterThanOrEqual(trafficX.rise - 0.01);
+        expect(pose.x).toBeLessThanOrEqual(trafficX.sink + 0.01);
+        // Between the turns, in one of the two lanes, facing east (+X): oncoming.
+        if (pose.x > trafficX.rise + TRAFFIC.turn && pose.x < trafficX.sink - TRAFFIC.turn) {
+          expect(lanes.some((z) => Math.abs(pose.z - z) < 0.01)).toBe(true);
+          expect(Math.abs(pose.heading + Math.PI / 2)).toBeLessThan(0.01);
+        }
       }
-      // Out on the street for a good part of its period, and gone for the rest.
-      expect(up / PERIOD_TICKS).toBeGreaterThan(0.4);
-      expect(up / PERIOD_TICKS).toBeLessThan(0.6);
+      // Out for a good part of its period, and gone for the rest.
+      expect(up / PERIOD_TICKS).toBeGreaterThan(0.3);
+      expect(up / PERIOD_TICKS).toBeLessThan(0.7);
+    }
+  });
+
+  it('comes out of the west depot and turns off into the east one: it appears and goes out of sight', () => {
+    const { depot } = NEON_HARBOUR;
+    for (const vehicle of TRAFFIC_MOVERS) {
+      const start = vehicle.path[0]!;
+      const end = vehicle.path.at(-1)!;
+      // Both ends are deep inside a depot, beyond the street's walls, at road level.
+      expect(city.z - start.z).toBeGreaterThanOrEqual(depot.door + depot.inside - 0.01);
+      expect(end.z - city.z).toBeGreaterThanOrEqual(depot.door + depot.inside - 0.01);
+      expect(start.y).toBe(0);
+      expect(end.y).toBe(0);
+      expect(start.x).toBe(trafficX.rise);
+      expect(end.x).toBe(trafficX.sink);
+    }
+    // The side streets open the walls where the vehicles cross them, and their floors are drivable.
+    for (const [x, z] of [
+      [trafficX.rise, city.z - depot.door],
+      [trafficX.sink, city.z + depot.door],
+    ] as const) {
+      expect(groundAt(neonHarbour, { x, y: 0, z }).surface).toBe('road');
+      const p = geometry.project({ x, y: 0, z });
+      expect(geometry.hasWall(p.t, p.lateral >= 0 ? 'right' : 'left')).toBe(false);
     }
   });
 
   it('always leaves a gap: vehicles in the two lanes are never within 40 m of each other', () => {
     for (let tick = 0; tick < PERIOD_TICKS; tick += 1) {
-      const up = TRAFFIC_MOVERS.map((vehicle) => hazardPose(vehicle, tick)).filter(onStreet);
+      const up = TRAFFIC_MOVERS.map((vehicle) => hazardPose(vehicle, tick)).filter(onRoad);
       for (const a of up) {
         for (const b of up) {
           if (a === b) continue;
@@ -158,10 +190,10 @@ describe('Neon Harbour traffic', () => {
         hits += 1;
         // Hit by a vehicle you can see, right there: its roof is above the road.
         const hitter = TRAFFIC_MOVERS.map((vehicle) => hazardPose(vehicle, s.tick)).find(
-          (p) => onStreet(p) && Math.hypot(p.x - kart.position.x, p.z - kart.position.z) < 4,
+          (p) => onRoad(p) && Math.hypot(p.x - kart.position.x, p.z - kart.position.z) < 4,
         );
         expect(hitter).toBeDefined();
-        expect(hitter!.y).toBeGreaterThan(-TRAFFIC.depth);
+        expect(hitter!.y).toBe(0);
         expect(kart.spinTimer).toBeGreaterThan(0);
       }
     }

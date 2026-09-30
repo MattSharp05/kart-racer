@@ -17,6 +17,7 @@ const COLOURS = {
   warehouse: 0x55506b,
   roof: 0x3b3750,
   strip: 0xb8ac80,
+  depotInside: 0x06070d,
 };
 
 scenerySets.register({
@@ -46,9 +47,11 @@ function pick<T>(list: readonly T[], rand: () => number): T {
   return value;
 }
 
-/** Whether (x, z) is on the water, in the container yard or under the warehouse (not for buildings). */
+/** Whether (x, z) is on the water, in the container yard, or under the warehouse or a depot. */
 function reserved(x: number, z: number): boolean {
   const { warehouse, canal } = NEON_HARBOUR;
+  if (depotSpots().some((d) => Math.abs(x - d.x) < DEPOT_H.width / 2 + 14 && d.near(z)))
+    return true;
   if (x < QUAY_X + 4) return true;
   if (x > 225 && z > canal.z0 - 8 && z < canal.z1 + 8) return true;
   if (
@@ -129,11 +132,12 @@ function scenery(geometry: TrackGeometry): THREE.Object3D {
   group.add(buildings(geometry, bounds, rand, signs));
   gateways(signs);
   warehouseSigns(signs);
+  depotSigns(signs);
   group.add(neonSigns(signs));
   group.add(containers(geometry, rand));
   group.add(cranes());
   group.add(bridgePiers(geometry));
-  group.add(warehouse());
+  group.add(warehouse(), depots());
   group.add(wetStreets(geometry, rand), waterReflections(rand));
   group.add(sky());
   return group;
@@ -546,6 +550,111 @@ function warehouse(): THREE.Object3D {
       ),
     );
   return group;
+}
+
+/** The traffic depots (MK-60 QA round 2): garage size, m (the door is `NEON_HARBOUR.depot`). */
+const DEPOT_H = { walls: 8, door: 5, width: 20, back: 4 };
+
+/**
+ * The two depots the traffic comes out of and goes into: at the end of a side street off the city
+ * street, north of it at the west end and south of it at the east end. `sign` is which way from
+ * the street the depot lies (−1 north, +1 south); `door` is the door's world z, `back` its back
+ * wall's.
+ */
+function depotSpots() {
+  const { city, trafficX, depot } = NEON_HARBOUR;
+  return (
+    [
+      [trafficX.rise, -1],
+      [trafficX.sink, 1],
+    ] as const
+  ).map(([x, sign]) => {
+    const door = city.z + sign * depot.door;
+    const back = city.z + sign * (depot.door + depot.inside + DEPOT_H.back);
+    return {
+      x,
+      sign,
+      door,
+      back,
+      near: (z: number) => (z - door) * sign > -4 && (z - back) * sign < 10,
+    };
+  });
+}
+
+/**
+ * The depots: a garage each, with a wide door facing the side street and a dark inside, so the
+ * vehicles pull out of (and into) the dark with their headlights on. One draw for the shells, one
+ * for the insides.
+ */
+function depots(): THREE.Object3D {
+  const { depot } = NEON_HARBOUR;
+  const H = DEPOT_H.walls;
+  const t = 0.6;
+  const box = (x0: number, x1: number, y0: number, y1: number, z0: number, z1: number) =>
+    new THREE.BoxGeometry(Math.abs(x1 - x0), y1 - y0, Math.abs(z1 - z0))
+      .translate((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2)
+      .toNonIndexed();
+  const shells: THREE.BufferGeometry[] = [];
+  const insides: THREE.BufferGeometry[] = [];
+  for (const { x, door, back } of depotSpots()) {
+    const half = DEPOT_H.width / 2;
+    const gap = depot.doorWidth / 2 + 0.5;
+    shells.push(
+      // The front either side of the door, and above it.
+      box(x - half, x - gap, 0, H, door, door + Math.sign(back - door) * t),
+      box(x + gap, x + half, 0, H, door, door + Math.sign(back - door) * t),
+      box(x - gap, x + gap, DEPOT_H.door, H, door, door + Math.sign(back - door) * t),
+      // The side walls, the back wall and the roof.
+      box(x - half, x - half + t, 0, H, door, back),
+      box(x + half - t, x + half, 0, H, door, back),
+      box(x - half, x + half, 0, H, back, back - Math.sign(back - door) * t),
+      box(x - half - 0.5, x + half + 0.5, H, H + 0.5, door, back),
+    );
+    // The dark inside: a lining just inside the walls and under the roof.
+    const s = Math.sign(back - door);
+    insides.push(
+      box(x - half + t, x + half - t, 0.02, 0.06, door + s * t, back - s * t),
+      box(x - half + t, x + half - t, H - 0.3, H - 0.25, door + s * t, back - s * t),
+      box(x - half + t, x + half - t, 0, H, back - s * (t + 0.05), back - s * t),
+      box(x - half + t, x - half + t + 0.05, 0, H, door + s * t, back - s * t),
+      box(x + half - t - 0.05, x + half - t, 0, H, door + s * t, back - s * t),
+    );
+  }
+  const group = new THREE.Group();
+  const shell = mergeGeometries(shells);
+  const inside = mergeGeometries(insides);
+  if (!shell || !inside) throw new Error('Neon Harbour depots: geometries do not merge');
+  group.add(new THREE.Mesh(shell, flat(COLOURS.warehouse)));
+  group.add(new THREE.Mesh(inside, new THREE.MeshBasicMaterial({ color: COLOURS.depotInside })));
+  return group;
+}
+
+/** A neon strip over each depot door, and a sign above it. */
+function depotSigns(signs: Sign[]): void {
+  const { depot } = NEON_HARBOUR;
+  depotSpots().forEach(({ x, door, sign }, i) => {
+    const front = door - sign * 0.35;
+    signs.push(
+      {
+        x,
+        y: DEPOT_H.door + 0.3,
+        z: front,
+        w: depot.doorWidth + 1,
+        h: 0.35,
+        angle: 0,
+        colour: COLOURS.neon[i % 2 ? 0 : 1] ?? 0x2ee6f0,
+      },
+      {
+        x,
+        y: DEPOT_H.walls - 1.2,
+        z: front,
+        w: 8,
+        h: 1.4,
+        angle: 0,
+        colour: COLOURS.neon[2] ?? 0xffe14d,
+      },
+    );
+  });
 }
 
 /**

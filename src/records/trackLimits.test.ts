@@ -20,7 +20,7 @@ import {
 const MEASURED_BEST_LAP_S: Record<string, number> = {
   'dune-canyon': 42.4,
   'frostpeak-pass': 44.0,
-  'neon-harbour': 38.7,
+  'neon-harbour': 46.7,
   'canopy-rush': 38.8,
   'cog-works': 40.1,
 };
