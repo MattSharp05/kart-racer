@@ -55,13 +55,28 @@ export const TRAFFIC_MEET_X = 140;
 /** Seconds from the start until you'd meet it, holding W. */
 export const TRAFFIC_MEET_SECONDS = (TRAFFIC_START_X - TRAFFIC_MEET_X) / TOP_SPEED;
 
+/** The depot scenario: parked this far east of the west depot, this long before a truck pulls out. */
+export const DEPOT_VIEW = { metres: 34, seconds: 2 };
+
+/** The first tick (within its period) at which `vehicle` comes out of its depot's door. */
+export function depotExitTick(vehicle: MoverHazard): number {
+  const period = Math.round(vehicle.period / DT);
+  const door = NEON_HARBOUR.city.z - NEON_HARBOUR.depot.door;
+  for (let tick = 0; tick < period; tick += 1) {
+    const now = hazardPose(vehicle, tick);
+    const next = hazardPose(vehicle, tick + 1);
+    if (now.amount > 0 && now.z < door && next.z >= door) return tick + 1;
+  }
+  throw new Error('Neon Harbour traffic never leaves its depot');
+}
+
 /** Neon Harbour (MK-60): registered from this folder (`src/scenarios/index.ts` finds it). */
 const scenarios: Scenario[] = [
   {
     name: 'track-neon-harbour',
     group: 'Neon Harbour',
     description:
-      'Neon Harbour (MK-60): a full 150cc race at night, you + 7 AI, from the countdown. The quay, a zig-zag through the container stacks, a bridge over the canal, a city block with oncoming traffic and a shortcut through the warehouse.',
+      'Neon Harbour (MK-60): a full 150cc race at night, you + 7 AI, from the countdown. The quay, a zig-zag through the container stacks, a bridge over the canal, a city block with oncoming traffic, the old town and a shortcut through the warehouse.',
     defaultSeed: 1,
     setup: (seed) => ({ state: race(seed) }),
   },
@@ -101,6 +116,24 @@ const scenarios: Scenario[] = [
         // Facing west (the leg runs south here, so west is a right turn).
         headingOffset: -Math.PI / 2,
       });
+      return { state };
+    },
+  },
+  {
+    name: 'neon-harbour-depot',
+    group: 'Neon Harbour',
+    description:
+      'Stopped in the middle of the city block, facing the west depot on the right-hand side street (MK-60 QA round 2). Watch: a delivery truck pulls out of the dark depot with its headlights on, turns into the street and drives past you. Traffic no longer rises out of the road.',
+    defaultSeed: 1,
+    setup: (seed) => {
+      const { city, trafficX } = NEON_HARBOUR;
+      const truck = TRAFFIC_MOVERS.find((v) => v.vehicle?.truck);
+      const t = NEON_HARBOUR.tAt(trafficX.rise + DEPOT_VIEW.metres, city.z);
+      const state = kartAt(seed, t);
+      const exit = truck ? depotExitTick(truck) : 0;
+      const period = truck ? Math.round(truck.period / DT) : 0;
+      // A whole period in, so the tick clock never starts negative.
+      state.tick = period + exit - Math.round(DEPOT_VIEW.seconds / DT);
       return { state };
     },
   },
