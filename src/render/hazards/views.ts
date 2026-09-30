@@ -11,6 +11,7 @@ import type {
 import type { Vec3 } from '../../sim/math';
 import { DT } from '../../sim/tuning';
 import { createHeadlights } from '../headlights';
+import { createAnimal, updateAnimal } from './animal';
 import { createPiston, updatePiston } from './piston';
 
 /**
@@ -181,12 +182,16 @@ function vehicle(def: MoverHazard, body: number, truck: boolean, night: boolean)
   return group;
 }
 
-/** A boxy traffic kart with glowing lamps at night, a road vehicle (`vehicle`) or a rolling ball (`rolling`). */
+/**
+ * A boxy traffic kart with glowing lamps at night, a road vehicle (`vehicle`), a rolling ball
+ * (`rolling`) or an animal (`animal`).
+ */
 export const moverView: HazardView<MoverHazard> = {
   id: 'mover',
   create(def, night) {
     if (def.rolling !== undefined) return rollingBall(def, def.radius, def.rolling);
     if (def.vehicle) return vehicle(def, def.vehicle.body, def.vehicle.truck ?? false, night);
+    if (def.animal) return createAnimal(def, def.animal);
     const group = new THREE.Group();
     const size = def.radius * 2;
     const body = new THREE.Mesh(
@@ -211,6 +216,7 @@ export const moverView: HazardView<MoverHazard> = {
     object.position.set(pose.x, pose.y, pose.z);
     object.rotation.y = pose.heading;
     object.visible = pose.amount > 0;
+    if (def.animal) updateAnimal(object, ticks);
     const ball = def.rolling !== undefined ? object.getObjectByName('ball') : undefined;
     if (ball) {
       // Rolls forwards (heading 0 faces −Z, so forwards is a turn about −X): 1 rad per radius.

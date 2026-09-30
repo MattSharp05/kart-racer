@@ -1,5 +1,5 @@
 import { computeRacingLine } from '../../../sim/ai/racingLine';
-import type { SwayHazard } from '../../../sim/hazards/types';
+import type { AnimalSpecies, MoverHazard, SwayHazard } from '../../../sim/hazards/types';
 import type { Vec3 } from '../../../sim/math';
 import {
   TrackGeometry,
@@ -232,6 +232,104 @@ const gap = (x0: number, z0: number, x1: number, z1: number, side: 'left' | 'rig
   side,
 });
 
+/** Wall height the deer clears as it leaps over the road's walls, m (the walls are 1.2 m). */
+const LEAP = { height: 1.8, run: 3 };
+
+/**
+ * An animal crossing (MK-61 QA round 2): walks an open `path` at `speed` m/s once every `period`
+ * s, from the bushes on one side to the bushes on the other, then is gone until the next time. It
+ * spins out karts it walks into, like the other movers; the AI steers round it.
+ */
+function crossing(
+  animal: AnimalSpecies,
+  radius: number,
+  path: Vec3[],
+  speed: number,
+  period: number,
+  phase: number,
+): MoverHazard {
+  let length = 0;
+  for (let i = 1; i < path.length; i += 1) {
+    const a = path[i - 1];
+    const b = path[i];
+    if (a && b) length += Math.hypot(b.x - a.x, b.y - a.y, b.z - a.z);
+  }
+  const activeFraction = length / speed / period;
+  if (activeFraction >= 1) throw new Error(`Canopy Rush: the ${animal} can't cross in time`);
+  return { kind: 'mover', path, period, radius, activeFraction, phase, animal };
+}
+
+const floor = (x: number, z: number, y = FLOOR_Y): Vec3 => ({ x, y, z });
+
+/** The tapir calf trots this far behind its mother, s. */
+const CALF_LAG = 0.8;
+/** Walking speeds, m/s, and how often each crossing comes round, s. */
+export const ANIMAL = {
+  boar: { radius: 1.1, speed: 6, period: 15 },
+  tapir: { radius: 1.4, speed: 4, period: 18 },
+  calf: { radius: 0.8 },
+  deer: { radius: 1.2, speed: 7, period: 14 },
+};
+
+/**
+ * Where the deer crosses the jungle floor's south straight (world z): at `x`, out of the bushes
+ * where the trail rejoins (no wall on that side), over the road and the far wall, `reach` m each way.
+ */
+const DEER = { x: 60, z: HOME.z + HOME.radius, reach: 25 };
+
+/**
+ * The animals: three crossings of the trail through the ruins (a boar, a tapir with her calf,
+ * another boar) and a deer that bounds across the jungle floor's south straight, leaping its wall.
+ */
+export const ANIMALS: MoverHazard[] = [
+  crossing(
+    'boar',
+    ANIMAL.boar.radius,
+    [floor(40, -50), floor(95, -50)],
+    ANIMAL.boar.speed,
+    ANIMAL.boar.period,
+    0,
+  ),
+  crossing(
+    'tapir',
+    ANIMAL.tapir.radius,
+    [floor(115, 60), floor(66, 60)],
+    ANIMAL.tapir.speed,
+    ANIMAL.tapir.period,
+    0.4,
+  ),
+  crossing(
+    'tapirCalf',
+    ANIMAL.calf.radius,
+    [floor(115, 60), floor(66, 60)],
+    ANIMAL.tapir.speed,
+    ANIMAL.tapir.period,
+    0.4 - CALF_LAG / ANIMAL.tapir.period,
+  ),
+  crossing(
+    'boar',
+    ANIMAL.boar.radius,
+    [floor(128, 115), floor(72, 115)],
+    ANIMAL.boar.speed,
+    ANIMAL.boar.period,
+    0.55,
+  ),
+  crossing(
+    'deer',
+    ANIMAL.deer.radius,
+    [
+      floor(DEER.x, DEER.z - DEER.reach),
+      floor(DEER.x, DEER.z + W / 2 + base.offroadWidth - LEAP.run),
+      floor(DEER.x, DEER.z + W / 2 + base.offroadWidth, LEAP.height),
+      floor(DEER.x, DEER.z + W / 2 + base.offroadWidth + LEAP.run),
+      floor(DEER.x, DEER.z + DEER.reach),
+    ],
+    ANIMAL.deer.speed,
+    ANIMAL.deer.period,
+    0.2,
+  ),
+];
+
 export const canopyRush: SplineTrackDef = {
   ...base,
   wallGaps: [
@@ -262,7 +360,7 @@ export const canopyRush: SplineTrackDef = {
     { t: tAt(90, -128), laterals: [-4.5, -1.5, 1.5, 4.5] },
     { t: tAt(196, 60), laterals: [-4.5, -1.5, 1.5, 4.5] },
   ],
-  hazards: SWAY_DECKS,
+  hazards: [...SWAY_DECKS, ...ANIMALS],
 };
 
 /** Where features are, for tests, scenarios and the view (world space). */
@@ -274,6 +372,7 @@ export const CANOPY_RUSH = {
   home: HOME,
   ruinsFloor: RUINS_FLOOR,
   ruinsPath: RUINS_PATH,
+  deer: DEER,
   floorY: FLOOR_Y,
   canopyY: CANOPY_Y,
   topY: TOP_Y,

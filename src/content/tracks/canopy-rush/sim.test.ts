@@ -13,7 +13,7 @@ import { DT, tuning } from '../../../sim/tuning';
 import { NEUTRAL_INPUT, type InputFrame, type SimEvent, type SimState } from '../../../sim/types';
 import { tracks } from '..';
 import { BRIDGE_START_TICK } from './scenarios';
-import { CANOPY_RUSH, RUINS_ROUTE, SWAY, SWAY_DECKS, canopyRush } from './sim';
+import { ANIMALS, CANOPY_RUSH, RUINS_ROUTE, SWAY, SWAY_DECKS, canopyRush } from './sim';
 
 const geometry = trackGeometry(canopyRush);
 const { bridges, ruinsFloor, tAt } = CANOPY_RUSH;
@@ -84,7 +84,7 @@ describe('Canopy Rush data', () => {
 
   it('has 3 rope bridges: narrow, no walls either side, a swaying deck and a respawn at the start', () => {
     expect(canopyRush.itemBoxRows).toHaveLength(4);
-    expect(canopyRush.hazards).toEqual(SWAY_DECKS);
+    expect(canopyRush.hazards).toEqual([...SWAY_DECKS, ...ANIMALS]);
     expect(SWAY_DECKS).toHaveLength(3);
     for (const [i, bridge] of BRIDGE_LIST.entries()) {
       const mid = midSpan(bridge);
@@ -402,7 +402,7 @@ describe('Canopy Rush ruins shortcut', () => {
 });
 
 describe('Canopy Rush AI race', () => {
-  it('8 AI race 3 laps at 150cc: all finish in under 3 min, under 2 falls each, some take the ruins', () => {
+  it('8 AI race 3 laps at 150cc: all finish in under 3 min, under 2 falls each, some take the ruins, few animal hits', () => {
     let s = createRace({
       trackId: 'canopy-rush',
       racers: Array.from({ length: 8 }, (_, i) => ({
@@ -414,6 +414,7 @@ describe('Canopy Rush AI race', () => {
       seed: 1,
     });
     const falls = new Map<number, number>();
+    let animalHits = 0;
     const stuckFor = new Map<number, number>();
     /** `kart:lap` for every lap a kart drove through the ruins. */
     const inRuins = new Set<string>();
@@ -423,6 +424,7 @@ describe('Canopy Rush AI race', () => {
       s = result.state;
       for (const e of result.events) {
         if (e.type === 'respawn') falls.set(e.kartId, (falls.get(e.kartId) ?? 0) + 1);
+        if (e.type === 'kartHit' && e.kind === 'hazard') animalHits += 1;
       }
       if (s.phase === 'countdown') continue;
       for (const kart of s.karts) {
@@ -444,6 +446,8 @@ describe('Canopy Rush AI race', () => {
     expect(inRuins.size).toBeGreaterThan(0);
     expect(inRuins.size).toBeLessThan(8 * s.race.laps);
     expect(tuning.ai.routeCapture).toBeGreaterThan(0);
+    // The animals (MK-61 QA round 2): the AI steers round them nearly every time.
+    expect(animalHits / s.karts.length).toBeLessThan(0.5);
   });
 
   it('track-canopy-rush: a 150cc race of you + 7 AI in countdown, you starting 5th–8th', () => {
@@ -459,5 +463,101 @@ describe('Canopy Rush AI race', () => {
     expect(
       back.some((p) => Math.hypot(p.x - player.position.x, p.z - player.position.z) < 0.5),
     ).toBe(true);
+  });
+});
+
+describe('Canopy Rush animals (MK-61 QA round 2)', () => {
+  const trail = ANIMALS.filter((a) => a.animal !== 'deer');
+  const deer = ANIMALS.find((a) => a.animal === 'deer')!;
+  const hazardHits = (events: SimEvent[], kartId = 0) =>
+    events.filter((e) => e.type === 'kartHit' && e.kartId === kartId && e.kind === 'hazard');
+
+  it('walk across the trail from the bushes on one side to the other, now and then', () => {
+    expect(trail.length).toBeGreaterThanOrEqual(3);
+    for (const animal of trail) {
+      const start = animal.path[0]!;
+      const end = animal.path.at(-1)!;
+      expect(insidePolygon(start.x, start.z, [...ruinsFloor])).toBe(false);
+      expect(insidePolygon(end.x, end.z, [...ruinsFloor])).toBe(false);
+      const mid = { x: (start.x + end.x) / 2, z: (start.z + end.z) / 2 };
+      expect(insidePolygon(mid.x, mid.z, [...ruinsFloor])).toBe(true);
+      expect(animal.activeFraction).toBeGreaterThan(0);
+      expect(animal.activeFraction).toBeLessThan(1);
+    }
+  });
+
+  it('a deer bounds across the jungle floor road and leaps its wall', () => {
+    const { deer: spot } = CANOPY_RUSH;
+    const onRoad = geometry.project({ x: spot.x, y: 0, z: spot.z });
+    expect(onRoad.surface).toBe('road');
+    // Over each wall line it's higher than the 1.2 m walls.
+    const tops = deer.path.filter((p) => p.y > 1.2);
+    expect(tops).toHaveLength(1);
+    for (const top of tops) {
+      const p = geometry.project(top);
+      expect(Math.abs(Math.abs(p.lateral) - geometry.wallOffset(p.width))).toBeLessThan(0.5);
+    }
+  });
+
+  it('poses are a pure function of the tick', () => {
+    for (const animal of ANIMALS) {
+      for (const tick of [0, 123, 4567]) {
+        expect(hazardPose(animal, tick)).toEqual(hazardPose(animal, tick));
+      }
+    }
+  });
+
+  it('canopy-animals: holding W you run into the tapir and spin out', () => {
+    const state = scenarios.get('canopy-animals')!.setup(1).state;
+    expect(state.engineClass).toBe(150);
+    expect(
+      routeProgress(geometry, state.karts[0]!.position, geometry.project(state.karts[0]!.position)),
+    ).toBeDefined();
+    const { events } = run(state, 5 * 60, () => ({ throttle: 1 }));
+    // The tapir, and maybe her calf too.
+    expect(hazardHits(events).length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('canopy-animals: the AI steers round the tapir and her calf', () => {
+    // The same moment, driven by the AI (following the trail) instead.
+    const setup = scenarios.get('canopy-animals')!.setup(1).state;
+    let s = createRace({
+      trackId: 'canopy-rush',
+      racers: [{ kartId: 'maple', controller: 'ai' }],
+      engineClass: 150,
+      itemsOn: false,
+      seed: 1,
+    });
+    while (s.phase !== 'racing') s = step(s, []).state;
+    const kart = s.karts[0]!;
+    const from = setup.karts[0]!;
+    const offsetTicks = setup.tick - s.tick;
+    const periodTicks = Math.round(ANIMALS.find((a) => a.animal === 'tapir')!.period / DT);
+    // Put the race clock where the scenario's is (mod the tapir's cycle); the kart where it starts.
+    s.tick += ((offsetTicks % periodTicks) + periodTicks) % periodTicks;
+    s.race = { ...s.race, goTick: s.tick };
+    kart.position = { ...from.position };
+    kart.heading = from.heading;
+    kart.velocity = { ...from.velocity };
+    kart.speed = from.speed;
+    kart.race = { ...kart.race, lap: 1, lastT: progressT(from.position), nextCheckpoint: 4 };
+    const events: SimEvent[] = [];
+    for (let i = 0; i < 5 * 60; i += 1) {
+      const result = step(s, []);
+      s = result.state;
+      events.push(...result.events);
+    }
+    expect(hazardHits(events)).toHaveLength(0);
+    expect(respawns(events)).toHaveLength(0);
+  });
+});
+
+describe('Canopy Rush deer (MK-61 QA round 2)', () => {
+  it('canopy-deer: holding W the deer runs into you; braking, it bounds across ahead of you', () => {
+    const hits = (events: SimEvent[]) =>
+      events.filter((e) => e.type === 'kartHit' && e.kind === 'hazard');
+    const state = () => scenarios.get('canopy-deer')!.setup(1).state;
+    expect(hits(run(state(), 5 * 60, () => ({ throttle: 1 })).events)).toHaveLength(1);
+    expect(hits(run(state(), 5 * 60, () => ({ brake: 1 })).events)).toHaveLength(0);
   });
 });

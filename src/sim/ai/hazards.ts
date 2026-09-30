@@ -1,5 +1,7 @@
 import { hazardPose } from '../hazards';
 import type { HazardDef, MoverHazard, PeriodicHazard } from '../hazards/types';
+import type { Vec3 } from '../math';
+import { pointOnRoute, type RouteInfo } from '../routes';
 import type { TrackGeometry } from '../splineTrack';
 import { DT, tuning } from '../tuning';
 import type { AiState, KartState } from '../types';
@@ -27,24 +29,25 @@ function trackMovers(geometry: TrackGeometry): MoverHazard[] {
   return movers;
 }
 
+/** The way the AI is heading, `d` m on: the centre of the road (or route) there and its direction. */
+type PathAhead = (d: number) => { centre: Vec3; tangent: { x: number; z: number } };
+
 /**
- * Where to aim sideways to miss a moving hazard (MK-60: night traffic), or `undefined` when the
- * racing line is clear. Movers' poses are a pure function of the tick, so the AI can see exactly
- * where each one will be: it follows its line ahead at its current speed for
- * `tuning.ai.hazardDodgeSeconds`, and if a mover would be in the way, it picks the sideways position
- * (across the road) that stays clear longest, nearest where it is now. Returns metres to add to its
- * racing-line offset (`AiState.steerOffset`). Deterministic; does nothing on tracks without movers.
+ * The sideways position (m from the path's centre) that stays clear of the movers longest, nearest
+ * `current`, or `undefined` when `lineAt` (the AI's own sideways position along the path) is clear.
+ * Movers' poses are a pure function of the tick, so the AI can see exactly where each one will be:
+ * it follows the path ahead at its current speed for `tuning.ai.hazardDodgeSeconds`.
  */
-export function hazardDodgeOffset(
+function clearestLane(
   kart: KartState,
-  ai: AiState,
   tick: number,
-  geometry: TrackGeometry,
-  line: readonly number[],
+  movers: readonly MoverHazard[],
+  ahead: PathAhead,
+  lineAt: (d: number) => number,
+  halfWidth: number,
+  current: number,
 ): number | undefined {
   const cfg = tuning.ai;
-  const movers = trackMovers(geometry);
-  if (!movers.length) return undefined;
   const range = cfg.hazardDodgeRange;
   const near = movers.filter((mover) => {
     const pose = hazardPose(mover, tick);
@@ -52,22 +55,19 @@ export function hazardDodgeOffset(
   });
   if (!near.length) return undefined;
 
-  const here = geometry.project(kart.position);
   const speed = Math.max(kart.speed, MIN_SPEED);
-  const lineAt = (t: number) => lineOffsetAt(line, t) + ai.lineOffset;
-  const half = here.width / 2 - EDGE_MARGIN;
   const lanes: number[] = [];
-  for (let lateral = -half; lateral <= half + 1e-6; lateral += LANE_STEP) lanes.push(lateral);
+  for (let lateral = -halfWidth; lateral <= halfWidth + 1e-6; lateral += LANE_STEP) {
+    lanes.push(lateral);
+  }
   // The step each sideways position is first blocked at (Infinity: clear), and the line's own.
   const blocked = lanes.map(() => Infinity);
   let lineBlocked = Infinity;
 
   const steps = Math.round(cfg.hazardDodgeSeconds / (DT * PREDICT_TICKS));
   for (let k = 0; k <= steps; k += 1) {
-    const s = here.s + speed * k * PREDICT_TICKS * DT;
-    const t = (((s / geometry.length) % 1) + 1) % 1;
-    const centre = geometry.pointAt(t);
-    const tangent = geometry.tangentAt(t);
+    const d = speed * k * PREDICT_TICKS * DT;
+    const { centre, tangent } = ahead(d);
     for (const mover of near) {
       const pose = hazardPose(mover, tick + k * PREDICT_TICKS);
       // Switched off, or far below the road (driving back under it): out of reach.
@@ -78,7 +78,7 @@ export function hazardDodgeOffset(
       if (Math.abs(dx * tangent.x + dz * tangent.z) > reach) continue;
       // Sideways offset of the mover from the centreline (the right-normal is (−tz, tx)).
       const lateral = -dx * tangent.z + dz * tangent.x;
-      if (lineBlocked === Infinity && Math.abs(lineAt(t) - lateral) < reach) lineBlocked = k;
+      if (lineBlocked === Infinity && Math.abs(lineAt(d) - lateral) < reach) lineBlocked = k;
       lanes.forEach((lane, j) => {
         if (blocked[j] === Infinity && Math.abs(lane - lateral) < reach) blocked[j] = k;
       });
@@ -92,18 +92,78 @@ export function hazardDodgeOffset(
   let bestShift = Infinity;
   lanes.forEach((lane, j) => {
     const at = blocked[j] ?? 0;
-    const shift = Math.abs(lane - here.lateral);
+    const shift = Math.abs(lane - current);
     if (at > bestBlocked || (at === bestBlocked && shift < bestShift)) {
       best = lane;
       bestBlocked = at;
       bestShift = shift;
     }
   });
+  return best;
+}
+
+/**
+ * Where to aim sideways to miss a moving hazard (MK-60: night traffic), or `undefined` when the
+ * racing line is clear. It picks the sideways position across the road that stays clear longest,
+ * nearest where it is now (`clearestLane`). Returns metres to add to its racing-line offset
+ * (`AiState.steerOffset`). Deterministic; does nothing on tracks without movers.
+ */
+export function hazardDodgeOffset(
+  kart: KartState,
+  ai: AiState,
+  tick: number,
+  geometry: TrackGeometry,
+  line: readonly number[],
+): number | undefined {
+  const movers = trackMovers(geometry);
+  if (!movers.length) return undefined;
+  const here = geometry.project(kart.position);
+  const tAt = (d: number) => ((((here.s + d) / geometry.length) % 1) + 1) % 1;
+  const lineAt = (t: number) => lineOffsetAt(line, t) + ai.lineOffset;
+  const best = clearestLane(
+    kart,
+    tick,
+    movers,
+    (d) => ({ centre: geometry.pointAt(tAt(d)), tangent: geometry.tangentAt(tAt(d)) }),
+    (d) => lineAt(tAt(d)),
+    here.width / 2 - EDGE_MARGIN,
+    here.lateral,
+  );
   if (best === undefined) return undefined;
   // The offset applies at the point the AI steers at, a little way ahead.
-  const aim = cfg.lookAheadBase + Math.max(0, kart.speed) * cfg.lookAheadPerSpeed;
+  const aim = tuning.ai.lookAheadBase + Math.max(0, kart.speed) * tuning.ai.lookAheadPerSpeed;
   return best - lineAt((here.s + aim) / geometry.length);
 }
+
+/**
+ * On a route (MK-61 QA round 2: animals crossing the trail through the ruins): how far to the
+ * right of the route's path (m, negative = left) to drive to miss a moving hazard, or `undefined`
+ * when the path is clear. Sideways positions within `tuning.ai.routeDodgeHalfWidth` of the path.
+ */
+export function routeDodgeOffset(
+  kart: KartState,
+  tick: number,
+  geometry: TrackGeometry,
+  info: RouteInfo,
+  along: number,
+): number | undefined {
+  const movers = trackMovers(geometry);
+  if (!movers.length) return undefined;
+  const ahead: PathAhead = (d) => {
+    const centre = pointOnRoute(info, along + d);
+    const next = pointOnRoute(info, along + d + ROUTE_TANGENT_STEP);
+    const back = pointOnRoute(info, along + d - ROUTE_TANGENT_STEP);
+    const length = Math.hypot(next.x - back.x, next.z - back.z) || 1;
+    return { centre, tangent: { x: (next.x - back.x) / length, z: (next.z - back.z) / length } };
+  };
+  const { centre, tangent } = ahead(0);
+  const current =
+    -(kart.position.x - centre.x) * tangent.z + (kart.position.z - centre.z) * tangent.x;
+  return clearestLane(kart, tick, movers, ahead, () => 0, tuning.ai.routeDodgeHalfWidth, current);
+}
+
+/** Half the span used to measure a route's direction at a point, m. */
+const ROUTE_TANGENT_STEP = 2;
 
 /** A crusher and where it sits on the lap: along the road (`s`), across it, and its extent. */
 interface CrusherSpot {

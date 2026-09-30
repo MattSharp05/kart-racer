@@ -6,7 +6,7 @@ import { DT, tuning, type EngineClass } from '../tuning';
 import { NEUTRAL_INPUT, type AiState, type InputFrame, type KartState } from '../types';
 import { effectsAiDriving } from '../items/effects';
 import { curvatureAlong } from './curvature';
-import { crusherSpeedLimit } from './hazards';
+import { crusherSpeedLimit, routeDodgeOffset } from './hazards';
 import { lineOffsetAt } from './racingLine';
 import { aiRoute, routeAim } from './routes';
 
@@ -59,7 +59,10 @@ export function aiInput(
   let cornerSpeed = Infinity;
   if (route) {
     ai.drifting = false;
-    const aim = routeAim(kart, route, lookAhead, cfg.brakeHorizon);
+    // Animals crossing the trail (MK-61 QA round 2): steer round them.
+    const dodge =
+      tick !== undefined ? routeDodgeOffset(kart, tick, geometry, route.info, route.along) : 0;
+    const aim = routeAim(kart, route, lookAhead, cfg.brakeHorizon, dodge ?? 0);
     steer = clamp(-aim.error * cfg.steerGain, -1, 1);
     if (aim.curvature > 1e-4) cornerSpeed = Math.sqrt((cornerGrip * nimble) / aim.curvature);
   } else {

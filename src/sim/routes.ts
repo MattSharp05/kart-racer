@@ -2,7 +2,7 @@ import type { Vec3 } from './math';
 import type { TrackGeometry, TrackProjection, TrackRoute } from './splineTrack';
 
 /** A route measured once: where it leaves and rejoins the lap, and its length along the way. */
-interface RouteInfo {
+export interface RouteInfo {
   route: TrackRoute;
   /** Lap fraction where it leaves the main road, and how much of the lap it stands in for. */
   from: number;

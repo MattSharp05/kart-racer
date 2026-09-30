@@ -15,8 +15,6 @@ const COLOURS = {
   canopy: 0x2c6e2f,
   bush: 0x3a8a3c,
   stone: 0x9a978a,
-  stoneDark: 0x7b786c,
-  moss: 0x6b8f4a,
   water: 0x4fa3c7,
   foam: 0xe8f6ff,
   cliff: 0x6f6a5e,
@@ -77,7 +75,7 @@ function jungleTreeGeometry(): THREE.BufferGeometry {
   return merge(parts, 'tree');
 }
 
-/** Whether (x, z) is kept clear for a feature with its own model (the cliff, the ruins, water). */
+/** Whether (x, z) is kept clear for a feature with its own model (the cliff, the trail, water). */
 function reserved(x: number, z: number): boolean {
   const { trunk } = CANOPY_RUSH;
   if (x > CLIFF.x0 - 4 && x < CLIFF.x1 + 2 && z > CLIFF.z0 - 4 && z < CLIFF.z1 + 4) return true;
@@ -89,7 +87,7 @@ function reserved(x: number, z: number): boolean {
 
 /**
  * Canopy Rush's scenery (MK-61): giant trees holding up the platforms, the spiral's giant trunk,
- * dense instanced jungle, root embankments under the raised road, the stone ruins, the waterfall
+ * dense instanced jungle, root embankments under the raised road, the animal trail, the waterfall
  * and its stream, the river in the gorge under bridge 2, and billboard sun shafts. 11 draws.
  */
 function scenery(geometry: TrackGeometry): THREE.Object3D {
@@ -152,7 +150,7 @@ function scenery(geometry: TrackGeometry): THREE.Object3D {
   group.add(giantTrees(geometry, bounds, rand, dummy));
   group.add(hills(geometry, bounds, rand, dummy));
   group.add(embankments(geometry));
-  group.add(ruins(rand, dummy));
+  group.add(trail(geometry, rand, dummy));
   group.add(waterfall(geometry));
   const shafts = sunShafts(geometry, rand);
   group.add(shafts);
@@ -318,98 +316,274 @@ function embankments(geometry: TrackGeometry): THREE.Object3D {
   );
 }
 
-/** Spacing of the ruins' pillars along their outline, and how far outside it they stand, m. */
-const PILLARS = { step: 11, out: 1.6 };
+/** The animal trail through the jungle below the bridges (MK-61 QA round 2). */
+const TRAIL = {
+  /** Resampling step along the path, m. */
+  step: 2,
+  /** The worn dirt strip's half width, m, and how much its edges wander. */
+  halfWidth: 3.2,
+  wander: 1.1,
+  /** Footprint spacing along each animal's track, m, and the tracks' offsets across the trail. */
+  printStep: 1.3,
+  tracks: [-1.4, 0.4, 1.7],
+  leaves: 420,
+  tufts: 260,
+  /** Bushes along the trail's edges: spacing, m, and how far outside the floor they sit. */
+  bushStep: 2.6,
+  bushOut: 1.2,
+  /** A road higher than this above the floor passes over the trail's bushes, m. */
+  roadAbove: 6,
+};
+const TRAIL_COLOURS = {
+  grass: [0x4f8a34, 0x5c9a3a, 0x467d30, 0x6aa344],
+  dirt: [0x7a5a3a, 0x6b4d31, 0x86653f],
+  print: 0x3f2c1c,
+  leaf: [0x6f9a3a, 0x9aa53e, 0xb58a3a, 0x8a5a2c, 0x4f8a34],
+  bush: [0x2f7a34, 0x3d8c3a, 0x4f9a3f, 0x2a6a2e],
+};
 
-/**
- * The ruins: a mossy stone floor over the shortcut, broken pillars along both sides, a stone arch
- * over the way in, and a stepped temple to the west. Three draws.
- */
-function ruins(rand: () => number, dummy: THREE.Object3D): THREE.Object3D {
-  const outline = CANOPY_RUSH.ruinsFloor;
-  const { floorY } = CANOPY_RUSH;
-  const group = new THREE.Group();
-
-  // The stone floor, a little above the plain shortcut floor the track mesh lays.
-  const shape = outline.map((v) => new THREE.Vector2(v.x, v.z));
-  const positions: number[] = [];
-  const colours: number[] = [];
-  const stone = new THREE.Color(COLOURS.stone);
-  const moss = new THREE.Color(COLOURS.moss);
-  for (const [i = 0, j = 0, k = 0] of THREE.ShapeUtils.triangulateShape(shape, [])) {
-    for (const index of [i, j, k]) {
-      const v = shape[index];
-      if (!v) continue;
-      positions.push(v.x, floorY + 0.05, v.y);
-      const c = (Math.floor(v.x / 7) + Math.floor(v.y / 7)) % 3 === 0 ? moss : stone;
-      colours.push(c.r, c.g, c.b);
+/** The trail's centreline on the jungle floor, every `TRAIL.step` m (the path inside the floor). */
+function trailLine(): { x: number; z: number; dx: number; dz: number }[] {
+  const outline = [...CANOPY_RUSH.ruinsFloor];
+  const path = CANOPY_RUSH.ruinsPath.filter((p) => p.y === CANOPY_RUSH.floorY);
+  const points: { x: number; z: number; dx: number; dz: number }[] = [];
+  for (let i = 1; i < path.length; i += 1) {
+    const a = path[i - 1];
+    const b = path[i];
+    if (!a || !b) continue;
+    const length = Math.hypot(b.x - a.x, b.z - a.z);
+    for (let d = 0; d < length; d += TRAIL.step) {
+      const x = a.x + ((b.x - a.x) * d) / length;
+      const z = a.z + ((b.z - a.z) * d) / length;
+      if (insidePolygon(x, z, outline)) {
+        points.push({ x, z, dx: (b.x - a.x) / length, dz: (b.z - a.z) / length });
+      }
     }
   }
-  const floor = new THREE.BufferGeometry();
-  floor.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-  floor.setAttribute('color', new THREE.Float32BufferAttribute(colours, 3));
-  floor.computeVertexNormals();
+  return points;
+}
+
+/** A flat, vertex-coloured triangle list at height `y` (x, z pairs, one colour per triangle). */
+function flatMesh(triangles: { points: [number, number][]; colour: THREE.Color }[], y: number) {
+  const positions: number[] = [];
+  const colours: number[] = [];
+  for (const { points, colour } of triangles) {
+    for (const [x, z] of points) {
+      positions.push(x, y, z);
+      colours.push(colour.r, colour.g, colour.b);
+    }
+  }
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  geometry.setAttribute('color', new THREE.Float32BufferAttribute(colours, 3));
+  geometry.computeVertexNormals();
+  return new THREE.Mesh(
+    geometry,
+    new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide }),
+  );
+}
+
+/** A paw print (a pad and four toes) or a cloven hoof print, lying flat, toes towards −Z. */
+function printGeometry(hoof: boolean): THREE.BufferGeometry {
+  const flatDisc = (r: number, x: number, z: number, sx = 1, sz = 1) =>
+    new THREE.CircleGeometry(r, 7)
+      .rotateX(-Math.PI / 2)
+      .scale(sx, 1, sz)
+      .translate(x, 0, z);
+  const parts = hoof
+    ? [flatDisc(0.1, -0.07, 0, 0.7, 1.5), flatDisc(0.1, 0.07, 0, 0.7, 1.5)]
+    : [
+        flatDisc(0.16, 0, 0.05, 1.1, 0.9),
+        ...[-0.15, -0.05, 0.05, 0.15].map((x, i) =>
+          flatDisc(0.06, x, i === 0 || i === 3 ? -0.13 : -0.19),
+        ),
+      ];
+  const merged = mergeGeometries(parts);
+  if (!merged) throw new Error('Canopy Rush prints: geometries do not merge');
+  return merged;
+}
+
+/**
+ * The animal trail (MK-61 QA round 2: "a path made by animals walking through the bushes"): a
+ * grassy floor over the shortcut with a worn dirt trail wandering down it, leaf litter, tufts of
+ * grass, paw and hoof prints along the trail, and dense bushes along both edges. Seven draws.
+ */
+function trail(geometry: TrackGeometry, rand: () => number, dummy: THREE.Object3D): THREE.Object3D {
+  const outline = CANOPY_RUSH.ruinsFloor;
+  const polygon = [...outline];
+  const { floorY } = CANOPY_RUSH;
+  const group = new THREE.Group();
+  const pick = (list: readonly number[]) =>
+    new THREE.Color(list[Math.floor(rand() * list.length)] ?? 0);
+
+  // The grassy floor, a little above the plain shortcut floor the track mesh lays.
+  const shape = outline.map((v) => new THREE.Vector2(v.x, v.z));
   group.add(
-    new THREE.Mesh(
-      floor,
-      new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide }),
+    flatMesh(
+      THREE.ShapeUtils.triangulateShape(shape, []).map(([i = 0, j = 0, k = 0]) => ({
+        points: [i, j, k].map((n) => [shape[n]?.x ?? 0, shape[n]?.y ?? 0] as [number, number]),
+        colour: pick(TRAIL_COLOURS.grass),
+      })),
+      floorY + 0.05,
     ),
   );
 
-  // Pillars just outside the outline (some broken off), the arch and the temple: stone blocks.
-  const blocks: [number, number, number, number, number, number, number][] = [];
-  const polygon = [...outline];
-  outline.forEach((a, i) => {
-    const b = outline[(i + 1) % outline.length] ?? a;
-    const length = Math.hypot(b.x - a.x, b.z - a.z);
-    // Skip the edges that open onto the road (the way back up at the far end).
-    if (a.z > 150 && b.z > 150) return;
-    const nx = (b.z - a.z) / length;
-    const nz = -(b.x - a.x) / length;
-    for (let d = PILLARS.step / 2; d < length; d += PILLARS.step) {
-      const mx = a.x + ((b.x - a.x) * d) / length;
-      const mz = a.z + ((b.z - a.z) * d) / length;
-      // Outward: whichever side of the edge is outside the floor.
-      const side = insidePolygon(mx + nx, mz + nz, polygon) ? -1 : 1;
-      const height = rand() < 0.35 ? 1.5 + rand() * 1.5 : 4 + rand() * 3;
-      blocks.push([
-        mx + nx * side * PILLARS.out,
-        height / 2,
-        mz + nz * side * PILLARS.out,
-        1.6,
-        height,
-        1.6,
-        Math.atan2(nx, nz),
-      ]);
+  // The worn dirt trail: a strip down the path whose edges wander, patchy brown.
+  const line = trailLine();
+  const edges = line.map((p, i) => {
+    const wobble = (k: number) =>
+      TRAIL.halfWidth + TRAIL.wander * (Math.sin(i * 0.37 + k) * 0.6 + (rand() - 0.5) * 0.8);
+    const left = wobble(0);
+    const right = wobble(2);
+    return {
+      l: [p.x + p.dz * left, p.z - p.dx * left] as [number, number],
+      r: [p.x - p.dz * right, p.z + p.dx * right] as [number, number],
+    };
+  });
+  const strip: { points: [number, number][]; colour: THREE.Color }[] = [];
+  for (let i = 1; i < edges.length; i += 1) {
+    const a = edges[i - 1];
+    const b = edges[i];
+    if (!a || !b) continue;
+    strip.push(
+      { points: [a.l, b.l, a.r], colour: pick(TRAIL_COLOURS.dirt) },
+      { points: [b.l, b.r, a.r], colour: pick(TRAIL_COLOURS.dirt) },
+    );
+  }
+  group.add(flatMesh(strip, floorY + 0.08));
+
+  // Footprints: three animals' tracks down the trail, left and right feet in turn; the middle one
+  // paws (a big cat), the others hooves (tapirs, boar, deer).
+  const prints = { paw: [] as THREE.Matrix4[], hoof: [] as THREE.Matrix4[] };
+  TRAIL.tracks.forEach((offset, track) => {
+    let step = 0;
+    for (let i = 0; i < line.length; i += 1) {
+      const p = line[i];
+      if (!p) continue;
+      for (let d = 0; d < TRAIL.step; d += TRAIL.printStep, step += 1) {
+        if (rand() < 0.15) continue; // lost in the leaves
+        const foot = (step % 2 ? 0.22 : -0.22) + offset;
+        dummy.position.set(
+          p.x + p.dx * d - p.dz * foot,
+          floorY + 0.1,
+          p.z + p.dz * d + p.dx * foot,
+        );
+        dummy.rotation.set(0, Math.atan2(-p.dx, -p.dz) + (rand() - 0.5) * 0.3, 0);
+        dummy.scale.setScalar(1);
+        dummy.updateMatrix();
+        (track === 1 ? prints.paw : prints.hoof).push(dummy.matrix.clone());
+      }
     }
   });
-  // The arch over the ruins just past the landing: two pillars and a lintel.
-  const arch = { z: -40, x0: 58, x1: 86, height: 9 };
-  blocks.push(
-    [arch.x0, arch.height / 2, arch.z, 2.4, arch.height, 2.4, 0],
-    [arch.x1, arch.height / 2, arch.z, 2.4, arch.height, 2.4, 0],
-    [(arch.x0 + arch.x1) / 2, arch.height + 1, arch.z, arch.x1 - arch.x0 + 4, 2, 3, 0],
-  );
-  // The stepped temple, west of the ruins.
-  for (let step = 0; step < 5; step += 1) {
-    const size = 30 - step * 5.5;
-    blocks.push([28, 1.6 + step * 3.2, 45, size, 3.2, size, 0]);
+  for (const [kind, matrices] of Object.entries(prints)) {
+    const mesh = new THREE.InstancedMesh(
+      printGeometry(kind === 'hoof'),
+      new THREE.MeshLambertMaterial({ color: TRAIL_COLOURS.print }),
+      matrices.length,
+    );
+    matrices.forEach((m, i) => mesh.setMatrixAt(i, m));
+    group.add(mesh);
   }
-  const stones = new THREE.InstancedMesh(
-    new THREE.BoxGeometry(1, 1, 1),
-    new THREE.MeshLambertMaterial({ color: 0xffffff, flatShading: true }),
-    blocks.length,
+
+  // Leaf litter: fallen leaves all over the floor, thickest off the trail.
+  const bounds = new THREE.Box2();
+  for (const v of outline) bounds.expandByPoint(new THREE.Vector2(v.x, v.z));
+  const leafShape = new THREE.Shape([
+    new THREE.Vector2(0, -0.35),
+    new THREE.Vector2(0.14, 0),
+    new THREE.Vector2(0, 0.3),
+    new THREE.Vector2(-0.14, 0),
+  ]);
+  const leaves = new THREE.InstancedMesh(
+    new THREE.ShapeGeometry(leafShape).rotateX(-Math.PI / 2),
+    new THREE.MeshLambertMaterial({ color: 0xffffff, side: THREE.DoubleSide }),
+    TRAIL.leaves,
   );
-  const colour = new THREE.Color();
-  blocks.forEach(([x, y, z, sx, sy, sz, yaw], i) => {
-    dummy.position.set(x, floorY + y, z);
-    dummy.scale.set(sx, sy, sz);
-    dummy.rotation.set(0, yaw, 0);
+  let leafCount = 0;
+  for (let attempt = 0; attempt < TRAIL.leaves * 4 && leafCount < TRAIL.leaves; attempt += 1) {
+    const x = THREE.MathUtils.lerp(bounds.min.x, bounds.max.x, rand());
+    const z = THREE.MathUtils.lerp(bounds.min.y, bounds.max.y, rand());
+    if (!insidePolygon(x, z, polygon)) continue;
+    dummy.position.set(x, floorY + 0.12, z);
+    dummy.rotation.set(0, rand() * Math.PI * 2, 0);
+    dummy.scale.setScalar(0.8 + rand() * 1.4);
     dummy.updateMatrix();
-    stones.setMatrixAt(i, dummy.matrix);
-    stones.setColorAt(i, colour.setHex(i % 4 === 0 ? COLOURS.stoneDark : COLOURS.stone));
+    leaves.setMatrixAt(leafCount, dummy.matrix);
+    leaves.setColorAt(leafCount, pick(TRAIL_COLOURS.leaf));
+    leafCount += 1;
+  }
+  leaves.count = leafCount;
+  group.add(leaves);
+
+  // Tufts of long grass and ferns off the dirt.
+  const blades = [-0.5, 0, 0.5].map((lean) =>
+    new THREE.ConeGeometry(0.12, 1, 3)
+      .translate(0, 0.5, 0)
+      .rotateZ(lean * 0.6)
+      .rotateY(lean * 2),
+  );
+  const tuftGeometry = mergeGeometries(blades.map((g) => g.toNonIndexed()));
+  if (!tuftGeometry) throw new Error('Canopy Rush tufts: geometries do not merge');
+  const tufts = new THREE.InstancedMesh(
+    tuftGeometry,
+    new THREE.MeshLambertMaterial({ color: 0xffffff, flatShading: true }),
+    TRAIL.tufts,
+  );
+  let tuftCount = 0;
+  const nearTrail = (x: number, z: number) =>
+    line.some((p) => Math.hypot(p.x - x, p.z - z) < TRAIL.halfWidth + TRAIL.wander);
+  for (let attempt = 0; attempt < TRAIL.tufts * 6 && tuftCount < TRAIL.tufts; attempt += 1) {
+    const x = THREE.MathUtils.lerp(bounds.min.x, bounds.max.x, rand());
+    const z = THREE.MathUtils.lerp(bounds.min.y, bounds.max.y, rand());
+    if (!insidePolygon(x, z, polygon) || nearTrail(x, z)) continue;
+    dummy.position.set(x, floorY, z);
+    dummy.rotation.set(0, rand() * Math.PI, 0);
+    dummy.scale.set(1, 0.5 + rand() * 0.9, 1);
+    dummy.updateMatrix();
+    tufts.setMatrixAt(tuftCount, dummy.matrix);
+    tufts.setColorAt(tuftCount, pick(TRAIL_COLOURS.grass));
+    tuftCount += 1;
+  }
+  tufts.count = tuftCount;
+  group.add(tufts);
+
+  // Bushes crowding both edges (not where the trail opens onto the road at its far end).
+  const bushSpots: [number, number, number][] = [];
+  outline.forEach((a, i) => {
+    const b = outline[(i + 1) % outline.length] ?? a;
+    if (a.z > 150 && b.z > 150) return;
+    const length = Math.hypot(b.x - a.x, b.z - a.z);
+    const nx = (b.z - a.z) / length;
+    const nz = -(b.x - a.x) / length;
+    for (let d = rand() * TRAIL.bushStep; d < length; d += TRAIL.bushStep) {
+      const mx = a.x + ((b.x - a.x) * d) / length;
+      const mz = a.z + ((b.z - a.z) * d) / length;
+      const side = insidePolygon(mx + nx, mz + nz, polygon) ? -1 : 1;
+      const out = TRAIL.bushOut + rand() * 3;
+      const x = mx + nx * side * out;
+      const z = mz + nz * side * out;
+      // Not on the road on the jungle floor (where the trail rejoins it); under a raised road is fine.
+      const road = geometry.project({ x, y: 0, z });
+      const onRoad =
+        road.groundY < TRAIL.roadAbove &&
+        Math.abs(road.lateral) < geometry.wallOffset(road.width) + TRAIL.bushOut;
+      if (!onRoad) bushSpots.push([x, z, 1.2 + rand() * 1.4]);
+    }
   });
-  group.add(stones);
+  const bushes = new THREE.InstancedMesh(
+    new THREE.IcosahedronGeometry(1, 0),
+    new THREE.MeshLambertMaterial({ color: 0xffffff, flatShading: true }),
+    bushSpots.length,
+  );
+  bushSpots.forEach(([x, z, size], i) => {
+    dummy.position.set(x, floorY + size * 0.4, z);
+    dummy.rotation.set(0, rand() * Math.PI, 0);
+    dummy.scale.set(size * (1.2 + rand() * 0.6), size, size * (1.2 + rand() * 0.6));
+    dummy.updateMatrix();
+    bushes.setMatrixAt(i, dummy.matrix);
+    bushes.setColorAt(i, pick(TRAIL_COLOURS.bush));
+  });
+  group.add(bushes);
   return group;
 }
 
