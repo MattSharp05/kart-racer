@@ -78,6 +78,12 @@ describe('online params (MK-46)', () => {
     ).toMatchObject({ net: 'local', role: 'client', room: 'r1', laps: 1, netdebug: true });
   });
 
+  it('reads &relay=force (MK-75) and ignores anything else', () => {
+    expect(parseLaunchParams('?room=ABCD&relay=force').relay).toBe('force');
+    expect(parseLaunchParams('?room=ABCD&relay=1').relay).toBeUndefined();
+    expect(parseLaunchParams('?room=ABCD').relay).toBeUndefined();
+  });
+
   it('reads &links=webrtc|blocked (MK-73) and ignores anything else', () => {
     expect(parseLaunchParams('?net=local&links=webrtc').links).toBe('webrtc');
     expect(parseLaunchParams('?net=local&links=blocked').links).toBe('blocked');
