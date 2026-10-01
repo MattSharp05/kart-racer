@@ -1,6 +1,6 @@
 # 0006 — Supabase for rooms and leaderboards; WebRTC for race traffic
 
-Status: Accepted · 2026-09-25 · confirmed by the MK-36 spike (P2P on 4G pending Matthew's phone test)
+Status: Accepted · 2026-09-25 · confirmed by the MK-36 spike · **amended by [0008](0008-cloudflare-turn-relay.md)** (2026-10-01): phones on mobile data couldn't connect P2P, so races add a Cloudflare TURN relay
 
 ## Context
 

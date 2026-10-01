@@ -8,6 +8,7 @@ import {
   type LobbySettings,
   type LobbyStart,
 } from '../net/lobbyState';
+import { raceIceConfig, type RelayMode } from '../net/iceConfig';
 import { localRaceLinks, webRtcRaceLinks } from '../net/raceLinks';
 import {
   createRoom,
@@ -37,6 +38,8 @@ export interface RoomService {
    * Supabase (`webrtc`), or their signaling is dropped so they never connect (`blocked`).
    */
   links?: RaceLinkMode;
+  /** `&relay=force` (MK-75, QA): WebRTC races use only the TURN relay, never a direct path. */
+  relay?: RelayMode;
 }
 
 /** A launch straight into a room: `/?room=CODE`, or the `online-lobby` scenario. */
@@ -357,6 +360,8 @@ export class RoomFlow {
         : webRtcRaceLinks(
             mode === 'blocked' ? blocked(room.signaling(start.id)) : room.signaling(start.id),
             clientKart,
+            // TURN credentials (MK-75), fetched once per race for all of its links.
+            raceIceConfig({ relay: this.rooms.relay ?? 'auto' }),
           );
     this.lobby.onRace?.({
       role: room.isHost ? 'host' : 'client',

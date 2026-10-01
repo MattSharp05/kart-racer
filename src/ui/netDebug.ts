@@ -6,6 +6,8 @@ export interface NetDebugInfo {
   ended: string | null;
   /** The tick this device is at (a client's prediction, or the host's truth). */
   tick?: number;
+  /** A client's link to the host: `P2P` or `relay` (MK-75; WebRTC races only). */
+  path?: string;
   // Client
   rttMs?: number;
   /** Snapshots that never arrived, of those the host sent since the first one, %. */
@@ -26,7 +28,14 @@ export interface NetDebugInfo {
   correctionMax?: number;
   offset?: number;
   // Host
-  peers?: { kartId: number; connected: boolean; lateInputs: number; snapshotBytes: number }[];
+  peers?: {
+    kartId: number;
+    connected: boolean;
+    lateInputs: number;
+    snapshotBytes: number;
+    /** `P2P` or `relay` (MK-75; WebRTC races only). */
+    path?: string;
+  }[];
 }
 
 /** Refreshes this often, s (fast enough to read, slow enough not to flicker). */
@@ -71,7 +80,8 @@ export function netDebugText(info: NetDebugInfo): string {
   if (info.role === 'client') {
     const age = info.snapshotAgeMs ?? -1;
     lines.push(
-      `rtt ${fixed(info.rttMs, 0)} ms  loss ${fixed(info.lossPercent, 1)} %`,
+      `rtt ${fixed(info.rttMs, 0)} ms  loss ${fixed(info.lossPercent, 1)} %` +
+        (info.path ? `  link ${info.path}` : ''),
       `snapshot age ${age < 0 ? '—' : `${fixed(age, 0)} ms`}  lead ${info.leadTicks ?? 0} ticks`,
       `re-sim ${fixed(info.resimPerSnapshot, 1)} ticks/snap (last ${info.lastReplayTicks ?? 0})  ` +
         `matched ${fixed(info.matchedPercent, 0)} %`,
@@ -82,7 +92,7 @@ export function netDebugText(info: NetDebugInfo): string {
   for (const peer of info.peers ?? []) {
     lines.push(
       `kart ${peer.kartId}${peer.connected ? '' : ' (left)'}: late inputs ${peer.lateInputs}  ` +
-        `snapshot ${fixed(peer.snapshotBytes, 0)} B`,
+        `snapshot ${fixed(peer.snapshotBytes, 0)} B${peer.path ? `  link ${peer.path}` : ''}`,
     );
   }
   return lines.join('\n');

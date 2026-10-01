@@ -53,6 +53,7 @@ const flow = new Flow(
     backend: launch.localRooms ? localRoomBackend() : supabaseRoomBackend(),
     local: launch.localRooms,
     ...(launch.localRooms && params.links ? { links: params.links } : {}),
+    ...(params.relay ? { relay: params.relay } : {}),
   },
   launchLeaderboard(params.lb, store),
 );

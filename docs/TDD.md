@@ -105,15 +105,15 @@ docs/                TDD.md, decisions/, CREDITS.md
 
 ## v2 — Online, content and phone controls
 
-Scope: [PRD v2](https://app.notion.com/p/3e524983f3ca812d85b8e778602f94e1). The one thing v2 must nail is **smooth online races**. Decisions: [ADR 0005](decisions/0005-online-host-authoritative-snapshots.md) (netcode), [ADR 0006](decisions/0006-supabase-and-webrtc.md) (services), [ADR 0007](decisions/0007-feature-modules-and-registries.md) (module split).
+Scope: [PRD v2](https://app.notion.com/p/3e524983f3ca812d85b8e778602f94e1). The one thing v2 must nail is **smooth online races**. Decisions: [ADR 0005](decisions/0005-online-host-authoritative-snapshots.md) (netcode), [ADR 0006](decisions/0006-supabase-and-webrtc.md) (services, amended by [ADR 0008](decisions/0008-cloudflare-turn-relay.md): TURN relay), [ADR 0007](decisions/0007-feature-modules-and-registries.md) (module split).
 
 ### Stack additions
 
 | Choice                                                                                                 | Why                                                                                                                                                                                           |
 | ------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Supabase** (free tier): Realtime (rooms, presence, lobby, WebRTC signaling) + Postgres (leaderboard) | Matthew's pick; one free service for rooms and data; RLS instead of our own server. `@supabase/supabase-js` is the only new runtime dependency, lazy-loaded when Online or Leaderboard opens. |
-| **WebRTC data channels** (browser built-in) for race packets                                           | UDP-like (unordered, unreliable) and peer to peer, so it's off every quota. Public STUN only.                                                                                                 |
-| Alternative kept ready: Cloudflare Durable Objects relay                                               | Used if the spike shows P2P fails on mobile networks (ADR 0006).                                                                                                                              |
+| **WebRTC data channels** (browser built-in) for race packets                                           | UDP-like (unordered, unreliable) and peer to peer, so it's off every quota. Public STUN, plus Cloudflare TURN when no direct path exists (ADR 0008).                                          |
+| **Cloudflare Realtime TURN** via a Vercel Function, `api/turn.ts` (MK-75)                              | Phones on mobile data (carrier NAT) can't connect P2P. The function hands out 4-hour credentials; previews/local fall back to public STUN (ADR 0008).                                         |
 
 ### Architecture
 
@@ -159,10 +159,11 @@ Scope: [PRD v2](https://app.notion.com/p/3e524983f3ca812d85b8e778602f94e1). The 
 
 - Vercel env vars `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` (Production and Preview). Matthew creates the free project, and the schema lives in `supabase/migrations/*.sql`, applied by Claude via the Supabase SQL editor instructions in the ticket or the CLI.
 - A weekly GitHub Actions keep-alive query stops the free project from pausing.
+- Vercel env vars `CLOUDFLARE_TURN_KEY_ID` and `CLOUDFLARE_TURN_API_TOKEN` (**Production only**, sensitive; MK-75, ADR 0008), read by `api/turn.ts`. Previews and local dev have none: `/api/turn` answers 503 and races use public STUN. Check production with `curl -H 'Referer: https://kart-racer-alpha.vercel.app/' https://kart-racer-alpha.vercel.app/api/turn` (200 with `iceServers`).
 
 ### v2 risks
 
-- **P2P on mobile networks:** the spike tests WebRTC on real phones over 4G/5G. The fallback is a Durable Objects relay (ADR 0006).
+- **P2P on mobile networks:** phones on 4G/5G couldn't connect P2P (MK-36, MK-73). Solved with a Cloudflare TURN relay (ADR 0008, MK-75); the Durable Objects relay of ADR 0006 is no longer planned.
 - **Feel under lag:** tuning happens in the netcode polish ticket with `netsim` presets and a real 4-player test with Matthew.
 - **Phone CPU for re-simulation:** measured in the spike. Fallbacks are predicting only the local kart, or a lower snapshot rate.
 - **Supabase free-tier pausing and limits:** keep-alive, and race traffic stays off Realtime.
