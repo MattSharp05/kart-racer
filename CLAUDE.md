@@ -13,7 +13,7 @@ Follows the `dev-workflow` skill (ticket-driven: Notion → branch → PR → QA
 - Preview URLs: Vercel preview per PR (link is on the PR); production: https://kart-racer-alpha.vercel.app (scenario index at `/dev`)
 - QA mode: batched, **no waves or QA stops (v2)**: the orchestrator builds in dependency order (Wave = order only) until every v2 ticket is QA Pending, then Matthew QAs on the ticket pages. Priority: the online chain (spike → net core → prediction → race flow → polish) first. _MVP history: waves 1–5 → 6–7 → 8–10 → 11–14; checkpoints MK-5, MK-10, MK-14._
 - Approval: standing (the v2 plan was approved at epic level on 2026-09-25; stop only at blocks)
-- Parallel builders: 2
+- Parallel builders: 3 (a 3rd only when the three tickets' `Files touched` don't overlap, e.g. separate track/item/racer folders; otherwise 2)
 - Before a run: the **Cloud preflight** in `dev-workflow` (Notion write test from a child session must pass). If the workflow skills aren't listed, read them from a claude-workflow clone (`plugins/workflow/skills/`) and tell builders to do the same.
 - v2 scope: [PRD v2](https://app.notion.com/p/3e524983f3ca812d85b8e778602f94e1) · design: `docs/TDD.md` → "v2" + ADRs 0005–0007
 
