@@ -2,7 +2,7 @@ import { OnlineClient } from '../net/client';
 import { NET } from '../net/config';
 import { OnlineHost } from '../net/host';
 import { ConditionedTransport, type NetConditions } from '../net/netsim';
-import { localRaceLinks, type RaceLinks } from '../net/raceLinks';
+import { linkConnectionInfo, localRaceLinks, type RaceLinks } from '../net/raceLinks';
 import type { RaceStanding } from '../net/protocol';
 import { NetSmoother } from '../net/smoothing';
 import type { Transport } from '../net/transport';
@@ -14,6 +14,8 @@ import type { NetRole } from './launchParams';
 
 /** Extra time the links stay open after leaving under a simulated network, for the Bye, ms. */
 const BYE_GRACE_MS = 50;
+/** How often the net debug overlay re-reads each link's path (`P2P` / `relay`, MK-75), ms. */
+const PATH_REFRESH_MS = 1000;
 
 /** An online race to join or host (from an online scenario plus `&role=&room=&netsim=`). */
 export interface OnlineLaunch {
@@ -36,7 +38,7 @@ export interface OnlineLaunch {
 
 /**
  * After "Couldn't connect to …" (MK-73): phones on mobile data often can't reach another device
- * directly (no relay server yet, MK-75); the same Wi-Fi usually can.
+ * directly when the TURN relay is unavailable (MK-75); the same Wi-Fi usually can.
  */
 const CONNECT_HINT = 'Try again, or put both devices on the same Wi-Fi.';
 
@@ -103,6 +105,11 @@ export class OnlineRace {
   private closeRoom: () => void = () => undefined;
   /** A client's link to the host (open once WebRTC connects). */
   private hostLink: Transport | null = null;
+  /** Host: each client's own link by kart, for its path in the debug overlay (MK-75). */
+  private readonly clientLinks = new Map<number, Transport>();
+  /** Links' paths (`P2P` / `relay`) by kart, refreshed by `debug()`; -1 = the host link. */
+  private readonly paths = new Map<number, string>();
+  private pathsReadAt = -Infinity;
 
   /**
    * @param onLocalKart Called when a client learns which kart it drives (the host's Start).
@@ -209,6 +216,7 @@ export class OnlineRace {
       role: this.launch.role,
       ended: this.ended ?? client?.ended ?? null,
     };
+    this.refreshPaths();
     if (host) {
       info.tick = host.state.tick;
       info.peers = host.peers.map((peer) => ({
@@ -216,6 +224,7 @@ export class OnlineRace {
         connected: peer.connected,
         lateInputs: peer.stats.lateInputs,
         snapshotBytes: peer.stats.snapshotBytesAvg,
+        ...(this.paths.has(peer.kartId) ? { path: this.paths.get(peer.kartId) } : {}),
       }));
     }
     if (client) {
@@ -226,6 +235,8 @@ export class OnlineRace {
           ? 0
           : (client.snapshotTick - s.firstSnapshotTick) / NET.snapshotEveryTicks + 1;
       info.tick = client.state?.tick ?? 0;
+      const path = this.paths.get(-1);
+      if (path) info.path = path;
       info.rttMs = s.rttMs;
       info.lossPercent =
         expected > 0 ? Math.max(0, 1 - (s.snapshots + s.staleSnapshots) / expected) * 100 : 0;
@@ -240,6 +251,23 @@ export class OnlineRace {
       info.offset = this.smoother?.corrections.offsetSize(client.kartId) ?? 0;
     }
     return info;
+  }
+
+  /** Re-reads the links' paths now and then (WebRTC stats are async; the overlay shows the last). */
+  private refreshPaths(): void {
+    const now = performance.now();
+    if (now - this.pathsReadAt < PATH_REFRESH_MS) return;
+    this.pathsReadAt = now;
+    const links: [number, Transport][] = this.hostLink
+      ? [[-1, this.hostLink]]
+      : [...this.clientLinks];
+    for (const [kartId, link] of links) {
+      void linkConnectionInfo(link)
+        .then((info) => {
+          if (info && info.path !== 'unknown') this.paths.set(kartId, info.path);
+        })
+        .catch(() => undefined);
+    }
   }
 
   /** Leaves the race: the host ends it for everyone, a client says Bye. */
@@ -267,6 +295,7 @@ export class OnlineRace {
       (transport, clientId) => {
         const kartId = links.kartOf ? links.kartOf(clientId) : freeKarts.shift();
         if (kartId === undefined) return false;
+        this.clientLinks.set(kartId, transport);
         host.addClient(this.link(transport), kartId);
         return true;
       },

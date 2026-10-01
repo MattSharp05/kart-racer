@@ -1,3 +1,4 @@
+import type { RelayMode } from '../net/iceConfig';
 import type { LeaderboardMode } from '../records/leaderboardMock';
 import { oneWayOf, parseNetConditions, type NetConditions } from '../net/netsim';
 
@@ -40,6 +41,11 @@ export interface LaunchParams {
    * (`blocked`).
    */
   links?: RaceLinkMode;
+  /**
+   * `&relay=force` (MK-75, QA): online races over WebRTC connect only through the TURN relay
+   * (`iceTransportPolicy: 'relay'`), to prove it works even with both devices on one Wi-Fi.
+   */
+  relay?: RelayMode;
   /** `&role=host|client` in an online scenario (default host). */
   role?: NetRole;
   /** `&room=<id>`: tabs with the same room race each other. */
@@ -86,6 +92,7 @@ export function parseLaunchParams(search: string): LaunchParams {
     ...(item ? { item } : {}),
     ...(params.get('net') === 'local' ? { net: 'local' as const } : {}),
     ...(isRaceLinkMode(linksText) ? { links: linksText } : {}),
+    ...(params.get('relay') === 'force' ? { relay: 'force' as const } : {}),
     ...(role === 'host' || role === 'client' ? { role } : {}),
     ...(room ? { room } : {}),
     ...(netsim ? { netsim: oneWayOf(netsim) } : {}),

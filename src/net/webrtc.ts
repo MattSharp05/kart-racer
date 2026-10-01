@@ -1,17 +1,12 @@
+import { STUN_CONFIG } from './iceConfig';
 import { BaseTransport } from './transport';
-
-/** Public STUN only; no TURN in v2 (ADR 0006). */
-export const ICE_SERVERS: RTCIceServer[] = [
-  { urls: 'stun:stun.l.google.com:19302' },
-  { urls: 'stun:stun.cloudflare.com:3478' },
-];
 
 /** Race packets: unordered and unreliable, like UDP (ticket MK-36 → Technical notes). */
 export const DATA_CHANNEL_OPTIONS: RTCDataChannelInit = { ordered: false, maxRetransmits: 0 };
 
 /** How the two browsers ended up connected (from the selected ICE candidate pair). */
 export interface ConnectionInfo {
-  /** `P2P` = direct (host/srflx/prflx candidates), `relay` = through a TURN server. */
+  /** `P2P` = direct (host/srflx/prflx candidates), `relay` = through a TURN server (MK-75). */
   path: 'P2P' | 'relay' | 'unknown';
   localType: string;
   remoteType: string;
@@ -123,12 +118,13 @@ function watchFailure(pc: RTCPeerConnection, onFailed: () => void): void {
 /**
  * Host: answers every `join` with an offer; resolves a transport per client as it connects.
  * A repeated `join` (the client missed the offer) gets the same offer again. `onFailed` hears of
- * a client whose connection failed.
+ * a client whose connection failed. `config`: the race's ICE servers (MK-75, `iceConfig.ts`).
  */
 export function hostPeers(
   signaling: SignalingChannel,
   onClient: (transport: WebRtcTransport, peerId: string) => void,
   onFailed: (peerId: string) => void = () => undefined,
+  config: RTCConfiguration = STUN_CONFIG,
 ): void {
   const peers = new Map<string, RTCPeerConnection>();
   const offers = new Map<string, string>();
@@ -142,7 +138,7 @@ export function hostPeers(
         }
         return;
       }
-      const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
+      const pc = new RTCPeerConnection(config);
       peers.set(from, pc);
       const channel = pc.createDataChannel('race', DATA_CHANNEL_OPTIONS);
       const transport = new WebRtcTransport(pc, channel);
@@ -181,15 +177,18 @@ export function hostPeers(
 /**
  * Client: announces itself (every `SIGNAL_RETRY_MS` until the host offers), then answers;
  * resolves once the channel opens. `onFailed` hears if the connection fails (MK-73); `cancel`
- * gives up on a connection that isn't needed any more.
+ * gives up on a connection that isn't needed any more (already aborted: never connects).
+ * `config`: the race's ICE servers (MK-75, `iceConfig.ts`).
  */
 export function joinHost(
   signaling: SignalingChannel,
   onFailed: () => void = () => undefined,
   cancel?: AbortSignal,
+  config: RTCConfiguration = STUN_CONFIG,
 ): Promise<WebRtcTransport> {
   return new Promise((resolve) => {
-    const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
+    if (cancel?.aborted) return;
+    const pc = new RTCPeerConnection(config);
     let hostId: string | null = null;
     const pendingIce: RTCIceCandidateInit[] = [];
     let retries = 0;

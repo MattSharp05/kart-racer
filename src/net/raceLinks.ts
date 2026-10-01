@@ -1,6 +1,7 @@
+import { STUN_CONFIG } from './iceConfig';
 import { hostLocalRoom, joinLocalRoom, type JoinFailure, type LocalRoomJoin } from './localRoom';
 import { BaseTransport, type Transport } from './transport';
-import { hostPeers, joinHost, type SignalingChannel } from './webrtc';
+import { hostPeers, joinHost, type ConnectionInfo, type SignalingChannel } from './webrtc';
 
 /**
  * How an online race's host and clients get their links (MK-47). `?net=local` races use
@@ -40,21 +41,30 @@ export function localRaceLinks(
   };
 }
 
-/** Races over WebRTC data channels, signaled on `signaling` (the room's channel, per start). */
+/**
+ * Races over WebRTC data channels, signaled on `signaling` (the room's channel, per start).
+ * `iceConfig`: the race's ICE servers (MK-75: TURN when `/api/turn` answers, `raceIceConfig`),
+ * awaited before any peer connection is made; a client's `join` repeats until the host listens.
+ */
 export function webRtcRaceLinks(
   signaling: SignalingChannel,
   kartOf?: (clientId: string) => number | undefined,
+  iceConfig: Promise<RTCConfiguration> = Promise.resolve(STUN_CONFIG),
 ): RaceLinks {
   return {
     host: (accept, onFailed) => {
       let accepting = true;
-      hostPeers(
-        signaling,
-        (transport, peerId) => {
-          if (!accepting || !accept(transport, peerId)) transport.close();
-        },
-        (peerId) => accepting && onFailed?.(peerId),
-      );
+      void iceConfig.then((config) => {
+        if (!accepting) return;
+        hostPeers(
+          signaling,
+          (transport, peerId) => {
+            if (!accepting || !accept(transport, peerId)) transport.close();
+          },
+          (peerId) => accepting && onFailed?.(peerId),
+          config,
+        );
+      });
       return () => {
         accepting = false;
         signaling.close();
@@ -62,7 +72,9 @@ export function webRtcRaceLinks(
     },
     join: (onFailed) => {
       const cancel = new AbortController();
-      const link = joinHost(signaling, () => onFailed('unreachable'), cancel.signal);
+      const link = iceConfig.then((config) =>
+        joinHost(signaling, () => onFailed('unreachable'), cancel.signal, config),
+      );
       return {
         // Closed before it connects (the race was left): stop signaling and drop the connection.
         transport: new PendingTransport(link, () => {
@@ -104,10 +116,21 @@ export class PendingTransport extends BaseTransport {
     if (this.state === 'open') this.inner?.send(packet);
   }
 
+  /** The connected link's path (`P2P` or `relay`, MK-75), if it is a WebRTC one. */
+  async connectionInfo(): Promise<ConnectionInfo | null> {
+    return this.inner ? linkConnectionInfo(this.inner) : null;
+  }
+
   override close(): void {
     if (this.state === 'closed') return;
     super.close();
     if (this.inner) this.inner.close();
     else this.onCloseEarly();
   }
+}
+
+/** How `transport` is connected (`P2P` or `relay`, MK-75), when it can tell (WebRTC links). */
+export async function linkConnectionInfo(transport: Transport): Promise<ConnectionInfo | null> {
+  const source = transport as Partial<{ connectionInfo(): Promise<ConnectionInfo | null> }>;
+  return typeof source.connectionInfo === 'function' ? source.connectionInfo() : null;
 }

@@ -15,8 +15,13 @@ function freshCode(): string {
   return `C${[2, 1, 0].map((p) => alphabet[Math.floor(n / alphabet.length ** p) % alphabet.length]).join('')}`;
 }
 
-function lobbyUrl(role: 'host' | 'client', code: string, links: 'webrtc' | 'blocked'): string {
-  return `/?scenario=online-lobby&net=local&links=${links}&role=${role}&room=${code}&laps=1`;
+function lobbyUrl(
+  role: 'host' | 'client',
+  code: string,
+  links: 'webrtc' | 'blocked',
+  extra = '',
+): string {
+  return `/?scenario=online-lobby&net=local&links=${links}&role=${role}&room=${code}&laps=1${extra}`;
 }
 
 /** A page whose player is already named (MK-42), opened on `url`. */
@@ -34,11 +39,11 @@ async function open(context: BrowserContext, url: string, nickname: string): Pro
 }
 
 /** Host Hosty and guest Guesty in one room, the guest ready and the host's Start pressed. */
-async function startRace(context: BrowserContext, links: 'webrtc' | 'blocked') {
+async function startRace(context: BrowserContext, links: 'webrtc' | 'blocked', extra = '') {
   const code = freshCode();
-  const host = await open(context, lobbyUrl('host', code, links), 'Hosty');
+  const host = await open(context, lobbyUrl('host', code, links, extra), 'Hosty');
   await expect(host.locator('.room-code')).toHaveText(code);
-  const guest = await open(context, lobbyUrl('client', code, links), 'Guesty');
+  const guest = await open(context, lobbyUrl('client', code, links, extra), 'Guesty');
   await expect(host.locator('.lobby-players li')).toHaveCount(2);
   await guest.getByRole('button', { name: 'Ready' }).click();
   await host.getByRole('button', { name: 'Start' }).click();
@@ -65,6 +70,26 @@ test.describe('connecting an online race (MK-73)', () => {
     await expect
       .poll(() => host.evaluate(() => window.__game!.getState().tick), { timeout: 15_000 })
       .toBeGreaterThan(tick + 30);
+  });
+
+  test('with no TURN relay configured (CI, previews) the race falls back to STUN (MK-75)', async ({
+    context,
+    browserName,
+  }) => {
+    test.skip(browserName === 'webkit', "WebKit's ICE can't find a path in CI's container");
+    test.setTimeout(90_000);
+    // What previews answer: no TURN key there.
+    const asked: string[] = [];
+    await context.route('**/api/turn', (route) => {
+      asked.push(route.request().frame().page().url());
+      return route.fulfill({ status: 503, json: { error: 'relay not configured' } });
+    });
+    const { host, guest } = await startRace(context, 'webrtc', '&netdebug=1');
+    await expect.poll(() => started(guest), { timeout: 30_000 }).toBe(true);
+    // One request per device for the race, both links still connect directly.
+    expect(asked).toHaveLength(2);
+    await expect(guest.getByTestId('net-debug')).toContainText('link P2P', { timeout: 10_000 });
+    await expect(host.getByTestId('net-debug')).toContainText('link P2P', { timeout: 10_000 });
   });
 
   test("a race that can't connect says who it waits for, and the host sees a player leave", async ({
