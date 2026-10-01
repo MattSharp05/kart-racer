@@ -240,7 +240,7 @@ const LEAP = { height: 1.8, run: 3 };
  * s, from the bushes on one side to the bushes on the other, then is gone until the next time. It
  * spins out karts it walks into, like the other movers; the AI steers round it.
  */
-function crossing(
+function crossingMover(
   animal: AnimalSpecies,
   radius: number,
   path: Vec3[],
@@ -271,18 +271,102 @@ export const ANIMAL = {
   deer: { radius: 1.2, speed: 7, period: 14 },
 };
 
+/** A road crossing (MK-61 QA round 3): where on the lap (world x, z, snapped to the road). */
+interface RoadCrossing {
+  animal: AnimalSpecies;
+  x: number;
+  z: number;
+  /** Which side it comes out of the bushes on (seen driving along the lap). */
+  from: 'left' | 'right';
+  /** How far it walks each way from the road's centre, m. */
+  reach: number;
+  /** Fraction of its cycle it starts at (crossings are staggered by this). */
+  phase: number;
+  /** A deer leaps the wall line on these sides as it bounds over (the walls are 1.2 m). */
+  leaps?: ('left' | 'right')[];
+}
+
 /**
- * Where the deer crosses the jungle floor's south straight (world z): at `x`, out of the bushes
- * where the trail rejoins (no wall on that side), over the road and the far wall, `reach` m each way.
+ * The path of an animal crossing the road at a `RoadCrossing`: straight across the road at right
+ * angles, from the bushes on one side to the bushes on the other, over each wall it leaps.
  */
+function roadPath(crossing: RoadCrossing): Vec3[] {
+  const t = tAt(crossing.x, crossing.z);
+  const centre = geometry.pointAt(t);
+  const tangent = geometry.tangentAt(t);
+  // The right-hand normal is (−tz, tx); `dir` points the way the animal walks.
+  const sign = crossing.from === 'left' ? 1 : -1;
+  const dir = { x: -tangent.z * sign, z: tangent.x * sign };
+  const at = (d: number, y: number): Vec3 => ({
+    x: centre.x + dir.x * d,
+    y,
+    z: centre.z + dir.z * d,
+  });
+  const wall = W / 2 + base.offroadWidth;
+  const path = [at(-crossing.reach, centre.y)];
+  // The leaps in walking order: the near wall (at −wall along `dir`) first.
+  const sides: ('left' | 'right')[] = [crossing.from, crossing.from === 'left' ? 'right' : 'left'];
+  for (const side of sides) {
+    if (!crossing.leaps?.includes(side)) continue;
+    const d = side === crossing.from ? -wall : wall;
+    path.push(
+      at(d - LEAP.run, centre.y),
+      at(d, centre.y + LEAP.height),
+      at(d + LEAP.run, centre.y),
+    );
+  }
+  path.push(at(crossing.reach, centre.y));
+  return path;
+}
+
+/** Where the deer crosses the jungle floor's south straight, where the trail rejoins it. */
 const DEER = { x: 60, z: HOME.z + HOME.radius, reach: 25 };
 
 /**
- * The animals: three crossings of the trail through the ruins (a boar, a tapir with her calf,
- * another boar) and a deer that bounds across the jungle floor's south straight, leaping its wall.
+ * The animals crossing the road all round the jungle floor (MK-61 QA round 3: "more animals
+ * crossing, not just in the shortcut"), in driving order from the start line. Each comes out of the
+ * bushes on one side, crosses and is gone into the other side's. Their cycles are staggered: the
+ * start straight's boar first crosses 8 s after GO (when the pack has gone by), and the two boars
+ * either side of the start line (same period) are never both on the road in one pass at speed.
  */
-export const ANIMALS: MoverHazard[] = [
-  crossing(
+export const ROAD_CROSSINGS: RoadCrossing[] = [
+  // The start straight, between the start line and the waterfall jump.
+  { animal: 'boar', x: 0, z: 58, from: 'left', reach: 22, phase: 0.38 },
+  // The foot of the root ramp, before the far corner.
+  { animal: 'deer', x: 195, z: 106, from: 'right', reach: 24, phase: 0.1, leaps: ['left'] },
+  // The south straight: a tapir and her calf heading into the trail's mouth, then the deer.
+  { animal: 'tapir', x: 110, z: 163, from: 'left', reach: 24, phase: 0.3 },
+  { animal: 'deer', ...DEER, from: 'right', phase: 0.2, leaps: ['left'] },
+  // Out of the home corner, behind the grid.
+  { animal: 'boar', x: 0, z: 121, from: 'right', reach: 22, phase: 0.85 },
+];
+
+/** A road crossing as a hazard (or two: a tapir's calf trots behind her). */
+function roadAnimals(crossing: RoadCrossing): MoverHazard[] {
+  const path = roadPath(crossing);
+  if (crossing.animal === 'tapir') {
+    const { radius, speed, period } = ANIMAL.tapir;
+    return [
+      crossingMover('tapir', radius, path, speed, period, crossing.phase),
+      crossingMover(
+        'tapirCalf',
+        ANIMAL.calf.radius,
+        path,
+        speed,
+        period,
+        crossing.phase - CALF_LAG / period,
+      ),
+    ];
+  }
+  const kind = crossing.animal === 'deer' ? ANIMAL.deer : ANIMAL.boar;
+  return [
+    crossingMover(crossing.animal, kind.radius, path, kind.speed, kind.period, crossing.phase),
+  ];
+}
+
+/** The animals crossing the trail through the ruins (MK-61 QA round 2). */
+export const TRAIL_ANIMALS: MoverHazard[] = [
+  crossingMover(
     'boar',
     ANIMAL.boar.radius,
     [floor(40, -50), floor(95, -50)],
@@ -290,7 +374,7 @@ export const ANIMALS: MoverHazard[] = [
     ANIMAL.boar.period,
     0,
   ),
-  crossing(
+  crossingMover(
     'tapir',
     ANIMAL.tapir.radius,
     [floor(115, 60), floor(66, 60)],
@@ -298,7 +382,7 @@ export const ANIMALS: MoverHazard[] = [
     ANIMAL.tapir.period,
     0.4,
   ),
-  crossing(
+  crossingMover(
     'tapirCalf',
     ANIMAL.calf.radius,
     [floor(115, 60), floor(66, 60)],
@@ -306,7 +390,7 @@ export const ANIMALS: MoverHazard[] = [
     ANIMAL.tapir.period,
     0.4 - CALF_LAG / ANIMAL.tapir.period,
   ),
-  crossing(
+  crossingMover(
     'boar',
     ANIMAL.boar.radius,
     [floor(128, 115), floor(72, 115)],
@@ -314,21 +398,15 @@ export const ANIMALS: MoverHazard[] = [
     ANIMAL.boar.period,
     0.55,
   ),
-  crossing(
-    'deer',
-    ANIMAL.deer.radius,
-    [
-      floor(DEER.x, DEER.z - DEER.reach),
-      floor(DEER.x, DEER.z + W / 2 + base.offroadWidth - LEAP.run),
-      floor(DEER.x, DEER.z + W / 2 + base.offroadWidth, LEAP.height),
-      floor(DEER.x, DEER.z + W / 2 + base.offroadWidth + LEAP.run),
-      floor(DEER.x, DEER.z + DEER.reach),
-    ],
-    ANIMAL.deer.speed,
-    ANIMAL.deer.period,
-    0.2,
-  ),
 ];
+
+/** Each road crossing's animals (the first leads), in `ROAD_CROSSINGS` order. */
+export const ROAD_CROSSING_ANIMALS: MoverHazard[][] = ROAD_CROSSINGS.map(roadAnimals);
+/** The animals crossing the road. */
+export const ROAD_ANIMALS: MoverHazard[] = ROAD_CROSSING_ANIMALS.flat();
+
+/** Every animal: the trail's, then the road's. */
+export const ANIMALS: MoverHazard[] = [...TRAIL_ANIMALS, ...ROAD_ANIMALS];
 
 export const canopyRush: SplineTrackDef = {
   ...base,
@@ -367,12 +445,14 @@ export const canopyRush: SplineTrackDef = {
 export const CANOPY_RUSH = {
   bridges: BRIDGES,
   bridgeWidth: BRIDGE_W,
+  roadWidth: W,
   trunk: TRUNK,
   far: FAR,
   home: HOME,
   ruinsFloor: RUINS_FLOOR,
   ruinsPath: RUINS_PATH,
   deer: DEER,
+  roadCrossings: ROAD_CROSSINGS,
   floorY: FLOOR_Y,
   canopyY: CANOPY_Y,
   topY: TOP_Y,
@@ -388,13 +468,15 @@ const theme: TrackTheme = {
   sky: { top: 0x5f9e6e, middle: 0xa9d3a0, horizon: 0xe4f2c8 },
   fog: { colour: 0x9cc79a, near: 70, far: 360 },
   light: { sky: 0xf2ffe0, ground: 0x2f5a2a, fillIntensity: 1.2, sun: 0xfff1c8, sunIntensity: 1.35 },
+  // The view lays the animal trail over the road (MK-61 QA round 3): grass verges, and walls the
+  // greens of the hedge planted along them.
   palette: {
     road: 0x8a6a48,
-    verge: 0xb58a58,
+    verge: 0x4f8a34,
     terrain: 0x2f5d2a,
     infield: 0x3f7a34,
-    wallA: 0x6a4a2c,
-    wallB: 0x4f8a3a,
+    wallA: 0x2f6e30,
+    wallB: 0x3a7d36,
   },
   // Registered by `render.ts`, which also draws the canopy's own scenery instead.
   scenery: 'jungle',

@@ -12,8 +12,19 @@ import { groundAt, trackGeometry } from '../../../sim/track';
 import { DT, tuning } from '../../../sim/tuning';
 import { NEUTRAL_INPUT, type InputFrame, type SimEvent, type SimState } from '../../../sim/types';
 import { tracks } from '..';
-import { BRIDGE_START_TICK } from './scenarios';
-import { ANIMALS, CANOPY_RUSH, RUINS_ROUTE, SWAY, SWAY_DECKS, canopyRush } from './sim';
+import { BRIDGE_START_TICK, roadCrossing } from './scenarios';
+import {
+  ANIMALS,
+  ANIMAL,
+  CANOPY_RUSH,
+  ROAD_CROSSING_ANIMALS,
+  ROAD_CROSSINGS,
+  RUINS_ROUTE,
+  SWAY,
+  SWAY_DECKS,
+  TRAIL_ANIMALS,
+  canopyRush,
+} from './sim';
 
 const geometry = trackGeometry(canopyRush);
 const { bridges, ruinsFloor, tAt } = CANOPY_RUSH;
@@ -467,8 +478,8 @@ describe('Canopy Rush AI race', () => {
 });
 
 describe('Canopy Rush animals (MK-61 QA round 2)', () => {
-  const trail = ANIMALS.filter((a) => a.animal !== 'deer');
-  const deer = ANIMALS.find((a) => a.animal === 'deer')!;
+  const trail = TRAIL_ANIMALS;
+  const deer = ANIMALS.filter((a) => a.animal === 'deer');
   const hazardHits = (events: SimEvent[], kartId = 0) =>
     events.filter((e) => e.type === 'kartHit' && e.kartId === kartId && e.kind === 'hazard');
 
@@ -486,16 +497,19 @@ describe('Canopy Rush animals (MK-61 QA round 2)', () => {
     }
   });
 
-  it('a deer bounds across the jungle floor road and leaps its wall', () => {
+  it('deer bound across the jungle floor road and leap its wall', () => {
     const { deer: spot } = CANOPY_RUSH;
     const onRoad = geometry.project({ x: spot.x, y: 0, z: spot.z });
     expect(onRoad.surface).toBe('road');
-    // Over each wall line it's higher than the 1.2 m walls.
-    const tops = deer.path.filter((p) => p.y > 1.2);
-    expect(tops).toHaveLength(1);
-    for (const top of tops) {
-      const p = geometry.project(top);
-      expect(Math.abs(Math.abs(p.lateral) - geometry.wallOffset(p.width))).toBeLessThan(0.5);
+    expect(deer.length).toBeGreaterThanOrEqual(2);
+    for (const animal of deer) {
+      // Over the wall line it's higher than the 1.2 m walls.
+      const tops = animal.path.filter((p) => p.y > 1.2);
+      expect(tops).toHaveLength(1);
+      for (const top of tops) {
+        const p = geometry.project(top);
+        expect(Math.abs(Math.abs(p.lateral) - geometry.wallOffset(p.width))).toBeLessThan(0.5);
+      }
     }
   });
 
@@ -532,7 +546,7 @@ describe('Canopy Rush animals (MK-61 QA round 2)', () => {
     const kart = s.karts[0]!;
     const from = setup.karts[0]!;
     const offsetTicks = setup.tick - s.tick;
-    const periodTicks = Math.round(ANIMALS.find((a) => a.animal === 'tapir')!.period / DT);
+    const periodTicks = Math.round(TRAIL_ANIMALS.find((a) => a.animal === 'tapir')!.period / DT);
     // Put the race clock where the scenario's is (mod the tapir's cycle); the kart where it starts.
     s.tick += ((offsetTicks % periodTicks) + periodTicks) % periodTicks;
     s.race = { ...s.race, goTick: s.tick };
@@ -560,4 +574,132 @@ describe('Canopy Rush deer (MK-61 QA round 2)', () => {
     expect(hits(run(state(), 5 * 60, () => ({ throttle: 1 })).events)).toHaveLength(1);
     expect(hits(run(state(), 5 * 60, () => ({ brake: 1 })).events)).toHaveLength(0);
   });
+});
+
+describe('Canopy Rush road crossings (MK-61 QA round 3)', () => {
+  const hits = (events: SimEvent[]) =>
+    events.filter((e) => e.type === 'kartHit' && e.kind === 'hazard');
+  /** Where on the lap each crossing is (m along it), in `ROAD_CROSSINGS` order. */
+  const along = ROAD_CROSSINGS.map((c) => geometry.project({ x: c.x, y: 0, z: c.z }).s);
+  /** The ticks of its cycle when crossing `i`'s leading animal is on the road (between the walls). */
+  function onRoad(i: number): Set<number> {
+    const mover = ROAD_CROSSING_ANIMALS[i]![0]!;
+    const ticks = new Set<number>();
+    for (let tick = 0; tick < Math.round(mover.period / DT); tick += 1) {
+      const pose = hazardPose(mover, tick);
+      if (pose.amount === 0) continue;
+      const p = geometry.project(pose);
+      if (Math.abs(p.s - along[i]!) < 5 && Math.abs(p.lateral) < geometry.wallOffset(p.width)) {
+        ticks.add(tick);
+      }
+    }
+    return ticks;
+  }
+
+  it('at least 5 crossings spread round the jungle floor, off the ruins, each from bushes to bushes', () => {
+    expect(ROAD_CROSSINGS.length).toBeGreaterThanOrEqual(5);
+    expect(ANIMALS.length).toBe(TRAIL_ANIMALS.length + ROAD_CROSSING_ANIMALS.flat().length);
+    // Spread out: at least 40 m apart round the lap.
+    const sorted = [...along].sort((a, b) => a - b);
+    sorted.forEach((s, i) => {
+      const next =
+        sorted[(i + 1) % sorted.length]! + (i + 1 === sorted.length ? geometry.length : 0);
+      expect(next - s).toBeGreaterThan(40);
+    });
+    ROAD_CROSSING_ANIMALS.forEach((movers, i) => {
+      const crossing = ROAD_CROSSINGS[i]!;
+      const centre = geometry.project({ x: crossing.x, y: 0, z: crossing.z });
+      // On the floor road, not on the trail through the ruins.
+      expect(centre.groundY).toBeLessThan(1);
+      expect(insidePolygon(crossing.x, crossing.z, [...ruinsFloor])).toBe(false);
+      for (const mover of movers) {
+        const ends = [mover.path[0]!, mover.path.at(-1)!].map((p) => geometry.project(p));
+        // From one side to the other, starting and ending well outside the walls.
+        expect(Math.sign(ends[0]!.lateral)).toBe(-Math.sign(ends[1]!.lateral));
+        for (const end of ends) {
+          expect(Math.abs(end.lateral)).toBeGreaterThan(geometry.wallOffset(end.width) + 8);
+        }
+        // Straight across: every point on the path is level with the crossing along the lap.
+        for (const p of mover.path)
+          expect(Math.abs(geometry.project(p).s - centre.s)).toBeLessThan(1);
+      }
+    });
+  });
+
+  it('readable in time: out of the bushes ≥ 1.5 s before reaching the road, and on it under a third of the time', () => {
+    ROAD_CROSSING_ANIMALS.forEach((movers, i) => {
+      const crossing = ROAD_CROSSINGS[i]!;
+      const kind =
+        crossing.animal === 'tapir' ? ANIMAL.tapir : ANIMAL[crossing.animal as 'boar' | 'deer'];
+      // Any leap is over the far wall: it walks straight out of the bushes to the near one.
+      const roadEdge = geometry.wallOffset(CANOPY_RUSH.roadWidth);
+      expect((crossing.reach - roadEdge) / kind.speed).toBeGreaterThanOrEqual(1.5);
+      const mover = movers[0]!;
+      expect(onRoad(i).size * DT).toBeLessThan(mover.period / 3);
+    });
+  });
+
+  it('the start straight’s boar stays off the road while the pack leaves the grid', () => {
+    const state = scenarios.get('track-canopy-rush')!.setup(1).state;
+    const start = ROAD_CROSSINGS.findIndex((c) => c.animal === 'boar' && c.z === 58);
+    const mover = ROAD_CROSSING_ANIMALS[start]![0]!;
+    const periodTicks = Math.round(mover.period / DT);
+    const on = onRoad(start);
+    for (let k = 0; k < 8 / DT; k += 1) {
+      expect(on.has((state.race.goTick + k) % periodTicks)).toBe(false);
+    }
+  });
+
+  it('the two boars either side of the start line are never both on the road in one pass', () => {
+    const home = ROAD_CROSSINGS.findIndex((c) => c.animal === 'boar' && c.z === 121);
+    const start = ROAD_CROSSINGS.findIndex((c) => c.animal === 'boar' && c.z === 58);
+    const period = Math.round(ANIMAL.boar.period / DT);
+    const gap = (along[start]! - along[home]! + geometry.length) % geometry.length;
+    const [homeOn, startOn] = [onRoad(home), onRoad(start)];
+    // At 150cc, from top speed down to a slowed 20 m/s.
+    for (const speed of [tuning.topSpeed[150], 24, 20]) {
+      const lag = Math.round(gap / speed / DT);
+      for (const tick of homeOn) expect(startOn.has((tick + lag) % period)).toBe(false);
+    }
+  });
+
+  it.each(ROAD_CROSSINGS.map((c, i) => [i, c.animal] as const))(
+    'crossing %i (%s): following the road you run into it; the AI steers round it',
+    (index) => {
+      const setup = roadCrossing(1, index);
+      // Following the road (round any bend) without dodging.
+      const ahead = run(setup, 5 * 60, (state) => autopilotInput(state.karts[0]!, geometry));
+      expect(hits(ahead.events).length).toBeGreaterThanOrEqual(1);
+
+      // The same moment, driven by the AI.
+      let s = createRace({
+        trackId: 'canopy-rush',
+        racers: [{ kartId: 'maple', controller: 'ai' }],
+        engineClass: 150,
+        itemsOn: false,
+        seed: 1,
+      });
+      while (s.phase !== 'racing') s = step(s, []).state;
+      const kart = s.karts[0]!;
+      const from = setup.karts[0]!;
+      s.tick = setup.tick;
+      s.race = { ...s.race, goTick: s.tick };
+      const t = geometry.project(from.position).t;
+      const checkpoints = canopyRush.checkpoints;
+      const next = checkpoints.findIndex((c) => c > t);
+      kart.position = { ...from.position };
+      kart.heading = from.heading;
+      kart.velocity = { ...from.velocity };
+      kart.speed = from.speed;
+      kart.race = { ...kart.race, lap: 1, lastT: t, nextCheckpoint: next < 0 ? 0 : next };
+      const events: SimEvent[] = [];
+      for (let i = 0; i < 5 * 60; i += 1) {
+        const result = step(s, []);
+        s = result.state;
+        events.push(...result.events);
+      }
+      expect(hits(events)).toHaveLength(0);
+      expect(respawns(events)).toHaveLength(0);
+    },
+  );
 });

@@ -95,4 +95,28 @@ test.describe('Canopy Rush (MK-61)', () => {
     expect(spun).toBe(true);
     expect(errors).toEqual([]);
   });
+
+  for (const scenario of [
+    'canopy-animals-boar',
+    'canopy-animals-ramp-deer',
+    'canopy-animals-road-tapir',
+    'canopy-animals-home-boar',
+  ]) {
+    test(`${scenario}: following the road without dodging, the animal crossing it spins you out`, async ({
+      page,
+    }) => {
+      test.setTimeout(60_000);
+      const errors: string[] = [];
+      page.on('pageerror', (e) => errors.push(e.message));
+      await loadScenario(page, scenario, { paused: true });
+      // The centreline autopilot follows the road round any bend but never dodges.
+      await page.evaluate(() => window.__game!.setAutopilot(0, true));
+      let spun = false;
+      for (let i = 0; i < 12 && !spun; i += 1) {
+        spun = (await step(page, 20)).karts[0]!.spinTimer > 0;
+      }
+      expect(spun).toBe(true);
+      expect(errors).toEqual([]);
+    });
+  }
 });
