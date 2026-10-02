@@ -37,4 +37,22 @@ test.describe('drift & mini-turbo', () => {
     await page.keyboard.up('KeyW');
     expect(state.karts[0]!.drift.direction).toBe(1);
   });
+
+  test('200cc brake-drift: braking in a drift keeps the drift and most of the speed (MK-96)', async ({
+    page,
+  }) => {
+    await loadScenario(page, 'drive-200cc', { paused: true });
+    await setInput(page, 0, { throttle: 1 });
+    const rolling = await step(page, 90);
+    expect(rolling.engineClass).toBe(200);
+    // Faster than 150cc's top speed (28 m/s) after 1.5 s, still on the road.
+    expect(rolling.karts[0]!.speed).toBeGreaterThan(30);
+    await setInput(page, 0, { throttle: 1, drift: true, steer: 1 });
+    await step(page, 1);
+    await setInput(page, 0, { throttle: 1, drift: true, brake: 1 });
+    const kart = (await step(page, 20)).karts[0]!;
+    // A plain brake would have shed ~7 m/s and dropped the drift's tightness.
+    expect(kart.drift.direction).toBe(1);
+    expect(kart.speed).toBeGreaterThan(28);
+  });
 });

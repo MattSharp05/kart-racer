@@ -26,6 +26,11 @@ export interface GameTestApi {
   renderInfo(): RenderInfo;
   /** The online race's role, kart, RTT and newest snapshot tick (MK-46); null offline. */
   net(): NetInfo | null;
+  /**
+   * Loads scenario `name`'s state in place, keeping the page's camera view (MK-91: another track
+   * drawn under the overview). False if there is no such scenario.
+   */
+  loadState?(name: string, seed?: number): boolean;
 }
 
 /** `SimState` plus the session's local kart (not part of the sim). */
@@ -35,7 +40,19 @@ export type TestState = SimState & { localKartId: number };
 export interface RenderInfo {
   calls: number;
   triangles: number;
-  camera?: { fov: number; shake: number; fovKick: number };
+  /** The track the scene draws (MK-78). */
+  trackId?: string;
+  camera?: {
+    fov: number;
+    shake: number;
+    fovKick: number;
+    /** How straight down the camera looks: 1 = straight down, 0 = level (MK-79). */
+    lookDown?: number;
+    /** Share of the track's centreline inside the camera's view, 0–1 (MK-79). */
+    trackInView?: number;
+    /** The camera's height, m (MK-91: the overview's framing of the drawn track). */
+    height?: number;
+  };
 }
 
 declare global {
@@ -44,16 +61,28 @@ declare global {
   }
 }
 
+/**
+ * What `step` does to the scene around the stepped ticks. `before` syncs it to the state about to
+ * be stepped (MK-77): render-side juice (the FOV kick on a boost start, a hit's shake) compares
+ * each frame with the last, so without it a step taken before the first animation frame had
+ * nothing to compare with. `after` shows the result.
+ */
+export interface StepHooks {
+  before(): void;
+  after(): void;
+}
+
 /** Fired on `window` once `window.__game` is usable. */
 export const GAME_READY_EVENT = 'game-ready';
 
 export function installTestApi(
   game: Game,
-  onStep: () => void,
+  onStep: StepHooks,
   scenario: string | undefined,
   renderInfo: () => RenderInfo,
   localKartId: () => number,
   net: () => NetInfo | null = () => null,
+  loadState: (name: string, seed?: number) => boolean = () => false,
 ): GameTestApi {
   const snapshot = (): TestState => ({
     ...structuredClone(game.state),
@@ -67,8 +96,10 @@ export function installTestApi(
     resume: () => game.resume(),
     isPaused: () => game.paused,
     step: (ticks, options) => {
+      const render = options?.render !== false;
+      if (render) onStep.before();
       game.stepTicks(ticks);
-      if (options?.render !== false) onStep();
+      if (render) onStep.after();
       return snapshot();
     },
     setInput: (kartId, frame) =>
@@ -77,6 +108,7 @@ export function installTestApi(
     events: () => game.drainEvents(),
     renderInfo,
     net,
+    loadState,
   };
   window.__game = api;
   window.dispatchEvent(new Event(GAME_READY_EVENT));

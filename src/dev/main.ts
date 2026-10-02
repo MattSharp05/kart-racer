@@ -80,16 +80,16 @@ if (app) {
     app.append(section);
   }
 
-  // MK-36 netcode spike: not a scenario (it needs two browsers), so it's listed by hand.
+  // MK-92 anti-gravity spike: not a scenario (its own page and kart), so it's listed by hand.
   const spike = document.createElement('section');
   const spikeTitle = document.createElement('h2');
-  spikeTitle.textContent = 'Online (spike)';
+  spikeTitle.textContent = 'MK8 (spike)';
   const spikeItems = document.createElement('ul');
   spikeItems.append(
     renderLink(
-      'net-spike-host',
-      `${window.location.origin}/?spike=net&role=host`,
-      'Host a 2-player WebRTC test race; it shows the client link + QR code to open on a second device.',
+      'antigrav-spike',
+      `${window.location.origin}/?spike=antigrav`,
+      'MK-92: drive one kart on the synthetic anti-gravity test course (barrel roll, 80° banked wall ride). P toggles the autopilot.',
     ),
   );
   spike.append(spikeTitle, spikeItems);

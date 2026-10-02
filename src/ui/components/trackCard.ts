@@ -66,12 +66,12 @@ export function recordText(record: TrackRecord): string[] {
 
 /**
  * One track's card (MK-50, reused by the online lobby): its outline, name, hazard in a few words
- * and the player's records. A button, so it works with a tap, a click and the keyboard;
- * `aria-checked` marks the selected one.
+ * and the player's records (none in the lobby, MK-78). A button, so it works with a tap, a click
+ * and the keyboard; `aria-checked` marks the selected one.
  */
 export function trackCard(
   track: TrackContent,
-  record: TrackRecord,
+  record: TrackRecord | null,
   onPick: () => void,
 ): HTMLButtonElement {
   const card = document.createElement('button');
@@ -92,15 +92,17 @@ export function trackCard(
     hazard.textContent = track.hazard;
     card.append(hazard);
   }
-  const records = document.createElement('span');
-  records.className = 'track-records';
-  if (!record.race && !record.lap) records.classList.add('none');
-  for (const text of recordText(record)) {
-    const line = document.createElement('span');
-    line.textContent = text;
-    records.append(line);
+  if (record) {
+    const records = document.createElement('span');
+    records.className = 'track-records';
+    if (!record.race && !record.lap) records.classList.add('none');
+    for (const text of recordText(record)) {
+      const line = document.createElement('span');
+      line.textContent = text;
+      records.append(line);
+    }
+    card.append(records);
   }
-  card.append(records);
   card.addEventListener('click', onPick);
   return card;
 }

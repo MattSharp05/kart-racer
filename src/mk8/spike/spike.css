@@ -1,0 +1,21 @@
+/* MK-92 anti-gravity spike page: the debug readout over the canvas. */
+.antigrav-hud {
+  position: fixed;
+  top: max(8px, env(safe-area-inset-top));
+  left: max(8px, env(safe-area-inset-left));
+  margin: 0;
+  padding: 8px 10px;
+  max-width: calc(100vw - 32px);
+  overflow: hidden;
+  font:
+    12px/1.4 ui-monospace,
+    Menlo,
+    Consolas,
+    monospace;
+  color: #fff;
+  background: rgb(0 0 0 / 55%);
+  border-radius: 6px;
+  white-space: pre-wrap;
+  pointer-events: none;
+  z-index: 10;
+}

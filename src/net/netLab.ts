@@ -78,6 +78,8 @@ export interface LabClientReport {
   mismatchedFinishes: number[];
   /** The race ended early for this client (dropped, host lost, …). */
   ended: string | null;
+  /** The measurements behind `ownJump`, `ownTruthError` and `remoteTruthError`, to pool runs. */
+  samples: { ownJump: number[]; ownTruthError: number[]; remoteTruthError: number[] };
 }
 
 export interface LabReport {
@@ -88,7 +90,8 @@ export interface LabReport {
   clients: LabClientReport[];
 }
 
-function spread(samples: number[]): Spread {
+/** A few percentiles of `samples` (pool several runs' `samples` for a steadier figure, MK-86). */
+export function spread(samples: number[]): Spread {
   if (samples.length === 0) return { p50: 0, p99: 0, max: 0 };
   const sorted = [...samples].sort((a, b) => a - b);
   const at = (q: number) => sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * q))] ?? 0;
@@ -113,6 +116,8 @@ interface Watch {
   client: OnlineClient;
   kartId: number;
   smoother: NetSmoother;
+  /** The other humans' karts in this client's race. */
+  remoteHumans: number[];
   ownCorrections: number[];
   remoteCorrections: number[];
   ownJumps: number[];
@@ -130,11 +135,6 @@ interface Watch {
   leadSamples: number;
 }
 
-/** The karts of other humans in client `watch`'s race. */
-function remoteHumans(watch: Watch): number[] {
-  return [...watch.smoother.remoteKarts];
-}
-
 /**
  * After each client tick, as `OnlineRace`'s stepper does: the reconciles since the last tick go to
  * the smoother (and into the correction sizes).
@@ -144,7 +144,7 @@ function afterTick(watch: Watch): void {
   const corrections = client.takeCorrections();
   const state = client.state;
   if (!state) return;
-  const remote = remoteHumans(watch);
+  const remote = watch.remoteHumans;
   for (const c of corrections) {
     const size = Math.hypot(c.dx, c.dy, c.dz);
     if (c.kartId === kartId) watch.ownCorrections.push(size);
@@ -167,7 +167,7 @@ function drawFrame(watch: Watch, ticks: number): void {
   }
   watch.leadSum += state.tick - client.snapshotTick;
   watch.leadSamples += 1;
-  for (const id of [kartId, ...remoteHumans(watch)]) {
+  for (const id of [kartId, ...watch.remoteHumans]) {
     const kart = state.karts[id];
     if (!kart) continue;
     const pose = poseOf(kart);
@@ -220,13 +220,11 @@ export function runLab({
       leadTicks: () => (client.state ? client.state.tick - client.snapshotTick : 0),
     });
     client.onSnapshotState = (state) => smoother.snapshots.push(state);
-    smoother.remoteKarts = new Set(
-      Array.from({ length: clients + 1 }, (_, k) => k).filter((k) => k !== i + 1),
-    );
     return {
       client,
       kartId: i + 1,
       smoother,
+      remoteHumans: Array.from({ length: clients + 1 }, (_, k) => k).filter((k) => k !== i + 1),
       ownCorrections: [],
       remoteCorrections: [],
       ownJumps: [],
@@ -279,13 +277,13 @@ export function runLab({
           ? 0
           : (client.snapshotTick - s.firstSnapshotTick) / NET.snapshotEveryTicks + 1;
       const truthErrors = (own: boolean) =>
-        spread(
-          watch.frames.flatMap((f) => {
-            const real = truth.get(f.tick)?.[f.kartId];
-            if (!real || (f.kartId === kartId) !== own) return [];
-            return [Math.hypot(f.x - real.x, f.z - real.z)];
-          }),
-        );
+        watch.frames.flatMap((f) => {
+          const real = truth.get(f.tick)?.[f.kartId];
+          if (!real || (f.kartId === kartId) !== own) return [];
+          return [Math.hypot(f.x - real.x, f.z - real.z)];
+        });
+      const ownTruthErrors = truthErrors(true);
+      const remoteTruthErrors = truthErrors(false);
       return {
         kartId,
         rttMs: s.rttMs,
@@ -295,8 +293,8 @@ export function runLab({
         remoteCorrection: spread(watch.remoteCorrections),
         ownJump: spread(watch.ownJumps),
         remoteJump: spread(watch.remoteJumps),
-        ownTruthError: truthErrors(true),
-        remoteTruthError: truthErrors(false),
+        ownTruthError: spread(ownTruthErrors),
+        remoteTruthError: spread(remoteTruthErrors),
         resimTicksPerSnapshot: s.snapshots > 0 ? s.replayTicks / s.snapshots : 0,
         matchedPercent: s.snapshots > 0 ? (s.matched / s.snapshots) * 100 : 0,
         snapshotMsAvg: s.snapshots > 0 ? s.snapshotMsTotal / s.snapshots : 0,
@@ -308,6 +306,11 @@ export function runLab({
         results: client.results,
         mismatchedFinishes: mismatchedFinishes(host, client),
         ended: client.ended ?? (client.hostLost ? 'host-lost' : null),
+        samples: {
+          ownJump: watch.ownJumps,
+          ownTruthError: ownTruthErrors,
+          remoteTruthError: remoteTruthErrors,
+        },
       };
     }),
   };

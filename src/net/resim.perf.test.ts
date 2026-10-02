@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createRace } from '../sim/race/createRace';
+import { tuning, type RemoteKartMode } from '../sim/tuning';
 import { step } from '../sim/step';
 import type { InputFrame, SimState } from '../sim/types';
 import { parseNetConditions } from './netsim';
@@ -51,28 +52,43 @@ describe('re-simulation budget (ADR 0005, docs/TDD.md → v2 perf)', () => {
     expect(ms).toBeLessThan(8);
   });
 
+  /** A 4-player race at 150 ms / 30 ms / 5 % for 20 s: each client's snapshot handling stats. */
+  function snapshotStats(mode: RemoteKartMode) {
+    const defaultMode = tuning.net.remoteKarts;
+    tuning.net.remoteKarts = mode;
+    try {
+      const { host, clients, clock } = onlineRace({
+        clients: 3,
+        conditions: parseNetConditions('75,30,5'),
+      });
+      for (let i = 0; i < 20 * HZ; i += 1) {
+        host.tick(scriptedInput(host.state.karts[0], host.state.tick, 0));
+        clients.forEach((client, c) =>
+          client.tick(scriptedInput(client.state?.karts[c + 1], client.state?.tick ?? 0, c + 1)),
+        );
+        clock.advance(TICK_MS);
+      }
+      return clients.map((client) => {
+        const s = client.stats;
+        const avg = s.snapshotMsTotal / s.snapshots;
+        const replayShare = s.reconciled / s.snapshots;
+        console.log(
+          `snapshot (${mode}): ${avg.toFixed(2)} ms avg, ${s.snapshotMsMax.toFixed(1)} ms max; ` +
+            `${(replayShare * 100).toFixed(0)} % replayed, ${(s.replayTicks / Math.max(1, s.reconciled)).toFixed(1)} ticks each`,
+        );
+        return { avg, max: s.snapshotMsMax };
+      });
+    } finally {
+      tuning.net.remoteKarts = defaultMode;
+    }
+  }
+
   it('handles snapshots within 4 ms on average by reconciling only on mismatch', () => {
-    const { host, clients, clock } = onlineRace({
-      clients: 3,
-      conditions: parseNetConditions('75,30,5'),
-    });
-    for (let i = 0; i < 20 * HZ; i += 1) {
-      host.tick(scriptedInput(host.state.karts[0], host.state.tick, 0));
-      clients.forEach((client, c) =>
-        client.tick(scriptedInput(client.state?.karts[c + 1], client.state?.tick ?? 0, c + 1)),
-      );
-      clock.advance(TICK_MS);
-    }
-    for (const client of clients) {
-      const s = client.stats;
-      const avg = s.snapshotMsTotal / s.snapshots;
-      const replayShare = s.reconciled / s.snapshots;
-      console.log(
-        `snapshot: ${avg.toFixed(2)} ms avg, ${s.snapshotMsMax.toFixed(1)} ms max; ` +
-          `${(replayShare * 100).toFixed(0)} % replayed, ${(s.replayTicks / Math.max(1, s.reconciled)).toFixed(1)} ticks each`,
-      );
-      expect(avg).toBeLessThan(4);
-    }
+    for (const { avg } of snapshotStats('predict')) expect(avg).toBeLessThan(4);
+  }, 60_000);
+
+  it('handles snapshots within 1 ms on average predicting only the own kart (MK-74)', () => {
+    for (const { avg } of snapshotStats('interpolate')) expect(avg).toBeLessThan(1);
   }, 60_000);
 
   it('keeps a client frame (snapshots, prediction, re-simulation, smoothing) within 60 fps', () => {

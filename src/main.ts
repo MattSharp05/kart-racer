@@ -1,6 +1,7 @@
-// MK-36 netcode spike: `?spike=net` runs the prototype instead of the game (it never resolves).
-if (new URLSearchParams(location.search).get('spike') === 'net')
-  await import('./net/spike/main').then((spike) => spike.run());
+// MK-92 anti-gravity spike: `?spike=antigrav` runs the prototype instead of the game (it never
+// resolves).
+if (new URLSearchParams(location.search).get('spike') === 'antigrav')
+  await import('./mk8/spike/main').then((spike) => spike.run());
 import { Flow } from './game/flow';
 import { parseLaunchParams } from './game/launchParams';
 import { playerColour } from './game/results';
@@ -12,7 +13,9 @@ import { localRoomBackend } from './net/roomBackendLocal';
 import { supabaseRoomBackend } from './net/roomBackendSupabase';
 import { launchLeaderboard } from './records/leaderboardMock';
 import { World } from './render/world';
+import { scenarios } from './scenarios';
 import { getTrack } from './sim/track';
+import { tuning } from './sim/tuning';
 import { NetDebugOverlay } from './ui/netDebug';
 import { restoreSteering } from './ui/settings/controlsSteering';
 import { PerfOverlay } from './ui/perfOverlay';
@@ -22,6 +25,8 @@ const canvas = document.querySelector<HTMLCanvasElement>('#game');
 if (!canvas) throw new Error('Missing #game canvas');
 
 const params = parseLaunchParams(window.location.search);
+// `&remote=` (MK-74, QA): how this device's online races draw and predict other karts.
+if (params.remote) tuning.net.remoteKarts = params.remote;
 const launch = resolveLaunch(params);
 const store = launch.storage ? new OverlayStore(browserStore(), launch.storage) : browserStore();
 // The saved touch layout (MK-53, MK-57), before the controls are built.
@@ -60,15 +65,26 @@ const flow = new Flow(
 
 installTestApi(
   game,
-  () => {
+  {
+    // The scene as it is before the ticks, even if no animation frame has run yet (MK-77).
+    before: () => world.render(0, false, false),
     // Test/QA fast-forward: snap the scene and camera now; the next animation frame draws it.
-    world.render(0, true, false);
-    world.markChanged();
+    after: () => {
+      world.render(0, true, false);
+      world.markChanged();
+    },
   },
   launch.scenario,
   () => world.renderInfo(),
   () => session.localKartId,
   () => session.online?.info() ?? null,
+  (name, seed) => {
+    const scenario = scenarios.get(name);
+    if (!scenario) return false;
+    session.load(scenario.setup(seed ?? scenario.defaultSeed).state);
+    world.reset(world.view, session.localKartId);
+    return true;
+  },
 );
 
 // Online scenarios (MK-46): host or join the race; a client's camera moves to its kart on Start.

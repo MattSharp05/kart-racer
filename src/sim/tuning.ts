@@ -9,11 +9,15 @@
 export const TICK_RATE = 60;
 export const DT = 1 / TICK_RATE;
 
-export type EngineClass = 50 | 100 | 150;
+/** 200cc (MK-96) is MK8 Mode's class; the sim accepts it anywhere (scenarios). */
+export type EngineClass = 50 | 100 | 150 | 200;
 
 export const tuning = {
-  /** Top speed on road by engine class, m/s. */
-  topSpeed: { 50: 20, 100: 24, 150: 28 } as Record<EngineClass, number>,
+  /**
+   * Top speed on road by engine class, m/s. 200cc is 1.33× 150cc, as in MK8 (MK-96). Acceleration
+   * scales with it: `timeTo95` is the same for every class, so a faster class also pulls harder.
+   */
+  topSpeed: { 50: 20, 100: 24, 150: 28, 200: 37.25 } as Record<EngineClass, number>,
   /** Seconds to reach 95% of top speed from rest at full throttle (for a stat-3 kart). */
   timeTo95: 2.5,
   /**
@@ -33,6 +37,17 @@ export const tuning = {
   brakeDecel: 20,
   /** Deceleration when neither throttle nor brake is held, m/s². */
   coastDecel: 5,
+  /**
+   * Brake-drift (MK-96): from `minClass` up, holding brake while drifting tightens the drift
+   * instead of braking hard; mini-turbo charge carries on. Below it, brake in a drift brakes.
+   */
+  brakeDrift: {
+    minClass: 200 as EngineClass,
+    /** Drift yaw rate × this while braking. */
+    turnScale: 1.35,
+    /** Speed lost while brake-drifting, fraction per second (on top of throttle/coast). */
+    speedLoss: 0.06,
+  },
   /** Reverse top speed as a fraction of forward top speed. */
   reverseFraction: 0.3,
   /** Yaw rate at full steer once the steering curve is at 1, rad/s. */
@@ -245,10 +260,11 @@ export const tuning = {
      * 0.92–1.0 so the whole pack is sharper, and only there do the best drivers hold drifts for
      * purple mini-turbos. 50cc and 100cc keep weaker drivers in the pack so a new player can win.
      */
-    /** Skill range: min–max (tighter at 150cc). */
+    /** Skill range: min–max (tighter from `sharpClass` up: 150cc and 200cc, MK-96). */
     skillMin: 0.86,
     skillMax: 1.0,
     skillMin150: 0.92,
+    sharpClass: 150 as EngineClass,
     lineOffsetMax: 1.5,
     // Routes (MK-61): another way round part of a lap, e.g. a lower path through ruins.
     /** An AI that has chosen a route joins it within this of the route's edge, m. */
@@ -284,7 +300,7 @@ export const tuning = {
     driftOverRotation: 0.6,
     /** Only drifts from this fraction of top speed. */
     driftMinSpeed: 0.55,
-    /** Skill needed to hold for a purple (tier 3) mini-turbo — and only at 150cc. */
+    /** Skill needed to hold for a purple (tier 3) mini-turbo — and only from `sharpClass` up. */
     driftTier3Skill: 0.97,
     // Rubber-banding (MK-15): keeps races close without making the result feel fixed.
     // Gaps are race-progress metres to the player. Behind by `rubberBandFar` m or more → the
@@ -394,13 +410,18 @@ export const tuning = {
      */
     inputDelayTicks: 1,
     /**
-     * How other players' karts are drawn: `predict` (their last known input, like the rest of the
-     * race) or `interpolate` (the host's snapshots, `interpolationSeconds` in the past). Predict:
-     * interpolated karts are always smooth but drawn 6 m (`net-good`) to 10 m (`net-bad`) behind
-     * where they are (the lead plus the delay), against 2–6 cm for predicted ones.
+     * How a client predicts and draws the other karts: `predict` (the whole race simulated, other
+     * players from their last known input) or `interpolate` (MK-74: only its own kart simulated,
+     * every other kart drawn from the host's snapshots, `interpolationSeconds` in the past; a
+     * snapshot then costs ~0.15 ms instead of ~2 ms). Predict: interpolated karts are always smooth
+     * but drawn 6 m (`net-good`) to 10 m (`net-bad`) behind where they are (the lead plus the
+     * delay), against 2–6 cm for predicted ones; in `interpolate` our bumps and item hits show a
+     * round trip late, and bumping another kart makes no bump sound or shake (the host's bump
+     * events aren't sent).
+     * `&remote=interpolate` switches a device to it (QA).
      */
     remoteKarts: 'predict' as RemoteKartMode,
-    /** How far behind the newest snapshot interpolated remote karts are drawn, s. */
+    /** How far behind the newest snapshot interpolated karts are drawn, s. */
     interpolationSeconds: 0.1,
   },
 };

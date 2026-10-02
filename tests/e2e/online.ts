@@ -18,6 +18,8 @@ export interface RoomOptions {
   paused?: boolean;
   /** `&netdebug=1`: the net debug overlay (MK-45). */
   netdebug?: boolean;
+  /** `&remote=`: `interpolate` = clients predict only their own kart (MK-74). */
+  remote?: 'predict' | 'interpolate';
 }
 
 export interface Room {
@@ -43,6 +45,7 @@ export function roomUrl(role: 'host' | 'client', options: RoomOptions & { room: 
   if (options.netsim) params.set('netsim', options.netsim);
   if (options.paused ?? true) params.set('paused', '1');
   if (options.netdebug) params.set('netdebug', '1');
+  if (options.remote) params.set('remote', options.remote);
   return `/?${params}`;
 }
 

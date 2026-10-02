@@ -115,7 +115,7 @@ function wantsDrift(
     const direction = kart.drift.direction;
     // Pressed, but no drift came of it (too slow / not steering hard enough): let go.
     const fizzled = direction === 0 && kart.grounded && kart.driftHeld;
-    const targetTier = engineClass === 150 && ai.skill >= cfg.driftTier3Skill ? 3 : 2;
+    const targetTier = engineClass >= cfg.sharpClass && ai.skill >= cfg.driftTier3Skill ? 3 : 2;
     const overRotating = direction !== 0 && error * direction > cfg.driftOverRotation;
     const opened = curvature < cfg.driftExitCurvature && kart.drift.tier >= 1;
     const done = kart.drift.tier >= targetTier && curvature < cfg.driftCurvature;

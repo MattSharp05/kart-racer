@@ -1,3 +1,4 @@
+import { items, registerItem, unregisterItem, type ItemContent } from '../content/items';
 import type { KartId } from '../sim/data/karts';
 import { autopilotInput } from '../sim/autopilot';
 import type { RacerSlot } from '../sim/race/createRace';
@@ -118,3 +119,49 @@ export function scriptedInput(
 /** A scripted kart slower than this (m/s) this long into its lap (ticks) is stuck. */
 const STUCK_SPEED = 0.5;
 const STUCK_AFTER_TICKS = 180;
+
+/**
+ * The item table seeded test races run with (MK-86): the MVP six, with their odds frozen here. A
+ * seeded race depends on every roulette draw, so adding an item to the game or rebalancing the
+ * odds would send it a different way; with this table only changes to these items' behaviour do.
+ * Odds rows as in `ItemContent.odds` (1st place first), as tuned when MK-86 froze them.
+ */
+export const TEST_RACE_ODDS: Readonly<Record<string, readonly number[]>> = {
+  mushroom: [0.14, 0.2, 0.19, 0.18, 0.15, 0.15, 0.13, 0.1],
+  banana: [0.28, 0.16, 0.1, 0.06, 0, 0, 0, 0],
+  green: [0.24, 0.18, 0.13, 0.1, 0.06, 0, 0, 0],
+  red: [0, 0.1, 0.17, 0.2, 0.17, 0.15, 0.13, 0.11],
+  star: [0, 0, 0, 0, 0.07, 0.11, 0.15, 0.18],
+  lightning: [0, 0, 0, 0, 0.03, 0.05, 0.07, 0.09],
+};
+
+/**
+ * Swaps the registered items for `TEST_RACE_ODDS`'s (in that order, with those odds) until the
+ * returned function puts the game's own back, in their order. For a test's `beforeAll`/`afterAll`;
+ * `withTestRaceItems` for code that runs at once.
+ */
+export function useTestRaceItems(): () => void {
+  const own: ItemContent[] = [...items.list()];
+  // Every test item is checked before anything is unregistered, so a throw leaves the game's own.
+  const fixed = Object.entries(TEST_RACE_ODDS).map(([id, odds]) => {
+    const item = own.find((i) => i.id === id);
+    if (!item) throw new Error(`Test race item ${id} isn't registered`);
+    return { ...item, odds };
+  });
+  for (const item of own) unregisterItem(item.id);
+  for (const item of fixed) registerItem(item);
+  return () => {
+    for (const id of Object.keys(TEST_RACE_ODDS)) unregisterItem(id);
+    for (const item of own) registerItem(item);
+  };
+}
+
+/** Runs `run` with the test race items (`useTestRaceItems`), then puts the game's own back. */
+export function withTestRaceItems<T>(run: () => T): T {
+  const restore = useTestRaceItems();
+  try {
+    return run();
+  } finally {
+    restore();
+  }
+}

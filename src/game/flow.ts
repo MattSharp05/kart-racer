@@ -495,12 +495,13 @@ export class Flow {
     const net = online.info();
     // Still connecting (MK-73): say to whom, rather than a countdown standing still on 3.
     this.hud.waiting = online.waitingLine();
-    if (!this.onlineSince) return;
     if (screen === 'onlineResults') {
-      // The host's final standings arrived, or another kart finished: redraw the results.
+      // The host's final standings arrived, or another kart finished: redraw the results. Online
+      // scenarios too (MK-81): they race without a room, but their results go final the same way.
       if (this.resultsKey() !== this.shownResults) this.showResults();
       return;
     }
+    if (!this.onlineSince) return;
     if (screen !== 'none' && screen !== 'paused') return;
     const host = net.role === 'host';
     const unreachable = online.unreachable();

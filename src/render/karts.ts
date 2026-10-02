@@ -116,11 +116,12 @@ export class KartRenderer {
   private wheelTick = -1;
   private readonly pose: KartPose = { x: 0, y: 0, z: 0, heading: 0 };
 
+  /** Night tracks (MK-60): karts drive with their headlights on (set before the karts are built). */
+  headlights = false;
+
   constructor(
     private readonly scene: THREE.Scene,
     private readonly factory: KartModelFactory = new PrimitiveKartFactory(),
-    /** Night tracks (MK-60): karts drive with their headlights on. */
-    private readonly headlights = false,
   ) {}
 
   sync(

@@ -18,3 +18,15 @@ describe('AI pass: 8 AI, 150cc, items on, 3 laps', () => {
     60_000, // One full 8-AI race: ~5 s of CPU here, up to ~15 s on CI's 2-core runner.
   );
 });
+
+describe('AI pass at 200cc (MK-96)', () => {
+  it('Sunny Circuit: everyone finishes, no more falls than at 150cc', () => {
+    const fast = aiPassRace('sunny-circuit', 1, 200);
+    const base = aiPassRace('sunny-circuit', 1, 150);
+    expect(fast.raceTimes.every((t) => t !== undefined)).toBe(true);
+    expect(fast.spread).toBeLessThan(AI_PASS.maxSpread);
+    expect(fast.worstStuck).toBeLessThanOrEqual(AI_PASS.maxStuckSeconds);
+    expect(fast.respawnsPerLap).toBeLessThanOrEqual(base.respawnsPerLap);
+    expect(fast.bestLap).toBeLessThan(base.bestLap);
+  }, 120_000); // Two full 8-AI races.
+});

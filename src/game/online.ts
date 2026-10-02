@@ -327,9 +327,6 @@ export class OnlineRace {
     client.onSnapshotState = (snapshot) => smoother.snapshots.push(snapshot);
     client.onStart = () => {
       join.stop();
-      smoother.remoteKarts = new Set(
-        (client.setup?.racers ?? []).flatMap((r, i) => (r.human && i !== client.kartId ? [i] : [])),
-      );
       this.onLocalKart(client.kartId);
     };
     const vanishAt = this.launch.vanishAtTick;

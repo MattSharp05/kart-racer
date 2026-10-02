@@ -1,6 +1,7 @@
 import type { RelayMode } from '../net/iceConfig';
 import type { LeaderboardMode } from '../records/leaderboardMock';
 import { oneWayOf, parseNetConditions, type NetConditions } from '../net/netsim';
+import type { RemoteKartMode } from '../sim/tuning';
 
 /** Online roles (`&role=`): the authoritative host or a predicting client (ADR 0005). */
 export type NetRole = 'host' | 'client';
@@ -46,13 +47,18 @@ export interface LaunchParams {
    * (`iceTransportPolicy: 'relay'`), to prove it works even with both devices on one Wi-Fi.
    */
   relay?: RelayMode;
+  /**
+   * `&remote=interpolate|predict` (MK-74, QA): sets `tuning.net.remoteKarts` on this device. On a
+   * client, `interpolate` predicts only its own kart and draws the others from the host's snapshots.
+   */
+  remote?: RemoteKartMode;
   /** `&role=host|client` in an online scenario (default host). */
   role?: NetRole;
   /** `&room=<id>`: tabs with the same room race each other. */
   room?: string;
   /**
    * `&netsim=<rtt>,<jitter>,<loss%>` (e.g. `200,50,8`): simulated network on the online link, all
-   * three round trip. Stored per direction (`oneWayOf`; the spike's `?spike=net&netsim=` is one way).
+   * three round trip. Stored per direction (`oneWayOf`).
    */
   netsim?: NetConditions;
   /** `&laps=<n>`: laps of an online scenario's race (short races for tests). */
@@ -85,6 +91,7 @@ export function parseLaunchParams(search: string): LaunchParams {
   const netsim = netsimText ? parseNetConditions(netsimText) : undefined;
   const laps = Number(params.get('laps') ?? '');
   const lb = params.get('lb');
+  const remote = params.get('remote');
   return {
     ...(scenario ? { scenario } : {}),
     ...(seed !== undefined && Number.isFinite(seed) ? { seed } : {}),
@@ -93,6 +100,7 @@ export function parseLaunchParams(search: string): LaunchParams {
     ...(params.get('net') === 'local' ? { net: 'local' as const } : {}),
     ...(isRaceLinkMode(linksText) ? { links: linksText } : {}),
     ...(params.get('relay') === 'force' ? { relay: 'force' as const } : {}),
+    ...(remote === 'interpolate' || remote === 'predict' ? { remote } : {}),
     ...(role === 'host' || role === 'client' ? { role } : {}),
     ...(room ? { room } : {}),
     ...(netsim ? { netsim: oneWayOf(netsim) } : {}),
