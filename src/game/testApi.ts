@@ -35,6 +35,8 @@ export type TestState = SimState & { localKartId: number };
 export interface RenderInfo {
   calls: number;
   triangles: number;
+  /** The track the scene draws (MK-78). */
+  trackId?: string;
   camera?: {
     fov: number;
     shake: number;

@@ -1,4 +1,5 @@
 import { expect, test, type BrowserContext, type Page } from '@playwright/test';
+import { tracks } from '../../src/content/tracks';
 
 /**
  * Lobby (MK-47): the host picks track, cc and items, everyone picks a racer and readies up, and the
@@ -37,6 +38,19 @@ const players = (page: Page) => page.locator('.lobby-players li');
 const ccButton = (page: Page, cc: number) =>
   page.getByRole('button', { name: `${cc}cc`, exact: true });
 const SYNC = { timeout: 1000 };
+/** The lobby's track card (MK-78): the host's pick. */
+const lobbyTrack = (page: Page) => page.locator('.lobby-track');
+/** A track other than the first (the default), so the race can't be on it by chance. */
+const otherTrack = tracks.list().filter((t) => !t.testOnly)[1] ?? { id: '', name: '' };
+
+/** The host picks a track from the lobby's track cards (MK-78). */
+async function pickTrack(page: Page, id: string): Promise<void> {
+  await lobbyTrack(page).locator('.track-card').click();
+  await page.locator(`.lobby-track-overlay .track-card[data-track="${id}"]`).click();
+  await page.locator('.lobby-track-overlay button.primary').click();
+  await expect(page.locator('.lobby-track-overlay')).toHaveCount(0);
+  await expect(lobbyTrack(page)).toHaveAttribute('data-track', id, SYNC);
+}
 
 /** Picks a racer through the lobby's racer select (MK-51). */
 async function pickRacer(page: Page, id: string): Promise<void> {
@@ -64,14 +78,17 @@ test.describe('lobby', () => {
     await expect(players(host)).toHaveCount(2);
 
     // Only the host can change the settings.
-    await expect(guest.getByRole('combobox', { name: 'Track' })).toBeDisabled();
+    await expect(lobbyTrack(guest).locator('.track-card')).toBeDisabled();
     await expect(ccButton(guest, 50)).toBeDisabled();
     await expect(guest.locator('.lobby-items')).toBeDisabled();
     await expect(ccButton(host, 100)).toHaveAttribute('aria-pressed', 'true');
 
-    // The host picks a track, 50cc then 100cc, items off: the guest sees each within 1 s.
-    await host.getByRole('combobox', { name: 'Track' }).selectOption('sunny-circuit');
-    await expect(guest.getByRole('combobox', { name: 'Track' })).toHaveValue('sunny-circuit', SYNC);
+    // The host picks a track (not the default), 50cc then 100cc, items off: the guest sees each
+    // within 1 s, the host's card highlighted.
+    await pickTrack(host, otherTrack.id);
+    await expect(lobbyTrack(guest)).toHaveAttribute('data-track', otherTrack.id, SYNC);
+    await expect(lobbyTrack(guest).locator('.track-card')).toHaveAttribute('aria-checked', 'true');
+    await expect(lobbyTrack(guest)).toContainText(otherTrack.name);
     await ccButton(host, 50).click();
     await expect(ccButton(guest, 50)).toHaveAttribute('aria-pressed', 'true', SYNC);
     await ccButton(host, 100).click();
@@ -114,13 +131,16 @@ test.describe('lobby', () => {
           karts: state.karts.map((k) => `${k.kartType}:${k.controller}`),
           names: state.karts.slice(0, 2).map((k) => k.name),
           localKartId: state.localKartId,
+          // The track the scene draws (MK-78), not just the one the sim runs.
+          drawn: window.__game!.renderInfo().trackId,
           net: window.__game!.net(),
         };
       });
     const onHost = await race(host);
     const onGuest = await race(guest);
     expect(onHost).toMatchObject({
-      trackId: 'sunny-circuit',
+      trackId: otherTrack.id,
+      drawn: otherTrack.id,
       engineClass: 100,
       itemBoxes: 0,
       names: ['Hosty', 'Guesty'],
@@ -133,7 +153,8 @@ test.describe('lobby', () => {
     expect(onHost.net).toMatchObject({ role: 'host', players: 2, expectedPlayers: 2 });
     // The guest drives kart 1 in the host's race.
     expect(onGuest).toMatchObject({
-      trackId: 'sunny-circuit',
+      trackId: otherTrack.id,
+      drawn: otherTrack.id,
       engineClass: 100,
       itemBoxes: 0,
       localKartId: 1,
@@ -201,6 +222,41 @@ test.describe('lobby on a small phone', () => {
       };
     });
     expect(result).toEqual({ inside: true, scrolls: false, small: 0 });
+  });
+
+  test('the track cards open over the lobby, fit 667×375, and pick with the keyboard (MK-78)', async ({
+    page,
+  }) => {
+    await page.goto(`/?scenario=online-lobby&room=${freshCode()}&paused=1`);
+    await page.waitForFunction(() => window.__game?.ready === true);
+    const first = tracks.list().filter((t) => !t.testOnly)[0]?.id ?? '';
+    await expect(lobbyTrack(page)).toHaveAttribute('data-track', first);
+    await lobbyTrack(page).locator('.track-card').click();
+    const overlay = page.locator('.lobby-track-overlay');
+    await expect(overlay.locator('.track-card')).toHaveCount(
+      tracks.list().filter((t) => !t.testOnly).length,
+    );
+    const result = await overlay.locator('.lobby-track-panel').evaluate((el) => {
+      const r = el.getBoundingClientRect();
+      const small = [...el.querySelectorAll('button')]
+        .map((b) => b.getBoundingClientRect())
+        .filter((b) => b.width > 0 && (b.width < 44 || b.height < 44));
+      return {
+        inside: r.top >= 0 && r.left >= 0 && r.bottom <= innerHeight && r.right <= innerWidth,
+        scrolls: document.documentElement.scrollHeight > innerHeight + 1,
+        small: small.length,
+      };
+    });
+    expect(result).toEqual({ inside: true, scrolls: false, small: 0 });
+    // Esc closes the cards, not the room; arrows and Enter pick the next track.
+    await page.keyboard.press('Escape');
+    await expect(overlay).toHaveCount(0);
+    await expect(page.locator('.menu-lobby')).toBeVisible();
+    await lobbyTrack(page).locator('.track-card').click();
+    await page.keyboard.press('ArrowRight');
+    await page.keyboard.press('Enter');
+    await expect(overlay).toHaveCount(0);
+    await expect(lobbyTrack(page)).toHaveAttribute('data-track', otherTrack.id);
   });
 
   test('the racer select opens over the lobby, fits 667×375, and Esc closes it (MK-51)', async ({
