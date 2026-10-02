@@ -3,7 +3,13 @@ import { createRace } from '../sim/race/createRace';
 import { step } from '../sim/step';
 import { wrapAngleDelta } from '../sim/math';
 import { DT, tuning } from '../sim/tuning';
-import { NEUTRAL_INPUT, type InputFrame, type SimEvent, type SimState } from '../sim/types';
+import {
+  NEUTRAL_INPUT,
+  type InputFrame,
+  type KartState,
+  type SimEvent,
+  type SimState,
+} from '../sim/types';
 import { HOST_EVENTS, NET } from './config';
 import {
   applySnapshot,
@@ -85,7 +91,8 @@ export function raceFromSetup(setup: RaceSetup, localKartId: number): SimState {
  * its prediction for that tick: if it matches (every kart within `NET.reconcilePosition`, same
  * discrete state, same inputs for the other players), it keeps going; otherwise it resets to the
  * snapshot and re-simulates its unacknowledged inputs up to the present. With `tuning.net.remoteKarts
- * = 'interpolate'` it predicts only its own kart (MK-74) and always resets. Race events come only
+ * = 'interpolate'` it predicts only its own kart (MK-74): only that kart must match, and the others
+ * are taken from each snapshot. Race events come only
  * from the host (`takeEvents`).
  */
 export class OnlineClient {
@@ -389,20 +396,25 @@ export class OnlineClient {
 
     const current = this.state?.tick ?? msg.tick;
     const goal = this.goalTick(msg.tick, current);
-    // Predicting only our kart (MK-74), the others coast: nothing to keep, every snapshot resets
-    // to the host's state and replays our inputs (one kart's worth of sim per tick).
+    // Predicting only our kart (MK-74), the others are guesses: only our kart (and the items) must
+    // match, and the others are refreshed from the snapshot.
+    const localOnly = this.localOnly();
     const keep =
-      !this.localOnly() &&
       this.state !== null &&
       predicted !== undefined &&
       current >= msg.tick &&
       goal >= current &&
-      !remoteChanged &&
       !ownLate &&
-      matches(predicted, authoritative);
+      (localOnly
+        ? matchesOwn(predicted, authoritative, this.kartId)
+        : !remoteChanged && matches(predicted, authoritative));
     if (keep && this.state) {
       this.stats.matched += 1;
       let state = this.state;
+      if (localOnly) {
+        state = withHostKarts(state, authoritative, this.kartId);
+        this.predicted.set(state.tick, state);
+      }
       for (let t = current; t < goal; t += 1) state = this.simulateNew(state);
       this.state = state;
     } else {
@@ -608,8 +620,53 @@ export function matches(predicted: SimState, host: SimState): boolean {
   // A kart the host handed to the AI (MK-70): the prediction must switch to it too.
   if (predicted.karts.some((k, i) => k.controller !== host.karts[i]?.controller)) return false;
   if (predicted.positions.some((id, i) => host.positions[i] !== id)) return false;
+  if (!entitiesMatch(predicted, host)) return false;
+  return predicted.karts.every((k, i) => kartMatches(k, host.karts[i]));
+}
+
+/**
+ * `matches` for a client predicting only its own kart (MK-74): the phase, the items in play and
+ * kart `kartId`. The other karts only coast in its prediction.
+ */
+export function matchesOwn(predicted: SimState, host: SimState, kartId: number): boolean {
+  return (
+    predicted.phase === host.phase &&
+    entitiesMatch(predicted, host) &&
+    predicted.karts[kartId]?.controller === host.karts[kartId]?.controller &&
+    kartMatches(predicted.karts[kartId], host.karts[kartId])
+  );
+}
+
+/**
+ * `state` with every kart but `kartId`, the race order and the RNG taken from the host's snapshot
+ * `host`, the karts coasted on to `state`'s tick as the kart-only prediction would (MK-74).
+ */
+function withHostKarts(state: SimState, host: SimState, kartId: number): SimState {
+  const ticks = state.tick - host.tick;
+  return {
+    ...state,
+    // The host's draws for the other karts' items (the prediction makes none): ours come next.
+    rngState: host.rngState,
+    positions: [...host.positions],
+    karts: host.karts.map((kart, i) => {
+      if (i === kartId) return state.karts[i] ?? kart;
+      const copy = cloneJson(kart);
+      // As `step` does: a kart being carried by the pickup drone doesn't coast.
+      for (let t = 0; t < ticks && copy.respawnTimer <= 0; t += 1) {
+        copy.position = {
+          x: copy.position.x + copy.velocity.x * DT,
+          y: copy.position.y + copy.velocity.y * DT,
+          z: copy.position.z + copy.velocity.z * DT,
+        };
+      }
+      return copy;
+    }),
+  };
+}
+
+function entitiesMatch(predicted: SimState, host: SimState): boolean {
   if (predicted.entities.length !== host.entities.length) return false;
-  const entitiesMatch = predicted.entities.every((e, i) => {
+  return predicted.entities.every((e, i) => {
     const h = host.entities[i];
     if (!h || h.id !== e.id || h.kind !== e.kind) return false;
     if (e.kind === 'itemBox' && h.kind === 'itemBox' && e.respawnTimer > 0 !== h.respawnTimer > 0) {
@@ -617,31 +674,30 @@ export function matches(predicted: SimState, host: SimState): boolean {
     }
     return distance(e.position, h.position) < NET.reconcilePosition;
   });
-  if (!entitiesMatch) return false;
-  return predicted.karts.every((k, i) => {
-    const h = host.karts[i];
-    if (!h) return false;
-    return (
-      distance(k.position, h.position) < NET.reconcilePosition &&
-      Math.abs(k.speed - h.speed) < NET.reconcileSpeed &&
-      k.grounded === h.grounded &&
-      k.trick === h.trick &&
-      k.drift.direction === h.drift.direction &&
-      k.drift.tier === h.drift.tier &&
-      k.race.lap === h.race.lap &&
-      k.race.nextCheckpoint === h.race.nextCheckpoint &&
-      k.race.finishTick === h.race.finishTick &&
-      k.race.lapTimes.length === h.race.lapTimes.length &&
-      k.item.held === h.item.held &&
-      k.item.roulette > 0 === h.item.roulette > 0 &&
-      k.boostTimer > 0 === h.boostTimer > 0 &&
-      k.respawnTimer > 0 === h.respawnTimer > 0 &&
-      k.spinTimer > 0 === h.spinTimer > 0 &&
-      k.starTimer > 0 === h.starTimer > 0 &&
-      k.shrinkTimer > 0 === h.shrinkTimer > 0 &&
-      k.race.stallTimer > 0 === h.race.stallTimer > 0
-    );
-  });
+}
+
+function kartMatches(k: KartState | undefined, h: KartState | undefined): boolean {
+  if (!k || !h) return false;
+  return (
+    distance(k.position, h.position) < NET.reconcilePosition &&
+    Math.abs(k.speed - h.speed) < NET.reconcileSpeed &&
+    k.grounded === h.grounded &&
+    k.trick === h.trick &&
+    k.drift.direction === h.drift.direction &&
+    k.drift.tier === h.drift.tier &&
+    k.race.lap === h.race.lap &&
+    k.race.nextCheckpoint === h.race.nextCheckpoint &&
+    k.race.finishTick === h.race.finishTick &&
+    k.race.lapTimes.length === h.race.lapTimes.length &&
+    k.item.held === h.item.held &&
+    k.item.roulette > 0 === h.item.roulette > 0 &&
+    k.boostTimer > 0 === h.boostTimer > 0 &&
+    k.respawnTimer > 0 === h.respawnTimer > 0 &&
+    k.spinTimer > 0 === h.spinTimer > 0 &&
+    k.starTimer > 0 === h.starTimer > 0 &&
+    k.shrinkTimer > 0 === h.shrinkTimer > 0 &&
+    k.race.stallTimer > 0 === h.race.stallTimer > 0
+  );
 }
 
 /**

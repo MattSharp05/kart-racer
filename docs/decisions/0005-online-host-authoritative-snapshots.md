@@ -98,3 +98,26 @@ Measured with the netcode lab (`src/net/netLab.ts`): a 4-player room (host + 3 c
 | Frostpeak Pass | 2.23 ms      | 10.0 ms          | 4.9 ms (p95 8.5)     | 335 ms/s  | 16.1 of 33.3 ms | 136 fps        |
 
 Frostpeak Pass is the heaviest to draw; every track leaves a mid-range phone's CPU about half of each 30 fps frame spare. The GPU side (fill rate, ~85 draw calls) and real Wi-Fi/4G links are checked on real devices in MK-73's QA.
+
+## Own-kart-only prediction (MK-74, 2026-10-02)
+
+The fallback from the spike results, built and measured: `tuning.net.remoteKarts = 'interpolate'` (`&remote=interpolate` on a device, `?tune=1` → Online → "other karts"). The client then simulates **only its own kart** (`step(…, { only })`): every other kart coasts on its velocity with no input or AI thinking, karts don't bump each other, and only our laps, falls, item boxes and hazards run; no item hits anyone in the prediction. Collisions, item hits and the race order are the host's alone and arrive with its snapshots, as the ticket asked. A snapshot is kept when our kart and the items in play match (`matchesOwn`), and the other karts, the race order and the RNG are then refreshed from it; otherwise the client resets and replays our inputs, one kart's worth of sim per tick. Every other kart, AI included, is drawn from the snapshots (`interpolationSeconds` behind), so the snapshot's 6–9 m lag shows on every kart, not only on other players.
+
+`step` also clones the state with a plain-JSON copy (`sim/clone.ts`, ~5× faster than `structuredClone`) in both modes; results are unchanged (determinism and soak tests).
+
+| Snapshot handling, one client                                           | `predict` (default) | `interpolate` (own kart only) |
+| ----------------------------------------------------------------------- | ------------------- | ----------------------------- |
+| Node, 4 players, 150 ms / 30 ms / 5 % (`resim.perf.test.ts`), avg / max | 2.1–2.4 / 12–19 ms  | **0.12–0.14 / 1.5–2.3 ms**    |
+| Snapshots kept without a replay                                         | 67–70 %             | 95–97 %                       |
+| Lab, `net-good` / `net-bad`, avg ms                                     | 2.38 / 4.53         | **0.30 / 0.41**               |
+
+What it costs (`pnpm net:sweep`, 4-player room; the lab's other runs were going at the same time, so absolute ms are pessimistic):
+
+| `net-good` / `net-bad` | own correction p99 | own drawn vs truth p99 | others drawn vs truth p50 | others' jump max |
+| ---------------------- | ------------------ | ---------------------- | ------------------------- | ---------------- |
+| `predict`              | 0.05 / 0.25 m      | 0.15 / 0.34 m          | 0.02 / 0.06 m             | 0.48 / 0.49 m    |
+| `interpolate`          | 1.33 / 1.56 m      | 0.58 / 1.08 m          | **5.95 / 9.38 m**         | 0.45 / 3.21 m    |
+
+Own-kart convergence (MK-39's loopback check at 150 ms / 30 ms / 5 %, both modes in `loopback.test.ts`): what the player saw of their kart vs the host, worst 0.11 m, p99 4 cm, p50 6 mm (`predict`: 0.16 m, 1.7 cm, 6 mm).
+
+**Kept: `predict` as the default.** With reconcile-only-on-mismatch a snapshot already fits a phone's budget (MK-73's 4×-throttled check: ≥ 136 fps of CPU headroom on every track), while own-kart-only prediction draws every other kart 6–9 m behind, shows bumps and item hits on our kart a round trip late (own corrections ×6–25), and bumping another kart makes no bump sound or shake (host bump events aren't sent). `interpolate` stays as the switch for a phone that hitches: it cuts snapshot handling by ~90 %.

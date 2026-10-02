@@ -394,13 +394,18 @@ export const tuning = {
      */
     inputDelayTicks: 1,
     /**
-     * How other players' karts are drawn: `predict` (their last known input, like the rest of the
-     * race) or `interpolate` (the host's snapshots, `interpolationSeconds` in the past). Predict:
-     * interpolated karts are always smooth but drawn 6 m (`net-good`) to 10 m (`net-bad`) behind
-     * where they are (the lead plus the delay), against 2–6 cm for predicted ones.
+     * How a client predicts and draws the other karts: `predict` (the whole race simulated, other
+     * players from their last known input) or `interpolate` (MK-74: only its own kart simulated,
+     * every other kart drawn from the host's snapshots, `interpolationSeconds` in the past; a
+     * snapshot then costs ~0.15 ms instead of ~2 ms). Predict: interpolated karts are always smooth
+     * but drawn 6 m (`net-good`) to 10 m (`net-bad`) behind where they are (the lead plus the
+     * delay), against 2–6 cm for predicted ones; in `interpolate` our bumps and item hits show a
+     * round trip late, and bumping another kart makes no bump sound or shake (the host's bump
+     * events aren't sent).
+     * `&remote=interpolate` switches a device to it (QA).
      */
     remoteKarts: 'predict' as RemoteKartMode,
-    /** How far behind the newest snapshot interpolated remote karts are drawn, s. */
+    /** How far behind the newest snapshot interpolated karts are drawn, s. */
     interpolationSeconds: 0.1,
   },
 };

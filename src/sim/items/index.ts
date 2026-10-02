@@ -46,6 +46,7 @@ export function updateItems(
   inputs: readonly InputFrame[],
   dt: number,
   events: SimEvent[],
+  only?: number,
 ): void {
   for (const box of state.entities) {
     if (box.kind === 'itemBox') box.respawnTimer = countDown(box.respawnTimer, dt);
@@ -56,6 +57,8 @@ export function updateItems(
   updateItemEntities(state, dt, events);
 
   for (const kart of state.karts) {
+    // Simulating one kart (`StepOptions.only`, MK-74): the others' boxes and items are the host's.
+    if (only !== undefined && kart.id !== only) continue;
     kart.spinTimer = countDown(kart.spinTimer, dt);
     const slot = kart.item;
 

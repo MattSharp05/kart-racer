@@ -17,12 +17,15 @@ import {
   type StepResult,
 } from './types';
 
+/** A kart-only step's stand-in invulnerability while items move (`StepOptions.only`), s. */
+const HOST_DECIDES_HITS = 1e9;
+
 export interface StepOptions {
   /**
    * Simulate only this kart (MK-74: an online client predicting just its own kart). Every other
-   * kart coasts on its velocity: no input, no AI thinking, no bumps, and its laps, falls and race
-   * position stay as they were (the host's snapshots put them right). This kart, items and
-   * hazards run as usual.
+   * kart coasts on its velocity: no input, no AI thinking, no bumps, and its laps, falls, item
+   * boxes and race position stay as they were; no item or hazard touches it, and no item hits
+   * anyone (the host's snapshots put all that right). This kart and thrown items run as usual.
    */
   only?: number;
 }
@@ -64,7 +67,7 @@ export function step(
     });
   }
   // Hazards (MK-49) push, spin or squash karts that touch them; their poses depend only on the tick.
-  if (hazards.length) updateHazards(next, hazards, events);
+  if (hazards.length) updateHazards(next, hazards, events, only);
   // Karts being carried by the pickup drone don't collide. Simulating one kart, the others are
   // guesses: bumps with them are the host's to decide (MK-74), and arrive with its snapshots.
   if (only === undefined)
@@ -74,7 +77,12 @@ export function step(
       events,
     );
   updateRespawns(next, resolved, track, dt, events, only);
-  updateItems(next, resolved, dt, events);
+  // Item hits are the host's to decide too: in a kart-only step, nobody can be hit while items move.
+  const invulnerable = only === undefined ? null : next.karts.map((kart) => kart.invulnerableTimer);
+  if (invulnerable) for (const kart of next.karts) kart.invulnerableTimer = HOST_DECIDES_HITS;
+  updateItems(next, resolved, dt, events, only);
+  if (invulnerable)
+    next.karts.forEach((kart, i) => (kart.invulnerableTimer = invulnerable[i] ?? 0));
   updateRace(next, track, events, dt, only);
   afterRace(next, events);
 
