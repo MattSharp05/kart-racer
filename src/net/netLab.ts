@@ -78,6 +78,8 @@ export interface LabClientReport {
   mismatchedFinishes: number[];
   /** The race ended early for this client (dropped, host lost, …). */
   ended: string | null;
+  /** The measurements behind `ownJump`, `ownTruthError` and `remoteTruthError`, to pool runs. */
+  samples: { ownJump: number[]; ownTruthError: number[]; remoteTruthError: number[] };
 }
 
 export interface LabReport {
@@ -88,7 +90,8 @@ export interface LabReport {
   clients: LabClientReport[];
 }
 
-function spread(samples: number[]): Spread {
+/** A few percentiles of `samples` (pool several runs' `samples` for a steadier figure, MK-86). */
+export function spread(samples: number[]): Spread {
   if (samples.length === 0) return { p50: 0, p99: 0, max: 0 };
   const sorted = [...samples].sort((a, b) => a - b);
   const at = (q: number) => sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * q))] ?? 0;
@@ -279,13 +282,13 @@ export function runLab({
           ? 0
           : (client.snapshotTick - s.firstSnapshotTick) / NET.snapshotEveryTicks + 1;
       const truthErrors = (own: boolean) =>
-        spread(
-          watch.frames.flatMap((f) => {
-            const real = truth.get(f.tick)?.[f.kartId];
-            if (!real || (f.kartId === kartId) !== own) return [];
-            return [Math.hypot(f.x - real.x, f.z - real.z)];
-          }),
-        );
+        watch.frames.flatMap((f) => {
+          const real = truth.get(f.tick)?.[f.kartId];
+          if (!real || (f.kartId === kartId) !== own) return [];
+          return [Math.hypot(f.x - real.x, f.z - real.z)];
+        });
+      const ownTruthErrors = truthErrors(true);
+      const remoteTruthErrors = truthErrors(false);
       return {
         kartId,
         rttMs: s.rttMs,
@@ -295,8 +298,8 @@ export function runLab({
         remoteCorrection: spread(watch.remoteCorrections),
         ownJump: spread(watch.ownJumps),
         remoteJump: spread(watch.remoteJumps),
-        ownTruthError: truthErrors(true),
-        remoteTruthError: truthErrors(false),
+        ownTruthError: spread(ownTruthErrors),
+        remoteTruthError: spread(remoteTruthErrors),
         resimTicksPerSnapshot: s.snapshots > 0 ? s.replayTicks / s.snapshots : 0,
         matchedPercent: s.snapshots > 0 ? (s.matched / s.snapshots) * 100 : 0,
         snapshotMsAvg: s.snapshots > 0 ? s.snapshotMsTotal / s.snapshots : 0,
@@ -308,6 +311,11 @@ export function runLab({
         results: client.results,
         mismatchedFinishes: mismatchedFinishes(host, client),
         ended: client.ended ?? (client.hostLost ? 'host-lost' : null),
+        samples: {
+          ownJump: watch.ownJumps,
+          ownTruthError: ownTruthErrors,
+          remoteTruthError: remoteTruthErrors,
+        },
       };
     }),
   };

@@ -1,9 +1,8 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { items, registerItem, unregisterItem, type ItemContent } from '../content/items';
 import { raceResults } from '../sim/raceFlow';
 import type { NetEvent } from './protocol';
 import { parseNetConditions } from './netsim';
-import { onlineRace, scriptedInput, TICK_MS } from './testRace';
+import { onlineRace, scriptedInput, TICK_MS, useTestRaceItems } from './testRace';
 
 /** Ticks per second (60 Hz). */
 const HZ = 60;
@@ -12,21 +11,14 @@ const HUMANS = 4;
 /** How long after a bump between two humans' karts the shown position isn't compared, ticks. */
 const BUMP_SETTLE_TICKS = HZ / 2;
 
-/**
- * The items this race is run with: the MVP six only, so that adding an item to the game (or
- * reweighting the odds) doesn't send this one seeded race a different way (MK-86).
- */
-const RACE_ITEMS = ['mushroom', 'banana', 'green', 'red', 'star', 'lightning'];
-
 describe('online race over loopback (ADR 0005)', () => {
-  const parked: ItemContent[] = [];
+  // The MVP six with frozen odds (MK-86): adding an item to the game or reweighting the odds
+  // doesn't send this seeded race a different way.
+  let restoreItems = () => {};
   beforeAll(() => {
-    parked.push(...items.list().filter((item) => !RACE_ITEMS.includes(item.id)));
-    for (const item of parked) unregisterItem(item.id);
+    restoreItems = useTestRaceItems();
   });
-  afterAll(() => {
-    for (const item of parked) registerItem(item);
-  });
+  afterAll(() => restoreItems());
 
   it('keeps 3 clients converged to the host at 150 ms RTT, 30 ms jitter, 5 % loss', () => {
     // 75 ms each way = 150 ms RTT.
