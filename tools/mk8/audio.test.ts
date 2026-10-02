@@ -162,13 +162,15 @@ describe('buildAudio (fixture packs)', () => {
     ]);
   }, 60_000);
 
-  it('keeps other racers in voices.json when one racer is rebuilt', async () => {
+  it('a rebuilt racer replaces its old voice files; other racers stay in voices.json', async () => {
     const out = temp('out-merge');
     mkdirSync(join(out, 'audio'), { recursive: true });
     writeFileSync(join(out, VOICES_FILE), JSON.stringify({ other: { glide: ['x.m4a'] } }));
+    writeRaw(out, 'audio/voice/fixture/renamed-since.m4a', Buffer.from('stale'));
     await build(out);
     const index = JSON.parse(readFileSync(join(out, VOICES_FILE), 'utf8')) as VoiceIndex;
     expect(Object.keys(index)).toEqual(['fixture', 'other']);
+    expect(existsSync(join(out, 'audio/voice/fixture/renamed-since.m4a'))).toBe(false);
   }, 60_000);
 });
 

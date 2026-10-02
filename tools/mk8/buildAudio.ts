@@ -1,7 +1,7 @@
 // The audio part of `pnpm mk8:build` (MK-94): every sound in src/mk8/audio/soundIds.ts whose
 // raw file exists → `audio/<id>.m4a`, and every racer voice pack's files that match a voice
 // event (voiceEvents.ts) → `audio/voice/<racer>/<name>.m4a` + `audio/voices.json`.
-import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
 import {
   SOUND_IDS,
@@ -102,6 +102,8 @@ export async function buildAudio(
       result.missingVoices.push(pack.id);
       continue;
     }
+    // A rebuilt racer replaces its old files, so renamed or no-longer-matching ones don't linger.
+    rmSync(join(outRoot, 'audio', 'voice', racer), { recursive: true, force: true });
     const byEvent = voiceFilesByEvent(listAudio(dir));
     const outputs = {} as Record<VoiceEvent, string[]>;
     const done = new Map<string, string>();
