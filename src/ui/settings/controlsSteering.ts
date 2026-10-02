@@ -15,26 +15,50 @@ import './controlsSteering.css';
 /** Shown when motion access is refused (MK-54). */
 export const TILT_DENIED_MESSAGE = 'Motion access was not allowed, so steering stays on Drag.';
 
-/** Open Steering sections, to show a change made elsewhere (the launch fallback). */
-const openViews = new Set<() => void>();
+/** Shown when Tilt gets no motion readings: the device has no gyro (MK-87). */
+export const TILT_NO_READINGS_MESSAGE =
+  'This device sent no motion readings, so steering is back on Drag.';
 
-/** Saves drag steering and applies it: tilt was refused. */
-function fallBackToDrag(store: KeyValueStore): Settings {
+/**
+ * Open Steering sections, to show a change made elsewhere (the launch fallback), with an optional
+ * notice; each says whether it's still on screen.
+ */
+const openViews = new Set<(notice?: string) => boolean>();
+
+/**
+ * Saves drag steering and applies it: tilt was refused or sends nothing. A `notice` shows in an
+ * open Steering section, else as a toast.
+ */
+function fallBackToDrag(store: KeyValueStore, notice?: string): Settings {
   const settings = updateSettings(store, { steering: 'drag' });
   applySteering(settings);
-  openViews.forEach((refresh) => refresh());
+  let shown = false;
+  openViews.forEach((refresh) => (shown = refresh(notice) || shown));
+  if (notice && !shown) showToast(notice);
   return settings;
+}
+
+/**
+ * Tilt is on and allowed: if no motion reading arrives in `TILT_NO_READINGS_SECONDS`, back to Drag
+ * with a notice (MK-87).
+ */
+function watchTiltReadings(store: KeyValueStore): void {
+  tilt.expectReadings(() => {
+    if (readSettings(store).steering === 'tilt') fallBackToDrag(store, TILT_NO_READINGS_MESSAGE);
+  });
 }
 
 /**
  * The saved steering at launch (MK-54). Tilt on iOS needs motion access again on each visit, which
  * only a tap can ask for: the first tap anywhere asks (iOS doesn't prompt again once allowed). If
- * it's refused, steering falls back to Drag with a notice.
+ * it's refused, steering falls back to Drag with a notice, and so it does if no motion readings
+ * arrive once allowed (MK-87).
  */
 export function restoreSteering(store: KeyValueStore): void {
   const settings = readSettings(store);
   applySteering(settings);
-  if (settings.steering !== 'tilt' || !tiltNeedsPermission()) return;
+  if (settings.steering !== 'tilt') return;
+  if (!tiltNeedsPermission()) return watchTiltReadings(store);
   const listen = (on: boolean) => {
     const method = on ? 'addEventListener' : 'removeEventListener';
     window[method]('touchend', ask);
@@ -43,7 +67,8 @@ export function restoreSteering(store: KeyValueStore): void {
   const ask = () => {
     listen(false);
     void requestTiltPermission().then((answer) => {
-      if (answer === 'granted' || readSettings(store).steering !== 'tilt') return;
+      if (readSettings(store).steering !== 'tilt') return;
+      if (answer === 'granted') return watchTiltReadings(store);
       // A swipe isn't a tap: iOS wouldn't ask. Try again on the next one.
       if (answer === 'failed') return listen(true);
       fallBackToDrag(store);
@@ -62,7 +87,7 @@ export function describeTilt(degrees: number): string {
 
 /**
  * Steering (MK-54): Drag (default) or Tilt. Choosing Tilt asks for motion access from that tap
- * (iOS); refused → back to Drag with a message. With Tilt: a sensitivity slider (degrees for full
+ * (iOS); refused, or no motion readings within 2 s (MK-87) → back to Drag with a message. With Tilt: a sensitivity slider (degrees for full
  * lock) and Calibrate, which saves how the player holds the phone as straight ahead. Saved and
  * applied at once, mid-race too.
  */
@@ -158,18 +183,24 @@ registerSettingsSection({
       }
       show('tilt');
       applySteering(updateSettings(store, { steering }));
+      watchTiltReadings(store);
     }
 
     show(saved.steering);
     parent.append(field.el, message, options);
-    const refresh = () => {
+    const refresh = (notice?: string): boolean => {
       if (!parent.isConnected) {
         openViews.delete(refresh);
-        return;
+        return false;
       }
       show(readSettings(store).steering);
+      if (notice) {
+        message.textContent = notice;
+        message.hidden = false;
+      }
+      return true;
     };
     openViews.add(refresh);
-    return refresh;
+    return () => void refresh();
   },
 });

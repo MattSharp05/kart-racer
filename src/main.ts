@@ -60,10 +60,14 @@ const flow = new Flow(
 
 installTestApi(
   game,
-  () => {
+  {
+    // The scene as it is before the ticks, even if no animation frame has run yet (MK-77).
+    before: () => world.render(0, false, false),
     // Test/QA fast-forward: snap the scene and camera now; the next animation frame draws it.
-    world.render(0, true, false);
-    world.markChanged();
+    after: () => {
+      world.render(0, true, false);
+      world.markChanged();
+    },
   },
   launch.scenario,
   () => world.renderInfo(),
