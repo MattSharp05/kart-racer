@@ -9,11 +9,21 @@ import { nearestOnRoute, pointOnRoute, routeInfos } from '../../../sim/routes';
 import { createSimState } from '../../../sim/state';
 import { trackGeometry } from '../../../sim/track';
 import { DT } from '../../../sim/tuning';
-import type { AnimalSpecies } from '../../../sim/hazards/types';
+import type { MoverHazard } from '../../../sim/hazards/types';
 import type { Vec3 } from '../../../sim/math';
-import { ANIMALS, canopyRush, CANOPY_RUSH } from './sim';
+import {
+  canopyRush,
+  CANOPY_RUSH,
+  ROAD_CROSSING_ANIMALS,
+  ROAD_CROSSINGS,
+  TRAIL_ANIMALS,
+} from './sim';
 
 const TOP_SPEED = tuning.topSpeed[150];
+/** The deer crossing the south straight where the trail rejoins (MK-61 QA round 2). */
+const DEER_CROSSING = ROAD_CROSSINGS.findIndex(
+  (c) => c.x === CANOPY_RUSH.deer.x && c.animal === 'deer',
+);
 const geometry = trackGeometry(canopyRush);
 
 /** A kart in the canopy at `t` in a 150cc session (the sway timing assumes 150cc speeds). */
@@ -51,15 +61,13 @@ export const SHORTCUT_LEAD_METRES = 10;
 export const ANIMALS_LEAD_SECONDS = 2.5;
 
 /**
- * When `animal` walks across a way, and where: the tick of its cycle when it's nearest the way's
+ * When `mover` walks across a way, and where: the tick of its cycle when it's nearest the way's
  * centreline (`nearest` gives the distance to it and how far along it that is, m).
  */
 function crossingTime(
-  animal: AnimalSpecies,
+  mover: MoverHazard,
   nearest: (pose: Vec3) => { distance: number; along: number },
 ) {
-  const mover = ANIMALS.find((a) => a.animal === animal);
-  if (!mover) throw new Error(`Canopy Rush: no ${animal}`);
   let best = { tick: 0, along: 0, distance: Infinity };
   for (let tick = 0; tick < Math.round(mover.period / DT); tick += 1) {
     const pose = hazardPose(mover, tick);
@@ -99,14 +107,21 @@ function beforeCrossing(
 function tapir(seed: number) {
   const info = routeInfos(geometry)[0];
   if (!info) throw new Error('Canopy Rush: no trail');
-  const crossing = crossingTime('tapir', (pose) => nearestOnRoute(info, pose));
+  const mother = TRAIL_ANIMALS.find((a) => a.animal === 'tapir');
+  if (!mother) throw new Error('Canopy Rush: no tapir on the trail');
+  const crossing = crossingTime(mother, (pose) => nearestOnRoute(info, pose));
   const along = crossing.along - TOP_SPEED * ANIMALS_LEAD_SECONDS;
   return beforeCrossing(seed, crossing, pointOnRoute(info, along), pointOnRoute(info, along + 2));
 }
 
-/** On the jungle floor road at top speed, timed so the deer leaps across just in front of you. */
-function deer(seed: number) {
-  const crossing = crossingTime('deer', (pose) => {
+/**
+ * On the road at top speed, timed so that following the road without dodging you run into the
+ * animal leading road crossing `index` (`ROAD_CROSSINGS`) as it crosses.
+ */
+export function roadCrossing(seed: number, index: number) {
+  const mover = ROAD_CROSSING_ANIMALS[index]?.[0];
+  if (!mover) throw new Error(`Canopy Rush: no road crossing ${index}`);
+  const crossing = crossingTime(mover, (pose) => {
     const p = geometry.project(pose);
     return { distance: Math.abs(p.lateral), along: p.s };
   });
@@ -119,10 +134,38 @@ function deer(seed: number) {
   );
 }
 
-/** Canopy Rush (MK-61): registered from this folder (`src/scenarios/index.ts` finds it). */
 /** The ruins shell scenario: you and the kart ahead at these points of the ruins path. */
 export const RUINS_SHOT = { from: 4, to: 8 };
 
+/** The road crossings with their own scenario (MK-61 QA round 3), by `ROAD_CROSSINGS` index. */
+const CROSSING_SCENARIOS: { name: string; index: number; description: string }[] = [
+  {
+    name: 'canopy-animals-boar',
+    index: 0,
+    description:
+      'At top speed out of the start, 2.5 s before a wild boar trots out of the bushes and across the start straight (MK-61 QA round 3). Drive on without dodging and you run into it and spin out; steer round it and you get by.',
+  },
+  {
+    name: 'canopy-animals-ramp-deer',
+    index: 1,
+    description:
+      'At top speed down the root ramp to the jungle floor, 2.5 s before a deer bounds out of the bushes, across the road and over the far hedge (MK-61 QA round 3). Drive on without dodging and it runs into you; ease off or steer round it.',
+  },
+  {
+    name: 'canopy-animals-road-tapir',
+    index: 2,
+    description:
+      'At top speed through the far corner, 2.5 s before a tapir and her calf walk across the south straight into the trail (MK-61 QA round 3). Follow the road without dodging and you run into the tapir and spin out; steer round them and you get by.',
+  },
+  {
+    name: 'canopy-animals-home-boar',
+    index: 4,
+    description:
+      'At top speed through the home corner, 2.5 s before a wild boar trots across the road behind the grid (MK-61 QA round 3). Follow the road without dodging and you run into it and spin out; steer round it and you get by.',
+  },
+];
+
+/** Canopy Rush (MK-61): registered from this folder (`src/scenarios/index.ts` finds it). */
 const scenarios: Scenario[] = [
   {
     name: 'track-canopy-rush',
@@ -174,8 +217,15 @@ const scenarios: Scenario[] = [
     description:
       'At top speed on the jungle floor road, 2.5 s before a deer bounds out of the bushes, across the road and over the far wall (MK-61 QA round 2). Hold W and it runs into you; ease off or steer round it.',
     defaultSeed: 1,
-    setup: (seed) => ({ state: deer(seed) }),
+    setup: (seed) => ({ state: roadCrossing(seed, DEER_CROSSING) }),
   },
+  ...CROSSING_SCENARIOS.map(({ name, index, description }): Scenario => ({
+    name,
+    group: 'Canopy Rush',
+    description,
+    defaultSeed: 1,
+    setup: (seed) => ({ state: roadCrossing(seed, index) }),
+  })),
   {
     name: 'canopy-ruins-red',
     group: 'Canopy Rush',
