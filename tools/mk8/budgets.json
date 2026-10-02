@@ -1,0 +1,8 @@
+{
+  "measured": false,
+  "note": "Targets from ADR 0009, not yet measured: MK-93 sets the real numbers once the raw models are provided (see the ticket). Bytes; group budgets match a manifest group exactly or by a trailing '*'.",
+  "totalBytes": 94371840,
+  "groups": {
+    "course/*": 15728640
+  }
+}

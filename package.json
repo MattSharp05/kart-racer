@@ -30,7 +30,10 @@
     "ai-pass": "vitest run -c vitest.lab.config.ts scripts/aiPass.lab.ts --silent=false --reporter=verbose",
     "item-balance": "vitest run -c vitest.lab.config.ts scripts/itemBalance.lab.ts --silent=false",
     "racer-balance": "vitest run -c vitest.lab.config.ts scripts/racerBalance.lab.ts --silent=false",
-    "track-limits": "vitest run -c vitest.lab.config.ts scripts/track-limits.lab.ts --silent=false --reporter=dot"
+    "track-limits": "vitest run -c vitest.lab.config.ts scripts/track-limits.lab.ts --silent=false --reporter=dot",
+    "mk8:build": "node tools/mk8/build.ts",
+    "mk8:check": "node tools/mk8/check.ts",
+    "mk8:dae-info": "node tools/mk8/daeInfo.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.117.2",
@@ -38,6 +41,9 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@gltf-transform/core": "4.5.1",
+    "@gltf-transform/extensions": "4.5.1",
+    "@gltf-transform/functions": "4.5.1",
     "@playwright/test": "^1.63.0",
     "@types/node": "^22",
     "@types/three": "^0.186.0",
@@ -45,7 +51,10 @@
     "eslint-config-prettier": "^10.1.8",
     "globals": "^17.12.0",
     "lil-gui": "^0.21.0",
+    "meshoptimizer": "1.3.0",
+    "obj2gltf": "3.2.0",
     "prettier": "^3.9.9",
+    "sharp": "0.35.5",
     "typescript": "~6.0.3",
     "typescript-eslint": "^8.70.1",
     "vite": "^8.3.0",

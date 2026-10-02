@@ -10,3 +10,6 @@ test-results/
 *.log
 .claude/settings.local.json
 .vercel
+# MK8 asset pipeline (MK-93): raw input and converted output stay local, never committed.
+.mk8-raw/
+.mk8-out/

@@ -2,7 +2,7 @@ import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
   test: {
-    include: ['src/**/*.test.ts', 'tests/api/**/*.test.ts'],
+    include: ['src/**/*.test.ts', 'tests/api/**/*.test.ts', 'tools/**/*.test.ts'],
     // Perf budgets run separately and alone: `pnpm test:perf`. The netcode soak (minutes of CPU)
     // runs on its own too, `pnpm test:netsoak`, so it can't starve the timed tests here, and so
     // does the racer balance smoke (MK-88), `pnpm test:balance`.

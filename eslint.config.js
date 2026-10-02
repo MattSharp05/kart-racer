@@ -85,7 +85,7 @@ export default tseslint.config(
   },
   {
     // Tests assert on array entries they just created, so `!` is safe there.
-    files: ['tests/**/*.ts', 'src/**/*.test.ts'],
+    files: ['tests/**/*.ts', 'src/**/*.test.ts', 'tools/**/*.test.ts'],
     rules: { '@typescript-eslint/no-non-null-assertion': 'off' },
   },
   prettier,

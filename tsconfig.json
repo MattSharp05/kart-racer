@@ -14,11 +14,13 @@
     "verbatimModuleSyntax": true,
     "skipLibCheck": true,
     "noEmit": true,
-    "resolveJsonModule": true
+    "resolveJsonModule": true,
+    "allowImportingTsExtensions": true
   },
   "include": [
     "src",
     "api",
+    "tools",
     "tests",
     "vite.config.ts",
     "vitest.config.ts",
