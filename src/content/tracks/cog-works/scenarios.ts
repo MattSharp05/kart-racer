@@ -53,6 +53,13 @@ const scenarios: Scenario[] = [
     setup: (seed) => ({ state: race(seed) }),
   },
   {
+    name: 'cog-works-overview',
+    group: 'Cog Works',
+    description: 'Top-down view of the whole of Cog Works (MK-79), karts on the grid.',
+    defaultSeed: 1,
+    setup: (seed) => ({ state: race(seed), view: 'overview' }),
+  },
+  {
     name: 'cog-works-crushers',
     group: 'Cog Works',
     description:
