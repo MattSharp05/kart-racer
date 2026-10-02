@@ -174,3 +174,36 @@ export async function writeFakeSheets(raw: string) {
     writeFileSync(file, await img.png());
   }
 }
+
+/**
+ * A synthesized 16-bit PCM WAV: `lead` s of silence, `tone` s of a 440 Hz sine, `tail` s of
+ * silence (the pipeline should trim both ends).
+ */
+export function writeToneWav(
+  path: string,
+  { lead = 0.3, tone = 0.5, tail = 0.3, rate = 44_100, channels = 2, frequency = 440 } = {},
+): void {
+  const frames = Math.round((lead + tone + tail) * rate);
+  const data = Buffer.alloc(frames * channels * 2);
+  for (let f = 0; f < frames; f++) {
+    const t = f / rate;
+    const on = t >= lead && t < lead + tone;
+    const sample = on ? Math.round(Math.sin(2 * Math.PI * frequency * t) * 0.5 * 32767) : 0;
+    for (let c = 0; c < channels; c++) data.writeInt16LE(sample, (f * channels + c) * 2);
+  }
+  const header = Buffer.alloc(44);
+  header.write('RIFF', 0);
+  header.writeUInt32LE(36 + data.length, 4);
+  header.write('WAVEfmt ', 8);
+  header.writeUInt32LE(16, 16);
+  header.writeUInt16LE(1, 20);
+  header.writeUInt16LE(channels, 22);
+  header.writeUInt32LE(rate, 24);
+  header.writeUInt32LE(rate * channels * 2, 28);
+  header.writeUInt16LE(channels * 2, 32);
+  header.writeUInt16LE(16, 34);
+  header.write('data', 36);
+  header.writeUInt32LE(data.length, 40);
+  mkdirSync(dirname(path), { recursive: true });
+  writeFileSync(path, Buffer.concat([header, data]));
+}

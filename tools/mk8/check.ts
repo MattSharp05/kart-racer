@@ -8,7 +8,7 @@ import { outDir } from './paths.ts';
 
 export interface Budgets {
   totalBytes: number;
-  /** Group name, or a prefix ending in `*` (applies to each matching group on its own). */
+  /** A group name; a prefix ending in `*` (each matching group on its own); or one ending in `/**` (all of them together). */
   groups: Record<string, number>;
 }
 
@@ -22,6 +22,9 @@ export function checkAssets(root: string, manifest: Manifest, budgets: Budgets):
   const groups = new Map<string, number>();
   let total = 0;
   for (const e of manifest.files) {
+    // Budgets count what the manifest says, so a missing file doesn't hide an overrun.
+    groups.set(e.group, (groups.get(e.group) ?? 0) + e.bytes);
+    total += e.bytes;
     const file = join(root, e.path);
     if (!existsSync(file)) {
       problems.push(`missing file: ${e.path}`);
@@ -33,11 +36,17 @@ export function checkAssets(root: string, manifest: Manifest, budgets: Budgets):
         `size mismatch: ${e.path} is ${bytes.byteLength} B, manifest says ${e.bytes} B`,
       );
     else if (sha256(bytes) !== e.sha256) problems.push(`hash mismatch: ${e.path}`);
-    groups.set(e.group, (groups.get(e.group) ?? 0) + e.bytes);
-    total += e.bytes;
   }
-  for (const [group, bytes] of [...groups].sort(([a], [b]) => (a < b ? -1 : 1))) {
-    for (const [pattern, limit] of Object.entries(budgets.groups)) {
+  const sorted = [...groups].sort(([a], [b]) => (a < b ? -1 : 1));
+  for (const [pattern, limit] of Object.entries(budgets.groups)) {
+    if (pattern.endsWith('/**')) {
+      // `audio/**`: every group under the prefix together.
+      const prefix = pattern.slice(0, -2);
+      const bytes = sorted.filter(([g]) => g.startsWith(prefix)).reduce((sum, [, b]) => sum + b, 0);
+      if (bytes > limit) problems.push(`over budget: ${pattern} is ${bytes} B, budget ${limit} B`);
+      continue;
+    }
+    for (const [group, bytes] of sorted) {
       const matches = pattern.endsWith('*')
         ? group.startsWith(pattern.slice(0, -1))
         : group === pattern;

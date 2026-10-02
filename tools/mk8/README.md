@@ -42,3 +42,16 @@ Builds are deterministic: the same raw files give the same bytes (`pipeline.test
    (dev server only; `?base=` points the page elsewhere).
 
 The UI font, M PLUS Rounded 1c (OFL), is not Nintendo's and is committed in `public/mk8/fonts/`.
+
+## Audio (MK-94)
+
+1. Extract each sound pack from `sources.json` → `soundPacks` into `$MK8_RAW/audio/<id>/`
+   (voices: `audio/voice-<racer>/`).
+2. Name the files to use: `file` per id in `src/mk8/audio/soundIds.ts` (pattern on the file name
+   without extension, `*` wildcard, case-insensitive; `null` = not identified yet) and the event
+   patterns in `src/mk8/audio/voiceEvents.ts` (shared by every racer's pack).
+3. `pnpm mk8:build` converts exactly those to AAC `.m4a` (ffmpeg-static, 96 kbps, mono except
+   music and ambience, silence trimmed) at `audio/<id>.m4a` and
+   `audio/voice/<racer>/<event>-<n>.m4a`, adds them to the manifest (groups `audio/<group>`,
+   `audio/voice/<racer>`; budget `audio/**` ≤ 15 MB) and lists unresolved ids, missing voice packs
+   and per-racer voice gaps.

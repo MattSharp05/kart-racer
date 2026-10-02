@@ -38,9 +38,18 @@ export interface SheetSource {
   raw: string;
 }
 
+/** A sound pack (MK-94): its extracted files go in `$MK8_RAW/audio/<id>/`. */
+export interface SoundPackSource {
+  id: string;
+  name: string;
+  game: 'mk8' | 'mk8d' | 'mktour';
+  assetId: number | null;
+}
+
 export interface Sources {
   models: ModelSource[];
   sheets: SheetSource[];
+  soundPacks: SoundPackSource[];
 }
 
 const ID = /^[a-z0-9]+(-[a-z0-9]+)*$/;
@@ -59,11 +68,12 @@ export function parseSources(json: unknown): Sources {
       throw new Error(`sources.json: ${m.id} assetId must be an integer or null`);
   }
   if (!Array.isArray(sources.sheets)) throw new Error('sources.json: `sheets` must be an array');
-  for (const sheet of sources.sheets) {
-    if (!ID.test(sheet.id))
-      throw new Error(`sources.json: bad sheet id ${JSON.stringify(sheet.id)}`);
-    if (seen.has(sheet.id)) throw new Error(`sources.json: duplicate id ${sheet.id}`);
-    seen.add(sheet.id);
+  if (!Array.isArray(sources.soundPacks))
+    throw new Error('sources.json: `soundPacks` must be an array');
+  for (const { id } of [...sources.sheets, ...sources.soundPacks]) {
+    if (!ID.test(id)) throw new Error(`sources.json: bad id ${JSON.stringify(id)}`);
+    if (seen.has(id)) throw new Error(`sources.json: duplicate id ${id}`);
+    seen.add(id);
   }
   return sources;
 }

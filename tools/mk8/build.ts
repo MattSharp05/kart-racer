@@ -2,10 +2,11 @@
 // assets in $MK8_OUT (default .mk8-out/), updates its manifest.json and prints a size report.
 // Never downloads anything and never writes into public/.
 //   node tools/mk8/build.ts [--only id,id] [--strict]
-// --only limits the build to those model and sheet ids; --strict fails when a source has no raw files.
+// --only limits the build to those model and sheet ids (`audio` adds the audio); --strict fails when a source has no raw files.
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { parseArgs } from 'node:util';
+import { buildAudio, voiceGapReport } from './audio.ts';
 import { buildModels } from './buildModels.ts';
 import { sizeReport, updateManifest } from './manifest.ts';
 import { outDir, rawDir } from './paths.ts';
@@ -37,7 +38,15 @@ async function main(): Promise<number> {
   const sprites = await buildSprites(sheets, raw, out);
   console.log(`  ${sprites.entries.length} sprites`);
 
-  const manifest = updateManifest(out, [...result.entries, ...sprites.entries]);
+  // Audio has no ids of its own to pick: --only skips it unless `audio` is listed.
+  const audio = only && !only.has('audio') ? undefined : await buildAudio(raw, out);
+  if (audio) console.log(`audio: ${audio.entries.length} files`);
+
+  const manifest = updateManifest(out, [
+    ...result.entries,
+    ...sprites.entries,
+    ...(audio?.entries ?? []),
+  ]);
   console.log(`\nsize report:\n${sizeReport(manifest)}`);
   const problems = [
     result.missing.length &&
@@ -46,6 +55,13 @@ async function main(): Promise<number> {
       `sprites without their sheet (sources.json "sheets"): ${sprites.missing.join(', ')}`,
     sprites.mismatches.length &&
       `sprite sizes differ from src/mk8/ui/sprites.ts:\n  ${sprites.mismatches.join('\n  ')}`,
+    audio?.unresolved.length &&
+      `sounds not converted (no file named in src/mk8/audio/soundIds.ts, or no pack/match): ${audio.unresolved.length}: ${audio.unresolved.join(', ')}`,
+    audio?.missingVoicePacks.length &&
+      `voice packs missing (expected in ${join(raw, 'audio', 'voice-<racer>')}/): ${audio.missingVoicePacks.join(', ')}`,
+    audio &&
+      Object.keys(audio.voiceGaps).length &&
+      `voice events with no file:\n  ${voiceGapReport(audio.voiceGaps).join('\n  ')}`,
   ].filter((p): p is string => typeof p === 'string');
   for (const p of problems) console.log(`\n${p}`);
   return problems.length && values.strict ? 1 : 0;

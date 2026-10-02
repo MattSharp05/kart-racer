@@ -1,5 +1,5 @@
 {
-  "$comment": "MK8 Mode asset sources (MK-93, ADR 0009). Metadata only: the pipeline never downloads. Put each model's extracted files in $MK8_RAW/models/<id>/ (default .mk8-raw/). assetId is the source site's asset id where known (null = not looked up yet). Optional per model: obj (path of the OBJ inside its folder when there is more than one), decoration (material-name regexes to simplify), collision (courses: false to skip the collision export). Sheets (MK-95): each sprite sheet's image at $MK8_RAW/<raw>; a raw ending in / is a folder (the extracted zip).",
+  "$comment": "MK8 Mode asset sources (MK-93, ADR 0009). Metadata only: the pipeline never downloads. Put each model's extracted files in $MK8_RAW/models/<id>/ (default .mk8-raw/). assetId is the source site's asset id where known (null = not looked up yet). Optional per model: obj (path of the OBJ inside its folder when there is more than one), decoration (material-name regexes to simplify), collision (courses: false to skip the collision export). Sheets (MK-95): each sprite sheet's image at $MK8_RAW/<raw>; a raw ending in / is a folder (the extracted zip). Sound packs (MK-94): each pack's extracted WAVs in $MK8_RAW/audio/<id>/; which files are used is in src/mk8/audio/soundIds.ts and voiceEvents.ts.",
   "models": [
     {
       "id": "mario-kart-stadium",
@@ -350,6 +350,128 @@
       "name": "Course Maps",
       "assetId": 77084,
       "raw": "ui/course-maps.png"
+    }
+  ],
+  "soundPacks": [
+    {
+      "id": "voice-mario",
+      "name": "MK8 Mario voices",
+      "game": "mk8",
+      "assetId": null
+    },
+    {
+      "id": "voice-luigi",
+      "name": "MK8 Luigi voices",
+      "game": "mk8",
+      "assetId": null
+    },
+    {
+      "id": "voice-peach",
+      "name": "MK8 Peach voices",
+      "game": "mk8",
+      "assetId": null
+    },
+    {
+      "id": "voice-daisy",
+      "name": "MK8 Daisy voices",
+      "game": "mk8",
+      "assetId": null
+    },
+    {
+      "id": "voice-yoshi",
+      "name": "MK8 Yoshi voices",
+      "game": "mk8",
+      "assetId": null
+    },
+    {
+      "id": "voice-toad",
+      "name": "MK8 Toad voices",
+      "game": "mk8",
+      "assetId": null
+    },
+    {
+      "id": "voice-koopa-troopa",
+      "name": "MK8 Koopa Troopa voices",
+      "game": "mk8",
+      "assetId": null
+    },
+    {
+      "id": "voice-shy-guy",
+      "name": "MK8 Shy Guy voices",
+      "game": "mk8",
+      "assetId": null
+    },
+    {
+      "id": "voice-donkey-kong",
+      "name": "MK8 Donkey Kong voices",
+      "game": "mk8",
+      "assetId": null
+    },
+    {
+      "id": "voice-bowser",
+      "name": "MK8 Bowser voices",
+      "game": "mk8",
+      "assetId": null
+    },
+    {
+      "id": "voice-wario",
+      "name": "MK8 Wario voices",
+      "game": "mk8",
+      "assetId": null
+    },
+    {
+      "id": "voice-waluigi",
+      "name": "MK8 Waluigi voices",
+      "game": "mk8",
+      "assetId": null
+    },
+    {
+      "id": "mk8-kart",
+      "name": "MK8 Kart Sounds",
+      "game": "mk8",
+      "assetId": 398013
+    },
+    {
+      "id": "mk8-course",
+      "name": "MK8 Course Sounds",
+      "game": "mk8",
+      "assetId": 398017
+    },
+    {
+      "id": "mk8-course-objects",
+      "name": "MK8 Course Object Sounds",
+      "game": "mk8",
+      "assetId": 398019
+    },
+    {
+      "id": "mk8-terrain",
+      "name": "MK8 Terrain Sounds",
+      "game": "mk8",
+      "assetId": 398021
+    },
+    {
+      "id": "mk8d-menu",
+      "name": "MK8 Deluxe Menu Sounds",
+      "game": "mk8d",
+      "assetId": 408048
+    },
+    {
+      "id": "mk8d-race",
+      "name": "MK8 Deluxe Race Sounds",
+      "game": "mk8d",
+      "assetId": 408049
+    },
+    {
+      "id": "mk8d-common",
+      "name": "MK8 Deluxe Common Sounds",
+      "game": "mk8d",
+      "assetId": 408050
+    },
+    {
+      "id": "mktour-items",
+      "name": "MK Tour Item Sounds",
+      "game": "mktour",
+      "assetId": 613895
     }
   ]
 }
