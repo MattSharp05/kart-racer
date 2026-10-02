@@ -176,6 +176,13 @@ const scenarios: Scenario[] = [
     setup: (seed) => ({ state: race(seed) }),
   },
   {
+    name: 'canopy-overview',
+    group: 'Canopy Rush',
+    description: 'Top-down view of the whole of Canopy Rush (MK-79), karts on the grid.',
+    defaultSeed: 1,
+    setup: (seed) => ({ state: race(seed), view: 'overview' }),
+  },
+  {
     name: 'canopy-bridge',
     group: 'Canopy Rush',
     description:

@@ -3,7 +3,7 @@ import { itemRendererClasses, type ItemRenderer } from '../content/items/render'
 import type { Game } from '../game/game';
 import type { RenderInfo } from '../game/testApi';
 import type { ScenarioView } from '../scenarios/registry';
-import type { TrackDef } from '../sim/track';
+import { trackGeometry, type TrackDef } from '../sim/track';
 import { DT, tuning } from '../sim/tuning';
 import type { InputFrame } from '../sim/types';
 import { AiDebugView } from './aiDebug';
@@ -14,7 +14,7 @@ import { ItemBoxRenderer } from './itemBoxes';
 import { KartRenderer, type KartPoseFilter } from './karts';
 import { NameTags } from './nameTags';
 import { AdaptiveQuality } from './quality';
-import { createScene } from './scene';
+import { CAMERA_FAR, CAMERA_NEAR, createScene } from './scene';
 import { trackTheme } from './theme';
 import { createTrackView, overviewCamera, type TrackViewUpdate } from './trackView';
 
@@ -91,6 +91,8 @@ export class World {
   private framesSinceChange = 0;
   /** Tick (plus alpha) drawn last frame, for the pose filter's clock while paused. */
   private lastSimTime = 0;
+  /** The track's fog, put away while the overview shows (hazards may set it again each frame). */
+  private hiddenFog: THREE.Fog | THREE.FogExp2 | undefined;
 
   constructor(
     canvas: HTMLCanvasElement,
@@ -103,7 +105,6 @@ export class World {
     this.hazards = new HazardRenderer(this.scene, options.track);
     this.view = options.view;
     this.followId = options.follow;
-    if (this.view === 'overview') overviewCamera(this.camera, options.track);
     this.lineup = new LineupCamera(this.camera);
     this.karts = new KartRenderer(this.scene, undefined, trackTheme(options.track).night ?? false);
     this.chaseCamera = new ChaseCamera(this.camera);
@@ -134,6 +135,27 @@ export class World {
     this.view = view;
     this.followId = follow;
     this.markChanged();
+  }
+
+  /**
+   * Overview (MK-79): straight down at the whole track, every frame (other cameras move the same
+   * camera, and the window may resize), with no fog. Any other view: the camera upright again.
+   */
+  private applyOverview(overview: boolean): void {
+    if (overview) {
+      overviewCamera(this.camera, this.options.track);
+      if (this.scene.fog) this.hiddenFog = this.scene.fog;
+      this.scene.fog = null;
+      return;
+    }
+    this.camera.up.set(0, 1, 0);
+    if (this.camera.far !== CAMERA_FAR || this.camera.near !== CAMERA_NEAR) {
+      this.camera.far = CAMERA_FAR;
+      this.camera.near = CAMERA_NEAR;
+      this.camera.updateProjectionMatrix();
+    }
+    if (this.hiddenFog && !this.scene.fog) this.scene.fog = this.hiddenFog;
+    this.hiddenFog = undefined;
   }
 
   /** Something visible changed while paused: draw again until the camera settles. */
@@ -174,6 +196,7 @@ export class World {
     this.aiDebug?.sync(state);
     const followed = this.karts.kart(followId);
     const kart = state.karts[followId];
+    this.applyOverview(view === 'overview');
     if (view === 'lineup') {
       this.lineup.update(game.paused ? 0 : frameSeconds);
     } else if (followed && kart && view === 'chase') {
@@ -204,8 +227,24 @@ export class World {
         fov: this.camera.fov,
         shake: this.chaseCamera.shake,
         fovKick: this.chaseCamera.fovKick,
+        lookDown: -this.camera.getWorldDirection(new THREE.Vector3()).y,
+        trackInView: this.trackInView(),
       },
     };
+  }
+
+  /** Share of the track's centreline samples the camera sees (test API, MK-79). */
+  private trackInView(): number {
+    const track = this.options.track;
+    if (track.kind !== 'spline') return 1;
+    const samples = trackGeometry(track).samples;
+    this.camera.updateMatrixWorld();
+    const point = new THREE.Vector3();
+    const seen = samples.filter((s) => {
+      point.set(s.x, s.y, s.z).project(this.camera);
+      return Math.abs(point.x) <= 1 && Math.abs(point.y) <= 1 && Math.abs(point.z) <= 1;
+    }).length;
+    return seen / samples.length;
   }
 
   /** Starts the animation loop: sim frame, then render (skipped once a paused scene settles). */
