@@ -107,6 +107,27 @@ test.describe('online race over BroadcastChannel', () => {
     },
   );
 
+  test('&remote=interpolate: the client predicts only its own kart and keeps up with the host (MK-74)', async ({
+    context,
+  }) => {
+    test.setTimeout(90_000);
+    const room = await openRoom(context, 2, { laps: 1, remote: 'interpolate' });
+    const [host, client] = room.pages as [Page, Page];
+    await autopilotAll(room.pages);
+    // Countdown plus 10 s of racing.
+    await stepAll(room.pages, 4 * 60 + 600);
+    const [hostState, clientState] = await Promise.all([state(host), state(client)]);
+    expect(clientState.phase).toBe('racing');
+    const kartId = clientState.localKartId;
+    const onHost = hostState.karts[kartId]!;
+    const onClient = clientState.karts[kartId]!;
+    // Racing, and where the host has it (the client runs a tick or two ahead).
+    expect(onHost.speed).toBeGreaterThan(5);
+    expect(
+      Math.hypot(onHost.position.x - onClient.position.x, onHost.position.z - onClient.position.z),
+    ).toBeLessThan(3);
+  });
+
   test('the countdown waits until every player has joined', async ({ context }) => {
     const room = await openRoom(context, 1, { scenario: 'online-race-2p' });
     const host = room.host;

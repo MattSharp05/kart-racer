@@ -1,3 +1,4 @@
+import { cloneJson } from './clone';
 import { resolveKartCollisions } from './collisions';
 import { hazardGrip, hazardPush, trackHazards, updateHazards } from './hazards';
 import { updateKart } from './kart';
@@ -10,28 +11,49 @@ import { DT } from './tuning';
 import {
   NEUTRAL_INPUT,
   type InputFrame,
+  type KartState,
   type SimEvent,
   type SimState,
   type StepResult,
 } from './types';
 
+export interface StepOptions {
+  /**
+   * Simulate only this kart (MK-74: an online client predicting just its own kart). Every other
+   * kart coasts on its velocity: no input, no AI thinking, no bumps, and its laps, falls and race
+   * position stay as they were (the host's snapshots put them right). This kart, items and
+   * hazards run as usual.
+   */
+  only?: number;
+}
+
 /**
  * Advances the simulation by one fixed tick. Pure: never mutates `state`.
  * `inputs[i]` drives kart i; missing inputs count as neutral.
  */
-export function step(state: SimState, inputs: readonly InputFrame[], dt = DT): StepResult {
-  const next = structuredClone(state);
+export function step(
+  state: SimState,
+  inputs: readonly InputFrame[],
+  dt = DT,
+  options: StepOptions = {},
+): StepResult {
+  const next = cloneJson(state);
   const events: SimEvent[] = [];
   const track = getTrack(next.trackId);
   next.tick += 1;
 
-  const { inputs: resolved, frozen } = beforeMovement(next, inputs, track, events);
+  const { only } = options;
+  const { inputs: resolved, frozen } = beforeMovement(next, inputs, track, events, only);
   if (frozen) return { state: next, events };
 
   const positionsBefore = new Map(next.karts.map((kart) => [kart.id, kart.position]));
   const hazards = trackHazards(track);
   for (const kart of next.karts) {
     if (isRespawning(kart)) continue;
+    if (only !== undefined && kart.id !== only) {
+      coast(kart, dt);
+      continue;
+    }
     const input = kart.spinTimer > 0 ? NEUTRAL_INPUT : (resolved[kart.id] ?? NEUTRAL_INPUT);
     const grip = hazards.length ? hazardGrip(hazards, next.tick, kart.position) : 1;
     const push = hazards.length ? hazardPush(hazards, next.tick, kart.position) : undefined;
@@ -43,16 +65,27 @@ export function step(state: SimState, inputs: readonly InputFrame[], dt = DT): S
   }
   // Hazards (MK-49) push, spin or squash karts that touch them; their poses depend only on the tick.
   if (hazards.length) updateHazards(next, hazards, events);
-  // Karts being carried by the pickup drone don't collide.
-  resolveKartCollisions(
-    next.karts.filter((kart) => !isRespawning(kart)),
-    positionsBefore,
-    events,
-  );
-  updateRespawns(next, resolved, track, dt, events);
+  // Karts being carried by the pickup drone don't collide. Simulating one kart, the others are
+  // guesses: bumps with them are the host's to decide (MK-74), and arrive with its snapshots.
+  if (only === undefined)
+    resolveKartCollisions(
+      next.karts.filter((kart) => !isRespawning(kart)),
+      positionsBefore,
+      events,
+    );
+  updateRespawns(next, resolved, track, dt, events, only);
   updateItems(next, resolved, dt, events);
-  updateRace(next, track, events, dt);
+  updateRace(next, track, events, dt, only);
   afterRace(next, events);
 
   return { state: next, events };
+}
+
+/** A kart `step` doesn't simulate (`StepOptions.only`): it carries on along its velocity. */
+function coast(kart: KartState, dt: number): void {
+  kart.position = {
+    x: kart.position.x + kart.velocity.x * dt,
+    y: kart.position.y + kart.velocity.y * dt,
+    z: kart.position.z + kart.velocity.z * dt,
+  };
 }

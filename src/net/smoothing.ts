@@ -195,14 +195,12 @@ export interface NetViewSource {
 
 /**
  * Everything a client's renderer applies to kart poses (the `KartPoseFilter` the world asks):
- * correction smoothing for every kart, and for other players' karts, snapshot interpolation when
+ * correction smoothing for every kart, and for every kart but our own, snapshot interpolation when
  * `tuning.net.remoteKarts` is `interpolate`.
  */
 export class NetSmoother {
   readonly corrections = new CorrectionSmoother();
   readonly snapshots = new SnapshotInterpolator();
-  /** Humans other than this client (interpolated in `interpolate` mode; AI karts stay predicted). */
-  remoteKarts: ReadonlySet<number> = new Set();
   private readonly sampled: KartPose = { x: 0, y: 0, z: 0, heading: 0 };
   /** Host tick interpolated karts are drawn at: advances with real time, eased to its target. */
   private clock = Number.NaN;
@@ -248,7 +246,9 @@ export class NetSmoother {
   }
 
   adjust(kartId: number, pose: KartPose, tick: number, alpha: number): void {
-    if (tuning.net.remoteKarts === 'interpolate' && this.remoteKarts.has(kartId)) {
+    // Interpolate mode: the client predicts only its own kart (MK-74), so every other kart, AI
+    // included, is drawn from the host's snapshots.
+    if (tuning.net.remoteKarts === 'interpolate' && kartId !== this.source.kartId) {
       if (this.snapshots.sample(kartId, this.interpolationTick(tick, alpha), this.sampled)) {
         Object.assign(pose, this.sampled);
         return;

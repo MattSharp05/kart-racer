@@ -87,14 +87,23 @@ function updateWrongWay(kart: KartState, tangent: { x: number; z: number }, dt: 
 }
 
 /**
- * Laps, checkpoints, wrong-way and race positions for every kart (MK-11). Runs after movement and
- * collisions each tick. Mutates `state` (called on the tick's cloned state).
+ * Laps, checkpoints, wrong-way and race positions for every kart (MK-11), or only kart `only`'s
+ * laps (MK-74). Runs after movement and collisions each tick. Mutates `state` (called on the tick's
+ * cloned state).
  */
-export function updateRace(state: SimState, track: TrackDef, events: SimEvent[], dt = DT): void {
+export function updateRace(
+  state: SimState,
+  track: TrackDef,
+  events: SimEvent[],
+  dt = DT,
+  only?: number,
+): void {
   if (track.kind !== 'spline') return;
   const geometry = trackGeometry(track);
   const progress = new Map<number, number>();
   for (const kart of state.karts) {
+    // Simulating one kart (`StepOptions.only`, MK-74): the others' laps and the order are the host's.
+    if (only !== undefined && kart.id !== only) continue;
     const p = geometry.project(kart.position);
     // On another route round part of the lap (MK-61), progress follows the route.
     const route = routeProgress(geometry, kart.position, p);
@@ -103,6 +112,7 @@ export function updateRace(state: SimState, track: TrackDef, events: SimEvent[],
     updateWrongWay(kart, route?.tangent ?? p.tangent, dt);
     progress.set(kart.id, raceProgress(kart, t));
   }
+  if (only !== undefined) return;
 
   const byId = new Map(state.karts.map((k) => [k.id, k]));
   // Karts that finished on the same tick keep the order they crossed in (MK-82): their progress

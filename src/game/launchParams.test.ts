@@ -78,6 +78,13 @@ describe('online params (MK-46)', () => {
     ).toMatchObject({ net: 'local', role: 'client', room: 'r1', laps: 1, netdebug: true });
   });
 
+  it('reads &remote=interpolate|predict (MK-74) and ignores anything else', () => {
+    expect(parseLaunchParams('?room=ABCD&remote=interpolate').remote).toBe('interpolate');
+    expect(parseLaunchParams('?room=ABCD&remote=predict').remote).toBe('predict');
+    expect(parseLaunchParams('?room=ABCD&remote=lerp').remote).toBeUndefined();
+    expect(parseLaunchParams('?room=ABCD').remote).toBeUndefined();
+  });
+
   it('reads &relay=force (MK-75) and ignores anything else', () => {
     expect(parseLaunchParams('?room=ABCD&relay=force').relay).toBe('force');
     expect(parseLaunchParams('?room=ABCD&relay=1').relay).toBeUndefined();

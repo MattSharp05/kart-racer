@@ -20,8 +20,12 @@ export function beforeMovement(
   inputs: readonly InputFrame[],
   track: TrackDef,
   events: SimEvent[],
+  only?: number,
 ): { inputs: InputFrame[]; frozen: boolean } {
-  const resolved = state.karts.map((kart) => inputs[kart.id] ?? NEUTRAL_INPUT);
+  // Simulating one kart (`StepOptions.only`): the others get no input and do no AI thinking.
+  const resolved = state.karts.map((kart) =>
+    only === undefined || kart.id === only ? (inputs[kart.id] ?? NEUTRAL_INPUT) : NEUTRAL_INPUT,
+  );
 
   if (state.phase === 'countdown') {
     for (const kart of state.karts) {
@@ -44,6 +48,7 @@ export function beforeMovement(
   // Stalled karts can't drive; finished karts are driven round by the autopilot.
   const geometry = track.kind === 'spline' ? trackGeometry(track) : undefined;
   for (const kart of state.karts) {
+    if (only !== undefined && kart.id !== only) continue;
     if (kart.race.stallTimer > 0) {
       kart.race.stallTimer = Math.max(0, kart.race.stallTimer - DT);
       resolved[kart.id] = { ...NEUTRAL_INPUT };

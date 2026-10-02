@@ -19,10 +19,15 @@ import { openBadRoom } from './room';
  * - `renderMs`: one drawn frame's JavaScript (the game's requestAnimationFrame callback: scene
  *   update and three.js submitting ~85 draw calls; the GPU's work happens after it), one per frame.
  * The CPU's frame rate is then (1000 ms − 60 × tickMs − 20 × snapshotMs) / renderMs.
+ *
+ * `REMOTE=interpolate` measures the fallback where the phone predicts only its own kart (MK-74);
+ * `TRACKS=a,b` picks tracks.
  */
 
 const PIXEL = devices['Pixel 7 landscape'];
-const TRACKS = ['sunny-circuit', 'dune-canyon', 'frostpeak-pass'];
+const TRACKS = process.env.TRACKS?.split(',') ?? ['sunny-circuit', 'dune-canyon', 'frostpeak-pass'];
+/** `REMOTE=interpolate`: the phone predicts only its own kart (MK-74). */
+const REMOTE = process.env.REMOTE === 'interpolate' ? 'interpolate' : undefined;
 /** 4× CPU throttle: Chrome DevTools' "mid-range mobile" preset. */
 const THROTTLE = 4;
 /** Seconds of racing measured, after the countdown and a few seconds to settle. */
@@ -96,6 +101,7 @@ test.describe('online phone check (MK-73)', () => {
         scenario: `net-bad-4p-${track}`,
         laps: 3,
         netdebug: true,
+        ...(REMOTE ? { remote: REMOTE } : {}),
       });
       const phone = room.clients[0]!;
       const others = room.pages.filter((p) => p !== phone);
@@ -134,7 +140,7 @@ test.describe('online phone check (MK-73)', () => {
       const busyPerSecond = 60 * tickMs + 20 * snapshotMs;
       const cpuFps = (1000 - busyPerSecond) / renderMs;
       console.log(
-        `${track} at ${THROTTLE}× CPU: tick ${tickMs.toFixed(2)} ms (p95 ` +
+        `${track} at ${THROTTLE}× CPU (${REMOTE ?? 'predict'}): tick ${tickMs.toFixed(2)} ms (p95 ` +
           `${median(ticks, 0.95).toFixed(2)}), snapshot ${snapshotMs.toFixed(2)} ms, draw ` +
           `${renderMs.toFixed(1)} ms (p95 ${median(renders, 0.95).toFixed(1)}) → sim + net ` +
           `${busyPerSecond.toFixed(0)} ms/s, CPU frame rate ${cpuFps.toFixed(0)} fps ` +

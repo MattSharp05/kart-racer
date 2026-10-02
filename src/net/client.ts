@@ -1,3 +1,4 @@
+import { cloneJson } from '../sim/clone';
 import { createRace } from '../sim/race/createRace';
 import { step } from '../sim/step';
 import { wrapAngleDelta } from '../sim/math';
@@ -83,7 +84,8 @@ export function raceFromSetup(setup: RaceSetup, localKartId: number): SimState {
  * about a round trip ahead of the host, sending its inputs every tick. On each snapshot it checks
  * its prediction for that tick: if it matches (every kart within `NET.reconcilePosition`, same
  * discrete state, same inputs for the other players), it keeps going; otherwise it resets to the
- * snapshot and re-simulates its unacknowledged inputs up to the present. Race events come only
+ * snapshot and re-simulates its unacknowledged inputs up to the present. With `tuning.net.remoteKarts
+ * = 'interpolate'` it predicts only its own kart (MK-74) and always resets. Race events come only
  * from the host (`takeEvents`).
  */
 export class OnlineClient {
@@ -247,6 +249,15 @@ export class OnlineClient {
     return Math.min(NET.maxLeadTicks, lead);
   }
 
+  /**
+   * Whether this client predicts only its own kart (MK-74, `tuning.net.remoteKarts =
+   * 'interpolate'`): the other karts are drawn from the host's snapshots, so the client needn't
+   * simulate them, and a snapshot costs one kart's re-simulation instead of the whole race's.
+   */
+  private localOnly(): boolean {
+    return tuning.net.remoteKarts === 'interpolate';
+  }
+
   private simulate(state: SimState): { state: SimState; events: SimEvent[] } {
     const tick = state.tick + 1;
     const inputs: InputFrame[] = [];
@@ -259,7 +270,7 @@ export class OnlineClient {
       this.inputs.set(tick, own);
     }
     inputs[this.kartId] = own;
-    const result = step(state, inputs);
+    const result = step(state, inputs, DT, this.localOnly() ? { only: this.kartId } : {});
     this.predicted.set(result.state.tick, result.state);
     return result;
   }
@@ -350,7 +361,7 @@ export class OnlineClient {
     const base = predicted ?? this.state ?? this.initial;
     let authoritative: SimState;
     try {
-      authoritative = applySnapshot(structuredClone(base), msg.tick, msg.bytes);
+      authoritative = applySnapshot(cloneJson(base), msg.tick, msg.bytes);
     } catch {
       this.stats.badPackets += 1; // malformed body: drop it, the next snapshot will do
       return;
@@ -378,7 +389,10 @@ export class OnlineClient {
 
     const current = this.state?.tick ?? msg.tick;
     const goal = this.goalTick(msg.tick, current);
+    // Predicting only our kart (MK-74), the others coast: nothing to keep, every snapshot resets
+    // to the host's state and replays our inputs (one kart's worth of sim per tick).
     const keep =
+      !this.localOnly() &&
       this.state !== null &&
       predicted !== undefined &&
       current >= msg.tick &&
