@@ -111,6 +111,14 @@ The fallback from the spike results, built and measured: `tuning.net.remoteKarts
 | Snapshots kept without a replay                                         | 67–70 %             | 95–97 %                       |
 | Lab, `net-good` / `net-bad`, avg ms                                     | 2.38 / 4.53         | **0.30 / 0.41**               |
 
+Phone CPU (`pnpm test:soak` → `onlinePhone.spec.ts`, `REMOTE=interpolate`; Pixel 7 profile, 4× CPU throttle, 4-player room at `net-bad`, as in MK-73's table; same machine, same day):
+
+| Track (4× CPU) | snapshot `predict` → `interpolate` | tick (×60/s)     | sim + net          | CPU frame rate    |
+| -------------- | ---------------------------------- | ---------------- | ------------------ | ----------------- |
+| Sunny Circuit  | 10.2–12.6 → **1.28 ms**            | 2.5–2.7 → 1.1 ms | 364–402 → 91 ms/s  | 149–159 → 253 fps |
+| Dune Canyon    | 12.4–13.3 → **1.50 ms**            | 2.8 → 1.2 ms     | 414–436 → 103 ms/s | 131–136 → 230 fps |
+| Frostpeak Pass | 13.1–13.2 → **1.53 ms**            | 3.0–3.2 → 1.4 ms | 447–455 → 112 ms/s | 111–115 → 189 fps |
+
 What it costs (`pnpm net:sweep`, 4-player room; the lab's other runs were going at the same time, so absolute ms are pessimistic):
 
 | `net-good` / `net-bad` | own correction p99 | own drawn vs truth p99 | others drawn vs truth p50 | others' jump max |
