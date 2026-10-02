@@ -1,0 +1,299 @@
+{
+  "$comment": "MK8 Mode asset sources (MK-93, ADR 0009). Metadata only: the pipeline never downloads. Put each model's extracted files in $MK8_RAW/models/<id>/ (default .mk8-raw/). assetId is the source site's asset id where known (null = not looked up yet). Optional per model: obj (path of the OBJ inside its folder when there is more than one), decoration (material-name regexes to simplify), collision (courses: false to skip the collision export).",
+  "models": [
+    {
+      "id": "mario-kart-stadium",
+      "name": "Mario Kart Stadium",
+      "kind": "course",
+      "assetId": 293504
+    },
+    {
+      "id": "water-park",
+      "name": "Water Park",
+      "kind": "course",
+      "assetId": 293516
+    },
+    {
+      "id": "sweet-sweet-canyon",
+      "name": "Sweet Sweet Canyon",
+      "kind": "course",
+      "assetId": 293513
+    },
+    {
+      "id": "thwomp-ruins",
+      "name": "Thwomp Ruins",
+      "kind": "course",
+      "assetId": 293514
+    },
+    {
+      "id": "mario",
+      "name": "Mario",
+      "kind": "racer",
+      "assetId": 292062
+    },
+    {
+      "id": "luigi",
+      "name": "Luigi",
+      "kind": "racer",
+      "assetId": null
+    },
+    {
+      "id": "peach",
+      "name": "Peach",
+      "kind": "racer",
+      "assetId": null
+    },
+    {
+      "id": "daisy",
+      "name": "Daisy",
+      "kind": "racer",
+      "assetId": null
+    },
+    {
+      "id": "yoshi",
+      "name": "Yoshi",
+      "kind": "racer",
+      "assetId": null
+    },
+    {
+      "id": "toad",
+      "name": "Toad",
+      "kind": "racer",
+      "assetId": null
+    },
+    {
+      "id": "koopa-troopa",
+      "name": "Koopa Troopa",
+      "kind": "racer",
+      "assetId": null
+    },
+    {
+      "id": "shy-guy",
+      "name": "Shy Guy",
+      "kind": "racer",
+      "assetId": null
+    },
+    {
+      "id": "donkey-kong",
+      "name": "Donkey Kong",
+      "kind": "racer",
+      "assetId": null
+    },
+    {
+      "id": "bowser",
+      "name": "Bowser",
+      "kind": "racer",
+      "assetId": null
+    },
+    {
+      "id": "wario",
+      "name": "Wario",
+      "kind": "racer",
+      "assetId": null
+    },
+    {
+      "id": "waluigi",
+      "name": "Waluigi",
+      "kind": "racer",
+      "assetId": null
+    },
+    {
+      "id": "standard-kart",
+      "name": "Standard Kart",
+      "kind": "body",
+      "assetId": 293519
+    },
+    {
+      "id": "pipe-frame",
+      "name": "Pipe Frame",
+      "kind": "body",
+      "assetId": null
+    },
+    {
+      "id": "mach-8",
+      "name": "Mach 8",
+      "kind": "body",
+      "assetId": null
+    },
+    {
+      "id": "cat-cruiser",
+      "name": "Cat Cruiser",
+      "kind": "body",
+      "assetId": null
+    },
+    {
+      "id": "b-dasher",
+      "name": "B Dasher",
+      "kind": "body",
+      "assetId": null
+    },
+    {
+      "id": "sports-coupe",
+      "name": "Sports Coupe",
+      "kind": "body",
+      "assetId": null
+    },
+    {
+      "id": "standard-tires",
+      "name": "Standard tires",
+      "kind": "tire",
+      "assetId": null
+    },
+    {
+      "id": "monster-tires",
+      "name": "Monster tires",
+      "kind": "tire",
+      "assetId": null
+    },
+    {
+      "id": "roller-tires",
+      "name": "Roller tires",
+      "kind": "tire",
+      "assetId": null
+    },
+    {
+      "id": "slick-tires",
+      "name": "Slick tires",
+      "kind": "tire",
+      "assetId": null
+    },
+    {
+      "id": "super-glider",
+      "name": "Super Glider",
+      "kind": "glider",
+      "assetId": null
+    },
+    {
+      "id": "cloud-glider",
+      "name": "Cloud Glider",
+      "kind": "glider",
+      "assetId": null
+    },
+    {
+      "id": "peach-parasol",
+      "name": "Peach Parasol",
+      "kind": "glider",
+      "assetId": null
+    },
+    {
+      "id": "item-box",
+      "name": "Item Box",
+      "kind": "item",
+      "assetId": 311932
+    },
+    {
+      "id": "banana",
+      "name": "Banana",
+      "kind": "item",
+      "assetId": null
+    },
+    {
+      "id": "green-shell",
+      "name": "Green Shell",
+      "kind": "item",
+      "assetId": null
+    },
+    {
+      "id": "red-shell",
+      "name": "Red Shell",
+      "kind": "item",
+      "assetId": null
+    },
+    {
+      "id": "blue-shell",
+      "name": "Blue Shell",
+      "kind": "item",
+      "assetId": null
+    },
+    {
+      "id": "mushroom",
+      "name": "Mushroom",
+      "kind": "item",
+      "assetId": null
+    },
+    {
+      "id": "golden-mushroom",
+      "name": "Golden Mushroom",
+      "kind": "item",
+      "assetId": null
+    },
+    {
+      "id": "star",
+      "name": "Star",
+      "kind": "item",
+      "assetId": null
+    },
+    {
+      "id": "lightning",
+      "name": "Lightning",
+      "kind": "item",
+      "assetId": null
+    },
+    {
+      "id": "bob-omb",
+      "name": "Bob-omb",
+      "kind": "item",
+      "assetId": null
+    },
+    {
+      "id": "blooper",
+      "name": "Blooper",
+      "kind": "item",
+      "assetId": null
+    },
+    {
+      "id": "bullet-bill",
+      "name": "Bullet Bill",
+      "kind": "item",
+      "assetId": null
+    },
+    {
+      "id": "boomerang-flower",
+      "name": "Boomerang Flower",
+      "kind": "item",
+      "assetId": null
+    },
+    {
+      "id": "fire-flower",
+      "name": "Fire Flower",
+      "kind": "item",
+      "assetId": null
+    },
+    {
+      "id": "piranha-plant",
+      "name": "Piranha Plant",
+      "kind": "item",
+      "assetId": null
+    },
+    {
+      "id": "super-horn",
+      "name": "Super Horn",
+      "kind": "item",
+      "assetId": null
+    },
+    {
+      "id": "coin",
+      "name": "Coin",
+      "kind": "item",
+      "assetId": null
+    },
+    {
+      "id": "crazy-8",
+      "name": "Crazy 8",
+      "kind": "item",
+      "assetId": null
+    },
+    {
+      "id": "lakitu",
+      "name": "Lakitu",
+      "kind": "npc",
+      "assetId": 293528
+    },
+    {
+      "id": "trophies",
+      "name": "Trophies",
+      "kind": "trophy",
+      "assetId": null
+    }
+  ]
+}
