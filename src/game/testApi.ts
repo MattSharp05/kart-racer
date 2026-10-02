@@ -26,6 +26,11 @@ export interface GameTestApi {
   renderInfo(): RenderInfo;
   /** The online race's role, kart, RTT and newest snapshot tick (MK-46); null offline. */
   net(): NetInfo | null;
+  /**
+   * Loads scenario `name`'s state in place, keeping the page's camera view (MK-91: another track
+   * drawn under the overview). False if there is no such scenario.
+   */
+  loadState?(name: string, seed?: number): boolean;
 }
 
 /** `SimState` plus the session's local kart (not part of the sim). */
@@ -45,6 +50,8 @@ export interface RenderInfo {
     lookDown?: number;
     /** Share of the track's centreline inside the camera's view, 0–1 (MK-79). */
     trackInView?: number;
+    /** The camera's height, m (MK-91: the overview's framing of the drawn track). */
+    height?: number;
   };
 }
 
@@ -75,6 +82,7 @@ export function installTestApi(
   renderInfo: () => RenderInfo,
   localKartId: () => number,
   net: () => NetInfo | null = () => null,
+  loadState: (name: string, seed?: number) => boolean = () => false,
 ): GameTestApi {
   const snapshot = (): TestState => ({
     ...structuredClone(game.state),
@@ -100,6 +108,7 @@ export function installTestApi(
     events: () => game.drainEvents(),
     renderInfo,
     net,
+    loadState,
   };
   window.__game = api;
   window.dispatchEvent(new Event(GAME_READY_EVENT));
