@@ -33,7 +33,8 @@
     "track-limits": "vitest run -c vitest.lab.config.ts scripts/track-limits.lab.ts --silent=false --reporter=dot",
     "mk8:build": "node tools/mk8/build.ts",
     "mk8:check": "node tools/mk8/check.ts",
-    "mk8:dae-info": "node tools/mk8/daeInfo.ts"
+    "mk8:dae-info": "node tools/mk8/daeInfo.ts",
+    "mk8:spike-report": "vitest run -c vitest.lab.config.ts scripts/antigravSpike.lab.ts --silent=false"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.117.2",
