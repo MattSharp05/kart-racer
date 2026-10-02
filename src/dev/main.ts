@@ -79,4 +79,19 @@ if (app) {
     section.append(title, items);
     app.append(section);
   }
+
+  // MK-92 anti-gravity spike: not a scenario (its own page and kart), so it's listed by hand.
+  const spike = document.createElement('section');
+  const spikeTitle = document.createElement('h2');
+  spikeTitle.textContent = 'MK8 (spike)';
+  const spikeItems = document.createElement('ul');
+  spikeItems.append(
+    renderLink(
+      'antigrav-spike',
+      `${window.location.origin}/?spike=antigrav`,
+      'MK-92: drive one kart on the synthetic anti-gravity test course (barrel roll, 80° banked wall ride). P toggles the autopilot.',
+    ),
+  );
+  spike.append(spikeTitle, spikeItems);
+  app.append(spike);
 }

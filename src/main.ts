@@ -1,3 +1,7 @@
+// MK-92 anti-gravity spike: `?spike=antigrav` runs the prototype instead of the game (it never
+// resolves).
+if (new URLSearchParams(location.search).get('spike') === 'antigrav')
+  await import('./mk8/spike/main').then((spike) => spike.run());
 import { Flow } from './game/flow';
 import { parseLaunchParams } from './game/launchParams';
 import { playerColour } from './game/results';
