@@ -1,3 +1,4 @@
+import type { TrackContent } from '../../content/tracks';
 import {
   allReady,
   ENGINE_CLASSES,
@@ -8,9 +9,11 @@ import {
 } from '../../net/lobbyState';
 import { MAX_ROOM_PLAYERS, type RoomMember } from '../../net/room';
 import { createRacerPicker, type RacerPicker } from '../components/racerPicker';
+import { trackCard } from '../components/trackCard';
 import { registerScreen } from '../router';
 import { button, heading, row } from './common';
 import './lobby.css';
+import './trackSelect.css';
 
 /** A client in the lobby while the host races without it (MK-70: no joining mid-race). */
 export const RACE_ON_MESSAGE = "A race is on. You'll be in the next one.";
@@ -36,8 +39,8 @@ export interface LobbyProps {
   link: string;
   /** Why the last race didn't happen (shown until the next change). */
   message?: string;
-  /** Tracks the host can pick and racers everyone can pick, in menu order. */
-  tracks: readonly LobbyChoice[];
+  /** Tracks the host can pick (as cards, MK-78) and racers everyone can pick, in menu order. */
+  tracks: readonly TrackContent[];
   racers: readonly LobbyChoice[];
   /** Host: new track, cc or items. */
   onSettings: (settings: LobbySettings) => void;
@@ -61,6 +64,7 @@ const COPIED_MS = 2000;
  * Lobby (MK-40, MK-47): the room code and link to share, who's here (with their racer and whether
  * they're ready), the host's track, cc and items (everyone else sees them update live), this
  * player's racer, and Ready (players) or Start (host, once everyone is ready). Esc leaves the room.
+ * The track shows as its card (MK-78); the host's opens the track cards over the lobby.
  */
 registerScreen('lobby', (panel, props) => {
   const { room, link, onLeave } = props;
@@ -87,10 +91,43 @@ registerScreen('lobby', (panel, props) => {
 
   // Race settings: the host edits them, everyone else sees the host's choice.
   const current = () => settingsOf(room.members, content);
-  const track = select('Track', props.tracks, (trackId) =>
-    props.onSettings({ ...current(), trackId }),
-  );
-  track.select.classList.add('lobby-track');
+  // The track (MK-78): the host's pick as its card. The host's opens the cards to choose another.
+  let trackPicker: { overlay: HTMLElement; onKey: (e: KeyboardEvent) => boolean } | undefined;
+  const closeTrackPicker = () => {
+    trackPicker?.overlay.remove();
+    trackPicker = undefined;
+    trackSlot.querySelector('button')?.focus();
+  };
+  const openTrackPicker = () => {
+    if (trackPicker || !room.isHost) return;
+    const choice = trackChoice(props.tracks, current().trackId, (trackId) => {
+      props.onSettings({ ...current(), trackId });
+      closeTrackPicker();
+    });
+    const overlay = row(
+      'lobby-track-overlay',
+      row(
+        'lobby-track-panel',
+        heading('h2', 'Choose a track'),
+        choice.grid,
+        row(
+          'actions',
+          button('Back', closeTrackPicker),
+          button('Choose', choice.choose, 'primary'),
+        ),
+      ),
+    );
+    overlay.setAttribute('role', 'dialog');
+    overlay.setAttribute('aria-modal', 'true');
+    overlay.setAttribute('aria-label', 'Choose a track');
+    panel.append(overlay);
+    trackPicker = { overlay, onKey: choice.onKey };
+    choice.focus();
+  };
+  const trackSlot = document.createElement('div');
+  trackSlot.className = 'lobby-track';
+  /** The shown card, rebuilt when the host's track changes. */
+  let shownTrack = '';
   const ccButtons = ENGINE_CLASSES.map((cc) => {
     const el = button(`${cc}cc`, () => props.onSettings({ ...current(), cc }));
     el.dataset.cc = String(cc);
@@ -162,8 +199,20 @@ registerScreen('lobby', (panel, props) => {
       ...room.members.map((m) => playerRow(m, m.id === room.selfId, props.racers)),
     );
     // Controls are updated in place, so an open picker isn't closed by someone else's change.
-    track.select.value = settings.trackId;
-    track.select.disabled = !room.isHost;
+    const chosen = props.tracks.find((t) => t.id === settings.trackId);
+    if (chosen && chosen.id !== shownTrack) {
+      const focused = trackSlot.contains(document.activeElement);
+      const card = trackCard(chosen, null, openTrackPicker);
+      card.setAttribute('aria-checked', 'true');
+      card.removeAttribute('role');
+      card.setAttribute('aria-haspopup', 'dialog');
+      card.setAttribute('aria-label', `Track: ${chosen.name}${room.isHost ? '. Change' : ''}`);
+      card.disabled = !room.isHost;
+      trackSlot.replaceChildren(card);
+      trackSlot.dataset.track = chosen.id;
+      shownTrack = chosen.id;
+      if (focused) card.focus();
+    }
     for (const el of ccButtons) {
       el.setAttribute('aria-pressed', String(el.dataset.cc === String(settings.cc)));
       el.disabled = !room.isHost;
@@ -206,13 +255,16 @@ registerScreen('lobby', (panel, props) => {
       'lobby-body',
       row('lobby-share', code, linkText, shareButton(room.code, link, linkText)),
       row('lobby-list', count, list, message, waiting),
-      row('lobby-settings', track.label, cc, items, racer),
+      row('lobby-settings', trackSlot, cc, items, racer),
     ),
     row('actions', button('Leave room', onLeave), ready, start),
   );
   return {
     onKey: (e) => {
-      if (picker) {
+      if (trackPicker) {
+        if (trackPicker.onKey(e)) e.preventDefault();
+        else if (e.key === 'Escape') closeTrackPicker();
+      } else if (picker) {
         if (!picker.picker.onKey(e) && e.key === 'Escape') closePicker();
       } else if (e.key === 'Escape') onLeave();
     },
@@ -220,22 +272,59 @@ registerScreen('lobby', (panel, props) => {
   };
 });
 
-/** A labelled `<select>` of `choices` calling `onChange` with the picked id. */
-function select(
-  text: string,
-  choices: readonly LobbyChoice[],
-  onChange: (id: string) => void,
-): { label: HTMLLabelElement; select: HTMLSelectElement } {
-  const label = document.createElement('label');
-  label.className = 'lobby-select';
-  const caption = document.createElement('span');
-  caption.textContent = text;
-  const el = document.createElement('select');
-  el.setAttribute('aria-label', text);
-  for (const choice of choices) el.append(new Option(choice.name, choice.id));
-  el.addEventListener('change', () => onChange(el.value));
-  label.append(caption, el);
-  return { label, select: el };
+/**
+ * The track cards to choose from (MK-78), `initial` selected: a tap or the arrow keys select, a
+ * tap on the selected card, Enter or `choose` picks it. `onKey` says whether it took the key.
+ */
+function trackChoice(
+  tracks: readonly TrackContent[],
+  initial: string,
+  onPick: (trackId: string) => void,
+): {
+  grid: HTMLElement;
+  choose: () => void;
+  focus: () => void;
+  onKey: (e: KeyboardEvent) => boolean;
+} {
+  let index = Math.max(
+    0,
+    tracks.findIndex((t) => t.id === initial),
+  );
+  const grid = document.createElement('div');
+  grid.className = 'track-grid';
+  grid.setAttribute('role', 'radiogroup');
+  grid.setAttribute('aria-label', 'Tracks');
+  const choose = () => {
+    const track = tracks[index];
+    if (track) onPick(track.id);
+  };
+  const select = (i: number) => {
+    index = (i + tracks.length) % tracks.length;
+    grid.dataset.track = tracks[index]?.id ?? '';
+    cards.forEach((card, n) => {
+      card.setAttribute('aria-checked', String(n === index));
+      card.tabIndex = n === index ? 0 : -1;
+    });
+    cards[index]?.focus();
+    cards[index]?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  };
+  const cards = tracks.map((track, i) =>
+    trackCard(track, null, () => (i === index ? choose() : select(i))),
+  );
+  grid.append(...cards);
+  return {
+    grid,
+    choose,
+    focus: () => select(index),
+    onKey: (e) => {
+      if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') select(index - 1);
+      else if (e.key === 'ArrowRight' || e.key === 'ArrowDown') select(index + 1);
+      else if (e.key === 'Enter' && cards.includes(document.activeElement as HTMLButtonElement))
+        choose();
+      else return false;
+      return true;
+    },
+  };
 }
 
 function playerRow(

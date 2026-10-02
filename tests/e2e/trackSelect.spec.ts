@@ -19,6 +19,8 @@ for (const { id, name } of menuTracks) {
     await expect(page.locator('.menus .menu-panel')).toHaveCount(0);
     const state = await getState(page);
     expect(state.trackId).toBe(id);
+    // The scene draws it too (MK-78), not the launch track.
+    expect(await page.evaluate(() => window.__game!.renderInfo().trackId)).toBe(id);
     expect(state.karts).toHaveLength(8);
     const prefs = await page.evaluate(() => localStorage.getItem('kart-racer:prefs'));
     expect(JSON.parse(prefs ?? '{}')).toMatchObject({ track: id });

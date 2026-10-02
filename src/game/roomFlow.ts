@@ -1,3 +1,4 @@
+import type { TrackContent } from '../content/tracks';
 import {
   defaultSettings,
   kartOf,
@@ -54,7 +55,7 @@ export interface LobbyLaunch {
 /** What the lobby offers (MK-47), and how the game takes part in it. */
 export interface LobbyHooks {
   /** The menu tracks and the racers, from the content registries. */
-  tracks: readonly LobbyChoice[];
+  tracks: readonly TrackContent[];
   racers: readonly LobbyChoice[];
   /** Runs a started race. */
   onRace?: (launch: OnlineLaunch) => void;
