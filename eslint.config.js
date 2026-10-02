@@ -68,8 +68,6 @@ export default tseslint.config(
   {
     // The netcode may use sim types and logic, never the presentation (CLAUDE.md, ADR 0005).
     files: ['src/net/**/*.ts'],
-    // The MK-36 spike page wires itself into the game loop; it's a prototype, not netcode.
-    ignores: ['src/net/spike/main.ts'],
     rules: {
       'no-restricted-imports': [
         'error',

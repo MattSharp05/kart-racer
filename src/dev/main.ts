@@ -79,19 +79,4 @@ if (app) {
     section.append(title, items);
     app.append(section);
   }
-
-  // MK-36 netcode spike: not a scenario (it needs two browsers), so it's listed by hand.
-  const spike = document.createElement('section');
-  const spikeTitle = document.createElement('h2');
-  spikeTitle.textContent = 'Online (spike)';
-  const spikeItems = document.createElement('ul');
-  spikeItems.append(
-    renderLink(
-      'net-spike-host',
-      `${window.location.origin}/?spike=net&role=host`,
-      'Host a 2-player WebRTC test race; it shows the client link + QR code to open on a second device.',
-    ),
-  );
-  spike.append(spikeTitle, spikeItems);
-  app.append(spike);
 }

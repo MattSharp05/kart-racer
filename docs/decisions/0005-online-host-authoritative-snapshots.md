@@ -25,7 +25,7 @@ v2 must nail smooth online races: up to 4 humans (desktop and phone together) pl
 
 ## Spike results (MK-36, 2026-09-25)
 
-Prototype: `src/net/spike/` (`?spike=net`). Host runs the sim with 2 humans + 6 AI, 20 Hz snapshots; the client runs a full RTT + 2 ticks ahead, resets to each snapshot and replays its inputs.
+Prototype: `src/net/spike/` (`?spike=net`; removed in MK-76 once races ran on the net core: its WebRTC race check lives on in `tests/e2e/onlineConnect.spec.ts`, the cross-engine hash in `tests/e2e/crossEngine.spec.ts`). Host runs the sim with 2 humans + 6 AI, 20 Hz snapshots; the client runs a full RTT + 2 ticks ahead, resets to each snapshot and replays its inputs.
 
 | Measure                                                                             | Result                                                                                                                                                           |
 | ----------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
