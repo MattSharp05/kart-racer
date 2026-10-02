@@ -1,0 +1,7 @@
+newmtl road
+Kd 1 1 1
+map_Kd checker.png
+
+newmtl wall
+Kd 0.6 0.6 0.6
+map_Kd checker.png
