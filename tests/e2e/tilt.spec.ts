@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { withGyro } from './gyro';
 import { loadScenario } from './helpers';
 
 // Tilt steering (MK-54). A browser can't show a real motion prompt or move a real gyro, so the
@@ -54,6 +55,9 @@ async function openSteering(page: Page) {
 }
 
 test.describe('tilt steering (MK-54)', () => {
+  // A phone with a gyro: Tilt stays on (MK-87).
+  test.beforeEach(({ page }) => withGyro(page));
+
   test('phones: race-tilt hides the drag stick, and tilting 25° right is full right lock', async ({
     page,
   }, info) => {
@@ -212,5 +216,90 @@ test.describe('tilt steering (MK-54)', () => {
     await page.locator('.menu-paused button', { hasText: 'How to play' }).click();
     await expect(page.locator('.how-to-play')).toContainText('Tilt the phone');
     await expect(page.locator('.how-to-play')).not.toContainText('Drag left / right');
+  });
+});
+
+/** Dispatches a `deviceorientation` reading every 100 ms (a gyro), or once with no `beta` (none). */
+async function sendReadings(page: Page, beta: number | null, repeat: boolean): Promise<void> {
+  await page.evaluate(
+    ([b, again]) => {
+      const send = () => {
+        const init = { alpha: b === null ? null : 0, beta: b, gamma: b === null ? null : -45 };
+        let event: Event;
+        try {
+          event = new DeviceOrientationEvent('deviceorientation', init);
+        } catch {
+          event = Object.assign(new Event('deviceorientation'), init);
+        }
+        window.dispatchEvent(event);
+      };
+      send();
+      if (again) setInterval(send, 100);
+    },
+    [beta, repeat] as const,
+  );
+}
+
+test.describe('tilt with no motion readings (MK-87)', () => {
+  test('phones: Tilt chosen with no readings goes back to Drag with a message after 2 s', async ({
+    page,
+  }, info) => {
+    test.skip(!isPhone(info.project.name));
+    await page.clock.install();
+    await mockPermission(page, 'granted');
+    const steering = await openSteering(page);
+    await steering.getByRole('button', { name: 'Tilt' }).click();
+    // A device without a gyro may send one empty reading: that doesn't count.
+    await sendReadings(page, null, false);
+    await page.clock.runFor(1500);
+    await expect(steering.getByRole('button', { name: 'Tilt' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    await page.clock.runFor(1000);
+    await expect(page.locator('.steering-message')).toBeVisible();
+    await expect(page.locator('.steering-message')).toContainText('no motion readings');
+    await expect(steering.getByRole('button', { name: 'Drag' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    await expect(page.locator('.tilt-options')).toBeHidden();
+    await expect(page.locator('.touch-controls')).toHaveAttribute('data-steering', 'drag');
+    const stored = await page.evaluate(() => localStorage.getItem('kart-racer:settings'));
+    expect(JSON.parse(stored ?? '{}')).toMatchObject({ steering: 'drag' });
+  });
+
+  test('phones: Tilt chosen with readings arriving stays on', async ({ page }, info) => {
+    test.skip(!isPhone(info.project.name));
+    await page.clock.install();
+    await mockPermission(page, 'granted');
+    const steering = await openSteering(page);
+    await steering.getByRole('button', { name: 'Tilt' }).click();
+    await sendReadings(page, 5, true);
+    await page.clock.runFor(5000);
+    await expect(steering.getByRole('button', { name: 'Tilt' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    await expect(page.locator('.steering-message')).toBeHidden();
+    await expect(page.locator('.touch-controls')).toHaveAttribute('data-steering', 'tilt');
+  });
+
+  test('phones: a race with Tilt saved and no readings falls back with a notice', async ({
+    page,
+  }, info) => {
+    test.skip(!isPhone(info.project.name));
+    await page.clock.install();
+    // Allowed on the first tap (iOS asks each visit); then nothing arrives.
+    await mockPermission(page, 'granted');
+    await loadScenario(page, 'race-tilt', { paused: true });
+    const controls = page.locator('.touch-controls');
+    await page.locator('.touch-brake').click();
+    await page.clock.runFor(1500);
+    await expect(controls).toHaveAttribute('data-steering', 'tilt');
+    await page.clock.runFor(1000);
+    await expect(page.locator('.toast')).toContainText('no motion readings');
+    await expect(controls).toHaveAttribute('data-steering', 'drag');
+    await expect(page.locator('.touch-stick')).toBeVisible();
   });
 });

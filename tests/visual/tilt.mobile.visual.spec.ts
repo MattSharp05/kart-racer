@@ -1,7 +1,10 @@
 import { expect, test } from '@playwright/test';
+import { withGyro } from '../e2e/gyro';
 import { loadScenario } from '../e2e/helpers';
 
 // Tilt steering (MK-54): the race without the drag stick, and Settings with tilt's options.
+// A phone with a gyro, so Tilt doesn't fall back to Drag mid-screenshot (MK-87).
+test.beforeEach(({ page }) => withGyro(page));
 
 test('race-tilt: buttons only, no drag stick (paused)', async ({ page }, info) => {
   await loadScenario(page, 'race-tilt', { paused: true });
