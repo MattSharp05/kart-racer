@@ -131,6 +131,26 @@ export const tuning = {
   rampLaunch: 0.28,
   /** A grounded kart stays glued to the ground over drops up to this per tick, m. */
   groundSnap: 0.15,
+  // --- Mesh tracks (MK-98, ADR 0010): queries on a course's collision mesh and its route ---
+  meshTrack: {
+    /**
+     * `groundAt` casts from this far above the position (along `up`), m, so a kart that sank a
+     * little into the road still finds it.
+     */
+    groundProbeUp: 1,
+    /**
+     * …down to this far below it, m. The MK-92 spike's longest snap (anti-gravity, holding the
+     * kart through convex bits) was 1.5 m; anything further is air.
+     */
+    groundProbeDown: 1.5,
+    /** Route centreline sample spacing for progress, m (as spline tracks). */
+    routeSampleSpacing: 1,
+    /**
+     * `progressAt` with a hint searches the route only this far either side of it, m, so stacked
+     * sections (a road passing over or under itself) don't swap progress.
+     */
+    progressWindow: 40,
+  },
   // --- Surfaces & hazards (MK-49) ---
   surfaces: {
     /** Ice: sideways grip (and drift grip) × this, so karts slide much further. */
