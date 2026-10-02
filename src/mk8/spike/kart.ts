@@ -200,18 +200,12 @@ export function probeGround(world: CollisionWorld, k: SpikeKart): Ground | null 
 function pushOutOfWalls(world: CollisionWorld, k: SpikeKart): void {
   const t = SPIKE_TUNING;
   const centre = addScaled(k.pos, k.up, t.wallRadius * 0.6);
-  for (const contact of world.wallContacts(centre, t.wallRadius)) {
-    // Only the part of the push in the road plane: walls never lift the kart off the ground.
-    const inPlane = addScaled(contact.normal, k.up, -dot(contact.normal, k.up));
-    // Straight above or below a rail edge there's no sideways push; skip it.
-    if (dot(inPlane, inPlane) < 1e-6) continue;
-    const n = normalize(inPlane);
-    const depth = dot(contact.push, n);
-    if (depth <= 0) continue;
-    k.pos = addScaled(k.pos, n, depth);
-    const into = dot(k.vel, n);
-    if (into < 0) k.vel = addScaled(k.vel, n, -into * (1 + t.wallBounce));
-  }
+  // Only in the road plane (the query drops the part along `up`): walls never lift the kart.
+  const contact = world.wallContact(centre, t.wallRadius, k.up);
+  if (!contact) return;
+  k.pos = add(k.pos, contact.push);
+  const into = dot(k.vel, contact.normal);
+  if (into < 0) k.vel = addScaled(k.vel, contact.normal, -into * (1 + t.wallBounce));
 }
 
 function respawn(k: SpikeKart): void {
