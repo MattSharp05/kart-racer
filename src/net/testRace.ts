@@ -142,12 +142,14 @@ export const TEST_RACE_ODDS: Readonly<Record<string, readonly number[]>> = {
  */
 export function useTestRaceItems(): () => void {
   const own: ItemContent[] = [...items.list()];
-  for (const item of own) unregisterItem(item.id);
-  for (const [id, odds] of Object.entries(TEST_RACE_ODDS)) {
+  // Every test item is checked before anything is unregistered, so a throw leaves the game's own.
+  const fixed = Object.entries(TEST_RACE_ODDS).map(([id, odds]) => {
     const item = own.find((i) => i.id === id);
     if (!item) throw new Error(`Test race item ${id} isn't registered`);
-    registerItem({ ...item, odds });
-  }
+    return { ...item, odds };
+  });
+  for (const item of own) unregisterItem(item.id);
+  for (const item of fixed) registerItem(item);
   return () => {
     for (const id of Object.keys(TEST_RACE_ODDS)) unregisterItem(id);
     for (const item of own) registerItem(item);
