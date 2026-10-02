@@ -14,7 +14,13 @@ export type MenuScreen =
   | 'buttonEditor'
   | 'nickname'
   | 'onlineResults'
-  | 'leaderboard';
+  | 'leaderboard'
+  // MK8 Mode (MK-97): the title with its button picked, its loading bar held at 50 %, its "pack
+  // not installed" screen, and MK8 Mode opened as the button does (loading the pack).
+  | 'mk8Entry'
+  | 'mk8Loading'
+  | 'mk8NotInstalled'
+  | 'mk8';
 
 export interface ScenarioSetup {
   state: SimState;

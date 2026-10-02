@@ -1,10 +1,16 @@
 import { NEUTRAL_INPUT, type InputFrame, type SimEvent, type SimState } from '../sim/types';
 import type { Game } from './game';
 import type { NetInfo } from './online';
+import { whenLoadsSettle } from './pending';
 
 /** `window.__game`: lets e2e tests and QA drive the sim deterministically (docs/TDD.md → Testing). */
 export interface GameTestApi {
   ready: boolean;
+  /**
+   * Resolves when every pending pack load has finished (MK-97: the MK8 pack loads after the page
+   * is ready). `loadScenario` awaits it.
+   */
+  whenReady(): Promise<void>;
   /** Scenario the game booted into, if any. */
   scenario: string | null;
   /** A copy of the sim state, plus which kart this device drives (MK-38). */
@@ -90,6 +96,7 @@ export function installTestApi(
   });
   const api: GameTestApi = {
     ready: true,
+    whenReady: whenLoadsSettle,
     scenario: scenario ?? null,
     getState: snapshot,
     pause: () => game.pause(),

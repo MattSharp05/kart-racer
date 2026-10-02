@@ -3,6 +3,7 @@ import { drivingScenarios } from './driving';
 import { itemScenarios } from './items';
 import { leaderboardScenarios } from './leaderboard';
 import { menuScenarios } from './menus';
+import { mk8Scenarios } from './mk8';
 import { onlineScenarios } from './online';
 import { raceScenarios } from './race';
 import { racerSelectScenarios } from './racerSelect';
@@ -25,6 +26,7 @@ scenarios.register(
   ...trackSelectScenarios,
   ...leaderboardScenarios,
   ...onlineScenarios,
+  ...mk8Scenarios,
   ...Object.values(trackFolderScenarios).flat(),
   ...Object.values(itemFolderScenarios).flat(),
 );
