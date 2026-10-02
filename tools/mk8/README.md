@@ -42,3 +42,24 @@ Builds are deterministic: the same raw files give the same bytes (`pipeline.test
    (dev server only; `?base=` points the page elsewhere).
 
 The UI font, M PLUS Rounded 1c (OFL), is not Nintendo's and is committed in `public/mk8/fonts/`.
+
+## Audio (MK-94)
+
+1. For each sound pack in `sources.json` (`"sounds"`), extract its files into
+   `$MK8_RAW/sounds/<id>/` (e.g. `sounds/mk8dx-menu/`, `sounds/voice-mario/`).
+2. Correct the placeholder `file` names in `src/mk8/audio/soundIds.ts` to the real files in each
+   pack (the build lists every one it can't find, and writes them to `reports/audio.json`).
+3. `pnpm mk8:build` (`-- --only mk8dx-menu,voice-mario` for some packs). Each sound id becomes
+   `audio/<id>.m4a`: AAC, 96 kbps, mono (the star music stays stereo), leading and trailing
+   silence trimmed (`tools/mk8/audio.ts`, `ffmpeg-static`; `FFMPEG_PATH` overrides the binary).
+   Voice packs: every file whose name matches a voice event in `src/mk8/audio/voiceEvents.ts`
+   becomes `audio/voice/<racer>/<name>.m4a`, and `audio/voices.json` maps racer → event → files.
+   The build prints each racer's voice gaps (events with no file).
+4. `pnpm mk8:check` also fails when a sound in `soundIds.ts` is missing (once any audio is built)
+   or all audio together is over `totals["audio/*"]` in `budgets.json` (15 MB).
+5. With real audio in `$MK8_OUT`, `pnpm test` checks every sound id resolves and prints the
+   voice gaps (`tools/mk8/audio.test.ts`).
+
+Same input, same bytes: the `.m4a` files are written bit-exact (`audio.test.ts`).
+`tests/e2e/mk8Audio.spec.ts` decodes a pipeline `.m4a` (`tests/e2e/fixtures/mk8-sine.m4a`, a
+synthesized sine) with `decodeAudioData` in every browser project, Safari included.
