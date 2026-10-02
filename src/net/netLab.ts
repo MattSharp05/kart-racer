@@ -116,6 +116,8 @@ interface Watch {
   client: OnlineClient;
   kartId: number;
   smoother: NetSmoother;
+  /** The other humans' karts in this client's race. */
+  remoteHumans: number[];
   ownCorrections: number[];
   remoteCorrections: number[];
   ownJumps: number[];
@@ -133,11 +135,6 @@ interface Watch {
   leadSamples: number;
 }
 
-/** The karts of other humans in client `watch`'s race. */
-function remoteHumans(watch: Watch): number[] {
-  return [...watch.smoother.remoteKarts];
-}
-
 /**
  * After each client tick, as `OnlineRace`'s stepper does: the reconciles since the last tick go to
  * the smoother (and into the correction sizes).
@@ -147,7 +144,7 @@ function afterTick(watch: Watch): void {
   const corrections = client.takeCorrections();
   const state = client.state;
   if (!state) return;
-  const remote = remoteHumans(watch);
+  const remote = watch.remoteHumans;
   for (const c of corrections) {
     const size = Math.hypot(c.dx, c.dy, c.dz);
     if (c.kartId === kartId) watch.ownCorrections.push(size);
@@ -170,7 +167,7 @@ function drawFrame(watch: Watch, ticks: number): void {
   }
   watch.leadSum += state.tick - client.snapshotTick;
   watch.leadSamples += 1;
-  for (const id of [kartId, ...remoteHumans(watch)]) {
+  for (const id of [kartId, ...watch.remoteHumans]) {
     const kart = state.karts[id];
     if (!kart) continue;
     const pose = poseOf(kart);
@@ -223,13 +220,11 @@ export function runLab({
       leadTicks: () => (client.state ? client.state.tick - client.snapshotTick : 0),
     });
     client.onSnapshotState = (state) => smoother.snapshots.push(state);
-    smoother.remoteKarts = new Set(
-      Array.from({ length: clients + 1 }, (_, k) => k).filter((k) => k !== i + 1),
-    );
     return {
       client,
       kartId: i + 1,
       smoother,
+      remoteHumans: Array.from({ length: clients + 1 }, (_, k) => k).filter((k) => k !== i + 1),
       ownCorrections: [],
       remoteCorrections: [],
       ownJumps: [],

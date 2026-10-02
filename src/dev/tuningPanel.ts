@@ -45,7 +45,7 @@ export function openTuningPanel(): GUI {
   net.add(tuning.net, 'smoothingSeconds', 0, 0.5, 0.01).name('smoothing (s)');
   net.add(tuning.net, 'snapDistance', 0.5, 10, 0.25).name('snap above (m)');
   net.add(tuning.net, 'inputDelayTicks', 0, 8, 1).name('input delay (ticks)');
-  net.add(tuning.net, 'remoteKarts', ['predict', 'interpolate']).name('other players');
+  net.add(tuning.net, 'remoteKarts', ['predict', 'interpolate']).name('other karts');
   net.add(tuning.net, 'interpolationSeconds', 0, 0.3, 0.01).name('interpolation delay (s)');
 
   gui

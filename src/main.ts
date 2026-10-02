@@ -11,6 +11,7 @@ import { launchLeaderboard } from './records/leaderboardMock';
 import { World } from './render/world';
 import { scenarios } from './scenarios';
 import { getTrack } from './sim/track';
+import { tuning } from './sim/tuning';
 import { NetDebugOverlay } from './ui/netDebug';
 import { restoreSteering } from './ui/settings/controlsSteering';
 import { PerfOverlay } from './ui/perfOverlay';
@@ -20,6 +21,8 @@ const canvas = document.querySelector<HTMLCanvasElement>('#game');
 if (!canvas) throw new Error('Missing #game canvas');
 
 const params = parseLaunchParams(window.location.search);
+// `&remote=` (MK-74, QA): how this device's online races draw and predict other karts.
+if (params.remote) tuning.net.remoteKarts = params.remote;
 const launch = resolveLaunch(params);
 const store = launch.storage ? new OverlayStore(browserStore(), launch.storage) : browserStore();
 // The saved touch layout (MK-53, MK-57), before the controls are built.

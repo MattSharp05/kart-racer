@@ -99,9 +99,11 @@ describe('CorrectionSmoother', () => {
 function stateAt(race: SimState, tick: number, x: number, heading = 0): SimState {
   const state = structuredClone(race);
   state.tick = tick;
-  const kart = state.karts[1]!;
-  kart.position = { ...kart.position, x };
-  kart.heading = heading;
+  // Every kart but the local one (0) at x = `x`.
+  for (const kart of state.karts.slice(1)) {
+    kart.position = { ...kart.position, x };
+    kart.heading = heading;
+  }
   return state;
 }
 
@@ -137,10 +139,9 @@ describe('SnapshotInterpolator', () => {
     expect(interpolator.sample(12, 34, out)).toBe(false); // no such kart
   });
 
-  it('NetSmoother draws remote humans from snapshots in interpolate mode, the rest predicted', () => {
+  it('NetSmoother draws every other kart from snapshots in interpolate mode, ours predicted', () => {
     const source = { kartId: 0, leadTicks: () => 12 };
     const smoother = new NetSmoother(source);
-    smoother.remoteKarts = new Set([1]);
     for (let tick = 0; tick <= 60; tick += 3) smoother.snapshots.push(stateAt(race, tick, tick));
     smoother.corrections.correct([{ kartId: 1, dx: 0.4, dy: 0, dz: 0, dHeading: 0 }], 70);
 
@@ -155,7 +156,11 @@ describe('SnapshotInterpolator', () => {
     smoother.frame(FRAME);
     smoother.adjust(1, p, 70, 1);
     expect(p.x).toBeCloseTo(70 - 12 - delay); // snapshot x = tick
-    // The local kart and the AI stay predicted.
+    // AI karts too: the client predicts only its own kart (MK-74).
+    const ai = pose(70);
+    smoother.adjust(2, ai, 70, 1);
+    expect(ai.x).toBeCloseTo(70 - 12 - delay);
+    // The local kart stays predicted.
     const own = pose(5);
     smoother.adjust(0, own, 70, 1);
     expect(own.x).toBe(5);

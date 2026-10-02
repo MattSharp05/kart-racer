@@ -20,10 +20,13 @@ export function updateRespawns(
   track: TrackDef,
   dt: number,
   events: SimEvent[],
+  only?: number,
 ): void {
   if (track.kind !== 'spline') return;
   const geometry = trackGeometry(track);
   for (const kart of state.karts) {
+    // Simulating one kart (`StepOptions.only`, MK-74): the others' falls are the host's to decide.
+    if (only !== undefined && kart.id !== only) continue;
     kart.respawnCooldown = Math.max(0, kart.respawnCooldown - dt);
     kart.invulnerableTimer = Math.max(0, kart.invulnerableTimer - dt);
 

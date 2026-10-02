@@ -89,12 +89,15 @@ export function updateHazards(
   state: SimState,
   hazards: readonly HazardDef[],
   events: SimEvent[],
+  only?: number,
 ): void {
   for (const hazard of hazards) {
     const kind = hazardKinds.get(hazard.kind);
     if (!kind.contact) continue;
     const pose = kind.pose(hazard, state.tick);
     for (const kart of state.karts) {
+      // Simulating one kart (`StepOptions.only`, MK-74): hazards touch only that one.
+      if (only !== undefined && kart.id !== only) continue;
       if (isRespawning(kart) || kart.position.y - pose.y > tuning.hazards.clearance) continue;
       const contact = kind.contact(hazard, pose, kart.position, tuning.hazards.kartRadius);
       if (!contact) continue;

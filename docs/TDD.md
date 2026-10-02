@@ -165,6 +165,6 @@ Scope: [PRD v2](https://app.notion.com/p/3e524983f3ca812d85b8e778602f94e1). The 
 
 - **P2P on mobile networks:** phones on 4G/5G couldn't connect P2P (MK-36, MK-73). Solved with a Cloudflare TURN relay (ADR 0008, MK-75); the Durable Objects relay of ADR 0006 is no longer planned.
 - **Feel under lag:** tuning happens in the netcode polish ticket with `netsim` presets and a real 4-player test with Matthew.
-- **Phone CPU for re-simulation:** measured in the spike. Fallbacks are predicting only the local kart, or a lower snapshot rate.
+- **Phone CPU for re-simulation:** measured in the spike; reconcile-only-on-mismatch keeps a 4×-throttled phone well within budget (MK-73). Fallback built: `&remote=interpolate` predicts only the local kart (MK-74, ~90 % less snapshot work; ADR 0005). Last resort: a lower snapshot rate.
 - **Supabase free-tier pausing and limits:** keep-alive, and race traffic stays off Realtime.
 - **Six tracks × phone perf:** per-track perf assertions, plus a final pass across all tracks.
