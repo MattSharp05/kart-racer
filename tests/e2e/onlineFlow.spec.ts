@@ -126,7 +126,7 @@ test.describe('online race flow', () => {
         expect(await page.evaluate(() => window.__game!.net())).toBeNull();
       }
       // The host can pick again and start: the guest is still ready.
-      await expect(host.getByRole('combobox', { name: 'Track' })).toBeEnabled();
+      await expect(host.getByRole('button', { name: /^Track: .+\. Change$/ })).toBeEnabled();
       await expect(host.getByRole('button', { name: 'Start' })).toBeEnabled();
     },
   );
