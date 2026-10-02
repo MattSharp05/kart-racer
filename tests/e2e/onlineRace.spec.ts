@@ -6,6 +6,8 @@ import { autopilotAll, netInfo, openRoom, stepAll } from './online';
 
 /** Ticks per `stepAll` batch while waiting for the finish. */
 const BATCH = 300;
+/** The host's head start in the MK-81 test, ticks (15 s: autopilots catch up a lot). */
+const HEAD_START = 900;
 /** A 1-lap race is ~62 s; give it plenty. */
 const MAX_TICKS = 60 * 120;
 
@@ -69,6 +71,41 @@ test.describe('online race over BroadcastChannel', () => {
     // …and so is what each player sees on the results screen.
     expect(await resultRows(client)).toEqual(await resultRows(host));
   });
+
+  test(
+    'online scenario: the host finishes first, sees live standings, then the final ones (MK-81)',
+    { tag: '@full' },
+    async ({ context }) => {
+      test.setTimeout(150_000);
+      const room = await openRoom(context, 2, { laps: 1 });
+      const [host, client] = room.pages as [Page, Page];
+      // The host sets off 15 s ahead, so it finishes first while the client still races.
+      await autopilotAll([host]);
+      await stepAll(room.pages, HEAD_START);
+      await autopilotAll([client]);
+      const finished = async (page: Page) => {
+        const s = await state(page);
+        return s.karts[s.localKartId]?.race.finishTick !== undefined;
+      };
+      for (let ticks = 0; !(await finished(host)) && ticks < MAX_TICKS; ticks += BATCH) {
+        await stepAll(room.pages, BATCH);
+      }
+      expect(await finished(client)).toBe(false);
+      // The results open after their delay: live standings while the client still races.
+      const list = host.locator('ol.online-results');
+      await expect(list).toHaveAttribute('data-final', 'false', { timeout: 10_000 });
+      await expect(host.locator('.menu-onlineResults')).toContainText(
+        'Waiting for everyone to finish',
+      );
+      for (let ticks = 0; !(await finished(client)) && ticks < MAX_TICKS; ticks += BATCH) {
+        await stepAll(room.pages, BATCH);
+      }
+      // A drawn frame too: the flow checks the results once a frame.
+      await stepAll(room.pages, 30, { render: true });
+      // The host's final standings arrive: the list switches without leaving the screen.
+      await expect(list).toHaveAttribute('data-final', 'true', { timeout: 10_000 });
+    },
+  );
 
   test('the countdown waits until every player has joined', async ({ context }) => {
     const room = await openRoom(context, 1, { scenario: 'online-race-2p' });
