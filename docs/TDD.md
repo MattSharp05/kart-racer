@@ -1,6 +1,6 @@
 # Technical Design — Kart Racer
 
-Status: MVP Approved · **v2 Approved** (2026-09-25) · PRD (MVP): https://www.notion.so/3e424983f3ca8171ad9bffbdee9cedf1 · PRD (v2): https://app.notion.com/p/3e524983f3ca812d85b8e778602f94e1
+Status: MVP Approved · **v2 Approved** (2026-09-25) · **v3 Proposed** (2026-10-02) · PRD (MVP): https://www.notion.so/3e424983f3ca8171ad9bffbdee9cedf1 · PRD (v2): https://app.notion.com/p/3e524983f3ca812d85b8e778602f94e1
 
 ## Stack
 
@@ -168,3 +168,67 @@ Scope: [PRD v2](https://app.notion.com/p/3e524983f3ca812d85b8e778602f94e1). The 
 - **Phone CPU for re-simulation:** measured in the spike; reconcile-only-on-mismatch keeps a 4×-throttled phone well within budget (MK-73). Fallback built: `&remote=interpolate` predicts only the local kart (MK-74, ~90 % less snapshot work; ADR 0005). Last resort: a lower snapshot rate.
 - **Supabase free-tier pausing and limits:** keep-alive, and race traffic stays off Realtime.
 - **Six tracks × phone perf:** per-track perf assertions, plus a final pass across all tracks.
+
+## v3 — MK8 Mode
+
+Scope: [PRD v3](https://app.notion.com/p/3ed24983f3ca81eaafe9d34189a7f7c1) · UI: [approved mockup](https://claude.ai/artifact/Fng9QXWsZn2MX91zApEQ1B). The headline goal is a UI faithful to MK8; the biggest technical risk is anti-gravity on real course meshes. Decisions: [ADR 0009](decisions/0009-mk8-mode-content-pack.md) (content pack and assets), [ADR 0010](decisions/0010-mesh-tracks.md) (mesh tracks), [ADR 0011](decisions/0011-surface-frame-kart-physics.md) (anti-gravity physics), [ADR 0012](decisions/0012-sampled-audio-mk8.md) (sampled audio).
+
+### Stack additions
+
+| Choice                                                                                                            | Why                                                                                                                                                |
+| ----------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Asset pipeline** `tools/mk8/` (dev only): `obj2gltf`, glTF-Transform, `meshoptimizer`, `sharp`, `ffmpeg-static` | Converts the downloads to web formats reproducibly, with no system binaries, so a cloud builder can run it.                                        |
+| **GLB + meshopt + WebP** (three's `GLTFLoader` + `MeshoptDecoder`)                                                | No new runtime dependency; WebP is supported by every target browser. KTX2 stays an option if phone GPU memory is a problem (perf ticket decides). |
+| **AAC `.m4a` samples** via Web Audio                                                                              | Plays on every target browser including iOS Safari. No Howler.                                                                                     |
+| **Font:** M PLUS Rounded 1c (self-hosted woff2 in `public/mk8/fonts/`) plus MK8's digit atlases for HUD numbers   | Closest free match to MK8's rounded, slanted UI type; the mockup uses it.                                                                          |
+
+### Architecture
+
+```
+ Title (original) ── "MK8 Mode" ──► import('./mk8') ──► mk8/loader: manifest → UI kit → course + racers (progress bar)
+                                          │ registers
+            ┌─────────────────────────────┼──────────────────────────────────┐
+  content registries (ADR 0007)     mk8/ui/ screens + HUD            mk8/audio/ soundBank (+ synth fallback)
+  tracks: mk8-* (kind 'mesh')       (own router stack, MK8 kit)       mk8/render/ course GLB, racer + kart
+  racers: 12 MK8 racers + loadout                                       assembly, Lakitu, item models
+  items: MK8 set + our 5
+            │
+  sim/ (pure): meshTrack queries · surface-frame kart (up, glide, water) · coins · MK8 odds · GP points
+```
+
+- **Loadout:** a race entry is `{ racerId, body, tires, glider }`. Stats = racer + parts on MK8's 0.75–5.75 scale (`src/mk8/content/stats.ts`, MK8's real table), mapped to our physics in `tuning.mk8.statMap` (top speed, acceleration time, weight for bumps, turn rate, grip).
+- **Modes:** `game/flow` gains `mk8:` flows: Grand Prix (4 races, points 15-12-10-9-8-7-6-5, standings, podium), VS Race, Time Trial (records per course and cc, existing records store) and Online (v2 rooms; the lobby carries `pack: 'mk8'` and loadouts; everyone loads the course before the host can start).
+- **Items:** existing items get MK8 render factories (reskins). New sim items: triple shells (orbiting), triple bananas, golden mushroom, spiny shell, Bullet Bill (drives the route), Bob-omb, fire flower, piranha plant, super horn, coin, crazy 8. MK8's position odds table in `src/mk8/content/items/odds.ts`, with our 5 unique items mixed in. A second item slot (from the approved mockup).
+- **Coins:** placed on the route in the editor; up to 10, each adding `tuning.mk8.coinSpeed` to top speed; lose 3 on a hit; coin item gives 2.
+- **200cc:** a new engine class row in tuning; brake-drift as in MK8 (holding brake during a drift tightens it).
+- **Camera:** follows `up` with smoothing; glide pulls back; underwater adds a tint and caustics.
+
+### Data and state (v3 additions)
+
+- `KartState`: `up`, `gravityDir`, `glide` (state + timer), `inWater`, `coins`, `loadout`, second `item` slot.
+- Course data per course: `route.ts` (editor export, pure data), `materials.ts` (material → surface), `collision.bin` + grid (pipeline output), `course.glb`, ambience sound list.
+- `localStorage`: last MK8 loadout and cc, Time Trial records per MK8 course × cc (existing records store), GP best trophy per cc.
+
+### Scenarios and testing (v3 additions)
+
+- Scenarios `mk8-*` for every screen and course state: e.g. `mk8-ui-char`, `mk8-ui-kart`, `mk8-stadium-antigrav`, `mk8-waterpark-underwater`, `mk8-canyon-glide`, `mk8-gp-standings`, `mk8-hud-roulette`. They load the pack first, so `loadScenario` waits for `__game.ready()`.
+- **Unit:** mesh queries (ground, wall, water, normals) on small synthetic meshes; surface-frame physics (regression hash on all v1/v2 tracks with `up = +Y`, sticking to a 90° wall and a loop, falling off non-antigrav walls); glide and water; coins; MK8 odds; GP points; stat mapping.
+- **Pipeline tests:** conversion is deterministic (same hash twice), and size budgets are checked per course and in total in CI (`pnpm mk8:check`; it doesn't re-download).
+- **E2E:** each screen via its scenario, keyboard and touch; a full GP with `step()` on desktop-chrome tagged `@full` (main only); visual baselines for each MK8 screen.
+- **Perf:** per course: draw calls < 300 and triangles < 400k on desktop, with a `quality=low` set for phones (≥ 30 fps on the 4×-throttled Pixel 7 soak); mesh queries < 0.3 ms per tick for 8 karts.
+- **CI:** CI never has the real pack (ADR 0009, local only). MK8 e2e runs against fixture content (a synthetic course, generated sprites and sounds) and the "pack not installed" state, only on PRs that touch `src/mk8/`, `tools/mk8/`, `sim/` or the flow. Real-course checks (perf, visuals) run locally with `pnpm dev` and are recorded on tickets.
+
+### Environments (v3 additions)
+
+- Raw MK8 files are fetched by Matthew on his machine into `.mk8-raw/` (agent downloads are blocked by auto mode). `pnpm mk8:build` writes `.mk8-out/`, which `pnpm dev` serves at `/mk8/`.
+- Vercel never serves Nintendo assets: production and previews show MK8 Mode's "pack not installed" screen.
+
+### v3 risks
+
+- **Anti-gravity physics** (ADR 0011): spike first, then a checkpoint where Matthew drives Mario Kart Stadium before the other courses.
+- **Course meshes without collision data:** material names may not separate road from decoration cleanly. The editor shows the classification, and per-course overrides fix it.
+- **Phone performance:** real MK8 courses are far heavier than ours. Measured in the pipeline ticket; the `-low` texture set, simplified meshes and draw-call merging are the levers, and the perf ticket decides on KTX2.
+- **Pack size:** about 90 MB locally (nothing committed or deployed); budgets still apply for load time and phone memory.
+- **Copyright:** avoided by never committing or deploying Nintendo assets (ADR 0009 amendment, 2026-10-02).
+- **Asset access:** builders can't fetch real assets, so real-content checks wait for Matthew's local build; tickets use synthetic fixtures meanwhile.
+- **Racer models are static** (no rig found in the downloads so far): lean, bob and squash are procedural.

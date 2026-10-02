@@ -8,17 +8,17 @@ kart on a mesh course with keyboard or touch; `P` toggles an autopilot, `R` rest
 goes through the same OBJ → collision path as a real course. Nothing was downloaded and no
 Nintendo asset is committed. The real-mesh checks are deferred (end of this file).
 
-| File                           | What                                                                                                                                      |
-| ------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| `course.ts`                    | Synthetic course → OBJ text + centreline                                                                                                  |
-| `obj.ts`                       | Minimal OBJ reader (positions, faces, `usemtl`)                                                                                           |
-| `collision.ts`                 | Collision mesh from OBJ triangles (byte-identical to the MK-93 pipeline), ray and wall queries                                            |
-| `kart.ts`                      | Surface-frame kart step                                                                                                                   |
-| `frame.ts`                     | Question 4: heading → forward on a surface                                                                                                |
-| `autopilot.ts`, `bench.ts`     | Centreline follower; drive stats and query timings                                                                                        |
-| `main.ts`, `spike.css`         | The page                                                                                                                                  |
-| `scripts/antigravSpike.lab.ts` | `pnpm mk8:spike-report`: prints every number below                                                                                        |
-| `tools/mk8/collisionFormat.ts` | The browser-safe half of `tools/mk8/collision.ts` (surfaces, guesses, grid, `collision.bin` read/write), split out so the spike reuses it |
+| File                           | What                                                                                                                                                        |
+| ------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `course.ts`                    | Synthetic course → OBJ text + centreline                                                                                                                    |
+| `obj.ts`                       | Minimal OBJ reader (positions, faces, `usemtl`)                                                                                                             |
+| `collision.ts`                 | Collision mesh from OBJ triangles (byte-identical to the MK-93 pipeline); ray and wall queries now call `src/sim/meshTrack.ts` (MK-98)                      |
+| `kart.ts`                      | Surface-frame kart step                                                                                                                                     |
+| `frame.ts`                     | Question 4: heading → forward on a surface                                                                                                                  |
+| `autopilot.ts`, `bench.ts`     | Centreline follower; drive stats and query timings                                                                                                          |
+| `main.ts`, `spike.css`         | The page                                                                                                                                                    |
+| `scripts/antigravSpike.lab.ts` | `pnpm mk8:spike-report`: prints every number below                                                                                                          |
+| `tools/mk8/collisionFormat.ts` | The browser-safe half of `tools/mk8/collision.ts` (guesses, `collision.bin` writer); surfaces, grid and reader moved to `src/sim/meshCollision.ts` in MK-98 |
 
 ## The synthetic course
 
@@ -77,7 +77,8 @@ rounds; Linux cloud container):
 The whole kart step (ground + walls + physics) for 8 karts is 0.13 ms (spike) / 0.16 ms (dense)
 at 4 m. **8 m cells (the MK-93 default) were at the limit on the dense mesh, so the pipeline
 default is now 4 m** (`COLLISION_DEFAULTS.cellSize`): half the cost for ~10–20 % more bytes.
-`groundQuery.perf.test.ts` holds both courses under 0.3 ms in `pnpm test:perf`.
+`groundQuery.perf.test.ts` held both courses under 0.3 ms in `pnpm test:perf`; MK-98 replaced it with
+`src/sim/meshTrack.perf.test.ts` (the production queries, 8 karts × ground + wall).
 
 Finding: the pipeline's simplifier didn't reach the 25k cap (57,820 → 29,586) because it
 simplifies each surface separately with `LockBorder`, and a ribbon road is mostly border. The
@@ -150,7 +151,7 @@ and `pnpm test` passes).
 
 ## Follow-ups for the planned tickets
 
-- **Mesh tracks:** port `CollisionWorld.raycast`/`wallContacts` into `sim/meshTrack.ts` without
+- **Mesh tracks (done in MK-98):** port `CollisionWorld.raycast`/`wallContacts` into `sim/meshTrack.ts` without
   closures (fixed iteration order is already there: cells, then ascending triangle). Start a real
   course from the route, not `realStart` (the spike's guess: the road triangle nearest the mesh
   centre).

@@ -17,6 +17,8 @@ export type TrackViewUpdate = (ticks: number, camera: THREE.Vector3) => void;
  * flat walled test pad. Returns the per-frame update for tracks with moving scenery (MK-59).
  */
 export function createTrackView(scene: THREE.Scene, track: TrackDef): TrackViewUpdate | undefined {
+  // Mesh tracks (ADR 0010) are drawn from the course GLB by the MK8 renderer, not generated here.
+  if (track.kind === 'mesh') return undefined;
   if (track.kind === 'spline') {
     const geometry = trackGeometry(track);
     const theme = trackTheme(track);
@@ -103,6 +105,15 @@ function overviewBounds(track: TrackDef): OverviewBounds {
       minZ: Math.min(...samples.map((s) => s.z)) - margin,
       maxZ: Math.max(...samples.map((s) => s.z)) + margin,
       top: Math.max(0, ...samples.map((s) => s.y)),
+    };
+  } else if (track.kind === 'mesh') {
+    const { gridMin, gridDims, cellSize } = track.collision;
+    bounds = {
+      minX: gridMin[0],
+      maxX: gridMin[0] + gridDims[0] * cellSize,
+      minZ: gridMin[2],
+      maxZ: gridMin[2] + gridDims[2] * cellSize,
+      top: Math.max(0, gridMin[1] + gridDims[1] * cellSize),
     };
   } else {
     const h = track.halfSize;

@@ -138,9 +138,9 @@ const SAMPLE_SPACING = 1;
 /** Spatial hash cell size for projection lookups, m. */
 const CELL_SIZE = 16;
 /** Catmull-Rom evaluations per control segment before resampling. */
-const SUBDIVISIONS = 40;
+export const SUBDIVISIONS = 40;
 
-function catmullRom(p0: number, p1: number, p2: number, p3: number, u: number): number {
+export function catmullRom(p0: number, p1: number, p2: number, p3: number, u: number): number {
   const u2 = u * u;
   const u3 = u2 * u;
   return (

@@ -220,10 +220,13 @@ export function updateKart(
 
   kart.velocity = vec3(horizontal.x, vy, horizontal.z);
   kart.position = position;
+  // Mesh-track walls come with surface-frame physics (ADR 0011), which steps those karts itself.
   const wallImpact =
     track.kind === 'arena'
       ? collideWithArenaWalls(kart, track, events)
-      : collideWithTrackWalls(kart, track, events);
+      : track.kind === 'spline'
+        ? collideWithTrackWalls(kart, track, events)
+        : 0;
   if (wallImpact > tuning.driftWallCancel) cancelDrift(kart, events);
   kart.speed = dot(kart.velocity, forwardFromHeading(kart.heading));
   return kart;

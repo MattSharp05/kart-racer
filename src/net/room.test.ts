@@ -250,20 +250,25 @@ describe('rooms over the local backend', () => {
     keep(await joinRoom(backend, code, INFO));
     keep(await joinRoom(backend, code, INFO));
     await until(() => host.members.length === 3);
-    // Both see 3 players when they open the room, so both are let in at first.
-    const [a, b] = await Promise.all([
+    // Usually both see 3 players when they open the room, so both are let in at first and the
+    // host then steps one out. If one join already sees the other's presence, it's refused up
+    // front with "full" instead. Either way exactly one of the two keeps the last seat.
+    const results = await Promise.allSettled([
       joinRoom(backend, code, INFO),
       joinRoom(backend, code, INFO),
     ]);
-    keep(a);
-    keep(b);
-    await until(() => [a, b].some((room) => room.ended === 'full'));
+    const joined = results.flatMap((r) => (r.status === 'fulfilled' ? [keep(r.value)] : []));
+    for (const r of results) {
+      if (r.status === 'rejected') expect((r.reason as RoomJoinError).reason).toBe('full');
+    }
+    expect(joined.length).toBeGreaterThan(0);
+    if (joined.length === 2) await until(() => joined.some((room) => room.ended === 'full'));
     await until(() => host.members.length === MAX_ROOM_PLAYERS);
-    const out = [a, b].filter((room) => room.ended === 'full');
-    expect(out).toHaveLength(1);
-    const kept = [a, b].find((room) => room.ended === null)!;
+    const out = joined.filter((room) => room.ended === 'full');
+    expect(out).toHaveLength(joined.length - 1);
+    const kept = joined.find((room) => room.ended === null)!;
     expect(host.members.map((m) => m.id)).toContain(kept.selfId);
-    expect(host.members.map((m) => m.id)).not.toContain(out[0]!.selfId);
+    for (const room of out) expect(host.members.map((m) => m.id)).not.toContain(room.selfId);
     // Everyone lists the room in the host's seat order.
     await until(() => kept.members.length === MAX_ROOM_PLAYERS);
     expect(kept.members.map((m) => m.id)).toEqual(host.members.map((m) => m.id));
