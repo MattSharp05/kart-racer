@@ -295,5 +295,159 @@
       "kind": "trophy",
       "assetId": null
     }
+  ],
+  "sounds": [
+    {
+      "id": "voice-mario",
+      "name": "Mario (voice)",
+      "kind": "voice",
+      "game": "mk8",
+      "racer": "mario",
+      "assetId": null
+    },
+    {
+      "id": "voice-luigi",
+      "name": "Luigi (voice)",
+      "kind": "voice",
+      "game": "mk8",
+      "racer": "luigi",
+      "assetId": null
+    },
+    {
+      "id": "voice-peach",
+      "name": "Peach (voice)",
+      "kind": "voice",
+      "game": "mk8",
+      "racer": "peach",
+      "assetId": null
+    },
+    {
+      "id": "voice-daisy",
+      "name": "Daisy (voice)",
+      "kind": "voice",
+      "game": "mk8",
+      "racer": "daisy",
+      "assetId": null
+    },
+    {
+      "id": "voice-yoshi",
+      "name": "Yoshi (voice)",
+      "kind": "voice",
+      "game": "mk8",
+      "racer": "yoshi",
+      "assetId": null
+    },
+    {
+      "id": "voice-toad",
+      "name": "Toad (voice)",
+      "kind": "voice",
+      "game": "mk8",
+      "racer": "toad",
+      "assetId": null
+    },
+    {
+      "id": "voice-koopa-troopa",
+      "name": "Koopa Troopa (voice)",
+      "kind": "voice",
+      "game": "mk8",
+      "racer": "koopa-troopa",
+      "assetId": null
+    },
+    {
+      "id": "voice-shy-guy",
+      "name": "Shy Guy (voice)",
+      "kind": "voice",
+      "game": "mk8",
+      "racer": "shy-guy",
+      "assetId": null
+    },
+    {
+      "id": "voice-donkey-kong",
+      "name": "Donkey Kong (voice)",
+      "kind": "voice",
+      "game": "mk8",
+      "racer": "donkey-kong",
+      "assetId": null
+    },
+    {
+      "id": "voice-bowser",
+      "name": "Bowser (voice)",
+      "kind": "voice",
+      "game": "mk8",
+      "racer": "bowser",
+      "assetId": null
+    },
+    {
+      "id": "voice-wario",
+      "name": "Wario (voice)",
+      "kind": "voice",
+      "game": "mk8",
+      "racer": "wario",
+      "assetId": null
+    },
+    {
+      "id": "voice-waluigi",
+      "name": "Waluigi (voice)",
+      "kind": "voice",
+      "game": "mk8",
+      "racer": "waluigi",
+      "assetId": null
+    },
+    {
+      "id": "mk8-kart",
+      "name": "Kart Sounds",
+      "kind": "sfx",
+      "game": "mk8",
+      "assetId": 398013
+    },
+    {
+      "id": "mk8-course",
+      "name": "Course Sounds",
+      "kind": "sfx",
+      "game": "mk8",
+      "assetId": 398017
+    },
+    {
+      "id": "mk8-course-object",
+      "name": "Course Object Sounds",
+      "kind": "sfx",
+      "game": "mk8",
+      "assetId": 398019
+    },
+    {
+      "id": "mk8-terrain",
+      "name": "Terrain Sounds",
+      "kind": "sfx",
+      "game": "mk8",
+      "assetId": 398021
+    },
+    {
+      "id": "mk8dx-menu",
+      "name": "Menu Sounds",
+      "kind": "sfx",
+      "game": "mk8dx",
+      "assetId": 408048
+    },
+    {
+      "id": "mk8dx-race",
+      "name": "Race Sounds",
+      "kind": "sfx",
+      "game": "mk8dx",
+      "assetId": 408049
+    },
+    {
+      "id": "mk8dx-common",
+      "name": "Common Sounds",
+      "kind": "sfx",
+      "game": "mk8dx",
+      "assetId": 408050
+    },
+    {
+      "id": "mkt-item",
+      "name": "Item Sounds",
+      "kind": "sfx",
+      "game": "mkt",
+      "assetId": 613895
+    }
   ]
 }

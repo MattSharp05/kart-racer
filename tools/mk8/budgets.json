@@ -4,5 +4,8 @@
   "totalBytes": 94371840,
   "groups": {
     "course/*": 15728640
+  },
+  "totals": {
+    "audio/*": 15728640
   }
 }

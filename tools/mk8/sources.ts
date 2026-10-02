@@ -29,8 +29,24 @@ export interface ModelSource {
   collision?: boolean;
 }
 
+export const SOUND_GAMES = ['mk8', 'mk8dx', 'mkt'] as const;
+
+/** A sound pack (MK-94): its raw files go in `$MK8_RAW/sounds/<id>/`. */
+export interface SoundSource {
+  id: string;
+  name: string;
+  /** `voice`: one racer's voice pack (converted by voice event); `sfx`: files picked by soundIds.ts. */
+  kind: 'voice' | 'sfx';
+  /** mk8 (Wii U), mk8dx (Switch) or mkt (Tour). */
+  game: (typeof SOUND_GAMES)[number];
+  /** Voice packs: the racer's model id. */
+  racer?: string;
+  assetId: number | null;
+}
+
 export interface Sources {
   models: ModelSource[];
+  sounds: SoundSource[];
 }
 
 const ID = /^[a-z0-9]+(-[a-z0-9]+)*$/;
@@ -47,6 +63,21 @@ export function parseSources(json: unknown): Sources {
       throw new Error(`sources.json: ${m.id} has unknown kind ${m.kind}`);
     if (m.assetId !== null && !Number.isInteger(m.assetId))
       throw new Error(`sources.json: ${m.id} assetId must be an integer or null`);
+  }
+  sources.sounds ??= [];
+  if (!Array.isArray(sources.sounds)) throw new Error('sources.json: `sounds` must be an array');
+  for (const p of sources.sounds) {
+    if (!ID.test(p.id)) throw new Error(`sources.json: bad sound id ${JSON.stringify(p.id)}`);
+    if (seen.has(p.id)) throw new Error(`sources.json: duplicate id ${p.id}`);
+    seen.add(p.id);
+    if (p.kind !== 'voice' && p.kind !== 'sfx')
+      throw new Error(`sources.json: ${p.id} has unknown kind ${p.kind}`);
+    if (!SOUND_GAMES.includes(p.game))
+      throw new Error(`sources.json: ${p.id} has unknown game ${p.game}`);
+    if (p.kind === 'voice' && !sources.models.some((m) => m.kind === 'racer' && m.id === p.racer))
+      throw new Error(`sources.json: voice pack ${p.id} names no racer model`);
+    if (p.assetId !== null && !Number.isInteger(p.assetId))
+      throw new Error(`sources.json: ${p.id} assetId must be an integer or null`);
   }
   return sources;
 }
