@@ -52,12 +52,23 @@ declare global {
   }
 }
 
+/**
+ * What `step` does to the scene around the stepped ticks. `before` syncs it to the state about to
+ * be stepped (MK-77): render-side juice (the FOV kick on a boost start, a hit's shake) compares
+ * each frame with the last, so without it a step taken before the first animation frame had
+ * nothing to compare with. `after` shows the result.
+ */
+export interface StepHooks {
+  before(): void;
+  after(): void;
+}
+
 /** Fired on `window` once `window.__game` is usable. */
 export const GAME_READY_EVENT = 'game-ready';
 
 export function installTestApi(
   game: Game,
-  onStep: () => void,
+  onStep: StepHooks,
   scenario: string | undefined,
   renderInfo: () => RenderInfo,
   localKartId: () => number,
@@ -75,8 +86,10 @@ export function installTestApi(
     resume: () => game.resume(),
     isPaused: () => game.paused,
     step: (ticks, options) => {
+      const render = options?.render !== false;
+      if (render) onStep.before();
       game.stepTicks(ticks);
-      if (options?.render !== false) onStep();
+      if (render) onStep.after();
       return snapshot();
     },
     setInput: (kartId, frame) =>
