@@ -81,7 +81,8 @@ export interface SpikeKart {
   groundGap: number;
   /** Angle `up` turned this tick, radians. */
   upStep: number;
-  safe: { pos: V3; forward: V3; up: V3 };
+  /** Where a respawn puts the kart, with its anti-gravity mode (a ceiling needs it on). */
+  safe: { pos: V3; forward: V3; up: V3; antigrav: boolean };
   safeTimer: number;
 }
 
@@ -101,7 +102,12 @@ export function makeKart(pos: V3, forward: V3, up: V3 = [0, 1, 0]): SpikeKart {
     respawns: 0,
     groundGap: 0,
     upStep: 0,
-    safe: { pos: addScaled(pos, u, SPIKE_TUNING.rideHeight), forward: f, up: u },
+    safe: {
+      pos: addScaled(pos, u, SPIKE_TUNING.rideHeight),
+      forward: f,
+      up: u,
+      antigrav: false,
+    },
     safeTimer: 0,
   };
 }
@@ -196,7 +202,10 @@ function pushOutOfWalls(world: CollisionWorld, k: SpikeKart): void {
   const centre = addScaled(k.pos, k.up, t.wallRadius * 0.6);
   for (const contact of world.wallContacts(centre, t.wallRadius)) {
     // Only the part of the push in the road plane: walls never lift the kart off the ground.
-    const n = orthonormal(contact.normal, k.up);
+    const inPlane = addScaled(contact.normal, k.up, -dot(contact.normal, k.up));
+    // Straight above or below a rail edge there's no sideways push; skip it.
+    if (dot(inPlane, inPlane) < 1e-6) continue;
+    const n = normalize(inPlane);
     const depth = dot(contact.push, n);
     if (depth <= 0) continue;
     k.pos = addScaled(k.pos, n, depth);
@@ -209,6 +218,7 @@ function respawn(k: SpikeKart): void {
   k.pos = k.safe.pos;
   k.forward = k.safe.forward;
   k.up = k.safe.up;
+  k.antigrav = k.safe.antigrav;
   k.vel = [0, 0, 0];
   k.airTime = 0;
   k.grounded = false;
@@ -260,7 +270,7 @@ export function stepKart(world: CollisionWorld, k: SpikeKart, input: InputFrame)
     k.safeTimer += dt;
     if (k.safeTimer >= t.safeEvery && surface !== 'offroad') {
       k.safeTimer = 0;
-      k.safe = { pos: k.pos, forward: k.forward, up: k.up };
+      k.safe = { pos: k.pos, forward: k.forward, up: k.up, antigrav: k.antigrav };
     }
   } else {
     k.grounded = false;

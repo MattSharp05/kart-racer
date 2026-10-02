@@ -279,7 +279,7 @@ export async function run(): Promise<never> {
   window.addEventListener('keydown', (e) => {
     if (e.code === 'KeyP' && pilot) {
       auto = !auto;
-      pilot.index = 0;
+      pilot.relocate(kart);
     }
   });
 

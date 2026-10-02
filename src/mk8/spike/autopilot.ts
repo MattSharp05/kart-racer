@@ -25,6 +25,18 @@ export class Autopilot {
     return this.samples[this.index];
   }
 
+  /** Jumps to the sample nearest the kart anywhere on the course (taking over mid-lap). */
+  relocate(k: SpikeKart): void {
+    let bestD = Infinity;
+    this.samples.forEach((s, i) => {
+      const d = sub(k.pos, s.c);
+      if (dot(d, d) < bestD) {
+        bestD = dot(d, d);
+        this.index = i;
+      }
+    });
+  }
+
   input(k: SpikeKart): InputFrame {
     const n = this.samples.length;
     let best = this.index;

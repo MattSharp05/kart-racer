@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { Autopilot } from './autopilot';
 import { driveLaps } from './bench';
 import { CollisionWorld, collisionFromObj, guessMaterials } from './collision';
 import { syntheticCourse } from './course';
@@ -45,5 +46,31 @@ describe('surface-frame kart on the synthetic anti-gravity course', () => {
     const plain = slow(false);
     expect(plain.up[1]).toBeGreaterThan(0.9); // fell off and righted itself
     expect(plain.pos[1]).toBeLessThan(2);
+  });
+});
+
+describe('spike kart edge cases (review)', () => {
+  it('respawns with the anti-gravity mode it had at the safe spot', () => {
+    const roll = course.samples.find((s) => s.section === 'A' && s.u[1] < -0.99)!;
+    const kart = makeKart(roll.c, roll.t, roll.u);
+    kart.safe = { ...kart.safe, antigrav: true };
+    kart.antigrav = false;
+    kart.airTime = SPIKE_TUNING.maxAir + 1;
+    stepKart(world, kart, { throttle: 0, brake: 0, steer: 0, drift: false, item: false });
+    expect(kart.respawns).toBe(1);
+    expect(kart.antigrav).toBe(true);
+    for (let t = 0; t < 60; t++)
+      stepKart(world, kart, { throttle: 0, brake: 0, steer: 0, drift: false, item: false });
+    expect(kart.respawns).toBe(1);
+    expect(kart.up[1]).toBeLessThan(-0.9); // still on the ceiling
+  });
+
+  it('the autopilot can take over mid-lap', () => {
+    const c = course.samples.findIndex((s) => s.section === 'C') + 50;
+    const s = course.samples[c]!;
+    const kart = makeKart(s.c, s.t, s.u);
+    const pilot = new Autopilot(course.samples);
+    pilot.relocate(kart);
+    expect(pilot.index).toBe(c);
   });
 });
