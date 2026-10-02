@@ -1,5 +1,5 @@
 {
-  "$comment": "MK8 Mode asset sources (MK-93, ADR 0009). Metadata only: the pipeline never downloads. Put each model's extracted files in $MK8_RAW/models/<id>/ (default .mk8-raw/). assetId is the source site's asset id where known (null = not looked up yet). Optional per model: obj (path of the OBJ inside its folder when there is more than one), decoration (material-name regexes to simplify), collision (courses: false to skip the collision export).",
+  "$comment": "MK8 Mode asset sources (MK-93, ADR 0009). Metadata only: the pipeline never downloads. Put each model's extracted files in $MK8_RAW/models/<id>/ (default .mk8-raw/). assetId is the source site's asset id where known (null = not looked up yet). Optional per model: obj (path of the OBJ inside its folder when there is more than one), decoration (material-name regexes to simplify), collision (courses: false to skip the collision export). Sheets (MK-95): each sprite sheet's image at $MK8_RAW/<raw>; a raw ending in / is a folder (the extracted zip).",
   "models": [
     {
       "id": "mario-kart-stadium",
@@ -448,6 +448,62 @@
       "kind": "sfx",
       "game": "mkt",
       "assetId": 613895
+    }
+  ],
+  "sheets": [
+    {
+      "id": "character-icons",
+      "name": "Menu Character Icons",
+      "assetId": 68237,
+      "raw": "ui/character-icons.png"
+    },
+    {
+      "id": "course-previews",
+      "name": "Course Previews",
+      "assetId": 85714,
+      "raw": "ui/course-previews.png"
+    },
+    {
+      "id": "title-screen",
+      "name": "Title Screen Elements",
+      "assetId": 150695,
+      "raw": "ui/title-screen.png"
+    },
+    {
+      "id": "vehicle-parts",
+      "name": "Vehicle Parts",
+      "assetId": 68240,
+      "raw": "ui/vehicle-parts.png"
+    },
+    {
+      "id": "result-backgrounds",
+      "name": "Race Result Backgrounds",
+      "assetId": 78433,
+      "raw": "ui/result-backgrounds/"
+    },
+    {
+      "id": "items",
+      "name": "Items",
+      "assetId": 64758,
+      "raw": "ui/items.png"
+    },
+    {
+      "id": "cups",
+      "name": "Speed Class & Cup Icons",
+      "assetId": 64760,
+      "raw": "ui/cups.png"
+    },
+    {
+      "id": "fonts",
+      "name": "Fonts",
+      "assetId": 69863,
+      "raw": "ui/fonts/"
+    },
+    {
+      "id": "course-maps",
+      "name": "Course Maps",
+      "assetId": 77084,
+      "raw": "ui/course-maps.png"
     }
   ]
 }

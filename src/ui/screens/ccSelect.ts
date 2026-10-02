@@ -15,8 +15,9 @@ declare module '../router' {
   }
 }
 
-const CLASSES = [50, 100, 150] as const;
-const LABELS: Record<EngineClass, string> = {
+/** The original game's classes; 200cc is MK8 Mode's only (MK-96). */
+const CLASSES: readonly EngineClass[] = [50, 100, 150];
+const LABELS: Partial<Record<EngineClass, string>> = {
   50: '50cc · Easy',
   100: '100cc · Normal',
   150: '150cc · Fast',
@@ -28,7 +29,7 @@ registerScreen('ccSelect', (panel, handlers) => {
   options.className = 'actions cc';
   const buttons = CLASSES.map((cc) => {
     const b = button(
-      LABELS[cc],
+      LABELS[cc] ?? `${cc}cc`,
       () => handlers.onChoose(cc),
       cc === handlers.initial ? 'primary' : '',
     );

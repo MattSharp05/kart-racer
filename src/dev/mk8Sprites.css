@@ -1,0 +1,52 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 16px;
+  font:
+    15px/1.4 system-ui,
+    sans-serif;
+  color: #1d2433;
+  background: #f5f7fb;
+}
+
+.font-sample {
+  font-family: 'M PLUS Rounded 1c', sans-serif;
+  font-size: 28px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 12px;
+}
+
+.sprite {
+  margin: 0;
+  padding: 8px;
+  border-radius: 10px;
+  background: repeating-conic-gradient(#dde2ec 0 25%, #fff 0 50%) 0 0 / 16px 16px;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.08);
+  min-width: 0;
+}
+
+.sprite img {
+  display: block;
+  height: auto;
+  margin: 0 auto 6px;
+}
+
+.sprite figcaption {
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.sprite.missing {
+  outline: 3px solid #d33;
+}
+
+.sprite.wrong-size {
+  outline: 3px solid #f90;
+}
