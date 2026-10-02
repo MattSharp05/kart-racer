@@ -9,11 +9,13 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import sharp from 'sharp';
 import type { Mesh } from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
+import { loadSources } from './sources.ts';
+import { SPRITE_SPECS, type Rect } from './spriteSpecs.ts';
 
 export const FIXTURES = join(import.meta.dirname, 'fixtures');
 
@@ -109,4 +111,66 @@ export async function decodeImageBitmap(
   const meta = await sharp(Buffer.from(await blob.arrayBuffer())).metadata();
   if (!meta.width || !meta.height) throw new Error('image did not decode');
   return { width: meta.width, height: meta.height, close() {} };
+}
+
+export const BACKGROUND = [40, 200, 60, 255];
+export const INK = [220, 30, 120, 255];
+
+/** RGBA canvas helpers for the generated sheets. */
+function canvas(width: number, height: number, colour: number[]) {
+  const data = Buffer.alloc(width * height * 4);
+  for (let p = 0; p < width * height; p++) data.set(colour, p * 4);
+  const fill = (r: Rect, c: number[]) => {
+    for (let y = r.top; y < r.top + r.height; y++)
+      for (let x = r.left; x < r.left + r.width; x++) data.set(c, (y * width + x) * 4);
+  };
+  const png = () =>
+    sharp(data, { raw: { width, height, channels: 4 } })
+      .png()
+      .toBuffer();
+  return { fill, png };
+}
+
+/**
+ * A fake of every sheet, laid out on the ticket's grids: background colour everywhere and an
+ * "icon" (a block inset 16 px) in each sprite's cell; course previews get the black band.
+ */
+export async function writeFakeSheets(raw: string) {
+  const { sheets } = loadSources();
+  for (const sheet of sheets) {
+    const specs = SPRITE_SPECS.filter((s) => s.sheet === sheet.id);
+    if (sheet.raw.endsWith('/')) {
+      for (const spec of specs) {
+        const [w, h] = spec.id.startsWith('bg_')
+          ? [1920, 1080]
+          : spec.id === 'font_digital'
+            ? [510, 75]
+            : [510, 73];
+        const file = join(raw, sheet.raw, `${spec.file}.png`);
+        mkdirSync(dirname(file), { recursive: true });
+        const img = canvas(w, h, BACKGROUND);
+        img.fill({ left: 10, top: 10, width: 40, height: 40 }, INK);
+        writeFileSync(file, await img.png());
+      }
+      continue;
+    }
+    const rects = specs.flatMap((s) => (s.rect ? [s.rect] : []));
+    const width = Math.max(...rects.map((r) => r.left + r.width)) + 2;
+    const height = Math.max(...rects.map((r) => r.top + r.height)) + 2;
+    const img = canvas(width, height, BACKGROUND);
+    for (const r of rects) {
+      if (sheet.id === 'course-previews') {
+        // Cell = preview (304×162) + black band below and right.
+        img.fill({ left: r.left, top: r.top, width: 306, height: 258 }, [0, 0, 0, 255]);
+        img.fill({ left: r.left, top: r.top, width: 304, height: 162 }, INK);
+      } else
+        img.fill(
+          { left: r.left + 16, top: r.top + 16, width: r.width - 32, height: r.height - 32 },
+          INK,
+        );
+    }
+    const file = join(raw, sheet.raw);
+    mkdirSync(dirname(file), { recursive: true });
+    writeFileSync(file, await img.png());
+  }
 }

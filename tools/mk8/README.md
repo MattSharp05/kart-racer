@@ -28,3 +28,17 @@ Both are relative to the repo root unless absolute. Needs Node ≥ 22.18 (runs t
 5. `pnpm mk8:dae-info`: skins / joints / animations in each racer's `.dae` (can racers animate?).
 
 Builds are deterministic: the same raw files give the same bytes (`pipeline.test.ts`).
+
+## UI sprites (MK-95)
+
+1. Put each sheet from `sources.json` → `sheets` at `$MK8_RAW/<raw>`: an image (e.g.
+   `ui/items.png`), or for the zips a folder with the extracted files (`ui/result-backgrounds/`,
+   `ui/fonts/`).
+2. `pnpm mk8:build` crops every sprite in `spriteSpecs.ts` (grids from the ticket), keys out the
+   background of items and cups (flood fill from the corners), resizes and writes WebP to
+   `$MK8_OUT/ui/**` (group `ui` in the manifest). It lists sprites whose sheet is missing and any
+   whose size differs from `src/mk8/ui/sprites.ts` (the typed id → file, size table the UI uses).
+3. Check them on `/dev/mk8-sprites.html` under `pnpm dev`, which serves `$MK8_OUT` at `/mk8/`
+   (dev server only; `?base=` points the page elsewhere).
+
+The UI font, M PLUS Rounded 1c (OFL), is not Nintendo's and is committed in `public/mk8/fonts/`.

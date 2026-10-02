@@ -29,8 +29,18 @@ export interface ModelSource {
   collision?: boolean;
 }
 
+/** A sprite sheet (MK-95): an image, or a folder when the source is a zip. */
+export interface SheetSource {
+  id: string;
+  name: string;
+  assetId: number | null;
+  /** Under $MK8_RAW; ends in `/` for a folder. */
+  raw: string;
+}
+
 export interface Sources {
   models: ModelSource[];
+  sheets: SheetSource[];
 }
 
 const ID = /^[a-z0-9]+(-[a-z0-9]+)*$/;
@@ -47,6 +57,13 @@ export function parseSources(json: unknown): Sources {
       throw new Error(`sources.json: ${m.id} has unknown kind ${m.kind}`);
     if (m.assetId !== null && !Number.isInteger(m.assetId))
       throw new Error(`sources.json: ${m.id} assetId must be an integer or null`);
+  }
+  if (!Array.isArray(sources.sheets)) throw new Error('sources.json: `sheets` must be an array');
+  for (const sheet of sources.sheets) {
+    if (!ID.test(sheet.id))
+      throw new Error(`sources.json: bad sheet id ${JSON.stringify(sheet.id)}`);
+    if (seen.has(sheet.id)) throw new Error(`sources.json: duplicate id ${sheet.id}`);
+    seen.add(sheet.id);
   }
   return sources;
 }
