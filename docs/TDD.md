@@ -216,18 +216,19 @@ Scope: [PRD v3](https://app.notion.com/p/3ed24983f3ca81eaafe9d34189a7f7c1) · UI
 - **Pipeline tests:** conversion is deterministic (same hash twice), and size budgets are checked per course and in total in CI (`pnpm mk8:check`; it doesn't re-download).
 - **E2E:** each screen via its scenario, keyboard and touch; a full GP with `step()` on desktop-chrome tagged `@full` (main only); visual baselines for each MK8 screen.
 - **Perf:** per course: draw calls < 300 and triangles < 400k on desktop, with a `quality=low` set for phones (≥ 30 fps on the 4×-throttled Pixel 7 soak); mesh queries < 0.3 ms per tick for 8 karts.
-- **CI:** MK8 e2e only runs on PRs that touch `src/mk8/`, `public/mk8/`, `sim/` or the flow. The real courses are big in SwiftShader, so PR runs use one course and main runs all four.
+- **CI:** CI never has the real pack (ADR 0009, local only). MK8 e2e runs against fixture content (a synthetic course, generated sprites and sounds) and the "pack not installed" state, only on PRs that touch `src/mk8/`, `tools/mk8/`, `sim/` or the flow. Real-course checks (perf, visuals) run locally with `pnpm dev` and are recorded on tickets.
 
 ### Environments (v3 additions)
 
-- Cloud builders need network access to `models.spriters-resource.com`, `www.spriters-resource.com` and `sounds.spriters-resource.com` (pipeline tickets only).
-- Vercel serves `public/mk8/` as static files with long cache headers (`vercel.json`, hashed names).
+- Raw MK8 files are fetched by Matthew on his machine into `.mk8-raw/` (agent downloads are blocked by auto mode). `pnpm mk8:build` writes `.mk8-out/`, which `pnpm dev` serves at `/mk8/`.
+- Vercel never serves Nintendo assets: production and previews show MK8 Mode's "pack not installed" screen.
 
 ### v3 risks
 
 - **Anti-gravity physics** (ADR 0011): spike first, then a checkpoint where Matthew drives Mario Kart Stadium before the other courses.
 - **Course meshes without collision data:** material names may not separate road from decoration cleanly. The editor shows the classification, and per-course overrides fix it.
 - **Phone performance:** real MK8 courses are far heavier than ours. Measured in the pipeline ticket; the `-low` texture set, simplified meshes and draw-call merging are the levers, and the perf ticket decides on KTX2.
-- **Repo and deploy size:** about 90 MB of binaries; deterministic conversion keeps history small. Vercel and GitHub limits are checked in the pipeline ticket.
-- **Takedown risk:** Matthew's decision (PRD). Going private later plus Vercel password protection reduces it.
+- **Pack size:** about 90 MB locally (nothing committed or deployed); budgets still apply for load time and phone memory.
+- **Copyright:** avoided by never committing or deploying Nintendo assets (ADR 0009 amendment, 2026-10-02).
+- **Asset access:** builders can't fetch real assets, so real-content checks wait for Matthew's local build; tickets use synthetic fixtures meanwhile.
 - **Racer models are static** (no rig found in the downloads so far): lean, bob and squash are procedural.
