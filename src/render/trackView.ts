@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { trackViews } from '../content/tracks/render';
 import { trackGeometry, type TrackDef } from '../sim/track';
+import { CAMERA_FAR, CAMERA_NEAR } from './scene';
 import { createScenery } from './scenery';
 import { applyTheme, createNightLamps, trackTheme } from './theme';
 import { createSplineTrackMesh } from './trackMesh';
@@ -73,26 +74,62 @@ export function createTrackView(scene: THREE.Scene, track: TrackDef): TrackViewU
   return undefined;
 }
 
-/** Points the camera straight down at the whole track (overview/debug scenarios). Returns true. */
-export function overviewCamera(camera: THREE.PerspectiveCamera, track: TrackDef): true {
-  let minX: number;
-  let maxX: number;
-  let minZ: number;
-  let maxZ: number;
+interface OverviewBounds {
+  minX: number;
+  maxX: number;
+  minZ: number;
+  maxZ: number;
+  /** Highest point of the road, m (the camera frames the track at this height). */
+  top: number;
+}
+
+/** The overview sees this far below the ground, m. */
+const OVERVIEW_FAR_MARGIN = 100;
+/** The overview cuts away everything higher than this above the highest road, m. */
+const OVERVIEW_HEADROOM = 6;
+
+const overviewBoundsCache = new WeakMap<TrackDef, OverviewBounds>();
+
+function overviewBounds(track: TrackDef): OverviewBounds {
+  const cached = overviewBoundsCache.get(track);
+  if (cached) return cached;
+  let bounds: OverviewBounds;
   if (track.kind === 'spline') {
     const samples = trackGeometry(track).samples;
     const margin = track.offroadWidth + 20;
-    minX = Math.min(...samples.map((s) => s.x)) - margin;
-    maxX = Math.max(...samples.map((s) => s.x)) + margin;
-    minZ = Math.min(...samples.map((s) => s.z)) - margin;
-    maxZ = Math.max(...samples.map((s) => s.z)) + margin;
+    bounds = {
+      minX: Math.min(...samples.map((s) => s.x)) - margin,
+      maxX: Math.max(...samples.map((s) => s.x)) + margin,
+      minZ: Math.min(...samples.map((s) => s.z)) - margin,
+      maxZ: Math.max(...samples.map((s) => s.z)) + margin,
+      top: Math.max(0, ...samples.map((s) => s.y)),
+    };
   } else {
-    [minX, maxX, minZ, maxZ] = [-track.halfSize, track.halfSize, -track.halfSize, track.halfSize];
+    const h = track.halfSize;
+    bounds = { minX: -h, maxX: h, minZ: -h, maxZ: h, top: 0 };
   }
+  overviewBoundsCache.set(track, bounds);
+  return bounds;
+}
+
+/**
+ * Points the camera straight down at the whole track (overview/debug scenarios), north (−Z) up.
+ * Call it every frame in the overview: it follows the window's aspect ratio. Returns true.
+ */
+export function overviewCamera(camera: THREE.PerspectiveCamera, track: TrackDef): true {
+  const { minX, maxX, minZ, maxZ, top } = overviewBounds(track);
   const span = Math.max(maxX - minX, (maxZ - minZ) * camera.aspect);
   const height = span / 2 / Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) / camera.aspect;
-  camera.position.set((minX + maxX) / 2, height, (minZ + maxZ) / 2);
+  camera.position.set((minX + maxX) / 2, top + height, (minZ + maxZ) / 2);
   camera.up.set(0, 0, -1);
   camera.lookAt((minX + maxX) / 2, 0, (minZ + maxZ) / 2);
+  // See down to the ground under the highest road, and through tree crowns and roofs above it.
+  const far = Math.max(CAMERA_FAR, top + height + OVERVIEW_FAR_MARGIN);
+  const near = Math.max(CAMERA_NEAR, height - OVERVIEW_HEADROOM);
+  if (camera.far !== far || camera.near !== near) {
+    camera.far = far;
+    camera.near = near;
+    camera.updateProjectionMatrix();
+  }
   return true;
 }

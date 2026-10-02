@@ -35,7 +35,15 @@ export type TestState = SimState & { localKartId: number };
 export interface RenderInfo {
   calls: number;
   triangles: number;
-  camera?: { fov: number; shake: number; fovKick: number };
+  camera?: {
+    fov: number;
+    shake: number;
+    fovKick: number;
+    /** How straight down the camera looks: 1 = straight down, 0 = level (MK-79). */
+    lookDown?: number;
+    /** Share of the track's centreline inside the camera's view, 0–1 (MK-79). */
+    trackInView?: number;
+  };
 }
 
 declare global {

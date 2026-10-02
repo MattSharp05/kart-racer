@@ -46,6 +46,13 @@ const scenarios: Scenario[] = [
     setup: (seed) => ({ state: race(seed) }),
   },
   {
+    name: 'dune-canyon-overview',
+    group: 'Dune Canyon',
+    description: 'Top-down view of the whole of Dune Canyon (MK-79), karts on the grid.',
+    defaultSeed: 1,
+    setup: (seed) => ({ state: race(seed), view: 'overview' }),
+  },
+  {
     name: 'dune-canyon-sandstorm',
     group: 'Dune Canyon',
     description: `On the plateau straight at speed, ${SANDSTORM_LEAD_SECONDS} s before the sandstorm: "SANDSTORM!" warns you, then the dust blows in, the view closes and grip drops for ${SANDSTORM.period * SANDSTORM.activeFraction} s.`,

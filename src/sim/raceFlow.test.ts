@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { scenarios } from '../scenarios';
 import { sunnyRace } from '../scenarios/race';
+import { positionOf } from './race';
 import { autopilotInput } from './autopilot';
 import { sunnyCircuit } from '../content/tracks/sunny-circuit/sim';
+import { forwardFromHeading } from './math';
 import { raceResults } from './raceFlow';
 import { step } from './step';
 import { trackGeometry } from './track';
@@ -104,6 +106,45 @@ describe('finish and results', () => {
     const done = run(start, 360, (s) => autopilotInput(s.karts[0]!, geometry)).state;
     const later = run(done, 120, () => ({})).state; // no player input at all
     expect(later.karts[0]!.speed).toBeGreaterThan(5);
+  });
+
+  it('two karts crossing the line on the same tick keep their finish places in the results (MK-82)', () => {
+    // Two karts side by side on the final straight, kart 1 a few cm behind: both cross on one tick.
+    let start = run(sunnyRace(1, 2), COUNTDOWN + 1, () => ({})).state;
+    start = structuredClone(start);
+    const t = 1 - 0.2 / geometry.length; // ~one tick before the line
+    const speed = tuning.topSpeed[100] * 0.9;
+    for (const kart of start.karts) {
+      const behind = kart.id === 1 ? 0.05 / geometry.length : 0;
+      kart.position = geometry.pointAt(t - behind, kart.id === 0 ? -2 : 2);
+      kart.heading = geometry.headingAt(t - behind);
+      const forward = forwardFromHeading(kart.heading);
+      kart.velocity = { x: forward.x * speed, y: 0, z: forward.z * speed };
+      kart.speed = speed;
+      kart.race = { ...kart.race, lap: start.race.laps, nextCheckpoint: 0, lastT: t - behind };
+    }
+    // Both held at full throttle until they finish (then they drive themselves).
+    const events: SimEvent[] = [];
+    let finished = start;
+    for (let i = 0; i < 90; i += 1) {
+      const throttle = { ...NEUTRAL_INPUT, throttle: 1 };
+      const result = step(finished, [throttle, throttle]);
+      finished = result.state;
+      events.push(...result.events);
+    }
+    const finishes = events.filter((e) => e.type === 'finish');
+    expect(finishes).toHaveLength(2);
+    expect(finished.karts[0]!.race.finishTick).toBe(finished.karts[1]!.race.finishTick);
+    const place = new Map(finishes.map((e) => [e.kartId, e.position]));
+    expect([...place.values()].sort()).toEqual([1, 2]);
+
+    // Afterwards the one placed 2nd races past the other; the places must not swap.
+    const second = finishes.find((e) => e.position === 2)!.kartId;
+    const boosted = structuredClone(finished);
+    boosted.karts[second]!.boostTimer = 3;
+    const later = run(boosted, 240, () => ({})).state;
+    for (const row of raceResults(later)) expect(row.position).toBe(place.get(row.kartId));
+    expect(positionOf(later, second)).toBe(2);
   });
 
   it('race-finished lists 8 karts with the player 3rd', () => {

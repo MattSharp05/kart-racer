@@ -2,6 +2,9 @@ import * as THREE from 'three';
 
 export const MAX_PIXEL_RATIO = 2;
 const SKY_COLOUR = 0x87ceeb;
+/** The camera's clip planes, m (the overview moves them while it shows, MK-79). */
+export const CAMERA_FAR = 1000;
+export const CAMERA_NEAR = 0.1;
 
 export interface SceneContext {
   renderer: THREE.WebGLRenderer;
@@ -18,7 +21,7 @@ export function createScene(canvas: HTMLCanvasElement): SceneContext {
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(SKY_COLOUR);
 
-  const camera = new THREE.PerspectiveCamera(60, 1, 0.1, 1000);
+  const camera = new THREE.PerspectiveCamera(60, 1, CAMERA_NEAR, CAMERA_FAR);
   camera.position.set(0, 4, 8);
   camera.lookAt(0, 0.5, 0);
 
