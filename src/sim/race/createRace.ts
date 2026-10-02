@@ -73,7 +73,7 @@ export function createRace({
     }),
   });
   const ai = tuning.ai;
-  const skillMin = engineClass === 150 ? ai.skillMin150 : ai.skillMin;
+  const skillMin = engineClass >= ai.sharpClass ? ai.skillMin150 : ai.skillMin;
   for (const kart of state.karts) {
     if (kart.controller !== 'ai') continue;
     kart.ai = aiDriver(rng, skillMin, ai.skillMax, ai.lineOffsetMax);

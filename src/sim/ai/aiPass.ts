@@ -40,9 +40,13 @@ export interface AiPassResult {
   hazardHitsPerLap: number;
 }
 
-/** Races one all-AI race on `trackId` to the end and measures it. */
-export function aiPassRace(trackId: string, seed: number): AiPassResult {
-  let s: SimState = allAiRace(seed, trackId, 8, AI_PASS.engineClass);
+/** Races one all-AI race on `trackId` to the end and measures it (200cc check: MK-96). */
+export function aiPassRace(
+  trackId: string,
+  seed: number,
+  engineClass: EngineClass = AI_PASS.engineClass,
+): AiPassResult {
+  let s: SimState = allAiRace(seed, trackId, 8, engineClass);
   const stuckFor = s.karts.map(() => 0);
   let worstStuck = 0;
   let respawns = 0;

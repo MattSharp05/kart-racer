@@ -1,5 +1,5 @@
 import { clamp } from './math';
-import { tuning } from './tuning';
+import { tuning, type EngineClass } from './tuning';
 import type { DriftTier, InputFrame, KartState, SimEvent } from './types';
 
 export const NOT_DRIFTING = { direction: 0, charge: 0, tier: 0 } as const;
@@ -66,6 +66,18 @@ export function handleDriftButton(
 /** How strongly the player is steering into (+1) or out of (-1) the current drift. */
 export function steerIntoDrift(kart: KartState, input: InputFrame): number {
   return clamp(input.steer * kart.drift.direction, -1, 1);
+}
+
+/**
+ * Brake held during a drift at a class with brake-drift (MK-96: 200cc): the drift tightens
+ * (`brakeDrift.turnScale`) and the kart keeps most of its speed instead of braking.
+ */
+export function isBrakeDrifting(
+  kart: KartState,
+  input: InputFrame,
+  engineClass: EngineClass,
+): boolean {
+  return isDrifting(kart) && input.brake > 0 && engineClass >= tuning.brakeDrift.minClass;
 }
 
 /** Drift yaw rate for this tick, rad/s (signed like normal steering: right = negative). */

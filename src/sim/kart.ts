@@ -16,6 +16,7 @@ import {
   chargeDrift,
   driftYawRate,
   handleDriftButton,
+  isBrakeDrifting,
   isDrifting,
 } from './drift';
 import { effectsSpeedFactor } from './items/effects';
@@ -128,9 +129,11 @@ export function updateKart(
 
   // Steering: positive steer turns right (heading decreases); reversing inverts it.
   // While drifting the turn rate comes from the drift instead (tighter, direction locked).
+  const brakeDrift = isBrakeDrifting(kart, input, engineClass);
   let yaw: number;
   if (isDrifting(kart)) {
     yaw = driftYawRate(kart, input) * physics.handling;
+    if (brakeDrift) yaw *= tuning.brakeDrift.turnScale;
     if (effect.wobble && effect.wobbleHz) {
       yaw += effect.wobble * Math.sin(2 * Math.PI * effect.wobbleHz * env.tick * dt);
     }
@@ -149,14 +152,16 @@ export function updateKart(
 
   // Longitudinal speed along the new heading. Boosting raises the top speed and pulls towards it
   // hard, even without throttle (unless braking), and ignores the grass penalty.
+  // Brake-drifting (MK-96) doesn't brake: it bleeds a little speed instead (below).
+  const pedals = brakeDrift ? { ...input, brake: 0 } : input;
   const boosting = kart.boostTimer > 0;
   // Grass, sand…: a lower top speed. A star ignores it, like a boost.
   const grassSpeed = effect.speed ?? 0;
   const onGrass = grassSpeed > 0 && kart.starTimer === 0;
-  const newSpeed = boosting
+  const pedalSpeed = boosting
     ? updateForwardSpeed(
         forwardSpeed,
-        input.brake > 0 ? input : { ...input, throttle: 1 },
+        pedals.brake > 0 ? pedals : { ...pedals, throttle: 1 },
         topSpeed * tuning.boostSpeed,
         dt,
         tuning.boostAccelRate,
@@ -164,13 +169,16 @@ export function updateKart(
     : onGrass
       ? updateForwardSpeed(
           forwardSpeed,
-          input,
+          pedals,
           topSpeed * grassSpeed,
           dt,
           kartAccel,
           tuning.offroadDecel,
         )
-      : updateForwardSpeed(forwardSpeed, input, topSpeed, dt, kartAccel);
+      : updateForwardSpeed(forwardSpeed, pedals, topSpeed, dt, kartAccel);
+  const newSpeed = brakeDrift
+    ? pedalSpeed * Math.exp(-tuning.brakeDrift.speedLoss * dt)
+    : pedalSpeed;
   kart.boostTimer = Math.max(0, kart.boostTimer - dt);
 
   // Plus the remaining sideways slide, decaying with grip (low grip while drifting = outward slide).

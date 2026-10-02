@@ -4,6 +4,7 @@ import { vec3 } from '../sim/math';
 import { createSimState } from '../sim/state';
 import { tuning } from '../sim/tuning';
 import type { Scenario } from './registry';
+import { sunnyStart } from './tracks';
 
 /** 10 m of clear space between the kart's edge and the wall it faces. */
 const WALL_GAP = 10;
@@ -62,6 +63,14 @@ export const drivingScenarios: Scenario[] = [
         ],
       }),
     }),
+  },
+  {
+    name: 'drive-200cc',
+    group: 'Driving',
+    description:
+      'Free drive at 200cc (MK-96) on Sunny Circuit, pole position. Hold brake while drifting to tighten the drift (brake-drift).',
+    defaultSeed: 1,
+    setup: (seed) => ({ state: { ...sunnyStart(seed), engineClass: 200 } }),
   },
   {
     name: 'drift-ready',
