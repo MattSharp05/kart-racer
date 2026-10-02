@@ -75,5 +75,5 @@ export async function raceIceConfig(options: IceConfigOptions = {}): Promise<RTC
   };
 }
 
-/** What a race's links use when nobody fetched anything (the spike, tests). */
+/** What a race's links use when nobody fetched anything (tests). */
 export const STUN_CONFIG: RTCConfiguration = { iceServers: PUBLIC_STUN };
