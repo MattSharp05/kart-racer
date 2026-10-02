@@ -12,6 +12,7 @@ import { localRoomBackend } from './net/roomBackendLocal';
 import { supabaseRoomBackend } from './net/roomBackendSupabase';
 import { launchLeaderboard } from './records/leaderboardMock';
 import { World } from './render/world';
+import { scenarios } from './scenarios';
 import { getTrack } from './sim/track';
 import { tuning } from './sim/tuning';
 import { NetDebugOverlay } from './ui/netDebug';
@@ -76,6 +77,13 @@ installTestApi(
   () => world.renderInfo(),
   () => session.localKartId,
   () => session.online?.info() ?? null,
+  (name, seed) => {
+    const scenario = scenarios.get(name);
+    if (!scenario) return false;
+    session.load(scenario.setup(seed ?? scenario.defaultSeed).state);
+    world.reset(world.view, session.localKartId);
+    return true;
+  },
 );
 
 // Online scenarios (MK-46): host or join the race; a client's camera moves to its kart on Start.

@@ -146,7 +146,7 @@ export class World {
    */
   private applyOverview(overview: boolean): void {
     if (overview) {
-      overviewCamera(this.camera, this.options.track);
+      overviewCamera(this.camera, this.track.def);
       if (this.scene.fog) this.hiddenFog = this.scene.fog;
       this.scene.fog = null;
       return;
@@ -239,6 +239,8 @@ export class World {
     }
     if (this.scene.background instanceof THREE.Texture) this.scene.background.dispose();
     this.buildTrack(def);
+    // The old track's fog, if the overview put it away, isn't this track's to restore (MK-91).
+    this.hiddenFog = undefined;
     this.karts.headlights = trackTheme(def).night ?? false;
     this.markChanged();
   }
@@ -255,13 +257,14 @@ export class World {
         fovKick: this.chaseCamera.fovKick,
         lookDown: -this.camera.getWorldDirection(new THREE.Vector3()).y,
         trackInView: this.trackInView(),
+        height: this.camera.position.y,
       },
     };
   }
 
   /** Share of the track's centreline samples the camera sees (test API, MK-79). */
   private trackInView(): number {
-    const track = this.options.track;
+    const track = this.track.def;
     if (track.kind !== 'spline') return 1;
     const samples = trackGeometry(track).samples;
     this.camera.updateMatrixWorld();
