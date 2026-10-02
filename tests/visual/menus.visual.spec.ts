@@ -10,6 +10,9 @@ for (const name of [
   'menu-how-to-play',
   'settings',
   'first-launch',
+  'mk8-entry',
+  'mk8-loading',
+  'mk8-not-installed',
 ]) {
   test(`${name} (paused)`, async ({ page }) => {
     await loadScenario(page, name, { paused: true });

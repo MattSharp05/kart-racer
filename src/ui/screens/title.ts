@@ -4,6 +4,10 @@ import './title.css';
 
 export interface TitleProps {
   onPlay: () => void;
+  /** MK8 Mode (MK-97): loads its own chunk and pack. */
+  onMk8?: () => void;
+  /** The button that starts with focus (default Play); the `mk8-entry` scenario picks MK8 Mode. */
+  focus?: 'play' | 'mk8';
   /** Online rooms (MK-40). */
   onOnline?: () => void;
   onHowToPlay?: () => void;
@@ -27,10 +31,15 @@ declare module '../router' {
  * attract race, plus the player's name chip (MK-42).
  */
 registerScreen('title', (panel, props) => {
-  const { onPlay, onOnline, onHowToPlay, onSettings, onLeaderboards, player, onEditName } = props;
+  const { onPlay, onMk8, onOnline, onHowToPlay, onSettings, onLeaderboards, player, onEditName } =
+    props;
   const play = button('Play', onPlay, 'primary');
+  const mk8 = onMk8 ? mk8Button(onMk8) : undefined;
   const online = onOnline ? [button('Online', onOnline, 'online')] : [];
-  panel.append(heading('h1', 'Kart Racer', 'logo'), row('actions', play, ...online));
+  panel.append(
+    heading('h1', 'Kart Racer', 'logo'),
+    row('actions', play, ...(mk8 ? [mk8] : []), ...online),
+  );
   if (player && onEditName) panel.append(nameChip(player, onEditName));
   // How to play and Leaderboards (MK-56) share a line.
   const secondary = [
@@ -41,7 +50,7 @@ registerScreen('title', (panel, props) => {
   ];
   if (secondary.length) panel.append(row('actions', ...secondary));
   if (onSettings) panel.append(button('⚙ Settings', onSettings, 'secondary settings-button'));
-  play.focus();
+  (props.focus === 'mk8' && mk8 ? mk8 : play).focus();
   return {
     onKey: (e) => {
       // Enter means Play unless a button has focus (it presses that button itself).
@@ -49,6 +58,17 @@ registerScreen('title', (panel, props) => {
     },
   };
 });
+
+/** MK8 Mode (MK-97): red → blue, with a NEW badge, as in the v3 mockup. */
+function mk8Button(onClick: () => void): HTMLButtonElement {
+  const mk8 = button('MK8 Mode', onClick, 'mk8-mode');
+  const badge = document.createElement('span');
+  badge.className = 'mk8-new';
+  badge.textContent = 'NEW';
+  badge.setAttribute('aria-hidden', 'true');
+  mk8.append(badge);
+  return mk8;
+}
 
 /** "● Matt ✎" in the corner: tap to change name or colour (MK-42). */
 function nameChip(player: { nickname: string; colour: string }, onEdit: () => void) {

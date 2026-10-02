@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "files": [
+    {
+      "path": "audio/ui/fixture-sine.m4a",
+      "bytes": 7535,
+      "sha256": "ceaa45bde8f7a8e0e2a8ac82bbe5faf2908a077cfa5efd2e7c584c0d78512e4d",
+      "group": "audio/ui"
+    },
+    {
+      "path": "ui/fixture-blue.webp",
+      "bytes": 44,
+      "sha256": "f9a74bfe55a6730280bba137dba9734fa2202129a72533b575b5c250a9b5f48b",
+      "group": "ui"
+    },
+    {
+      "path": "ui/fixture-red.webp",
+      "bytes": 44,
+      "sha256": "8f34894a4b2e318a6130a2a5ac59c88f0bb18d9af55b6d27765517953ab97f2d",
+      "group": "ui"
+    }
+  ]
+}

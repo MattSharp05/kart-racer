@@ -7,13 +7,17 @@ export interface LoadOptions {
   paused?: boolean;
 }
 
-/** Opens the game in a scenario and waits until `window.__game` is ready. */
+/**
+ * Opens the game in a scenario and waits until `window.__game` is ready and any pack load the
+ * scenario started has finished (MK-97: `mk8-*` scenarios load the MK8 pack first).
+ */
 export async function loadScenario(page: Page, name: string, options: LoadOptions = {}) {
   const params = new URLSearchParams({ scenario: name });
   if (options.seed !== undefined) params.set('seed', String(options.seed));
   if (options.paused) params.set('paused', '1');
   await page.goto(`/?${params}`);
   await page.waitForFunction(() => window.__game?.ready === true);
+  await page.evaluate(() => window.__game!.whenReady());
 }
 
 export function getState(page: Page): Promise<TestState> {

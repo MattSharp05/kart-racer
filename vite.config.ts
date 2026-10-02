@@ -6,6 +6,7 @@ const MIME: Record<string, string> = {
   '.webp': 'image/webp',
   '.glb': 'model/gltf-binary',
   '.m4a': 'audio/mp4',
+  '.json': 'application/json',
 };
 
 /**

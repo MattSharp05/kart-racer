@@ -47,6 +47,9 @@ import { readPrefs, writePrefs } from './storage/prefs';
 import { getRecord, type RecordUpdate } from './storage/records';
 import { hasSeenHowToPlay, markHowToPlaySeen } from './storage/settings';
 import type { KeyValueStore } from './storage/store';
+import type { Mk8Start } from '../mk8';
+import { showErrorBanner } from '../ui/errorBanner';
+import { trackLoad } from './pending';
 
 /** Pause between the player finishing and the results screen, ms. */
 const RESULTS_DELAY_MS = 2500;
@@ -120,6 +123,8 @@ export class Flow {
   private shownResults = '';
   /** When this page went to the background (`performance.now()`), or -1 while it's visible. */
   private hiddenAt = -1;
+  /** MK8 Mode's chunk is downloading (MK-97): the button does nothing more meanwhile. */
+  private mk8Opening = false;
 
   constructor(
     private readonly session: RaceSession,
@@ -290,6 +295,19 @@ export class Flow {
       case 'onlineResults':
         this.previewOnlineResults(launch.role !== 'client');
         break;
+      case 'mk8Entry':
+        game.setAutopilot(launch.localKartId, true);
+        this.showTitleScreen('mk8');
+        break;
+      case 'mk8Loading':
+        this.openMk8('loading-demo');
+        break;
+      case 'mk8NotInstalled':
+        this.openMk8('not-installed');
+        break;
+      case 'mk8':
+        this.openMk8('load');
+        break;
       case 'leaderboard':
         // Over the title, so Back lands there (MK-56).
         game.setAutopilot(launch.localKartId, true);
@@ -324,10 +342,12 @@ export class Flow {
     this.showTitleScreen();
   };
 
-  private showTitleScreen(): void {
+  private showTitleScreen(focus?: 'mk8'): void {
     const profile = readProfile(this.store);
     this.screens.show('title', {
       onPlay: this.showRacerSelect,
+      onMk8: () => this.openMk8('load'),
+      ...(focus && { focus }),
       onOnline: () => this.rooms.showOnline(),
       onHowToPlay: this.openHowToPlay,
       onSettings: this.showSettings,
@@ -337,6 +357,35 @@ export class Flow {
         onEditName: () => this.showNickname(() => this.showTitleScreen(), profile),
       }),
     });
+  }
+
+  /**
+   * MK8 Mode (MK-97, ADR 0009): its code is a chunk of its own, fetched only now, and it loads its
+   * pack behind a progress bar. The title's race stops behind its full-screen menus; Back
+   * returns to a fresh title.
+   */
+  private openMk8(mode: Mk8Start): void {
+    if (this.mk8Opening) return;
+    this.mk8Opening = true;
+    this.rooms.leave();
+    this.pauseButton.hidden = true;
+    this.session.game.pause();
+    // No title to press Play on while the chunk downloads.
+    this.screens.hide();
+    const open = import('../mk8')
+      .then((mk8) => {
+        this.mk8Opening = false;
+        return mk8.start({ screens: this.screens, exit: this.showTitle }, mode);
+      })
+      .catch((e: unknown) => {
+        this.mk8Opening = false;
+        this.showTitle();
+        showErrorBanner("Couldn't load MK8 Mode", [e instanceof Error ? e.message : String(e)], {
+          label: 'Retry',
+          onClick: () => this.openMk8(mode),
+        });
+      });
+    void trackLoad(open);
   }
 
   /** Nickname and colour (MK-42): on first launch (no way back), or edited from the title. */

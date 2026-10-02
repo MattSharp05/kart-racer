@@ -1,5 +1,15 @@
+/** A button on the banner besides Dismiss (MK-97: Retry); pressing it closes the banner. */
+export interface BannerAction {
+  label: string;
+  onClick(): void;
+}
+
 /** Shows a dismissible error banner over the game (e.g. an unknown scenario name). */
-export function showErrorBanner(title: string, details: string[]): HTMLElement {
+export function showErrorBanner(
+  title: string,
+  details: string[],
+  action?: BannerAction,
+): HTMLElement {
   const banner = document.createElement('div');
   banner.className = 'error-banner';
   banner.setAttribute('role', 'alert');
@@ -16,6 +26,18 @@ export function showErrorBanner(title: string, details: string[]): HTMLElement {
       list.append(item);
     }
     banner.append(list);
+  }
+
+  if (action) {
+    const act = document.createElement('button');
+    act.type = 'button';
+    act.className = 'error-banner-action';
+    act.textContent = action.label;
+    act.addEventListener('click', () => {
+      banner.remove();
+      action.onClick();
+    });
+    banner.append(act, ' ');
   }
 
   const close = document.createElement('button');

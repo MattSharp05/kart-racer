@@ -1,0 +1,136 @@
+/* MK8 Mode's first screens (MK-97): full-screen, in the mockup's MK8 menu look. */
+.menus[data-screen^='mk8'] {
+  padding: 0;
+  background: none;
+}
+
+.menu-panel.mk8-screen {
+  --mk8-blue: #1663d6;
+  --mk8-navy: #14204a;
+  --mk8-yellow: #ffd21f;
+
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  justify-items: stretch;
+  gap: 0;
+  width: 100vw;
+  height: 100%;
+  max-width: none;
+  padding: 0;
+  border-radius: 0;
+  background:
+    repeating-linear-gradient(135deg, #fff0 0 26px, #fff6 26px 52px),
+    linear-gradient(180deg, #eef2f9, #d6dce9);
+  color: var(--mk8-navy);
+  font-family: 'M PLUS Rounded 1c', 'Arial Rounded MT Bold', system-ui, sans-serif;
+  font-weight: 800;
+  text-align: left;
+}
+
+.mk8-header {
+  display: flex;
+  align-items: center;
+  height: clamp(52px, 12vh, 86px);
+  padding: env(safe-area-inset-top) 0 0 max(24px, env(safe-area-inset-left));
+  background: linear-gradient(180deg, #1d73e6, #0c46b4);
+  clip-path: polygon(0 0, 100% 0, 100% 64%, 0 100%);
+  color: #fff;
+}
+
+.menus .mk8-header h2 {
+  font-size: clamp(22px, 5vh, 40px);
+  font-weight: 900;
+  transform: skewX(-8deg);
+  text-shadow: 0 3px 0 #08317e;
+  white-space: nowrap;
+}
+
+.mk8-body {
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: clamp(6px, 2vh, 16px);
+  min-height: 0;
+  padding: clamp(8px, 3vh, 24px) max(24px, env(safe-area-inset-right));
+  overflow: auto;
+  text-align: center;
+}
+
+.mk8-body p {
+  margin: 0;
+  max-width: 40em;
+  font-size: clamp(15px, 3.4vh, 20px);
+}
+
+.mk8-loading-label {
+  transform: skewX(-8deg);
+}
+
+.mk8-progress {
+  position: relative;
+  width: min(80vw, 640px);
+  height: clamp(18px, 5vh, 28px);
+  overflow: hidden;
+  border-radius: 999px;
+  background: #2c3a6e;
+  box-shadow: 0 0 0 4px #fff;
+}
+
+.mk8-progress i {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 0;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #ffe766, #ffb300);
+  transition: width 0.2s ease-out;
+}
+
+.mk8-progress-percent {
+  font-size: clamp(14px, 3vh, 18px);
+  font-variant-numeric: tabular-nums;
+}
+
+.mk8-steps {
+  margin: 0;
+  padding-left: 1.4em;
+  font-size: clamp(14px, 3.2vh, 18px);
+  line-height: 1.6;
+  text-align: left;
+}
+
+.mk8-steps code {
+  padding: 1px 8px;
+  border-radius: 6px;
+  background: var(--mk8-navy);
+  color: #fff;
+  font:
+    600 0.95em ui-monospace,
+    monospace;
+  white-space: nowrap;
+}
+
+.mk8-body .mk8-note {
+  font-size: clamp(13px, 2.8vh, 16px);
+  opacity: 0.75;
+}
+
+.mk8-footer {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  min-height: clamp(44px, 10vh, 54px);
+  padding: 4px max(24px, env(safe-area-inset-right)) env(safe-area-inset-bottom) 24px;
+  background: #151b33;
+}
+
+.menus .mk8-footer button.mk8-back {
+  background: #fff;
+  color: #151b33;
+  font-weight: 900;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mk8-progress i {
+    transition: none;
+  }
+}

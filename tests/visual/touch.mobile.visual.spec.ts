@@ -39,6 +39,8 @@ for (const name of [
   'settings',
   'menu-paused',
   'button-editor',
+  'mk8-loading',
+  'mk8-not-installed',
 ]) {
   test(`${name} on phones (paused)`, async ({ page }, info) => {
     await loadScenario(page, name, { paused: true });
