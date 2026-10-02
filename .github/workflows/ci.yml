@@ -45,7 +45,7 @@ jobs:
             full=$(has '^(\.github/|playwright(\.visual)?\.config\.ts$|vite\.config|package\.json$|pnpm-lock\.yaml$|tsconfig)')
             # Anything outside docs, markdown and Claude settings counts as an app change.
             app=$(echo "$changed" | grep -vE '^(docs/|\.claude/)|\.md$' | grep -q . && echo true || echo false)
-            net=$(has '^(src/net/|supabase/|tests/e2e/online|tests/e2e/(lobby|rooms|netSpike)|src/ui/screens/(online|lobby|connectionLost))')
+            net=$(has '^(src/net/|supabase/|tests/e2e/online|tests/e2e/(lobby|rooms)|src/ui/screens/(online|lobby|connectionLost))')
             # UI, input, styles and rendering: phone layout (iPhone) and screenshots.
             visual=$(has '^(src/ui/|src/input/|src/render/|src/content/.*/render|index\.html|src/.*\.css$|tests/visual/)')
             if [ "$full" = true ]; then app=true; net=true; visual=true; fi

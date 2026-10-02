@@ -58,7 +58,7 @@ export interface LaunchParams {
   room?: string;
   /**
    * `&netsim=<rtt>,<jitter>,<loss%>` (e.g. `200,50,8`): simulated network on the online link, all
-   * three round trip. Stored per direction (`oneWayOf`; the spike's `?spike=net&netsim=` is one way).
+   * three round trip. Stored per direction (`oneWayOf`).
    */
   netsim?: NetConditions;
   /** `&laps=<n>`: laps of an online scenario's race (short races for tests). */

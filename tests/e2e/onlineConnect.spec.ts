@@ -1,4 +1,5 @@
 import { expect, test, type BrowserContext, type Page } from '@playwright/test';
+import type { InputFrame } from '../../src/sim/types';
 
 /**
  * Connecting a lobby's race (MK-73). On production the lobby runs over Supabase and each race over
@@ -70,6 +71,42 @@ test.describe('connecting an online race (MK-73)', () => {
     await expect
       .poll(() => host.evaluate(() => window.__game!.getState().tick), { timeout: 15_000 })
       .toBeGreaterThan(tick + 30);
+  });
+
+  test("over WebRTC the guest's own kart ends where the host has it (ported from MK-36)", async ({
+    context,
+    browserName,
+  }) => {
+    test.skip(browserName === 'webkit', "WebKit's ICE can't find a path in CI's container");
+    test.setTimeout(120_000);
+    const { host, guest } = await startRace(context, 'webrtc');
+    await expect.poll(() => started(guest), { timeout: 30_000 }).toBe(true);
+    const kartId = await guest.evaluate(() => window.__game!.net()!.kartId);
+    const drive = (frame: Partial<InputFrame>) =>
+      guest.evaluate(([id, f]) => window.__game!.setInput(id, f), [kartId, frame] as const);
+    // Past the countdown, then drive and steer for 8 s, drifting now and then.
+    await expect
+      .poll(() => host.evaluate(() => window.__game!.getState().phase), { timeout: 15_000 })
+      .toBe('racing');
+    for (let second = 0; second < 8; second += 1) {
+      await drive({ throttle: 1, steer: Math.cos(second) * 0.5, drift: second % 4 === 2 });
+      await guest.waitForTimeout(1000);
+    }
+    // Let go and coast to a stop (brake would reverse): both devices agree where the kart is.
+    await drive({});
+    const gap = async () => {
+      const [onHost, onGuest] = await Promise.all(
+        [host, guest].map((page) =>
+          page.evaluate((id) => window.__game!.getState().karts[id]!, kartId),
+        ),
+      );
+      if (Math.abs(onHost!.speed) > 0.05) return Infinity;
+      return Math.hypot(
+        onHost!.position.x - onGuest!.position.x,
+        onHost!.position.z - onGuest!.position.z,
+      );
+    };
+    await expect.poll(gap, { timeout: 30_000 }).toBeLessThan(0.3);
   });
 
   test('with no TURN relay configured (CI, previews) the race falls back to STUN (MK-75)', async ({
