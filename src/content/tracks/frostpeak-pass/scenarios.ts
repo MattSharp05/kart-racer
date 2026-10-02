@@ -68,6 +68,13 @@ const scenarios: Scenario[] = [
     setup: (seed) => ({ state: race(seed) }),
   },
   {
+    name: 'frostpeak-overview',
+    group: 'Frostpeak Pass',
+    description: 'Top-down view of the whole of Frostpeak Pass (MK-79), karts on the grid.',
+    defaultSeed: 1,
+    setup: (seed) => ({ state: race(seed), view: 'overview' }),
+  },
+  {
     name: 'frostpeak-ice',
     group: 'Frostpeak Pass',
     description:

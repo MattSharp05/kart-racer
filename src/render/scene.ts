@@ -5,6 +5,9 @@ const SKY_COLOUR = 0x87ceeb;
 /** The untouched lights (a track theme sets its own): sky/ground fill and the sun. */
 const FILL = { sky: 0xffffff, ground: 0x4a7a3a, intensity: 1.2 };
 const SUN = { colour: 0xffffff, intensity: 1.5 };
+/** The camera's clip planes, m (the overview moves them while it shows, MK-79). */
+export const CAMERA_FAR = 1000;
+export const CAMERA_NEAR = 0.1;
 
 export interface SceneContext {
   renderer: THREE.WebGLRenderer;
@@ -20,7 +23,7 @@ export function createScene(canvas: HTMLCanvasElement): SceneContext {
 
   const scene = new THREE.Scene();
 
-  const camera = new THREE.PerspectiveCamera(60, 1, 0.1, 1000);
+  const camera = new THREE.PerspectiveCamera(60, 1, CAMERA_NEAR, CAMERA_FAR);
   camera.position.set(0, 4, 8);
   camera.lookAt(0, 0.5, 0);
 

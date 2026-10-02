@@ -105,6 +105,9 @@ export function updateRace(state: SimState, track: TrackDef, events: SimEvent[],
   }
 
   const byId = new Map(state.karts.map((k) => [k.id, k]));
+  // Karts that finished on the same tick keep the order they crossed in (MK-82): their progress
+  // keeps changing after the line, but their finish place (the `finish` event's) must not.
+  const previous = new Map(state.positions.map((id, i) => [id, i]));
   const positions = state.karts
     .map((k) => k.id)
     .sort((a, b) => {
@@ -114,6 +117,7 @@ export function updateRace(state: SimState, track: TrackDef, events: SimEvent[],
         if (fa === undefined) return 1;
         if (fb === undefined) return -1;
         if (fa !== fb) return fa - fb;
+        return (previous.get(a) ?? a) - (previous.get(b) ?? b);
       }
       return (progress.get(b) ?? 0) - (progress.get(a) ?? 0) || a - b;
     });

@@ -37,7 +37,15 @@ export interface RenderInfo {
   triangles: number;
   /** The track the scene draws (MK-78). */
   trackId?: string;
-  camera?: { fov: number; shake: number; fovKick: number };
+  camera?: {
+    fov: number;
+    shake: number;
+    fovKick: number;
+    /** How straight down the camera looks: 1 = straight down, 0 = level (MK-79). */
+    lookDown?: number;
+    /** Share of the track's centreline inside the camera's view, 0–1 (MK-79). */
+    trackInView?: number;
+  };
 }
 
 declare global {
@@ -46,12 +54,23 @@ declare global {
   }
 }
 
+/**
+ * What `step` does to the scene around the stepped ticks. `before` syncs it to the state about to
+ * be stepped (MK-77): render-side juice (the FOV kick on a boost start, a hit's shake) compares
+ * each frame with the last, so without it a step taken before the first animation frame had
+ * nothing to compare with. `after` shows the result.
+ */
+export interface StepHooks {
+  before(): void;
+  after(): void;
+}
+
 /** Fired on `window` once `window.__game` is usable. */
 export const GAME_READY_EVENT = 'game-ready';
 
 export function installTestApi(
   game: Game,
-  onStep: () => void,
+  onStep: StepHooks,
   scenario: string | undefined,
   renderInfo: () => RenderInfo,
   localKartId: () => number,
@@ -69,8 +88,10 @@ export function installTestApi(
     resume: () => game.resume(),
     isPaused: () => game.paused,
     step: (ticks, options) => {
+      const render = options?.render !== false;
+      if (render) onStep.before();
       game.stepTicks(ticks);
-      if (options?.render !== false) onStep();
+      if (render) onStep.after();
       return snapshot();
     },
     setInput: (kartId, frame) =>

@@ -81,6 +81,13 @@ const scenarios: Scenario[] = [
     setup: (seed) => ({ state: race(seed) }),
   },
   {
+    name: 'neon-harbour-overview',
+    group: 'Neon Harbour',
+    description: 'Top-down view of the whole of Neon Harbour (MK-79), karts on the grid.',
+    defaultSeed: 1,
+    setup: (seed) => ({ state: race(seed), view: 'overview' }),
+  },
+  {
     name: 'neon-harbour-traffic',
     group: 'Neon Harbour',
     description:
