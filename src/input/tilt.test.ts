@@ -1,5 +1,12 @@
-import { describe, expect, it } from 'vitest';
-import { screenAngle, steerFromTilt, TILT_DEAD_ZONE_DEG, tiltAngle } from './tilt';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  ReadingWatch,
+  screenAngle,
+  steerFromTilt,
+  TILT_DEAD_ZONE_DEG,
+  TILT_NO_READINGS_SECONDS,
+  tiltAngle,
+} from './tilt';
 
 const DEFAULTS = { sensitivity: 25, neutral: 0 };
 
@@ -86,5 +93,64 @@ describe('screenAngle (MK-54)', () => {
     expect(screenAngle(undefined, undefined, true)).toBe(90);
     expect(screenAngle(0, undefined, false)).toBe(0);
     expect(screenAngle(180, undefined, false)).toBe(180);
+  });
+});
+
+describe('ReadingWatch (MK-87)', () => {
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
+
+  const wait = TILT_NO_READINGS_SECONDS * 1000;
+
+  it('calls back once when no reading arrives in 2 s', () => {
+    expect(TILT_NO_READINGS_SECONDS).toBe(2);
+    const watch = new ReadingWatch();
+    const onNone = vi.fn();
+    watch.start(onNone);
+    vi.advanceTimersByTime(wait - 1);
+    expect(onNone).not.toHaveBeenCalled();
+    expect(watch.waiting).toBe(true);
+    vi.advanceTimersByTime(1);
+    expect(onNone).toHaveBeenCalledTimes(1);
+    expect(watch.waiting).toBe(false);
+    vi.advanceTimersByTime(wait * 3);
+    expect(onNone).toHaveBeenCalledTimes(1);
+  });
+
+  it('a reading with a beta disarms it; one without (no sensor) does not', () => {
+    const watch = new ReadingWatch();
+    const onNone = vi.fn();
+    watch.start(onNone);
+    watch.saw({ beta: null, gamma: null });
+    expect(watch.waiting).toBe(true);
+    watch.saw({ beta: 0, gamma: -45 });
+    expect(watch.waiting).toBe(false);
+    vi.advanceTimersByTime(wait * 2);
+    expect(onNone).not.toHaveBeenCalled();
+  });
+
+  it('once a reading came, starting again does nothing until reset', () => {
+    const watch = new ReadingWatch();
+    const onNone = vi.fn();
+    watch.saw({ beta: 3, gamma: 0 });
+    watch.start(onNone);
+    expect(watch.waiting).toBe(false);
+    watch.reset();
+    watch.start(onNone);
+    vi.advanceTimersByTime(wait);
+    expect(onNone).toHaveBeenCalledTimes(1);
+  });
+
+  it('starting again restarts the wait; reset cancels it', () => {
+    const watch = new ReadingWatch();
+    const onNone = vi.fn();
+    watch.start(onNone);
+    vi.advanceTimersByTime(wait - 500);
+    watch.start(onNone);
+    vi.advanceTimersByTime(wait - 500);
+    expect(onNone).not.toHaveBeenCalled();
+    watch.reset();
+    vi.advanceTimersByTime(wait * 2);
+    expect(onNone).not.toHaveBeenCalled();
   });
 });

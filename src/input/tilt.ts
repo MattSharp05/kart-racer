@@ -4,6 +4,12 @@ import { setTouchSteering } from './touch';
 /** Tilt (degrees) around neutral that still steers straight (MK-54). */
 export const TILT_DEAD_ZONE_DEG = 3;
 
+/**
+ * Seconds Tilt waits for a first motion reading before giving up (MK-87): a browser can offer
+ * `deviceorientation` on a device with no gyro (a touchscreen laptop), and then nothing arrives.
+ */
+export const TILT_NO_READINGS_SECONDS = 2;
+
 const DEG = 180 / Math.PI;
 
 /** One `deviceorientation` reading, degrees (`null` when the device has no sensor). */
@@ -112,6 +118,47 @@ export function tiltNeedsPermission(): boolean {
 }
 
 /**
+ * Waits for a first real motion reading (MK-87): `start` arms it, a reading with a `beta` (a device
+ * with no sensor sends nulls, or nothing) disarms it, and if none comes in time `onNone` runs once.
+ */
+export class ReadingWatch {
+  private timer: ReturnType<typeof setTimeout> | undefined;
+  private seen = false;
+
+  /** Arms the watch, unless a reading already came. */
+  start(onNone: () => void, seconds = TILT_NO_READINGS_SECONDS): void {
+    this.stop();
+    if (this.seen) return;
+    this.timer = setTimeout(() => {
+      this.timer = undefined;
+      onNone();
+    }, seconds * 1000);
+  }
+
+  /** A reading arrived. */
+  saw(reading: TiltReading): void {
+    if (reading.beta === null) return;
+    this.seen = true;
+    this.stop();
+  }
+
+  /** Disarms the watch and forgets any reading (tilt turned off). */
+  reset(): void {
+    this.stop();
+    this.seen = false;
+  }
+
+  get waiting(): boolean {
+    return this.timer !== undefined;
+  }
+
+  private stop(): void {
+    if (this.timer !== undefined) clearTimeout(this.timer);
+    this.timer = undefined;
+  }
+}
+
+/**
  * Tilt steering (MK-54): listens to `deviceorientation` while on, and turns the latest reading into
  * a steer value with the saved sensitivity and neutral. The phone's orientation is read on every
  * event, so turning the phone round mid-race keeps right as right.
@@ -119,11 +166,13 @@ export function tiltNeedsPermission(): boolean {
 export class TiltInput {
   private enabled = false;
   private reading: TiltReading | undefined;
+  private readonly watch = new ReadingWatch();
   sensitivity: number = TILT_SENSITIVITY.default;
   neutral = 0;
 
   private readonly onOrientation = (e: DeviceOrientationEvent) => {
     this.reading = { beta: e.beta, gamma: e.gamma };
+    this.watch.saw(this.reading);
   };
 
   /** Starts or stops listening. */
@@ -131,8 +180,17 @@ export class TiltInput {
     if (enabled === this.enabled) return;
     this.enabled = enabled;
     this.reading = undefined;
+    this.watch.reset();
     if (enabled) window.addEventListener('deviceorientation', this.onOrientation);
     else window.removeEventListener('deviceorientation', this.onOrientation);
+  }
+
+  /**
+   * While on, runs `onNone` if no motion reading arrives within `TILT_NO_READINGS_SECONDS`
+   * (MK-87). Call it once motion access is allowed; a no-op once a reading has come.
+   */
+  expectReadings(onNone: () => void): void {
+    if (this.enabled) this.watch.start(onNone);
   }
 
   get on(): boolean {
