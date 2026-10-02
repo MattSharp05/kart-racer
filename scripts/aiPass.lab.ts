@@ -2,7 +2,7 @@ import { expect, it } from 'vitest';
 import { AI_PASS, aiPassRace, type AiPassResult } from '../src/sim/ai/aiPass';
 import { raceTrackIds } from '../src/sim/items/balance';
 import { trackLimit } from '../src/records/trackLimits';
-import type { EngineClass } from '../src/sim/tuning';
+import { tuning, type EngineClass } from '../src/sim/tuning';
 
 /**
  * The cross-track AI pass (MK-71): `pnpm ai-pass`. Every race track × 5 seeds, 8 AI at 150cc with
@@ -15,6 +15,7 @@ import type { EngineClass } from '../src/sim/tuning';
 const SEEDS = Number(process.env.SEEDS ?? 5);
 const TRACKS = process.env.TRACKS?.split(',') ?? raceTrackIds();
 const CC = Number(process.env.CC ?? AI_PASS.engineClass) as EngineClass;
+if (!(CC in tuning.topSpeed)) throw new Error(`CC=${process.env.CC}: not an engine class`);
 /** The ticket's check on `track_limits`: the limit is below the AI's best lap × this. */
 const LIMIT_SHARE = 0.85;
 
