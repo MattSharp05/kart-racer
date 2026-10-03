@@ -41,6 +41,7 @@ describe('MK8 kart parts (MK-102)', () => {
 
   it('a saved loadout keeps its known parts; unknown ones fall back to the racer default', () => {
     expect(resolveLoadout('mk8-toad')).toEqual(defaultLoadout('mk8-toad'));
+    expect(() => resolveLoadout('mk8-rosalina')).toThrow(/Unknown MK8 racer/);
     const saved = { racer: 'mk8-mario', body: 'b-dasher', tires: 'roller', glider: 7 };
     expect(resolveLoadout('mk8-peach', saved as unknown as Partial<Loadout>)).toEqual({
       racer: 'mk8-peach',

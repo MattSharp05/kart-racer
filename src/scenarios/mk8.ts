@@ -153,9 +153,11 @@ export function mk8LoadoutRace(seed: number, which: keyof typeof LOADOUTS): SimS
   return createSimState({
     seed,
     trackId: 'sunny-circuit',
+    itemsOn: false,
     karts: [
       {
-        ...spawn(-60, 0),
+        // Past the first item boxes: no boost pad for the next 10 s (`mk8Golden`).
+        ...spawn(5, 0),
         kartType: which === 'heavy' ? 'boulder' : 'pixie',
         loadout: LOADOUTS[which],
       },
@@ -262,8 +264,8 @@ export const mk8Scenarios: Scenario[] = [
     group: 'MK8 Mode',
     description:
       which === 'heavy'
-        ? "A heavy MK8 kart (MK-102): Bowser on B Dasher, Slick tires, Paper Glider (speed 5.75, acceleration 1.5), at rest on Sunny Circuit's straight. Slow off the line, the highest top speed. Drawn as Boulder until MK8 races draw MK8 karts."
-        : "A light MK8 kart (MK-102): Toad on Pipe Frame, Slim tires, Cloud Glider (speed 3, acceleration 3.25), at rest on Sunny Circuit's straight. Quick off the line, a lower top speed. Drawn as Pixie until MK8 races draw MK8 karts.",
+        ? "A heavy MK8 kart (MK-102): Bowser on B Dasher, Slick tires, Paper Glider (speed 5.75, acceleration 1.5), at rest on Sunny Circuit's straight, no items. Slow off the line, the highest top speed. Drawn as Boulder until MK8 races draw MK8 karts."
+        : "A light MK8 kart (MK-102): Toad on Pipe Frame, Slim tires, Cloud Glider (speed 3, acceleration 3.25), at rest on Sunny Circuit's straight, no items. Quick off the line, a lower top speed. Drawn as Pixie until MK8 races draw MK8 karts.",
     defaultSeed: 1,
     setup: (seed) => ({ state: mk8LoadoutRace(seed, which) }),
   })),

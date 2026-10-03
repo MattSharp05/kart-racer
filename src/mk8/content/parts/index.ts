@@ -140,10 +140,11 @@ export function standardLoadout(racer: string): Loadout {
 
 /**
  * A saved loadout made safe to race with: `racer` in the saved parts, each unknown part (an old
- * save, a renamed part) replaced by the racer's default.
+ * save, a renamed part) replaced by the racer's default. Throws for a racer the table doesn't know.
  */
 export function resolveLoadout(racer: string, saved?: Partial<Loadout>): Loadout {
   const fallback = defaultLoadout(racer);
+  if (!isKnownLoadout(fallback)) throw new Error(`Unknown MK8 racer: ${racer}`);
   const pick = <K extends 'body' | 'tires' | 'glider'>(key: K): string => {
     const value = saved?.[key];
     if (typeof value !== 'string') return fallback[key];

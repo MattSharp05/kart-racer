@@ -48,17 +48,21 @@ test.describe('MK8 loadouts', () => {
   });
 
   test('changing parts changes the kart physics: speed after 3 s differs', async ({ page }) => {
-    const speedAfter3s = async (scenario: string) => {
+    /** Speed after 1 s and 3 s of full throttle from rest. */
+    const speeds = async (scenario: string) => {
       await loadScenario(page, scenario, { paused: true });
       await setInput(page, 0, { throttle: 1 });
-      await step(page, 180);
-      return (await getState(page)).karts[0]!.speed;
+      const at1 = (await step(page, 60)).karts[0]!.speed;
+      const at3 = (await step(page, 120)).karts[0]!.speed;
+      return { at1, at3 };
     };
-    const heavy = await speedAfter3s('mk8-loadout-heavy');
-    const light = await speedAfter3s('mk8-loadout-light');
-    expect(heavy).toBeGreaterThan(5);
-    // The light kart (acceleration 3.25) is ahead of the heavy one (1.5) after 3 s.
-    expect(light).toBeGreaterThan(heavy + 0.5);
+    const heavy = await speeds('mk8-loadout-heavy');
+    const light = await speeds('mk8-loadout-light');
+    // The light kart (acceleration 3.25) gets away first; by 3 s the heavy one (speed 5.75) is
+    // past it on the way to its higher top speed.
+    expect(light.at1).toBeGreaterThan(heavy.at1 + 0.3);
+    expect(heavy.at3).toBeGreaterThan(light.at3 + 0.3);
+    expect((await getState(page)).karts[0]!.loadout?.racer).toBe('mk8-toad');
   });
 
   test('without a pack the karts lineup says how to build it', async ({ page }) => {

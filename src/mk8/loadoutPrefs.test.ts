@@ -34,6 +34,11 @@ describe('saved MK8 loadout (MK-102)', () => {
       JSON.stringify({ mk8Loadout: { racer: 3, body: 'gone', tires: 'slim-tires' } }),
     );
     expect(savedRacer(store)).toBeUndefined();
+    store.set(
+      PREFS_KEY,
+      JSON.stringify({ mk8Loadout: { racer: 'mk8-rosalina', tires: 'slim-tires' } }),
+    );
+    expect(savedRacer(store)).toBeUndefined();
     expect(savedLoadout(store, 'mk8-mario')).toEqual({
       ...defaultLoadout('mk8-mario'),
       tires: 'slim-tires',
