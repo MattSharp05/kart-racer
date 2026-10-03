@@ -131,6 +131,9 @@ export function cueFor(event: SimEvent, laps = 3): SoundCue | null {
     case 'glideClose':
       // MK8 Mode's own sounds play these (the original game has no gliders).
       return null;
+    case 'spinBoost':
+      // MK-108: the mini-turbo's whoosh, from the kart that spun.
+      return { id: 'miniTurbo', scope: 'near', kartId: event.kartId, pitch: 1 };
     case 'itemFx': {
       // Registered by the item's view (`sounds: { [fx]: recipe }`); silent without one.
       const id = `${event.item}.${event.fx}` as const;
