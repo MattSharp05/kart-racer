@@ -369,11 +369,11 @@ export function updateMeshKart(
   return kart;
 }
 
-/** `forward` made perpendicular to `up` again; if it points along `up`, the nearest flat facing. */
+/** `forward` made perpendicular to `up` again; if it points along `up`, any facing in the plane. */
 function keepForward(forward: Vec3, up: Vec3): Vec3 {
   const f = orthonormal(forward, up);
   if (length(f) > 0.5) return f;
-  return orthonormal(cross(up, rightOf(forward, WORLD_UP)), up);
+  return orthonormal(Math.abs(up.x) < 0.9 ? { x: 1, y: 0, z: 0 } : { x: 0, y: 0, z: 1 }, up);
 }
 
 /** What's ahead of a grounded kart: ground to drive onto, or a wall made of too-steep ground. */

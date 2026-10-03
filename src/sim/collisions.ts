@@ -1,7 +1,17 @@
 import { cancelDrift, isDrifting } from './drift';
 import { isIntangible } from './items/effects';
 import { kartPhysics } from './kartStats';
-import { add, dot, forwardFromHeading, length, normalize, scale, sub, type Vec3 } from './math';
+import {
+  add,
+  cross,
+  dot,
+  forwardFromHeading,
+  length,
+  normalize,
+  scale,
+  sub,
+  type Vec3,
+} from './math';
 import { tuning } from './tuning';
 import type { KartState, SimEvent } from './types';
 
@@ -174,9 +184,9 @@ function centres3(kart: KartState): [Vec3, Vec3] {
  * `tuning.mk8.bumpHeight` along that up (a floor and a ceiling) don't touch.
  */
 function bumpOnSurface(a: KartState, b: KartState, events: SimEvent[]): void {
-  const up = normalize(
-    add(a.up ?? b.up ?? { x: 0, y: 1, z: 0 }, b.up ?? a.up ?? { x: 0, y: 1, z: 0 }),
-  );
+  if (!a.up || !b.up) return;
+  // Opposite ups (a floor and a ceiling) share no plane: they never touch.
+  const up = normalize(add(a.up, b.up));
   if (length(up) === 0) return;
   const reach = tuning.kartRadius * 2;
   let best: { n: Vec3; depth: number } | undefined;
@@ -188,10 +198,12 @@ function bumpOnSurface(a: KartState, b: KartState, events: SimEvent[]): void {
       const distance = length(flat);
       const depth = reach - distance;
       if (depth <= 0 || (best && depth <= best.depth)) continue;
-      best = {
-        n: distance > 1e-6 ? scale(flat, 1 / distance) : normalize(sub(a.forward ?? up, up)),
-        depth,
-      };
+      // Exactly on top of each other: push out sideways (a's right).
+      const n =
+        distance > 1e-6
+          ? scale(flat, 1 / distance)
+          : normalize(cross(a.forward ?? forwardFromHeading(a.heading), up));
+      best = { n, depth };
     }
   }
   if (!best || length(best.n) === 0) return;

@@ -13,10 +13,15 @@ const SURFACE_COLOURS: Record<MeshSurface, number> = {
   void: 0x101010,
 };
 
+/** Baked light: faces turned this way are brightest; any face is at least `MIN_SHADE` bright. */
+const LIGHT = new THREE.Vector3(0.4, 1, 0.6).normalize();
+const MIN_SHADE = 0.62;
+
 /**
  * A mesh track's collision mesh, drawn coloured by surface (MK-99): what you drive on until the MK8
- * course renderer draws the course's own model. Every other triangle a touch darker, so the
- * tessellation (and the edges the kart crosses) shows. Water draws see-through. One or two draws.
+ * course renderer draws the course's own model. Shading is baked per face from either side (an
+ * anti-gravity ceiling seen from below stays cyan, not lit by the sky's ground colour), and every
+ * other triangle is a touch darker, so the tessellation shows. Water is see-through. Two draws.
  */
 export function createCollisionMeshView(mesh: CollisionMesh): THREE.Group {
   const group = new THREE.Group();
@@ -34,17 +39,19 @@ export function createCollisionMeshView(mesh: CollisionMesh): THREE.Group {
     tris.forEach((t, i) => {
       positions.set(mesh.positions.subarray(t * 9, t * 9 + 9), i * 9);
       colour.setHex(SURFACE_COLOURS[MESH_SURFACES[mesh.surfaces[t] ?? 0] ?? 'road']);
-      if (t % 2) colour.multiplyScalar(0.88);
+      const n = mesh.normals;
+      const facing = Math.abs(
+        (n[t * 3] ?? 0) * LIGHT.x + (n[t * 3 + 1] ?? 0) * LIGHT.y + (n[t * 3 + 2] ?? 0) * LIGHT.z,
+      );
+      colour.multiplyScalar((MIN_SHADE + (1 - MIN_SHADE) * facing) * (t % 2 ? 0.92 : 1));
       for (let v = 0; v < 3; v += 1) colours.set([colour.r, colour.g, colour.b], i * 9 + v * 3);
     });
     const geometry = new THREE.BufferGeometry();
     geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
     geometry.setAttribute('color', new THREE.BufferAttribute(colours, 3));
-    geometry.computeVertexNormals();
-    const material = new THREE.MeshLambertMaterial({
+    const material = new THREE.MeshBasicMaterial({
       vertexColors: true,
       side: THREE.DoubleSide,
-      flatShading: true,
       ...(seeThrough ? { transparent: true, opacity: 0.45, depthWrite: false } : {}),
     });
     group.add(new THREE.Mesh(geometry, material));
