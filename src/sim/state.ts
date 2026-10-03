@@ -5,7 +5,7 @@ import { seedRng } from './rng';
 import type { EngineClass } from './tuning';
 import { getTrack, trackGeometry } from './track';
 import { DT, tuning } from './tuning';
-import type { KartController, KartState, RacePhase, SimState } from './types';
+import type { KartController, KartState, Loadout, RacePhase, SimState } from './types';
 
 export interface KartSpawn {
   kartType?: KartId;
@@ -21,6 +21,8 @@ export interface KartSpawn {
    * `heading`'s direction laid into that plane. Absent: +Y, set on the kart's first step.
    */
   up?: KartState['position'];
+  /** MK8 Mode's kart parts (MK-102): physics from MK8's stat table. */
+  loadout?: Loadout;
 }
 
 export interface InitialStateOptions {
@@ -109,6 +111,7 @@ export function createSimState({
               antigrav: false,
             }
           : {}),
+        ...(spawn.loadout ? { loadout: { ...spawn.loadout } } : {}),
       };
     }),
     entities: itemsOn ? itemBoxesFor(trackId) : [],

@@ -8,7 +8,7 @@ import { forwardFromHeading } from '../sim/math';
 import { createSimState, type KartSpawn } from '../sim/state';
 import { trackGeometry } from '../sim/track';
 import { tuning } from '../sim/tuning';
-import { NEUTRAL_INPUT, type SimEvent, type SimState } from '../sim/types';
+import { NEUTRAL_INPUT, type Loadout, type SimEvent, type SimState } from '../sim/types';
 import { attractMode } from './menus';
 import { courseAntigrav, courseFinalLap, courseFromGrid, courseRace, onCourse } from './mk8Courses';
 import type { Scenario } from './registry';
@@ -182,6 +182,33 @@ export function mk8Golden(seed: number): SimState {
   return state;
 }
 
+/** MK-102's loadout scenarios: a heavy and a light MK8 kart (the extremes of the stat table). */
+export const LOADOUTS = {
+  heavy: { racer: 'mk8-bowser', body: 'b-dasher', tires: 'slick-tires', glider: 'paper-glider' },
+  light: { racer: 'mk8-toad', body: 'pipe-frame', tires: 'slim-tires', glider: 'cloud-glider' },
+} as const satisfies Record<string, Loadout>;
+
+/**
+ * A kart in `loadout` at rest at the start of Sunny Circuit's main straight, alone (MK-102). MK8
+ * racers don't race in the original game's renderer yet, so a stand-in original racer of the same
+ * build is drawn (`kartType`); the physics are the loadout's.
+ */
+export function mk8LoadoutRace(seed: number, which: keyof typeof LOADOUTS): SimState {
+  return createSimState({
+    seed,
+    trackId: 'sunny-circuit',
+    itemsOn: false,
+    karts: [
+      {
+        // Past the first item boxes: no boost pad for the next 10 s (`mk8Golden`).
+        ...spawn(5, 0),
+        kartType: which === 'heavy' ? 'boulder' : 'pixie',
+        loadout: LOADOUTS[which],
+      },
+    ],
+  });
+}
+
 /**
  * MK8 Mode (MK-97). `mk8-mode` loads the pack: under `pnpm dev` from a local build, on the site
  * behind its password (MK-135, ADR 0009 as amended), else "MK8 pack not installed" (CI, a deploy
@@ -353,6 +380,16 @@ export const mk8Scenarios: Scenario[] = [
     defaultSeed: 1,
     setup: (seed) => ({ state: mk8Golden(seed) }),
   },
+  ...(['heavy', 'light'] as const).map((which): Scenario => ({
+    name: `mk8-loadout-${which}`,
+    group: 'MK8 Mode',
+    description:
+      which === 'heavy'
+        ? "A heavy MK8 kart (MK-102): Bowser on B Dasher, Slick tires, Paper Glider (speed 5.75, acceleration 1.5), at rest on Sunny Circuit's straight, no items. Slow off the line, the highest top speed. Drawn as Boulder until MK8 races draw MK8 karts."
+        : "A light MK8 kart (MK-102): Toad on Pipe Frame, Slim tires, Cloud Glider (speed 3, acceleration 3.25), at rest on Sunny Circuit's straight, no items. Quick off the line, a lower top speed. Drawn as Pixie until MK8 races draw MK8 karts.",
+    defaultSeed: 1,
+    setup: (seed) => ({ state: mk8LoadoutRace(seed, which) }),
+  })),
   {
     name: 'mk8-ui-kit',
     group: 'MK8 Mode',
@@ -378,10 +415,18 @@ export const mk8Scenarios: Scenario[] = [
     setup: (seed) => ({ state: attractMode(seed), screen: 'mk8UiMode' }),
   },
   {
+    name: 'mk8-ui-char',
+    group: 'MK8 Mode',
+    description:
+      "MK8 character select for a Grand Prix (MK-117): the 12 racers in a 4×3 grid (P1 badge on the selected one), the selected racer in the Standard Kart turning slowly on the left with the name plate and weight class. Arrows (4 across) or taps move it with the name-appear sound and the racer's voice line (silent until the pack's voice clips exist); OK goes on to the kart builder (a stand-in for now) and is remembered next time; Back returns to the mode select. 3D racers and the real icons with a local pack; stand-in initials otherwise.",
+    defaultSeed: 1,
+    setup: (seed) => ({ state: attractMode(seed), screen: 'mk8UiChar' }),
+  },
+  {
     name: 'mk8-ui-cc',
     group: 'MK8 Mode',
     description:
-      'MK8 engine class (MK-119): the 50/100/150/200cc shields (200cc NEW) for a Grand Prix, 150cc selected. OK goes on to the cup select; Back walks back through character select (a stand-in for now) and the mode select. The real shields with a local pack, stand-ins otherwise.',
+      'MK8 engine class (MK-119): the 50/100/150/200cc shields (200cc NEW) for a Grand Prix, 150cc selected. OK goes on to the cup select; Back walks back through the kart builder (a stand-in for now), character select and the mode select. The real shields with a local pack, stand-ins otherwise.',
     defaultSeed: 1,
     setup: (seed) => ({ state: attractMode(seed), screen: 'mk8UiCc' }),
   },
@@ -427,6 +472,11 @@ export const mk8Scenarios: Scenario[] = [
         'mk8-lakitu-respawn',
         'mk8LakituRespawn',
         'Lakitu fishes a kart out: comes down, lifts it on his line, drops it; looping (MK-101). Needs a local pack.',
+      ],
+      [
+        'mk8-karts-lineup',
+        'mk8KartsLineup',
+        "MK8's 6 kart bodies in a row (MK-102), each on its own tires (all 4 kinds) on the body's wheel anchors, gliders folded away; parts named underneath. Needs a local pack.",
       ],
     ] as const
   ).map(([name, screen, description]): Scenario => ({

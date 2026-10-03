@@ -221,7 +221,7 @@ export function updateMeshKart(
   ensureSurfaceFrame(kart);
   let up = kart.up ?? { ...WORLD_UP };
   let forward = kart.forward ?? forwardFromHeading(kart.heading);
-  const physics = kartPhysics(kart.kartType, engineClass);
+  const physics = kartPhysics(kart.kartType, engineClass, kart.loadout);
   const topSpeed = kartTopSpeed(kart, engineClass);
   const kartAccel = accelRate(physics.timeTo95);
 
@@ -288,7 +288,8 @@ export function updateMeshKart(
     ? pedalSpeed * Math.exp(-tuning.brakeDrift.speedLoss * dt)
     : pedalSpeed;
   kart.boostTimer = Math.max(0, kart.boostTimer - dt);
-  const grip = (isDrifting(kart) ? tuning.driftGrip : tuning.lateralGrip) * (effect.grip ?? 1);
+  const grip =
+    (isDrifting(kart) ? tuning.driftGrip : tuning.lateralGrip) * (effect.grip ?? 1) * physics.grip;
   const slide = scale(lateral, Math.exp(-grip * dt));
 
   // Gravity: along −up in anti-gravity (and a moment after leaving it), world −Y otherwise.

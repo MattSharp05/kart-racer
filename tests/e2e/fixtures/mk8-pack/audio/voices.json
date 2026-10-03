@@ -1,0 +1,5 @@
+{
+  "mario": {
+    "select": ["audio/voice/mario/fixture-select.m4a"]
+  }
+}

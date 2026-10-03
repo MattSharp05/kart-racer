@@ -96,7 +96,7 @@ const DEFAULT_ENV: KartEnv = { tick: 0, grip: 1 };
 /** A kart's top speed right now: its stats × star, lightning, effects and AI rubber-banding. */
 export function kartTopSpeed(kart: KartState, engineClass: EngineClass): number {
   return (
-    kartPhysics(kart.kartType, engineClass).topSpeed *
+    kartPhysics(kart.kartType, engineClass, kart.loadout).topSpeed *
     effectsSpeedFactor(kart) *
     (kart.starTimer > 0 ? tuning.starSpeed : 1) *
     (kart.shrinkTimer > 0 ? tuning.shrinkSpeed : 1) *
@@ -117,7 +117,7 @@ export function updateKart(
   events: SimEvent[],
   env: KartEnv = DEFAULT_ENV,
 ): KartState {
-  const physics = kartPhysics(kart.kartType, engineClass);
+  const physics = kartPhysics(kart.kartType, engineClass, kart.loadout);
   // Star: faster (MK-20). Shrunk by lightning: slower. AI rubber-banding (MK-15) scales it too, and
   // so can kart effects (Phase, MK-66).
   const topSpeed =
@@ -197,7 +197,10 @@ export function updateKart(
 
   // Plus the remaining sideways slide, decaying with grip (low grip while drifting = outward slide).
   const grip =
-    (isDrifting(kart) ? tuning.driftGrip : tuning.lateralGrip) * (effect.grip ?? 1) * env.grip;
+    (isDrifting(kart) ? tuning.driftGrip : tuning.lateralGrip) *
+    (effect.grip ?? 1) *
+    env.grip *
+    physics.grip;
   const slide = scale(lateral, Math.exp(-grip * dt));
   let horizontal = add(scale(forward, newSpeed), slide);
   // A swaying deck (MK-61) shoves grounded karts sideways; grip then bleeds the slide off.

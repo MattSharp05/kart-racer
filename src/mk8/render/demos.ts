@@ -1,7 +1,9 @@
 // MK8 Mode's model scenarios (MK-101) on the 3D stage: the 12 racers in a row, one racer driving a
-// scripted lap of moves (lean, jump, hit, trick, shell behind), and Lakitu's three cues. Each demo
+// scripted lap of moves (lean, jump, hit, trick, shell behind), and Lakitu's three cues; MK-102
+// adds the 6 kart bodies in a row, each on its own tires with its glider folded away. Each demo
 // is a pure function of the stage's tick, so a paused link or a test sees the same frame.
 import * as THREE from 'three';
+import { mk8Body, mk8Glider, mk8Tires } from '../content/parts';
 import { MK8_RACERS } from '../content/racers';
 import { mk8RacerView } from '../content/racers/render';
 import type { Mk8RacerView } from '../content/racers/view';
@@ -13,18 +15,42 @@ import {
   type LakituCue,
   type LakituPose,
 } from './lakitu';
+import { Mk8Kart, gliderModelPath, kartFiles, bodyModelPath, tireModelPath } from './kartAssembly';
 import { REST_MOTION, stepMotion, type MotionInput, type MotionState } from './motion';
 import {
   KART_BODY_PATH,
   KART_TIRE_PATH,
   Mk8RacerModel,
+  disposeTree,
   parseGlb,
   racerModelPath,
 } from './racerModel';
 import type { Mk8Stage, StageDemo } from './stage';
 
 export type StageDemoId =
-  'racers-lineup' | 'racer-motion' | 'lakitu-countdown' | 'lakitu-lap' | 'lakitu-respawn';
+  | 'racers-lineup'
+  | 'racer-motion'
+  | 'lakitu-countdown'
+  | 'lakitu-lap'
+  | 'lakitu-respawn'
+  | 'karts-lineup';
+
+/** A kart on the stage without a driver (part ids). */
+export interface KartSpec {
+  body: string;
+  tires: string;
+  glider: string;
+}
+
+/** The karts lineup: every body once, the 4 tires and 3 gliders spread over them. */
+const KART_LINEUP: readonly KartSpec[] = [
+  { body: 'standard-kart', tires: 'standard-tires', glider: 'paper-glider' },
+  { body: 'pipe-frame', tires: 'slim-tires', glider: 'cloud-glider' },
+  { body: 'mach-8', tires: 'slick-tires', glider: 'peach-parasol' },
+  { body: 'cat-cruiser', tires: 'monster-tires', glider: 'paper-glider' },
+  { body: 'b-dasher', tires: 'slick-tires', glider: 'cloud-glider' },
+  { body: 'sports-coupe', tires: 'standard-tires', glider: 'peach-parasol' },
+];
 
 /** The racers in roster order (Mario first). */
 const ROSTER: readonly Mk8RacerView[] = [...MK8_RACERS]
@@ -34,24 +60,46 @@ const ROSTER: readonly Mk8RacerView[] = [...MK8_RACERS]
 const SHOWN = ROSTER.slice(0, 1);
 
 export const STAGE_DEMOS: Readonly<
-  Record<StageDemoId, { title: string; racers: readonly Mk8RacerView[]; lakitu: boolean }>
+  Record<
+    StageDemoId,
+    {
+      title: string;
+      racers: readonly Mk8RacerView[];
+      lakitu: boolean;
+      /** Empty karts (MK-102). */
+      karts?: readonly KartSpec[];
+    }
+  >
 > = {
   'racers-lineup': { title: 'Racers', racers: ROSTER, lakitu: false },
   'racer-motion': { title: 'Racer motion', racers: SHOWN, lakitu: false },
   'lakitu-countdown': { title: 'Lakitu: countdown', racers: SHOWN, lakitu: true },
   'lakitu-lap': { title: 'Lakitu: lap sign', racers: SHOWN, lakitu: true },
   'lakitu-respawn': { title: 'Lakitu: respawn', racers: SHOWN, lakitu: true },
+  'karts-lineup': { title: 'Karts', racers: [], lakitu: false, karts: KART_LINEUP },
 };
 
 /** The pack files a demo needs. */
 export function demoFiles(id: StageDemoId): string[] {
-  const { racers, lakitu } = STAGE_DEMOS[id];
+  const { racers, lakitu, karts = [] } = STAGE_DEMOS[id];
   return [
-    KART_BODY_PATH,
-    KART_TIRE_PATH,
-    ...racers.map(racerModelPath),
-    ...(lakitu ? [LAKITU_PATH] : []),
+    ...new Set([
+      ...(racers.length > 0 ? [KART_BODY_PATH, KART_TIRE_PATH] : []),
+      ...racers.map(racerModelPath),
+      ...karts.flatMap(kartFiles),
+      ...(lakitu ? [LAKITU_PATH] : []),
+    ]),
   ];
+}
+
+/** What tests read about each kart of the karts lineup. */
+export interface KartInfo {
+  body: string;
+  tires: string;
+  glider: string;
+  gliderOpen: boolean;
+  /** Wheel centres in the kart's frame, metres: front left, front right, rear left, rear right. */
+  wheels: [number, number, number][];
 }
 
 /** What tests read and drive (`window.__mk8.stage`). */
@@ -67,6 +115,12 @@ export interface StageHooks {
   lakitu(): LakituPose | null;
   /** The motion demo's racer pose; null elsewhere. */
   motion(): MotionState | null;
+  /** The karts lineup's karts (MK-102); empty elsewhere. */
+  karts(): KartInfo[];
+  /** Draw calls of each empty kart, rendered alone. */
+  kartDrawCalls(): number[];
+  /** Opens or folds every empty kart's glider (gliders are folded on the stage). */
+  openGliders(open: boolean): void;
 }
 
 type FileSource = (path: string) => ArrayBuffer | undefined;
@@ -86,6 +140,21 @@ async function racerModel(file: FileSource, view: Mk8RacerView): Promise<Mk8Race
   return new Mk8RacerModel(view, { racer, body, tire });
 }
 
+/** An empty kart of `spec`'s parts. */
+async function emptyKart(file: FileSource, spec: KartSpec): Promise<Mk8Kart> {
+  const [body, tire, glider] = await Promise.all([
+    glb(file, bodyModelPath(spec.body)),
+    glb(file, tireModelPath(spec.tires)),
+    glb(file, gliderModelPath(spec.glider)),
+  ]);
+  return new Mk8Kart({
+    body: mk8Body(spec.body),
+    tires: mk8Tires(spec.tires),
+    glider: mk8Glider(spec.glider),
+    models: { body, tire, glider },
+  });
+}
+
 /** Builds demo `id` on `stage` from the loaded pack files; labels go in `overlay`. */
 export async function buildDemo(
   id: StageDemoId,
@@ -93,23 +162,28 @@ export async function buildDemo(
   file: FileSource,
   overlay: HTMLElement,
 ): Promise<{ demo: StageDemo; hooks: StageHooks; dispose(): void }> {
-  const { racers, lakitu: withLakitu } = STAGE_DEMOS[id];
+  const { racers, lakitu: withLakitu, karts: kartSpecs = [] } = STAGE_DEMOS[id];
   const models = await Promise.all(racers.map((view) => racerModel(file, view)));
   for (const model of models) stage.scene.add(model.object);
   let lakitu: Lakitu | undefined;
+  let karts: Mk8Kart[] = [];
   try {
+    karts = await Promise.all(kartSpecs.map((spec) => emptyKart(file, spec)));
     if (withLakitu) lakitu = new Lakitu(await glb(file, LAKITU_PATH));
   } catch (e) {
     for (const model of models) model.dispose();
+    for (const kart of karts) disposeTree(kart.object);
     throw e;
   }
+  for (const kart of karts) stage.scene.add(kart.object);
   if (lakitu) stage.scene.add(lakitu.object);
 
   let motion: MotionState | null = null;
   const [first] = models;
-  if (!first) throw new Error(`${id} shows no racer`);
   let demo: StageDemo;
-  if (id === 'racers-lineup') demo = lineup(stage, models, overlay);
+  if (id === 'karts-lineup') demo = kartsLineup(stage, karts, overlay);
+  else if (!first) throw new Error(`${id} shows no racer`);
+  else if (id === 'racers-lineup') demo = lineup(stage, models, overlay);
   else if (id === 'racer-motion') demo = motionDemo(stage, first, overlay, (m) => (motion = m));
   else if (lakitu) demo = lakituDemo(stage, first, lakitu, id);
   else throw new Error(`${id} needs Lakitu`);
@@ -121,12 +195,27 @@ export async function buildDemo(
     drawCalls: () => models.map((m) => stage.drawCallsOf(m.object)),
     lakitu: () => lakitu?.current ?? null,
     motion: () => motion,
+    karts: () =>
+      karts.map((kart, i) => ({
+        ...(kartSpecs[i] ?? { body: '', tires: '', glider: '' }),
+        gliderOpen: kart.gliderOpen,
+        wheels: kart.wheels.map((w) => [w.x, w.y, w.z] as [number, number, number]),
+      })),
+    kartDrawCalls: () => karts.map((kart) => stage.drawCallsOf(kart.object)),
+    openGliders: (open) => {
+      for (const kart of karts) kart.setGliderOpen(open);
+      stage.render();
+    },
   };
   return {
     demo,
     hooks,
     dispose: () => {
       for (const model of models) model.dispose();
+      for (const kart of karts) {
+        kart.object.removeFromParent();
+        disposeTree(kart.object);
+      }
       lakitu?.dispose();
     },
   };
@@ -140,19 +229,52 @@ const LINEUP_CAMERA = new THREE.Vector3(0, 6, -22);
 const LINEUP_TARGET = new THREE.Vector3(0, 0.6, 0);
 
 function lineup(stage: Mk8Stage, models: Mk8RacerModel[], overlay: HTMLElement): StageDemo {
-  const halfRow = ((models.length - 1) * LINEUP_SPACING) / 2;
+  for (const model of models) model.pose(REST_MOTION);
+  return row(
+    stage,
+    overlay,
+    LINEUP_SPACING,
+    models.map((model) => ({
+      object: model.object,
+      label: MK8_RACERS.find((r) => r.id === model.view.id)?.name ?? model.view.id,
+    })),
+  );
+}
+
+/** Karts lineup (MK-102): the 6 bodies in a row, parts named underneath. */
+const KART_SPACING = 2.8;
+
+function kartsLineup(stage: Mk8Stage, karts: Mk8Kart[], overlay: HTMLElement): StageDemo {
+  return row(
+    stage,
+    overlay,
+    KART_SPACING,
+    karts.map((kart) => ({
+      object: kart.object,
+      label: `${kart.parts.body.name} · ${kart.parts.tires.name}`,
+    })),
+  );
+}
+
+/** Objects in a row seen from the front (orthographic), each with a label underneath. */
+function row(
+  stage: Mk8Stage,
+  overlay: HTMLElement,
+  spacing: number,
+  items: { object: THREE.Object3D; label: string }[],
+): StageDemo {
+  const halfRow = ((items.length - 1) * spacing) / 2;
   const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 100);
   camera.position.copy(LINEUP_CAMERA);
   camera.lookAt(LINEUP_TARGET);
   stage.camera = camera;
-  const labels = models.map((model, i) => {
-    model.object.position.set(halfRow - i * LINEUP_SPACING, 0, 0);
+  const labels = items.map(({ object, label: text }, i) => {
+    object.position.set(halfRow - i * spacing, 0, 0);
     // Karts face −Z, towards the camera; turned a little to show their sides.
-    model.object.rotation.y = LINEUP_TURN;
-    model.pose(REST_MOTION);
+    object.rotation.y = LINEUP_TURN;
     const label = document.createElement('span');
     label.className = 'mk8-stage-label';
-    label.textContent = MK8_RACERS.find((r) => r.id === model.view.id)?.name ?? model.view.id;
+    label.textContent = text;
     overlay.append(label);
     return label;
   });
@@ -169,8 +291,8 @@ function lineup(stage: Mk8Stage, models: Mk8RacerModel[], overlay: HTMLElement):
     },
     afterRender: () => {
       const { width, height } = stage.size();
-      models.forEach((model, i) => {
-        point.copy(model.object.position).project(camera);
+      items.forEach(({ object }, i) => {
+        point.copy(object.position).project(camera);
         const label = labels[i];
         if (!label) return;
         label.style.left = `${((point.x + 1) / 2) * width}px`;

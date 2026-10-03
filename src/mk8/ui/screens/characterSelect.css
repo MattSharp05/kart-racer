@@ -1,0 +1,107 @@
+/* MK8 character select (MK-117), in the mockup's positions: the 520×520 portrait panel from x 56
+   and the 4×3 grid of 118 tiles (14 apart) against the right edge, both 116 from the stage top
+   (30 below the header band). */
+
+.mk8 .mk8-body.mk8-char {
+  display: grid;
+  grid-template-columns: calc(520 * var(--u)) auto;
+  justify-content: space-between;
+  align-items: start;
+  padding-top: calc(30 * var(--u));
+  overflow: visible;
+}
+
+/* The portrait: the 3D racer (or its icon) over the radial gradient, the name plate below. */
+.mk8-char-portrait {
+  position: relative;
+  width: calc(520 * var(--u));
+  height: min(calc(520 * var(--u)), 100%);
+  aspect-ratio: 1;
+  overflow: hidden;
+  border-radius: calc(26 * var(--u));
+  background: radial-gradient(circle at 50% 40%, #fff, #d9e4f7);
+}
+
+.mk8-char-portrait .mk8-nameplate {
+  position: absolute;
+  right: 0;
+  bottom: calc(56 * var(--u));
+  left: 0;
+}
+
+.mk8-char-portrait .mk8-nameplate b {
+  display: inline-block;
+}
+
+/* The 2D portrait: the mockup's enlarged icon (a stand-in initial without a pack). */
+.mk8-char-still {
+  position: absolute;
+  top: calc(40 * var(--u));
+  left: 50%;
+  display: grid;
+  place-items: center;
+  width: calc(330 * var(--u));
+  height: calc(330 * var(--u));
+  transform: translateX(-50%);
+}
+
+.mk8-char-still .mk8-art {
+  width: 100%;
+  height: 100%;
+  font-size: calc(160 * var(--u));
+  filter: drop-shadow(0 12px 14px #0a2a6a44);
+}
+
+.mk8-char-still .mk8-art-stand-in {
+  width: 80%;
+  height: 80%;
+  border-radius: 50%;
+}
+
+/* The 3D racer, over the area the icon fills; shown once its model is drawn. */
+.mk8-preview-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: calc(400 * var(--u));
+  visibility: hidden;
+}
+
+.mk8-char-portrait.has-3d .mk8-preview-canvas {
+  visibility: visible;
+}
+
+.mk8-char-portrait.has-3d .mk8-char-still {
+  visibility: hidden;
+}
+
+.mk8-char-grid {
+  display: grid;
+  grid-template-columns: repeat(4, auto);
+  gap: max(8px, calc(14 * var(--u)));
+}
+
+.mk8 .mk8-char-tile .mk8-art {
+  width: 88%;
+  height: 88%;
+}
+
+/* P1 badge, on the selected tile only. */
+.mk8-p1 {
+  position: absolute;
+  top: calc(-14 * var(--u));
+  left: calc(-10 * var(--u));
+  display: none;
+  padding: calc(2 * var(--u)) calc(8 * var(--u));
+  border-radius: calc(8 * var(--u));
+  background: var(--mk8-red);
+  color: #fff;
+  font-size: max(11px, calc(16 * var(--u)));
+  font-weight: 900;
+  transform: skewX(var(--mk8-slant));
+}
+
+.mk8-char-tile.is-selected .mk8-p1 {
+  display: block;
+}

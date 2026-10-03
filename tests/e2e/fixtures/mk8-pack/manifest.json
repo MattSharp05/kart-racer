@@ -8,6 +8,18 @@
       "group": "audio/ui"
     },
     {
+      "path": "audio/voice/mario/fixture-select.m4a",
+      "bytes": 7535,
+      "sha256": "ceaa45bde8f7a8e0e2a8ac82bbe5faf2908a077cfa5efd2e7c584c0d78512e4d",
+      "group": "audio/voice/mario"
+    },
+    {
+      "path": "audio/voices.json",
+      "bytes": 76,
+      "sha256": "102e59eade7f00c7f6facaef74e2ebe6d46d13fdd606f332dccf46a9ad9c018a",
+      "group": "audio/voice"
+    },
+    {
       "path": "models/items/banana.glb",
       "bytes": 11124,
       "sha256": "e5820e3566da60ff5cf2322485dfeb58a80de66f408da4c2023cbaa1aeba8c12",
@@ -68,9 +80,75 @@
       "group": "items"
     },
     {
+      "path": "models/karts/bodies/b-dasher.glb",
+      "bytes": 3504,
+      "sha256": "8460352958278ef29d45c509d89b9695d7ccbc3cb5422d279db76846e9ea0478",
+      "group": "karts"
+    },
+    {
+      "path": "models/karts/bodies/cat-cruiser.glb",
+      "bytes": 4188,
+      "sha256": "022139fd66f763dae9e5d86db5244bae3a6f68833f14f9bb76e93733e4c62426",
+      "group": "karts"
+    },
+    {
+      "path": "models/karts/bodies/mach-8.glb",
+      "bytes": 3536,
+      "sha256": "72556355b07f91bbb370bbc10f78dc8bb76dd738cca274e9019b9aee3a52eed8",
+      "group": "karts"
+    },
+    {
+      "path": "models/karts/bodies/pipe-frame.glb",
+      "bytes": 4192,
+      "sha256": "2418469047b805d5433e635d32886b1d7daa2c4239250b186ecfaddd74a2b42d",
+      "group": "karts"
+    },
+    {
+      "path": "models/karts/bodies/sports-coupe.glb",
+      "bytes": 3544,
+      "sha256": "25b5182bc2f735f5cd9e3f7f749a33f8764915b575a2fa3776826a7b6e077ba7",
+      "group": "karts"
+    },
+    {
       "path": "models/karts/bodies/standard-kart.glb",
       "bytes": 4208,
       "sha256": "77427c9e69a1a9a46e7d1717e35cfbf0e27badc213e48f69a10944e245c62309",
+      "group": "karts"
+    },
+    {
+      "path": "models/karts/gliders/cloud-glider.glb",
+      "bytes": 3504,
+      "sha256": "c491c41ff23602c8ee9a1a91ad9af5828ce9669fb68e08fb95ea7c29afe1ce78",
+      "group": "karts"
+    },
+    {
+      "path": "models/karts/gliders/paper-glider.glb",
+      "bytes": 3508,
+      "sha256": "eafd5484312ee27aef0898b1c0fdc3762792f1d702b1bf32639a42597b252662",
+      "group": "karts"
+    },
+    {
+      "path": "models/karts/gliders/peach-parasol.glb",
+      "bytes": 3504,
+      "sha256": "4e9c58168e3a06f38988c0e00a66b0cdee66ac15d0c91878a23149f0708196ee",
+      "group": "karts"
+    },
+    {
+      "path": "models/karts/tires/monster-tires.glb",
+      "bytes": 2992,
+      "sha256": "1623d2453723a8d1b1739c29b614154b55427a47f67b229df86ec132a54f4be9",
+      "group": "karts"
+    },
+    {
+      "path": "models/karts/tires/slick-tires.glb",
+      "bytes": 2988,
+      "sha256": "3bf6e9158ece3ca4aa06494aca204cb85e6921df8b2b82a8d7ab15c08085c75b",
+      "group": "karts"
+    },
+    {
+      "path": "models/karts/tires/slim-tires.glb",
+      "bytes": 2960,
+      "sha256": "2293a4c182bcb7e0e6237cec40e75242b0ac1f18f223f28ae87d1710fb28f999",
       "group": "karts"
     },
     {

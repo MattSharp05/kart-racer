@@ -76,7 +76,7 @@ export function meshAiInput(
   const lateral = geometry.racingLineAt(s + lookAhead) + ai.lineOffset;
   const steer = steerTowards(kart, aimPoint(geometry, s, lookAhead, lateral), cfg.steerGain);
 
-  const physics = kartPhysics(kart.kartType, engineClass);
+  const physics = kartPhysics(kart.kartType, engineClass, kart.loadout);
   const top = physics.topSpeed * (ai.speedScale ?? 1);
   const cruise = top * (cfg.cruiseBase + cfg.cruiseSkill * ai.skill);
   return {
@@ -145,7 +145,7 @@ export function meshAutopilotInput(
   const speed = Math.max(0, kart.speed);
   const lookAhead = tuning.ai.lookAheadBase + speed * tuning.ai.lookAheadPerSpeed;
   const steer = steerTowards(kart, aimPoint(geometry, s, lookAhead, 0), tuning.ai.steerGain);
-  const physics = kartPhysics(kart.kartType, engineClass);
+  const physics = kartPhysics(kart.kartType, engineClass, kart.loadout);
   const drive = pedals(geometry, s, speed, physics.topSpeed * throttle, physics.handling);
   return { ...drive, steer };
 }

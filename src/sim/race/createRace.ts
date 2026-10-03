@@ -6,7 +6,7 @@ import { rngRange, seedRng, type RngHolder } from '../rng';
 import { createSimState, type KartSpawn } from '../state';
 import { getTrack, trackGeometry } from '../track';
 import { tuning, type EngineClass } from '../tuning';
-import type { AiState, KartController, SimState } from '../types';
+import type { AiState, KartController, Loadout, SimState } from '../types';
 
 /** One racer in a race: kart `i` of the state comes from `racers[i]` (MK-38). */
 export interface RacerSlot {
@@ -17,6 +17,8 @@ export interface RacerSlot {
   name?: string;
   /** Index into the track's grid slots; default: the racer's own index (pole first). */
   gridSlot?: number;
+  /** MK8 Mode's kart parts (MK-102). */
+  loadout?: Loadout;
 }
 
 export interface CreateRaceOptions {
@@ -84,6 +86,7 @@ export function createRace({
         kartType: racer.kartId,
         controller: racer.controller,
         ...(racer.name !== undefined ? { name: racer.name } : {}),
+        ...(racer.loadout ? { loadout: racer.loadout } : {}),
         ...place(slot.t, slot.lateral),
       };
     }),
