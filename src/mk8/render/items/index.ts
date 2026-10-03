@@ -11,11 +11,8 @@ import { itemSkins } from '../../../render/itemSkins';
 import { MK8_ITEM_BOX_MODEL, MK8_ITEM_SET, MK8_ITEMS } from '../../content/items';
 import bobomb from '../../content/items/bob-omb/render';
 import bulletBill from '../../content/items/bullet-bill/render';
-import coin from '../../content/items/coin/render';
-import crazy8 from '../../content/items/crazy-8/render';
 import fireFlower from '../../content/items/fire-flower/render';
 import goldenMushroom from '../../content/items/golden-mushroom/render';
-import piranhaPlant from '../../content/items/piranha-plant/render';
 import spinyShell from '../../content/items/spiny-shell/render';
 import superHorn from '../../content/items/super-horn/render';
 import tripleBanana from '../../content/items/triple-banana/render';
@@ -41,10 +38,6 @@ export const MK8_ITEM_VIEWS: readonly ItemView[] = [
   bobomb,
   fireFlower,
   bulletBill,
-  // MK-126.
-  piranhaPlant,
-  coin,
-  crazy8,
 ];
 
 /** Every pack model MK8 items use. */
