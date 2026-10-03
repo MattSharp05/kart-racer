@@ -247,6 +247,24 @@ export function mk8HornVsSpiny(seed: number): SimState {
   return state;
 }
 
+/**
+ * The Bob-omb (MK-114) on Sunny Circuit's straight: the player holding one; two karts parked either
+ * side of where a throw lands (20 m ahead, inside the blast) and one 12 m beyond it (outside).
+ */
+export function mk8Bobomb(seed: number): SimState {
+  // Past the item boxes, so they're behind the chase camera.
+  const state = mk8ItemsRace(seed, [spawn(20, 0), spawn(40, 4), spawn(40, -4), spawn(52, 0)]);
+  hold(state, 0, 'bob-omb', 1);
+  return state;
+}
+
+/** The Fire Flower (MK-114): the player holding one, a kart parked 30 m ahead in its line. */
+export function mk8FireFlower(seed: number): SimState {
+  const state = mk8ItemsRace(seed, [spawn(20, 0), spawn(50, 0)]);
+  hold(state, 0, 'fire-flower', tuning.mk8.fireShots);
+  return state;
+}
+
 /** MK-102's loadout scenarios: a heavy and a light MK8 kart (the extremes of the stat table). */
 export const LOADOUTS = {
   heavy: { racer: 'mk8-bowser', body: 'b-dasher', tires: 'slick-tires', glider: 'paper-glider' },
@@ -460,6 +478,20 @@ export const mk8Scenarios: Scenario[] = [
       'Super Horn vs Spiny Shell (MK-113): the player leads, holding a Super Horn, with a Spiny Shell flying in from 60 m behind. Press the item button while it hovers over the player or drops: the shockwave destroys it and the player drives on unhurt. Too early (out of reach) or too late (exploded) and the player is blown up.',
     defaultSeed: 1,
     setup: (seed) => ({ state: mk8HornVsSpiny(seed) }),
+  },
+  {
+    name: 'mk8-item-bobomb',
+    group: 'MK8 Mode',
+    description: `Bob-omb (MK-114): press the item button and it's thrown 20 m ahead in an arc (hold brake to drop it behind). It explodes ${tuning.mk8.bobombFuse} s after it's let go, or when a kart touches it: the two karts beside where it lands spin out and are thrown up; the kart 12 m beyond is untouched.`,
+    defaultSeed: 1,
+    setup: (seed) => ({ state: mk8Bobomb(seed) }),
+  },
+  {
+    name: 'mk8-item-fire-flower',
+    group: 'MK8 Mode',
+    description: `Fire Flower (MK-114): each press shoots a hopping fireball ahead (behind while braking) that bounces off walls and spins out the first kart it hits: the kart parked 30 m ahead. Up to ${tuning.mk8.fireShots} fireballs for ${tuning.mk8.fireTime} s from the first press; then the slot empties.`,
+    defaultSeed: 1,
+    setup: (seed) => ({ state: mk8FireFlower(seed) }),
   },
   ...(['heavy', 'light'] as const).map((which): Scenario => ({
     name: `mk8-loadout-${which}`,
