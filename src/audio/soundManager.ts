@@ -4,6 +4,7 @@ import { tuning } from '../sim/tuning';
 import type { KartState, SimEvent, SimState } from '../sim/types';
 import { Music } from './music';
 import { rumbleLevel } from './rumble';
+import { soundSkin } from './skin';
 import { cueFor } from './soundMap';
 import { Synth } from './synth';
 
@@ -158,10 +159,16 @@ export class SoundManager {
   }
 
   onEvents(events: SimEvent[], state: SimState, followId: number): void {
+    if (this.suspended) return;
     const synth = this.synth;
-    if (!synth || this.suspended) return;
     const me = state.karts[followId];
+    // A race's own sounds (MK-129: MK8's items) come first; they start on their own gesture.
+    // Muted, everything goes to the (silent) synth.
+    const skin = soundSkin();
+    const skinned = !this.muted && skin?.owns(state) ? skin : undefined;
     for (const event of events) {
+      if (skinned?.play(event, state, followId)) continue;
+      if (!synth) continue;
       const cue = cueFor(event, state.race.laps);
       if (!cue) continue;
       let volume = cue.volume ?? 1;
@@ -189,7 +196,11 @@ export class SoundManager {
 
     const me = state.karts[view.followId];
     const racing = !view.menu;
-    this.music?.play(!racing ? 'menu' : me && me.starTimer > 0 ? 'star' : 'race');
+    // The skin's own star music (MK-129) replaces our star loop: the race music rests meanwhile.
+    const skin = soundSkin();
+    const star = !!me && me.starTimer > 0;
+    const skinStar = star && !this.muted && skin?.owns(state) === true && skin.starMusic();
+    this.music?.play(!racing ? 'menu' : skinStar ? 'none' : star ? 'star' : 'race');
 
     // Roulette ticking while your item slot spins.
     if (racing && me && me.item.roulette > 0 && state.tick !== this.lastRouletteTick) {

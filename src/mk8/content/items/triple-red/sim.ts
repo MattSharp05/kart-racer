@@ -1,3 +1,4 @@
+import { redTactic } from '../../../../sim/ai/itemTactics';
 import { fireShell } from '../../../../sim/items/shell';
 import { escorts } from '../escort';
 import { mk8ItemSim } from '../sim';
@@ -14,5 +15,7 @@ export default mk8ItemSim({
   order: 320,
   uses: TRIPLE_USES,
   onUse: (kart, state, _events, input) => fireShell(kart, state, input, 'red'),
+  // AI (MK-129): one at a time whenever anyone is ahead, like a red shell; the rest guard it.
+  aiUse: redTactic,
   ...escorts('triple-red', 'orbit'),
 });

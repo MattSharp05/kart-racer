@@ -50,5 +50,29 @@ export const OURS = {
   phase: [0, 0, 2, 3, 4, 5, 5, 4, 4],
 } as const satisfies Record<string, readonly number[]>;
 
-/** MK8 Mode's whole odds table: MK8's items and ours, 9 rows (1st place's first). */
-export const MK8_ODDS: Readonly<Record<string, readonly number[]>> = { ...MK8_TABLE, ...OURS };
+/**
+ * The balance pass (MK-129, `ITEM_SET=mk8 pnpm item-balance`): MK8's columns scaled where our
+ * position rows hand an item out more or less often than MK8's distance rows would. Bullet Bill:
+ * MK8 gives it to drivers far behind, we give it to the last places however close the pack is,
+ * where it ploughed through the field for 45 % of all hits; at under a third of its weight the
+ * rest of those rows (Golden Mushroom, Star, Triple Mushrooms) fill in. The Spiny Shell and the
+ * Blooper: MK8 keeps them to a couple of mid-pack rows at 2.5 %, so whole runs of races went
+ * without one; a little more often.
+ */
+export const BALANCE: Readonly<Partial<Record<keyof typeof MK8_TABLE, number>>> = {
+  'bullet-bill': 0.3,
+  'spiny-shell': 1.6,
+  'ink-cloud': 3,
+};
+
+/** MK8 Mode's whole odds table: MK8's items (balanced) and ours, 9 rows (1st place's first). */
+export const MK8_ODDS: Readonly<Record<string, readonly number[]>> = {
+  ...MK8_TABLE,
+  ...Object.fromEntries(
+    Object.entries(BALANCE).map(([id, factor]) => [
+      id,
+      MK8_TABLE[id as keyof typeof MK8_TABLE].map((w) => w * factor),
+    ]),
+  ),
+  ...OURS,
+};
