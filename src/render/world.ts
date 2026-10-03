@@ -3,16 +3,17 @@ import { itemRendererClasses, type ItemRenderer } from '../content/items/render'
 import type { Game } from '../game/game';
 import type { RenderInfo } from '../game/testApi';
 import type { ScenarioView } from '../scenarios/registry';
+import { raycastMesh, surfaceMask } from '../sim/meshTrack';
 import { getTrack, trackGeometry, type TrackDef } from '../sim/track';
 import { DT, tuning } from '../sim/tuning';
 import type { InputFrame, SimState } from '../sim/types';
 import { AiDebugView } from './aiDebug';
-import { ChaseCamera, LineupCamera } from './camera';
+import { ChaseCamera, LineupCamera, type CameraClip } from './camera';
 import { Effects } from './effects';
 import { HazardRenderer } from './hazards';
 import { ItemBoxRenderer } from './itemBoxes';
 import { skinOf } from './itemSkins';
-import { KartRenderer, type KartPoseFilter } from './karts';
+import { KartRenderer, type DrawnFrame, type KartPoseFilter } from './karts';
 import { NameTags } from './nameTags';
 import { AdaptiveQuality } from './quality';
 import { CAMERA_FAR, CAMERA_NEAR, createScene, defaultLook } from './scene';
@@ -76,6 +77,19 @@ export class World {
   private readonly camera: THREE.PerspectiveCamera;
   private readonly lineup: LineupCamera;
   private readonly chaseCamera: ChaseCamera;
+  /** Keeps the chase camera inside a mesh track's walls and ceilings (MK-99). */
+  private readonly cameraClip: CameraClip = (from, direction, maxDistance) => {
+    const track = this.track.def;
+    if (track.kind !== 'mesh') return null;
+    return (
+      raycastMesh(track.collision, from, direction, maxDistance, CAMERA_BLOCKERS)?.distance ?? null
+    );
+  };
+  /** The followed kart's drawn facing and up (scratch, MK-99). */
+  private readonly followedFrame: DrawnFrame = {
+    forward: new THREE.Vector3(),
+    up: new THREE.Vector3(),
+  };
   private readonly itemBoxes: ItemBoxRenderer;
   /** The other people's names over their karts (online, MK-55). */
   private readonly nameTags: NameTags;
@@ -209,7 +223,18 @@ export class World {
     } else if (followed && kart && view === 'chase') {
       const speedRatio = Math.abs(kart.speed) / tuning.topSpeed[state.engineClass];
       // Paused: the camera holds still (shake and FOV kick freeze too).
-      this.chaseCamera.update(followed, speedRatio, game.paused ? 0 : frameSeconds, 0, snapCamera);
+      const seconds = game.paused ? 0 : frameSeconds;
+      // Mesh tracks (MK-99): follow the kart's own up, onto walls and ceilings.
+      if (kart.up && this.karts.frame(followId, this.followedFrame))
+        this.chaseCamera.followSurface(
+          followed,
+          this.followedFrame,
+          speedRatio,
+          seconds,
+          snapCamera,
+          this.cameraClip,
+        );
+      else this.chaseCamera.update(followed, speedRatio, seconds, 0, snapCamera);
     }
     const followedSpeed = kart ? Math.abs(kart.speed) / tuning.topSpeed[state.engineClass] : 0;
     this.effects.update(state, followId, followedSpeed, view);
@@ -274,6 +299,7 @@ export class World {
         lookDown: -this.camera.getWorldDirection(new THREE.Vector3()).y,
         trackInView: this.trackInView(),
         height: this.camera.position.y,
+        up: (({ x, y, z }) => ({ x, y, z }))(this.chaseCamera.upVector(new THREE.Vector3())),
       },
     };
   }
@@ -311,6 +337,9 @@ export class World {
     });
   }
 }
+
+/** What the chase camera can't see through on a mesh track: everything solid (not water). */
+const CAMERA_BLOCKERS = surfaceMask('road', 'offroad', 'boost', 'wall', 'antigrav', 'glide');
 
 /** A drawn track: its def, per-frame updates and the scene objects it added. */
 interface DrawnTrack {

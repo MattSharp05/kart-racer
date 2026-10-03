@@ -6,6 +6,7 @@ import { updateRace } from './race';
 import { afterRace, beforeMovement } from './raceFlow';
 import { updateItems } from './items';
 import { isRespawning, updateRespawns } from './respawn';
+import { updateMeshKart } from './surfaceKart';
 import { getTrack } from './track';
 import { DT } from './tuning';
 import {
@@ -58,6 +59,11 @@ export function step(
       continue;
     }
     const input = kart.spinTimer > 0 ? NEUTRAL_INPUT : (resolved[kart.id] ?? NEUTRAL_INPUT);
+    // Mesh tracks (MK-99, ADR 0011): surface-frame physics, so karts can drive walls and ceilings.
+    if (track.kind === 'mesh') {
+      updateMeshKart(kart, input, next.engineClass, track, dt, events, next.tick);
+      continue;
+    }
     const grip = hazards.length ? hazardGrip(hazards, next.tick, kart.position) : 1;
     const push = hazards.length ? hazardPush(hazards, next.tick, kart.position) : undefined;
     updateKart(kart, input, next.engineClass, track, dt, events, {

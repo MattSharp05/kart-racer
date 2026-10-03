@@ -1,0 +1,272 @@
+/* MK8 cup and course select (MK-119), in the mockup's positions: the 2×2 cup grid (150 tiles,
+   16 apart) from x 56, the 804-wide 2×2 course cards (226 tall) from x 420, both 116 from the
+   stage top. */
+
+/* `.mk8 .mk8-body.…`: wins over loading.css's unscoped `.mk8-body` (centred, its own padding),
+   which would otherwise shrink the cards; the kit's padding again. */
+.mk8 .mk8-body.mk8-cup,
+.mk8 .mk8-body.mk8-cload {
+  padding: calc(30 * var(--u)) max(calc(56 * var(--u)), env(safe-area-inset-right))
+    calc(16 * var(--u)) max(calc(56 * var(--u)), env(safe-area-inset-left));
+  overflow: visible;
+  text-align: left;
+}
+
+.mk8-cup {
+  display: grid;
+  grid-template-columns: auto calc(804 * var(--u));
+  justify-content: space-between;
+  justify-items: stretch;
+  align-content: start;
+  align-items: start;
+  gap: 0;
+}
+
+.mk8-cups {
+  display: grid;
+  grid-template-columns: repeat(2, auto);
+  gap: calc(16 * var(--u));
+}
+
+.mk8 .mk8-cup-tile {
+  width: max(var(--tap), calc(150 * var(--u)));
+  height: max(var(--tap), calc(150 * var(--u)));
+  border-radius: calc(20 * var(--u));
+}
+
+.mk8-cup-tile .mk8-art {
+  width: 84%;
+  height: 84%;
+}
+
+.mk8 .mk8-cup-tile.is-chosen {
+  background: linear-gradient(180deg, #ffe766, #ffb300);
+  box-shadow: 0 5px 0 #b26e00;
+}
+
+.mk8-cup-tile.is-locked .mk8-art {
+  filter: grayscale(1) brightness(0.75);
+}
+
+.mk8-cup-tile.is-locked:not(.is-selected) {
+  background: linear-gradient(180deg, #8d9bb4, #5d6c88);
+}
+
+.mk8-later {
+  position: absolute;
+  bottom: calc(8 * var(--u));
+  left: 50%;
+  padding: calc(1 * var(--u)) calc(8 * var(--u));
+  border-radius: calc(6 * var(--u));
+  background: #0009;
+  color: #fff;
+  font-size: max(10px, calc(13 * var(--u)));
+  font-weight: 800;
+  transform: translateX(-50%);
+}
+
+.mk8-cup-tile.is-refused {
+  animation: mk8-refuse 0.3s ease-in-out;
+}
+
+@keyframes mk8-refuse {
+  25% {
+    transform: translateX(-6px);
+  }
+
+  75% {
+    transform: translateX(6px);
+  }
+}
+
+/* Cup stand-ins (no pack): a coloured disc per cup. */
+.mk8-art-stand-in[data-cup='mushroom'] {
+  background: radial-gradient(circle at 40% 30%, #fff, #ff9b9f);
+  color: var(--mk8-red);
+}
+
+.mk8-art-stand-in[data-cup='flower'] {
+  background: radial-gradient(circle at 40% 30%, #fff, #ffc46b);
+}
+
+.mk8-art-stand-in[data-cup='star'] {
+  background: radial-gradient(circle at 40% 30%, #fff, #ffe766);
+}
+
+.mk8-art-stand-in[data-cup='special'] {
+  background: radial-gradient(circle at 40% 30%, #fff, #b9a2ff);
+}
+
+/* ---- course cards ---- */
+
+.mk8-courses {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: calc(16 * var(--u));
+}
+
+.mk8 .mk8-course {
+  position: relative;
+  height: max(var(--tap), calc(226 * var(--u)));
+  overflow: hidden;
+  border-radius: calc(16 * var(--u));
+  background: #000;
+  box-shadow: 0 5px 0 #8b97b4;
+  color: #fff;
+  text-align: left;
+  cursor: default;
+}
+
+.mk8-cup[data-phase='course'] .mk8-course {
+  cursor: pointer;
+}
+
+/* The selection frame needs the card unclipped: the art is clipped inside instead. */
+.mk8 .mk8-course.is-selected {
+  overflow: visible;
+}
+
+.mk8-course-pv {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  object-fit: cover;
+}
+
+.mk8-course-pv-stand-in {
+  display: block;
+  background: linear-gradient(160deg, #6fd0ff, #2d7fe0 55%, #3fae55 55%, #2b8a3e);
+}
+
+.mk8-course-pv-stand-in[data-course='waterpark'] {
+  background: linear-gradient(160deg, #8fe3ff, #23a6d9 55%, #2bd0c8 55%, #1789a6);
+}
+
+.mk8-course-pv-stand-in[data-course='canyon'] {
+  background: linear-gradient(160deg, #ffd6f0, #ff8fc8 55%, #d9a066 55%, #a8672f);
+}
+
+.mk8-course-pv-stand-in[data-course='ruins'] {
+  background: linear-gradient(160deg, #9fd7a3, #5d9e64 55%, #b7a27a 55%, #7d6a48);
+}
+
+.mk8-ag {
+  position: absolute;
+  top: calc(10 * var(--u));
+  left: calc(10 * var(--u));
+  padding: calc(2 * var(--u)) calc(8 * var(--u));
+  border-radius: calc(6 * var(--u));
+  background: #7a3cff;
+  font-size: max(10px, calc(13 * var(--u)));
+  font-weight: 800;
+}
+
+.mk8-course-map {
+  position: absolute;
+  top: calc(8 * var(--u));
+  right: calc(8 * var(--u));
+  box-sizing: border-box;
+  width: calc(84 * var(--u));
+  height: calc(84 * var(--u));
+  padding: calc(4 * var(--u));
+  border-radius: calc(12 * var(--u));
+  background: #fffd;
+  object-fit: contain;
+}
+
+/* No pack: a plain loop where the map goes. */
+.mk8-course-map-stand-in::after {
+  content: '';
+  position: absolute;
+  inset: 22%;
+  border: max(2px, calc(5 * var(--u))) solid var(--mk8-navy);
+  border-radius: 40% 50% 45% 35%;
+}
+
+.mk8-course-name {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  /* Room on the right for the Time Trial best. */
+  padding: calc(24 * var(--u)) max(64px, calc(100 * var(--u))) calc(8 * var(--u))
+    calc(14 * var(--u));
+  overflow: hidden;
+  border-radius: 0 0 calc(16 * var(--u)) calc(16 * var(--u));
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  background: linear-gradient(0deg, #000c, #0000);
+  font-size: max(13px, calc(24 * var(--u)));
+  font-weight: 900;
+}
+
+.mk8-course-best {
+  position: absolute;
+  right: calc(10 * var(--u));
+  bottom: calc(10 * var(--u));
+  color: #ffe766;
+  font-size: max(10px, calc(14 * var(--u)));
+  font-weight: 800;
+}
+
+.mk8-courses.is-locked .mk8-course {
+  background: linear-gradient(180deg, #8d9bb4, #5d6c88);
+}
+
+/* ---- course loading ---- */
+
+.mk8-cload {
+  display: grid;
+  justify-items: center;
+  align-content: start;
+  gap: calc(20 * var(--u));
+}
+
+.mk8-cload-pv {
+  display: block;
+  width: calc(608 * var(--u));
+  height: calc(324 * var(--u));
+  border-radius: calc(20 * var(--u));
+  box-shadow: 0 8px 0 var(--mk8-shadow);
+  object-fit: cover;
+}
+
+.mk8-cload-bar {
+  position: relative;
+  width: calc(608 * var(--u));
+  height: max(10px, calc(22 * var(--u)));
+  overflow: hidden;
+  border-radius: calc(11 * var(--u));
+  background: #2c3a6e;
+}
+
+.mk8-cload-bar i {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  border-radius: inherit;
+  background: linear-gradient(180deg, #ffe766, #ffb300);
+  transition: width 0.2s ease-out;
+}
+
+.mk8-cload-label {
+  margin: 0;
+  font-size: max(14px, calc(22 * var(--u)));
+}
+
+.mk8-cload-label.is-error {
+  color: var(--mk8-red);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mk8-cup-tile.is-refused {
+    animation: none;
+  }
+
+  .mk8-cload-bar i {
+    transition: none;
+  }
+}

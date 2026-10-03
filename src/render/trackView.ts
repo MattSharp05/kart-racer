@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { trackViews } from '../content/tracks/render';
 import { trackGeometry, type TrackDef } from '../sim/track';
 import { CAMERA_FAR, CAMERA_NEAR } from './scene';
+import { createCollisionMeshView } from './meshTrackView';
 import { createScenery } from './scenery';
 import { applyTheme, createNightLamps, trackTheme } from './theme';
 import { createSplineTrackMesh } from './trackMesh';
@@ -17,8 +18,12 @@ export type TrackViewUpdate = (ticks: number, camera: THREE.Vector3) => void;
  * flat walled test pad. Returns the per-frame update for tracks with moving scenery (MK-59).
  */
 export function createTrackView(scene: THREE.Scene, track: TrackDef): TrackViewUpdate | undefined {
-  // Mesh tracks (ADR 0010) are drawn from the course GLB by the MK8 renderer, not generated here.
-  if (track.kind === 'mesh') return undefined;
+  // Mesh tracks (ADR 0010): the collision mesh by surface (MK-99) until the MK8 course renderer
+  // draws the course GLB.
+  if (track.kind === 'mesh') {
+    scene.add(createCollisionMeshView(track.collision));
+    return undefined;
+  }
   if (track.kind === 'spline') {
     const geometry = trackGeometry(track);
     const theme = trackTheme(track);
