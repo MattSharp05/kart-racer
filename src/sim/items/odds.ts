@@ -1,4 +1,4 @@
-import { items, ODDS_ROWS } from '../../content/items';
+import { items, itemSets, ODDS_ROWS } from '../../content/items';
 import type { ItemId } from '../types';
 
 /**
@@ -13,11 +13,30 @@ export function oddsTable(): Record<ItemId, number>[] {
   );
 }
 
+/** Which of `rows` odds rows a race position among `racers` karts uses (spread evenly). */
+export function rowIndex(position: number, racers: number, rows: number): number {
+  const last = rows - 1;
+  const row = racers <= 1 ? 0 : Math.round(((position - 1) / (racers - 1)) * last);
+  return Math.min(last, Math.max(0, row));
+}
+
 /** Odds row for a race position among `racers` karts (positions are spread over the 8 rows). */
 export function oddsRow(position: number, racers: number): Record<ItemId, number> {
-  const last = ODDS_ROWS - 1;
-  const row = racers <= 1 ? 0 : Math.round(((position - 1) / (racers - 1)) * last);
-  return oddsTable()[Math.min(last, Math.max(0, row))] ?? {};
+  return oddsTable()[rowIndex(position, racers, ODDS_ROWS)] ?? {};
+}
+
+/** A registered item set's odds row (MK-103) for a race position among `racers` karts. */
+export function itemSetOddsRow(
+  setId: string,
+  position: number,
+  racers: number,
+): Record<ItemId, number> {
+  const odds = itemSets.get(setId).odds;
+  const rows = Math.max(0, ...Object.values(odds).map((row) => row.length));
+  const row = rowIndex(position, racers, rows);
+  return Object.fromEntries(
+    Object.entries(odds).map(([item, weights]) => [item, weights[row] ?? 0]),
+  );
 }
 
 /**

@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import type { ShellEntity, SimState } from '../sim/types';
+import { skinDraws } from './itemSkins';
 
 const MAX = 16;
 
@@ -40,7 +41,9 @@ export class ShellRenderer {
     const shells = state.entities.filter((e): e is ShellEntity => e.kind === 'shell');
     for (const colour of ['green', 'red'] as const) {
       const mesh = this.meshes[colour];
-      const mine = shells.filter((s) => s.colour === colour).slice(0, MAX);
+      // An item skin's shells (MK-103: MK8's) replace these; the target markers stay.
+      const skinned = skinDraws(state, `shell:${colour}`);
+      const mine = skinned ? [] : shells.filter((s) => s.colour === colour).slice(0, MAX);
       mesh.count = mine.length;
       mine.forEach((shell, i) => {
         this.dummy.position.set(shell.position.x, shell.position.y + 0.15, shell.position.z);

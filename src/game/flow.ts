@@ -320,6 +320,7 @@ export class Flow {
       default:
         // A race from a scenario link counts against a test leaderboard only (`?lb=mock`).
         this.ranked = this.leaderboard.test;
+        if (launch.state.itemSet !== undefined) this.prepareMk8Race();
         if (launch.state.phase === 'finished') {
           this.resultsTimer = window.setTimeout(this.showResults, LAUNCH_RESULTS_DELAY_MS);
         }
@@ -392,6 +393,30 @@ export class Flow {
         });
       });
     void trackLoad(open);
+  }
+
+  /**
+   * A race with MK8 items (MK-103: the `mk8-items-*` scenarios): MK8 Mode's chunk registers the
+   * item set and loads the pack's item models first, while the race waits paused.
+   */
+  private prepareMk8Race(): void {
+    const game = this.session.game;
+    const wasPaused = game.paused;
+    game.pause();
+    // Without the item set the race can't hand out items, so it stays paused if this fails.
+    const prepare = import('../mk8')
+      .then((mk8) => mk8.prepareRace())
+      .then(() => {
+        // Not if the player paused (a menu, the rotate prompt) while it loaded.
+        if (!wasPaused && this.screens.current === 'none' && !this.rotatePrompt.shown) {
+          game.resume();
+        }
+        this.world.markChanged();
+      })
+      .catch((e: unknown) => {
+        showErrorBanner("Couldn't load MK8 Mode", [e instanceof Error ? e.message : String(e)]);
+      });
+    void trackLoad(prepare);
   }
 
   /** Nickname and colour (MK-42): on first launch (no way back), or edited from the title. */

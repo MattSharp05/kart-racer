@@ -1,10 +1,11 @@
+import { itemSets } from '../../content/items/registries';
 import { hazardWarning, trackHazards } from '../../sim/hazards';
 import { availableItems } from '../../sim/items';
 import { homingOn } from '../../sim/items/entities';
 import { positionOf } from '../../sim/race';
 import { raceTime } from '../../sim/raceFlow';
 import { getTrack } from '../../sim/track';
-import type { ItemId, KartItem, SimEvent, SimState } from '../../sim/types';
+import type { ItemId, ItemSlot, KartItem, SimEvent, SimState } from '../../sim/types';
 import { formatTime, ordinal } from './format';
 import { iconShowsUses, itemIcon, itemName } from './icons';
 import { Minimap } from './minimap';
@@ -19,6 +20,13 @@ function div(className: string): HTMLDivElement {
   return el;
 }
 
+/** The icons the roulette cycles: the race's item set's (MK-103), once it is registered. */
+function rouletteItems(state: SimState): ItemId[] {
+  return state.itemSet !== undefined && itemSets.has(state.itemSet)
+    ? availableItems(state.itemSet)
+    : availableItems();
+}
+
 /**
  * The race HUD (MK-24): lap top-left, timer + last lap top-right, item slot top-centre, big
  * position bottom-right, minimap bottom-left, and centre banners (countdown, GO, FINAL LAP,
@@ -31,6 +39,8 @@ export class Hud {
   private readonly timerMain = div('hud-time');
   private readonly lastLap = div('hud-last-lap');
   private readonly item = div('hud-item');
+  /** The second slot (MK-103), in races that have one (MK8). */
+  private readonly item2 = div('hud-item2');
   private readonly position = div('hud-position');
   private readonly centre = div('hud-centre');
   /** An online race still connecting (MK-73): who it waits for, in place of the countdown. */
@@ -55,6 +65,7 @@ export class Hud {
     this.timer.append(this.timerMain, this.lastLap);
     this.wrongWay.textContent = 'WRONG WAY';
     this.incoming.hidden = true;
+    this.item2.hidden = true;
     // Outside the kart HUD: a client has no kart until the host's Start arrives.
     this.waitingLine.hidden = true;
     document.body.append(this.waitingLine);
@@ -62,6 +73,7 @@ export class Hud {
       this.lap,
       this.timer,
       this.item,
+      this.item2,
       this.incoming,
       this.position,
       this.centre,
@@ -159,18 +171,20 @@ export class Hud {
     }
     if (now > this.centreUntil) this.show(this.centre, false);
 
-    this.updateItem(kart.item, now);
+    const roulette = () => rouletteItems(state);
+    this.updateItem(kart.item, now, roulette);
+    this.updateSecondSlot(kart.item.second, now, roulette);
     this.updateIncoming(state, kart.id);
     this.minimap.update(state, kart.id);
     this.screenEffects.update(kart, now);
   }
 
   /** Item slot: cycles icons during the roulette, then shows the held item. */
-  private updateItem(slot: KartItem, now: number): void {
+  private updateItem(slot: KartItem, now: number, roulette: () => ItemId[]): void {
     let item: ItemId | null = null;
     let rolling = false;
     if (slot.roulette) {
-      const all = availableItems();
+      const all = roulette();
       item = all[Math.floor(now / 90) % all.length] ?? null;
       rolling = true;
     } else if (slot.held) {
@@ -190,6 +204,23 @@ export class Hud {
     this.item.dataset.uses = ready ? String(slot.uses) : '';
     this.set(this.item, item ? itemIcon(item, ready ? slot.uses : undefined) + hint + uses : '');
     this.item.title = item && !rolling ? itemName(item) : '';
+  }
+
+  /** Slot 2 (MK-103): the same, smaller, with no key hint; hidden in one-slot races. */
+  private updateSecondSlot(
+    slot: ItemSlot | undefined,
+    now: number,
+    roulette: () => ItemId[],
+  ): void {
+    this.show(this.item2, slot !== undefined);
+    if (!slot) return;
+    const rolling = slot.roulette > 0;
+    const all = rolling ? roulette() : [];
+    const item = rolling ? (all[Math.floor(now / 90) % all.length] ?? null) : slot.held;
+    this.item2.classList.toggle('rolling', rolling);
+    this.item2.dataset.item = rolling ? 'roulette' : (item ?? '');
+    this.set(this.item2, item ? itemIcon(item, rolling ? undefined : slot.uses) : '');
+    this.item2.title = item && !rolling ? itemName(item) : '';
   }
 
   /** The incoming warning: the icon of each item chasing the kart, with a blinking "!". */

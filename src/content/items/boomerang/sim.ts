@@ -189,6 +189,15 @@ export default {
     const backwards = input.brake > 0 && input.throttle === 0;
     throwBoomerang(kart, state, first ? 1 : THROWS, backwards);
   },
+  // Two-slot races (MK-103): slot 1 waits for the first throw to come back to be caught.
+  keepsSlot: (kart, state) =>
+    state.entities.some(
+      (e) =>
+        e.kind === 'item' &&
+        e.ownerId === kart.id &&
+        (e.spec === 'boomerang' || e.spec === 'boomerang-back') &&
+        throwNumber(e) === 1,
+    ),
   // Keeps a caught boomerang's mark while it's held.
   onHoldTick: (kart) => {
     const caught = getEffect(kart, CAUGHT);

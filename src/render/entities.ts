@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { entitySpecs, itemEffects } from '../content/items/registries';
 import { itemViews } from '../content/items/views';
 import type { ItemEntity, KartEffect, SimState } from '../sim/types';
+import { skinDraws } from './itemSkins';
 
 /** The default look of an entity whose item has no `entityModel`: a small bright ball. */
 function defaultModel(): THREE.Object3D {
@@ -39,6 +40,8 @@ export class ItemEntityRenderer {
     const seen = new Set<number>();
     for (const e of state.entities) {
       if (e.kind !== 'item') continue;
+      // An item skin draws this item's entities (MK-103: MK8's boomerang).
+      if (skinDraws(state, `entity:${entitySpecs.get(e.spec).item}`)) continue;
       seen.add(e.id);
       let model = this.entities.get(e.id);
       if (!model) {

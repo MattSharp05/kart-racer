@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, it } from 'vitest';
+import { itemSets } from '../content/items';
 import { racers } from '../content/racers';
 import { tracks } from '../content/tracks';
+import { MK8_ITEM_SET } from './content/items';
 import { MK8_CONTENT, registerMk8Content } from './register';
 
 describe('MK8 content registration (MK-97)', () => {
@@ -19,10 +21,16 @@ describe('MK8 content registration (MK-97)', () => {
     expect(racers.get('mk8-fixture')).toBe(racer);
   });
 
-  it('registers nothing yet: the course, racer and item tickets add to the lists', () => {
+  it('registers no courses or racers yet: their tickets add to the lists', () => {
     const before = [tracks.ids(), racers.ids()];
     registerMk8Content();
     expect([tracks.ids(), racers.ids()]).toEqual(before);
     expect(MK8_CONTENT.tracks).toEqual([]);
+  });
+
+  it('registers the mk8 item set (MK-103), once', () => {
+    registerMk8Content();
+    registerMk8Content();
+    expect(itemSets.get(MK8_ITEM_SET).slots).toBe(2);
   });
 });
