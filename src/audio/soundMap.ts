@@ -127,6 +127,10 @@ export function cueFor(event: SimEvent, laps = 3): SoundCue | null {
       return event.airTime > 0.3
         ? { id: 'land', scope: 'player', kartId: event.kartId, volume: Math.min(1, event.airTime) }
         : null;
+    case 'glideOpen':
+    case 'glideClose':
+      // MK8 Mode's own sounds play these (the original game has no gliders).
+      return null;
     case 'itemFx': {
       // Registered by the item's view (`sounds: { [fx]: recipe }`); silent without one.
       const id = `${event.item}.${event.fx}` as const;

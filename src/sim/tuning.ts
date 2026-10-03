@@ -201,6 +201,42 @@ export const tuning = {
     /** In the air longer than this, a kart has fallen off the course, s. */
     fallSeconds: 3,
     /**
+     * Gliding (MK-106, `sim/glide.ts`): off a glide ramp the kart flies on its glider. Gravity is
+     * cut and the wing lifts in proportion to speed; vertical drag gives it a steady sink rate.
+     * Throttle dives (nose down: sinks faster, gains speed), brake floats (nose up: sinks slower,
+     * loses speed). Speeds scale with the kart's top speed, so every class glides the same shape.
+     */
+    glide: {
+      /** The glider unfolds over this long on launch (and folds as fast on landing), s. */
+      openSeconds: 0.3,
+      /** Gravity while gliding, as a share of `tuning.gravity`. */
+      gravityScale: 0.9,
+      /** Upward lift at top speed, as a share of `tuning.gravity` (proportional to speed). */
+      lift: 0.3,
+      /** Vertical speed decays at this rate, 1/s: a steady sink instead of a fall. */
+      verticalDrag: 1.2,
+      /** Diving adds this much downward pull (share of `tuning.gravity`) at full stick… */
+      diveSink: 0.7,
+      /** …and gains speed at this share of top speed per second, up to `diveMaxSpeed` × top speed. */
+      diveAccel: 0.25,
+      diveMaxSpeed: 1.15,
+      /** Floating lifts this much more (share of `tuning.gravity`) at full stick… */
+      floatLift: 0.35,
+      /** …and loses speed at this share of top speed per second, down to `minSpeed` × top speed. */
+      floatDrag: 0.06,
+      minSpeed: 0.6,
+      /** Pitch eases towards the stick at this rate, 1/s. */
+      pitchRate: 5,
+      /** Turn rate while gliding, as a share of `tuning.maxYawRate` (× the kart's handling). */
+      turnRate: 0.5,
+      /** Sideways slip dies away at this rate, 1/s: turns carry the flight round. */
+      grip: 4,
+      /** The kart levels out (up towards +Y) at this rate while gliding, 1/s. */
+      upTurnRate: 6,
+      /** A glide this long without landing counts as falling off the course, s. */
+      fallSeconds: 8,
+    },
+    /**
      * How a loadout's MK8 stats (0.75–5.75, `mk8/content/stats.ts`) become physics (MK-102), like
      * `stats` does for our 1–5 racers: each point away from `neutral` changes a number by its share.
      */

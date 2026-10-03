@@ -23,6 +23,7 @@ import {
   updateAirState,
   updateForwardSpeed,
 } from './kart';
+import { endGlide, glideStep, launchesGlide, startGlide } from './glide';
 import { kartPhysics } from './kartStats';
 import {
   add,
@@ -228,7 +229,8 @@ export function updateMeshKart(
   const groundedBefore = kart.grounded;
   handleDriftButton(kart, input, forwardSpeed, topSpeed, events);
   // A hop goes along the kart's up (`handleDriftButton` sets a world-Y speed for flat tracks).
-  if (groundedBefore && !kart.grounded) upSpeed = tuning.hopVelocity;
+  const hopped = groundedBefore && !kart.grounded;
+  if (hopped) upSpeed = tuning.hopVelocity;
   const under = kart.grounded ? meshGroundAt(track.collision, kart.position, up, DRIVABLE) : null;
   const effect = surfaceEffect(DRIVES_LIKE[under?.surface ?? 'road']);
   if (driftPressed && !kart.grounded) tryTrick(kart, events);
@@ -291,7 +293,23 @@ export function updateMeshKart(
   const stuck = kart.antigrav === true && (wasGrounded || kart.airTime < m.antigravAirHold);
   let gravityDir: Vec3 = stuck ? scale(up, -1) : { ...DOWN };
   let velocity = add(add(scale(forward, newSpeed), slide), scale(up, upSpeed));
-  if (!wasGrounded) {
+  const gliding = !wasGrounded && kart.glide !== undefined;
+  if (gliding) {
+    // On the glider (MK-106): its own flight replaces the steering, speed and gravity above.
+    const flight = glideStep(
+      kart,
+      input,
+      kart.forward ?? forward,
+      up,
+      topSpeed,
+      physics.handling,
+      dt,
+    );
+    velocity = flight.velocity;
+    forward = flight.forward;
+    up = flight.up;
+    gravityDir = { ...DOWN };
+  } else if (!wasGrounded) {
     velocity = add(velocity, scale(gravityDir, tuning.gravity * dt));
     if (!stuck) {
       // In the air, ease back upright (rolling about the nose if upside down).
@@ -345,6 +363,11 @@ export function updateMeshKart(
     else if (fit.plain) kart.antigrav = false;
     gravityDir = kart.antigrav ? scale(up, -1) : { ...DOWN };
   }
+  // Leaving a glide ramp (not hopping on it) opens the glider; landing folds it.
+  if (wasGrounded && !kart.grounded && !hopped) {
+    if (launchesGlide(track.route, kart, launchPoints(track, kart, under?.surface, forward, up)))
+      startGlide(kart, events);
+  } else if (kart.grounded) endGlide(kart, events);
   // Launch speed for tricks: how fast it leaves the ground against gravity.
   updateAirState(kart, wasGrounded, -dot(velocity, gravityDir), dt, events);
   if (kart.grounded && fit?.surface === 'boost') hitBoostPad(kart, events);
@@ -361,6 +384,8 @@ export function updateMeshKart(
     wallImpact = Math.max(wallImpact, hit.impact);
   }
   if (wallImpact > tuning.driftWallCancel) cancelDrift(kart, events);
+  // A wall ends a glide: the kart drops with normal gravity.
+  if (wallImpact > 0 && !kart.grounded) endGlide(kart, events);
 
   kart.up = up;
   kart.forward = forward;
@@ -368,6 +393,24 @@ export function updateMeshKart(
   kart.heading = headingOf(forward, kart.heading);
   kart.speed = dot(kart.velocity, forward);
   return kart;
+}
+
+/**
+ * Where a kart leaving the ground left from (`launchesGlide`): its centre, with the surface under
+ * it at the start of the tick, and its rear axle (past a ramp's lip only the rear wheels are on it).
+ */
+function launchPoints(
+  track: MeshTrackDef,
+  kart: KartState,
+  under: MeshSurface | undefined,
+  forward: Vec3,
+  up: Vec3,
+): { position: Vec3; surface: MeshSurface | undefined }[] {
+  const rear = sub(kart.position, scale(forward, tuning.mk8.wheelForward));
+  return [
+    { position: kart.position, surface: under },
+    { position: rear, surface: meshGroundAt(track.collision, rear, up, DRIVABLE)?.surface },
+  ];
 }
 
 /** `forward` made perpendicular to `up` again; if it points along `up`, any facing in the plane. */
