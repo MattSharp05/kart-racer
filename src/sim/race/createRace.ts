@@ -1,3 +1,4 @@
+import { itemSets } from '../../content/items';
 import type { KartId } from '../data/karts';
 import { rngRange, seedRng, type RngHolder } from '../rng';
 import { createSimState } from '../state';
@@ -24,6 +25,8 @@ export interface CreateRaceOptions {
   itemsOn: boolean;
   seed: number;
   laps?: number;
+  /** A registered item set (MK-103: `mk8`, with its slot count); default the original game's. */
+  itemSet?: string;
   /**
    * Setup randomness (AI personalities). Defaults to a stream derived from `seed`; callers that
    * already drew from that stream (grid shuffle, kart picks) pass it on so the draws continue.
@@ -47,6 +50,7 @@ export function createRace({
   itemsOn,
   seed,
   laps,
+  itemSet,
   rng = raceSetupRng(seed),
 }: CreateRaceOptions): SimState {
   const track = getTrack(trackId);
@@ -60,6 +64,7 @@ export function createRace({
     engineClass,
     itemsOn,
     ...(laps !== undefined ? { laps } : {}),
+    ...(itemSet !== undefined ? { itemSet, itemSlots: itemSets.get(itemSet).slots } : {}),
     karts: racers.map((racer, i) => {
       const slot = slots[racer.gridSlot ?? i];
       if (!slot) throw new Error(`createRace: ${trackId} has no grid slot ${racer.gridSlot ?? i}`);

@@ -250,6 +250,19 @@ export interface KartItem {
   roulette: number;
   /** Whether the item button was held last tick (to use items on press, not hold). */
   buttonHeld: boolean;
+  /**
+   * The second slot (MK-103), in races whose item set has two (MK8): a box hit while slot 1 is
+   * taken fills it; when slot 1 empties, it moves up. Absent in one-slot races.
+   */
+  second?: ItemSlot;
+}
+
+/** What one item slot holds (MK-103: the second slot). */
+export interface ItemSlot {
+  held: ItemId | null;
+  uses: number;
+  /** Seconds left of this slot's roulette spin (0 = not spinning). */
+  roulette: number;
 }
 
 /** The whole simulation state. Plain JSON only: no classes, Maps or functions. */
@@ -264,6 +277,8 @@ export interface SimState {
   /** Kart ids in race order, leader first (MK-11). */
   positions: number[];
   race: RaceInfo;
+  /** The registered item set this race hands out (MK-103: `mk8`); absent = the original game's. */
+  itemSet?: string;
 }
 
 export type SimEvent =
@@ -278,7 +293,8 @@ export type SimEvent =
   | { type: 'finish'; kartId: number; position: number; time: number }
   | { type: 'respawn'; kartId: number }
   | { type: 'itemBoxHit'; kartId: number; boxId: number }
-  | { type: 'itemGranted'; kartId: number; item: ItemId }
+  /** `slot: 2`: the roulette of a two-slot race's second slot (MK-103). */
+  | { type: 'itemGranted'; kartId: number; item: ItemId; slot?: 2 }
   | { type: 'itemUsed'; kartId: number; item: ItemId }
   | { type: 'kartHit'; kartId: number; by: number; kind: HitKind }
   | { type: 'star'; kartId: number }

@@ -75,7 +75,34 @@ export function registerItem(item: ItemContent): ItemContent {
   return item;
 }
 
-/** Removes an item with its effects and entities (tests that register throwaway items). */
+/**
+ * An item set (MK-103): which items a race hands out and how many slots a kart has. Races without
+ * `SimState.itemSet` use the original game's items (each item's own `odds`); MK8 Mode registers
+ * `mk8` (`src/mk8/content/items/`) with MK8's table and a second slot.
+ */
+export interface ItemSetContent {
+  id: string;
+  /**
+   * Chance of each item per odds row, first place's row first. Every row has the same length;
+   * weights needn't sum to 1 (the roulette divides by the row's total), and items not registered
+   * yet are left out and the rest renormalised.
+   */
+  odds: Readonly<Record<string, readonly number[]>>;
+  /** Item slots per kart: 2 = the box fills slot 2 while slot 1 is taken. */
+  slots: 1 | 2;
+}
+
+/** Every item set but the original game's (which is the items' own `odds`). */
+export const itemSets = new Registry<ItemSetContent>('item set');
+
+/** Registers an item set after checking its odds rows all have the same length. */
+export function registerItemSet(set: ItemSetContent): ItemSetContent {
+  const lengths = new Set(Object.values(set.odds).map((row) => row.length));
+  if (lengths.size > 1) throw new Error(`Item set ${set.id}: odds rows differ in length`);
+  return itemSets.register(set);
+}
+
+/** Removes an item (tests that register throwaway items). */
 export function unregisterItem(id: string): void {
   if (!items.has(id)) return;
   const item = items.get(id);
