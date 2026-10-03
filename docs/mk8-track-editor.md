@@ -21,6 +21,7 @@ The real courses need the local MK8 pack (ADR 0009: never committed or deployed)
 
 - `materials.ts` only takes effect when the pack is rebuilt (`pnpm mk8:build`), so the game also corrects a course's surfaces from its route when it registers the course (`src/sim/routeSurfaces.ts`): road inside an _Anti-gravity section_ zone becomes anti-gravity, level ground beside the road offroad, upright faces beside it and anything hanging low over it walls. Route widths should follow the road's real edges for that (MK-105).
 - A _Glide ramp_ zone launches karts level off its lip until gliders arrive (MK-106); put it over the glide board.
+- A glide that has to reach higher ground (MK-123: Sweet Sweet Canyon's, from the tunnel up to the giant cake) needs a `landing` on its glide zone: the lap fraction it is carried to (`tuning.mk8.glideAim`). The editor keeps it; set it in `route.ts` (the panel doesn't show it yet). Cover the flight with a respawn range that puts karts back past the landing.
 
 - Unsaved work is kept per course in the browser (it survives a reload); _Discard draft_ goes back to the committed file (undoable).
 - Camera: drag to orbit, right-drag to pan, wheel to zoom, WASD to fly and Q/E down/up (Shift is faster), F frames the whole course.

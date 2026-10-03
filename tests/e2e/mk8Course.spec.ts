@@ -60,6 +60,8 @@ test.describe('MK8 course racing (MK-105)', () => {
     'mk8-stadium-free',
     'mk8-stadium-antigrav',
     'mk8-stadium-final-lap',
+    'mk8-canyon-race',
+    'mk8-canyon-glide',
   ]) {
     test(`${name} without a pack shows "MK8 pack not installed"`, async ({ page }) => {
       await loadScenario(page, name);

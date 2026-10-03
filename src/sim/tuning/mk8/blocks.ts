@@ -9,3 +9,5 @@ export { mk8StatMapTuning } from './statMap';
 export { mk8SurfaceKartTuning } from './surfaceKart';
 export { mk8BulletBillTuning } from './bulletBill';
 export { mk8UnderwaterTuning } from './underwater';
+export { mk8GlideAimTuning } from './glideAim';
+export { mk8WallFloorTuning } from './wallFloor';

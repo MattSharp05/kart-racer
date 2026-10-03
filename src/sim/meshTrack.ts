@@ -258,11 +258,33 @@ export interface WallContact {
   contacts: number;
 }
 
+/** The highest corner of triangle `o` (offset into `p`) above (cx, cy, cz) along `up`, m. */
+function topAlong(
+  p: Float32Array,
+  o: number,
+  cx: number,
+  cy: number,
+  cz: number,
+  up: Vec3,
+): number {
+  let top = -Infinity;
+  for (let k = 0; k < 9; k += 3) {
+    const h =
+      ((p[o + k] ?? 0) - cx) * up.x +
+      ((p[o + k + 1] ?? 0) - cy) * up.y +
+      ((p[o + k + 2] ?? 0) - cz) * up.z;
+    if (h > top) top = h;
+  }
+  return top;
+}
+
 /**
  * Walls (surfaces in `mask`) within `radius` of `position`, resolved in the road plane (walls push
  * sideways, never lift a kart off the road, so the part along `up` is dropped). Each touching
  * triangle adds only what the push so far doesn't already cover along its normal, so two triangles
- * of one flat wall push once. `null` when nothing touches.
+ * of one flat wall push once. A wall triangle whose highest corner is more than `below` under
+ * `position` along `up` doesn't push (MK-123: a step the kart rolls over, like the face under a
+ * glide ramp's lip; a tall barrier always pushes, banked or not). `null` when nothing touches.
  */
 export function wallContact(
   mesh: CollisionMesh,
@@ -270,6 +292,7 @@ export function wallContact(
   radius: number,
   up: Vec3,
   mask = WALL_SURFACES,
+  below = Infinity,
 ): WallContact | null {
   const cx = position.x;
   const cy = position.y;
@@ -303,6 +326,8 @@ export function wallContact(
           let nz = cz - closest[2];
           const dist = Math.sqrt(nx * nx + ny * ny + nz * nz);
           if (dist >= radius || dist < PARALLEL_EPSILON) continue;
+          // A wall whose top is more than `below` under the centre is a step the kart rolls over.
+          if (below !== Infinity && topAlong(p, tri * 9, cx, cy, cz, up) < -below) continue;
           // In the road plane only.
           const along = nx * up.x + ny * up.y + nz * up.z;
           nx -= up.x * along;
