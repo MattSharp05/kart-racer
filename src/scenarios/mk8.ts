@@ -358,6 +358,30 @@ export const mk8Scenarios: Scenario[] = [
     defaultSeed: 1,
     setup: (seed) => ({ state: attractMode(seed), screen: 'mk8UiMode' }),
   },
+  {
+    name: 'mk8-ui-cc',
+    group: 'MK8 Mode',
+    description:
+      'MK8 engine class (MK-119): the 50/100/150/200cc shields (200cc NEW) for a Grand Prix, 150cc selected. OK goes on to the cup select; Back walks back through character select (a stand-in for now) and the mode select. The real shields with a local pack, stand-ins otherwise.',
+    defaultSeed: 1,
+    setup: (seed) => ({ state: attractMode(seed), screen: 'mk8UiCc' }),
+  },
+  {
+    name: 'mk8-ui-cup',
+    group: 'MK8 Mode',
+    description:
+      'MK8 cup select for a 150cc Grand Prix (MK-119): the Mushroom Cup and its 4 course cards (preview, map, anti-gravity tag, Time Trial best "—"); Flower, Star and Special Cups locked ("Later"). OK on the Mushroom Cup loads Mario Kart Stadium (our Sunny Circuit stands in until it is drivable) and starts the race.',
+    defaultSeed: 1,
+    setup: (seed) => ({ state: attractMode(seed), screen: 'mk8UiCup' }),
+  },
+  {
+    name: 'mk8-ui-course',
+    group: 'MK8 Mode',
+    description:
+      'MK8 cup and course select for a 150cc VS Race (MK-119): OK on the Mushroom Cup moves the cursor to its courses (roulette sound on each move); OK on a course loads it and starts the race on it (our tracks stand in until the MK8 courses are drivable). Back returns to the cups.',
+    defaultSeed: 1,
+    setup: (seed) => ({ state: attractMode(seed), screen: 'mk8UiCourse' }),
+  },
   ...(
     [
       [

@@ -28,6 +28,8 @@ export interface RaceOptions {
   playerKart?: KartId;
   /** The track (MK-50 track select); Sunny Circuit by default. */
   trackId?: string;
+  /** A registered item set (MK-119: MK8 Mode's races use `mk8`); the original game's by default. */
+  itemSet?: string;
 }
 
 /**
@@ -43,6 +45,7 @@ export function sunnyRace(seed: number, options: RaceOptions | number = {}): Sim
     engineClass = 100,
     playerKart = 'maple',
     trackId = sunnyCircuit.id,
+    itemSet,
   } = typeof options === 'number' ? { karts: options } : options;
   const rng = raceSetupRng(seed);
   const playerSlot = ai && karts >= 5 ? rngInt(rng, 4, Math.min(7, karts - 1)) : 0;
@@ -62,6 +65,7 @@ export function sunnyRace(seed: number, options: RaceOptions | number = {}): Sim
     itemsOn: true,
     seed,
     rng,
+    ...(itemSet !== undefined ? { itemSet } : {}),
   });
 }
 

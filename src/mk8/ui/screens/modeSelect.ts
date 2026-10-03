@@ -1,8 +1,11 @@
 // MK8 mode select (MK-116, the approved mockup's screen 3): Grand Prix, VS Race, Time Trial and
 // Online as slanted tiles, the selected one's art in the side panel. OK records the mode in the
-// flow and goes on to character select; Back returns to the title.
+// flow and goes on to character select (a stand-in until its ticket, MK-119: OK there goes on to
+// the engine class); Back returns to the title.
 import { art, Menu, menuScreen, panel, wideTile } from '../kit';
+import { menuAction } from '../kit/nav';
 import type { Mk8ScreenFactory } from '../stack';
+import { engineClass } from './engineClass';
 import { MK8_MODES, modeInfo, type Mk8Context, type Mk8GameMode } from './session';
 import './modeSelect.css';
 
@@ -39,7 +42,7 @@ export function modeSelect(ctx: Mk8Context): Mk8ScreenFactory {
       onConfirm: (index) => {
         const mode = MK8_MODES[index]?.id ?? 'grand-prix';
         ctx.flow.mode = mode;
-        stack.push(nextScreen(mode));
+        stack.push(characterStandIn(ctx));
       },
     });
     body.append(div('mk8-modes-list', ...tiles), side);
@@ -48,23 +51,41 @@ export function modeSelect(ctx: Mk8Context): Mk8ScreenFactory {
 }
 
 /**
- * Where a mode leads: character select, which a later ticket builds. Until then a stand-in that
- * shows the mode it was given.
+ * Where a mode leads: character select and the kart builder, which later tickets build. Until
+ * then a stand-in that shows the mode it was given; OK goes on to the engine class (MK-119),
+ * except Online, whose rooms come with their ticket.
  */
-function nextScreen(mode: Mk8GameMode): Mk8ScreenFactory {
+export function characterStandIn(ctx: Mk8Context): Mk8ScreenFactory {
   return (stack) => {
+    const mode: Mk8GameMode = ctx.flow.mode ?? 'grand-prix';
+    const goesOn = mode !== 'online';
+    const ok = () => {
+      stack.sounds.play('ui/decide');
+      stack.push(engineClass(ctx));
+    };
     const { el, body } = menuScreen({
       name: 'character-next',
       title: 'Choose your character',
       sub: modeInfo(mode).label,
-      hints: [{ button: 'b', label: 'Back', onPress: () => stack.back() }],
+      hints: [
+        ...(goesOn ? [{ button: 'a' as const, label: 'OK', onPress: ok }] : []),
+        { button: 'b', label: 'Back', onPress: () => stack.back() },
+      ],
     });
     body.classList.add('mk8-modes-next');
     body.dataset.mode = mode;
     const note = panel('mk8-modes-note');
     note.textContent = `${modeInfo(mode).label}: character select is on the way.`;
     body.append(note);
-    return { el };
+    return {
+      el,
+      onKey: (e) => {
+        if (!goesOn || menuAction(e.key)?.kind !== 'ok') return false;
+        e.preventDefault();
+        ok();
+        return true;
+      },
+    };
   };
 }
 

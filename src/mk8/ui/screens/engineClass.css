@@ -1,0 +1,78 @@
+/* MK8 engine class select (MK-119), in the mockup's positions: four 200-wide shields centred,
+   36 apart, 200 from the stage top. */
+
+.mk8 .mk8-body.mk8-cc {
+  display: grid;
+  justify-items: center;
+  align-content: start;
+  padding-top: calc(90 * var(--u));
+  overflow: visible;
+}
+
+.mk8-cc-row {
+  display: flex;
+  justify-content: center;
+  gap: calc(36 * var(--u));
+}
+
+.mk8 .mk8-shield {
+  display: grid;
+  justify-items: center;
+  width: calc(200 * var(--u));
+  padding: calc(16 * var(--u)) 0 calc(12 * var(--u));
+  border-radius: calc(20 * var(--u));
+  background: #fff;
+  box-shadow: 0 6px 0 var(--mk8-shadow);
+  text-align: center;
+}
+
+.mk8-shield .mk8-art {
+  width: calc(150 * var(--u));
+  height: calc(150 * var(--u));
+}
+
+.mk8-shield b {
+  margin-top: calc(4 * var(--u));
+  color: var(--mk8-navy);
+  font-size: max(16px, calc(28 * var(--u)));
+  font-weight: 900;
+}
+
+.mk8-shield small {
+  color: #5a6584;
+  font-size: max(11px, calc(14 * var(--u)));
+  font-weight: 800;
+}
+
+.mk8-new {
+  position: absolute;
+  top: calc(-14 * var(--u));
+  right: calc(-10 * var(--u));
+  padding: calc(2 * var(--u)) calc(8 * var(--u));
+  border-radius: calc(6 * var(--u));
+  background: var(--mk8-red);
+  color: #fff;
+  font-size: max(11px, calc(14 * var(--u)));
+  font-weight: 900;
+  transform: rotate(8deg);
+}
+
+/* No pack: our own shield shape with the class's number. */
+.mk8-shield-stand-in {
+  display: grid;
+  place-items: center;
+  clip-path: polygon(50% 0, 100% 14%, 92% 66%, 50% 100%, 8% 66%, 0 14%);
+  background: linear-gradient(180deg, #c9d6ee, #8ea6d6);
+  color: var(--mk8-blue-deep);
+  font-size: max(18px, calc(52 * var(--u)));
+  font-weight: 900;
+}
+
+.mk8-shield-stand-in[data-cc='150'] {
+  background: linear-gradient(180deg, #ffe766, #f2a900);
+}
+
+.mk8-shield-stand-in[data-cc='200'] {
+  background: linear-gradient(180deg, #ff8a8f, #d0222a);
+  color: #fff;
+}
