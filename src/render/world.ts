@@ -6,12 +6,13 @@ import type { ScenarioView } from '../scenarios/registry';
 import { raycastMesh, surfaceMask } from '../sim/meshTrack';
 import { getTrack, trackGeometry, type TrackDef } from '../sim/track';
 import { DT, tuning } from '../sim/tuning';
-import type { InputFrame } from '../sim/types';
+import type { InputFrame, SimState } from '../sim/types';
 import { AiDebugView } from './aiDebug';
 import { ChaseCamera, LineupCamera, type CameraClip } from './camera';
 import { Effects } from './effects';
 import { HazardRenderer } from './hazards';
 import { ItemBoxRenderer } from './itemBoxes';
+import { skinOf } from './itemSkins';
 import { KartRenderer, type DrawnFrame, type KartPoseFilter } from './karts';
 import { NameTags } from './nameTags';
 import { AdaptiveQuality } from './quality';
@@ -96,6 +97,8 @@ export class World {
   private track!: DrawnTrack;
   /** Bananas, shells… one renderer per item renderer class (`src/content/items/<id>/render.ts`). */
   private readonly itemRenderers: ItemRenderer[];
+  /** Item skins' renderers (MK-103: MK8 races), made the first time a race with the skin shows. */
+  private readonly skinRenderers = new Map<string, ItemRenderer>();
   private readonly aiDebug: AiDebugView | undefined;
   private readonly quality: AdaptiveQuality;
   /** Render parts that get cheaper in low-quality mode register here. */
@@ -210,6 +213,7 @@ export class World {
     this.track.hazards.sync(ticks, this.camera.position);
     this.track.update?.(ticks, this.camera.position);
     for (const renderer of this.itemRenderers) renderer.sync(state, state.tick / 60);
+    this.syncSkins(state);
     this.aiDebug?.sync(state);
     const followed = this.karts.kart(followId);
     const kart = state.karts[followId];
@@ -244,6 +248,18 @@ export class World {
     );
     this.onUpdate(frameSeconds);
     if (draw) this.renderer.render(this.scene, this.camera);
+  }
+
+  /** Draws the race's item skin (MK-103); skins made earlier hide themselves in other races. */
+  private syncSkins(state: SimState): void {
+    const skin = skinOf(state);
+    if (skin && !this.skinRenderers.has(skin.id)) {
+      this.skinRenderers.set(skin.id, new skin.renderer(this.scene));
+    }
+    const kartModel = (id: number) => this.karts.kart(id);
+    for (const renderer of this.skinRenderers.values()) {
+      renderer.sync(state, state.tick / 60, kartModel);
+    }
   }
 
   /** Builds `def`'s scene: its theme, road, scenery and hazards, remembering what it added. */

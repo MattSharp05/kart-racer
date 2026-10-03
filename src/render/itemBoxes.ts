@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import type { SimState } from '../sim/types';
+import { skinDraws } from './itemSkins';
 
 const SIZE = 1.3;
 const HOVER = 1.1;
@@ -34,6 +35,10 @@ export class ItemBoxRenderer {
   constructor(private readonly scene: THREE.Scene) {}
 
   sync(state: SimState, time: number): void {
+    // An item skin's boxes (MK-103: MK8's) replace these.
+    const skinned = skinDraws(state, 'itemBox');
+    if (this.mesh) this.mesh.visible = !skinned;
+    if (skinned) return;
     const boxes = state.entities.filter((e) => e.kind === 'itemBox');
     if (!this.mesh) {
       if (boxes.length === 0) return;
