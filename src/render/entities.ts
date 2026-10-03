@@ -40,6 +40,8 @@ export class ItemEntityRenderer {
     const seen = new Set<number>();
     for (const e of state.entities) {
       if (e.kind !== 'item') continue;
+      // An MK8 item's entity a scenario places is drawn once MK8 Mode has registered it (MK-113).
+      if (!entitySpecs.has(e.spec)) continue;
       // An item skin draws this item's entities (MK-103: MK8's boomerang).
       if (skinDraws(state, `entity:${entitySpecs.get(e.spec).item}`)) continue;
       seen.add(e.id);

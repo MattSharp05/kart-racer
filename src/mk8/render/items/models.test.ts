@@ -53,10 +53,9 @@ describe('MK8 item models (MK-103)', () => {
 describe('the mk8 item skin (MK-103)', () => {
   const all = new ItemModels(
     new Map(
-      ['item-box', 'banana', 'green-shell', 'red-shell', 'boomerang-flower'].map((id) => [
-        id,
-        new THREE.Group(),
-      ]),
+      ['item-box', 'banana', 'green-shell', 'red-shell', 'boomerang-flower', 'blue-shell'].map(
+        (id) => [id, new THREE.Group()],
+      ),
     ),
   );
 
@@ -72,6 +71,8 @@ describe('the mk8 item skin (MK-103)', () => {
         'entity:triple-green',
         'entity:triple-red',
         'entity:triple-banana',
+        // MK-113: the Spiny Shell (and its explosion, which has no model of its own).
+        'entity:spiny-shell',
       ].sort(),
     );
     const some = new ItemModels(new Map([['banana', new THREE.Group()]]));

@@ -45,6 +45,15 @@ const SHAPES: Record<string, () => Shape> = {
     colour: [0.1, 0.3, 1],
   }),
   blooper: () => ({ geometry: new THREE.ConeGeometry(0.7, 2, 8), colour: [0.95, 0.95, 0.95] }),
+  // MK-113.
+  'blue-shell': () => ({
+    geometry: new THREE.SphereGeometry(1, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2),
+    colour: [0.15, 0.35, 0.95],
+  }),
+  'super-horn': () => ({
+    geometry: new THREE.ConeGeometry(0.8, 1.6, 10),
+    colour: [0.95, 0.75, 0.1],
+  }),
 };
 
 /** One shape as a GLB, turned so its top is along −Z (as the pack's DAE conversions are). */
