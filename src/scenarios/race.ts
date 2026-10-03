@@ -11,7 +11,7 @@ import { step } from '../sim/step';
 import { trackGeometry } from '../sim/track';
 import { rngInt, rngPick } from '../sim/rng';
 import { DT, tuning, type EngineClass } from '../sim/tuning';
-import { NEUTRAL_INPUT, type SimState } from '../sim/types';
+import { NEUTRAL_INPUT, type Loadout, type SimState } from '../sim/types';
 import { recordStorage, type TrackRecord } from '../game/storage/records';
 import { SETTINGS_KEY, SETTINGS_VERSION } from '../game/storage/settings';
 import type { Scenario } from './registry';
@@ -30,6 +30,8 @@ export interface RaceOptions {
   trackId?: string;
   /** A registered item set (MK-119: MK8 Mode's races use `mk8`); the original game's by default. */
   itemSet?: string;
+  /** The player's MK8 kart parts (MK-102). */
+  playerLoadout?: Loadout;
 }
 
 /**
@@ -46,12 +48,19 @@ export function sunnyRace(seed: number, options: RaceOptions | number = {}): Sim
     playerKart = 'maple',
     trackId = sunnyCircuit.id,
     itemSet,
+    playerLoadout,
   } = typeof options === 'number' ? { karts: options } : options;
   const rng = raceSetupRng(seed);
   const playerSlot = ai && karts >= 5 ? rngInt(rng, 4, Math.min(7, karts - 1)) : 0;
   const otherSlots = Array.from({ length: karts }, (_, i) => i).filter((i) => i !== playerSlot);
   const racers = Array.from({ length: karts }, (_, i): RacerSlot => {
-    if (i === 0) return { kartId: playerKart, controller: 'local', gridSlot: playerSlot };
+    if (i === 0)
+      return {
+        kartId: playerKart,
+        controller: 'local',
+        gridSlot: playerSlot,
+        ...(playerLoadout ? { loadout: playerLoadout } : {}),
+      };
     return {
       kartId: ai ? rngPick(rng, KART_IDS) : (KART_IDS[i % KART_IDS.length] ?? 'maple'),
       controller: ai ? 'ai' : 'remote',

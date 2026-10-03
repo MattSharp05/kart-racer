@@ -10,7 +10,7 @@ import { routeGeometry } from '../sim/route';
 import { createSimState, type KartSpawn } from '../sim/state';
 import { trackGeometry } from '../sim/track';
 import { tuning } from '../sim/tuning';
-import { NEUTRAL_INPUT, type SimEvent, type SimState } from '../sim/types';
+import { NEUTRAL_INPUT, type Loadout, type SimEvent, type SimState } from '../sim/types';
 import { attractMode } from './menus';
 import type { Scenario, ScenarioSetup } from './registry';
 
@@ -197,6 +197,33 @@ export function mk8Golden(seed: number): SimState {
   return state;
 }
 
+/** MK-102's loadout scenarios: a heavy and a light MK8 kart (the extremes of the stat table). */
+export const LOADOUTS = {
+  heavy: { racer: 'mk8-bowser', body: 'b-dasher', tires: 'slick-tires', glider: 'paper-glider' },
+  light: { racer: 'mk8-toad', body: 'pipe-frame', tires: 'slim-tires', glider: 'cloud-glider' },
+} as const satisfies Record<string, Loadout>;
+
+/**
+ * A kart in `loadout` at rest at the start of Sunny Circuit's main straight, alone (MK-102). MK8
+ * racers don't race in the original game's renderer yet, so a stand-in original racer of the same
+ * build is drawn (`kartType`); the physics are the loadout's.
+ */
+export function mk8LoadoutRace(seed: number, which: keyof typeof LOADOUTS): SimState {
+  return createSimState({
+    seed,
+    trackId: 'sunny-circuit',
+    itemsOn: false,
+    karts: [
+      {
+        // Past the first item boxes: no boost pad for the next 10 s (`mk8Golden`).
+        ...spawn(5, 0),
+        kartType: which === 'heavy' ? 'boulder' : 'pixie',
+        loadout: LOADOUTS[which],
+      },
+    ],
+  });
+}
+
 /**
  * MK8 Mode (MK-97). `mk8-mode` loads the pack: under `pnpm dev` from a local build, on the site
  * behind its password (MK-135, ADR 0009 as amended), else "MK8 pack not installed" (CI, a deploy
@@ -334,6 +361,16 @@ export const mk8Scenarios: Scenario[] = [
     defaultSeed: 1,
     setup: (seed) => ({ state: mk8Golden(seed) }),
   },
+  ...(['heavy', 'light'] as const).map((which): Scenario => ({
+    name: `mk8-loadout-${which}`,
+    group: 'MK8 Mode',
+    description:
+      which === 'heavy'
+        ? "A heavy MK8 kart (MK-102): Bowser on B Dasher, Slick tires, Paper Glider (speed 5.75, acceleration 1.5), at rest on Sunny Circuit's straight, no items. Slow off the line, the highest top speed. Drawn as Boulder until MK8 races draw MK8 karts."
+        : "A light MK8 kart (MK-102): Toad on Pipe Frame, Slim tires, Cloud Glider (speed 3, acceleration 3.25), at rest on Sunny Circuit's straight, no items. Quick off the line, a lower top speed. Drawn as Pixie until MK8 races draw MK8 karts.",
+    defaultSeed: 1,
+    setup: (seed) => ({ state: mk8LoadoutRace(seed, which) }),
+  })),
   {
     name: 'mk8-ui-kit',
     group: 'MK8 Mode',
@@ -416,6 +453,11 @@ export const mk8Scenarios: Scenario[] = [
         'mk8-lakitu-respawn',
         'mk8LakituRespawn',
         'Lakitu fishes a kart out: comes down, lifts it on his line, drops it; looping (MK-101). Needs a local pack.',
+      ],
+      [
+        'mk8-karts-lineup',
+        'mk8KartsLineup',
+        "MK8's 6 kart bodies in a row (MK-102), each on its own tires (all 4 kinds) on the body's wheel anchors, gliders folded away; parts named underneath. Needs a local pack.",
       ],
     ] as const
   ).map(([name, screen, description]): Scenario => ({

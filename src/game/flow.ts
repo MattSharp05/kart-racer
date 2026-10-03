@@ -329,6 +329,9 @@ export class Flow {
       case 'mk8LakituRespawn':
         this.openMk8('lakitu-respawn');
         break;
+      case 'mk8KartsLineup':
+        this.openMk8('karts-lineup');
+        break;
       case 'mk8UiTitle':
         this.openMk8('title');
         break;
@@ -557,6 +560,8 @@ export class Flow {
   /** Remembers the menu picks for next time (racer, engine class, track). */
   private savePrefs(): void {
     writePrefs(this.store, {
+      // Keeps what other menus saved (MK8 Mode's loadout, MK-102).
+      ...readPrefs(this.store),
       kart: this.chosenKart,
       engineClass: this.chosenCc,
       track: this.chosenTrack,
@@ -602,6 +607,7 @@ export class Flow {
       playerKart: setup.playerKart,
       trackId: setup.trackId,
       itemSet: setup.itemSet,
+      ...(setup.raceLoadout ? { playerLoadout: setup.raceLoadout } : {}),
     });
     this.world.reset('chase', this.session.localKartId);
     this.session.game.resume();

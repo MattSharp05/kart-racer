@@ -9,7 +9,7 @@ import { MK8_RACERS } from '../../content/racers';
 import { mk8RacerView } from '../../content/racers/render';
 import type { WeightClass } from '../../content/racers/weightClass';
 import { DEFAULT_LOADOUT } from '../../flow';
-import { readMk8Prefs, writeMk8Prefs } from '../../prefs';
+import { savedLoadout, savedRacer, saveLoadout } from '../../loadoutPrefs';
 import { RacerPreview } from '../../render/preview';
 import { art, Menu, menuScreen, nameplate, panel, squareTile } from '../kit';
 import type { CHARACTER_SPRITES } from '../sprites';
@@ -119,7 +119,7 @@ export function characterSelect(ctx: Mk8Context): Mk8ScreenFactory {
       portrait.dataset.racer = entry.racer.id;
     };
 
-    const remembered = ctx.flow.loadout?.racer ?? readMk8Prefs(ctx.store).racer;
+    const remembered = ctx.flow.loadout?.racer ?? savedRacer(ctx.store);
     const initial = CHARACTER_GRID.findIndex(
       (c) => c.racer.id === (remembered ?? DEFAULT_LOADOUT.racer),
     );
@@ -142,8 +142,10 @@ export function characterSelect(ctx: Mk8Context): Mk8ScreenFactory {
       },
       onConfirm: (index) => {
         const racer = CHARACTER_GRID[index]?.racer.id ?? DEFAULT_LOADOUT.racer;
-        ctx.flow.loadout = { ...(ctx.flow.loadout ?? DEFAULT_LOADOUT), racer };
-        writeMk8Prefs(ctx.store, { racer });
+        // MK8 keeps your kart parts when you change racer (the saved ones, else its defaults).
+        const loadout = savedLoadout(ctx.store, racer);
+        ctx.flow.loadout = loadout;
+        saveLoadout(ctx.store, loadout);
         stack.push(kartStandIn(ctx));
       },
     });

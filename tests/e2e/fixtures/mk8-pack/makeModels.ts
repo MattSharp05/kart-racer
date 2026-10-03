@@ -1,6 +1,7 @@
 // Writes the fixture pack's synthetic models (MK-101): a block figure per MK8 racer id (two
 // materials, a two-joint skeleton with a `Head` bone, like the real rigged racers), the Standard
-// Kart's body and tire, and Lakitu on his cloud, and adds them to `manifest.json`. No Nintendo
+// Kart's body and tire, and Lakitu on his cloud, and adds them to `manifest.json`. MK-102 added the
+// other kart parts: 5 bodies, 3 tires and 3 gliders, each its own colour and proportions. No Nintendo
 // files: every shape is a coloured box or cylinder made here. Run from the repo root:
 //   node tests/e2e/fixtures/mk8-pack/makeModels.ts
 import { createHash } from 'node:crypto';
@@ -284,6 +285,100 @@ function tire(): Document {
   return doc;
 }
 
+/** A body other than the Standard Kart (MK-102): a hull and a seat back, its own shape. */
+function otherBody(
+  id: string,
+  rgb: readonly number[],
+  hull: Vec3,
+  extra: { at: Vec3; size: Vec3 }[],
+): Document {
+  const doc = newDoc();
+  const paint = material(doc, rgb);
+  const trim = material(doc, [0.2, 0.2, 0.22]);
+  const mesh = doc
+    .createMesh(id)
+    .addPrimitive(
+      primitive(
+        doc,
+        [box([0, hull[1] / 2 + 0.05, 0], hull), ...extra.map((e) => box(e.at, e.size))],
+        paint,
+      ),
+    )
+    .addPrimitive(primitive(doc, [box([0, hull[1] + 0.2, -0.2], [0.6, 0.4, 0.1])], trim));
+  scene(doc, doc.createNode(id).setMesh(mesh));
+  return doc;
+}
+
+/** Bodies after the Standard Kart: id, colour, hull size (x, y, z; +Z is the front) and extras. */
+const BODIES: [string, readonly number[], Vec3, { at: Vec3; size: Vec3 }[]][] = [
+  // An open frame: thin rails.
+  [
+    'pipe-frame',
+    [0.95, 0.75, 0.1],
+    [1.2, 0.08, 1.6],
+    [
+      { at: [0.55, 0.2, 0], size: [0.08, 0.3, 1.6] },
+      { at: [-0.55, 0.2, 0], size: [0.08, 0.3, 1.6] },
+    ],
+  ],
+  ['mach-8', [0.2, 0.35, 0.85], [0.9, 0.28, 1.9], [{ at: [0, 0.2, 0.95], size: [1.3, 0.06, 0.3] }]],
+  [
+    'cat-cruiser',
+    [0.95, 0.95, 0.9],
+    [1.1, 0.4, 1.6],
+    [
+      { at: [0.3, 0.55, 0.6], size: [0.15, 0.2, 0.08] },
+      { at: [-0.3, 0.55, 0.6], size: [0.15, 0.2, 0.08] },
+    ],
+  ],
+  ['b-dasher', [0.1, 0.1, 0.12], [1, 0.3, 2], [{ at: [0, 0.4, -0.85], size: [1.2, 0.08, 0.25] }]],
+  [
+    'sports-coupe',
+    [0.15, 0.6, 0.3],
+    [1.1, 0.45, 1.9],
+    [{ at: [0, 0.6, -0.1], size: [0.9, 0.25, 0.8] }],
+  ],
+];
+
+/** A tire other than the Standard (MK-102): a cylinder scaled wider or narrower, its own grey. */
+function otherTire(id: string, rgb: readonly number[], width: number): Document {
+  const doc = newDoc();
+  const shape = cylinder();
+  shape.positions = shape.positions.map((v, i) => (i % 3 === 0 ? (v * width) / 0.45 : v));
+  const mesh = doc.createMesh(id).addPrimitive(primitive(doc, [shape], material(doc, rgb)));
+  scene(doc, doc.createNode(id).setMesh(mesh));
+  return doc;
+}
+
+const TIRES: [string, readonly number[], number][] = [
+  ['monster-tires', [0.18, 0.12, 0.08], 0.7],
+  ['slim-tires', [0.35, 0.35, 0.4], 0.25],
+  ['slick-tires', [0.05, 0.05, 0.05], 0.55],
+];
+
+/** A glider (MK-102): a wide flat wing on two struts, its own colour. */
+function glider(id: string, rgb: readonly number[], depth: number): Document {
+  const doc = newDoc();
+  const mesh = doc
+    .createMesh(id)
+    .addPrimitive(primitive(doc, [box([0, 0.6, 0], [2, 0.06, depth])], material(doc, rgb)))
+    .addPrimitive(
+      primitive(
+        doc,
+        [box([0.3, 0.3, 0], [0.04, 0.6, 0.04]), box([-0.3, 0.3, 0], [0.04, 0.6, 0.04])],
+        material(doc, [0.3, 0.3, 0.3]),
+      ),
+    );
+  scene(doc, doc.createNode(id).setMesh(mesh));
+  return doc;
+}
+
+const GLIDERS: [string, readonly number[], number][] = [
+  ['paper-glider', [0.95, 0.95, 0.85], 0.7],
+  ['cloud-glider', [0.85, 0.92, 1], 0.9],
+  ['peach-parasol', [0.98, 0.6, 0.8], 1.6],
+];
+
 function lakitu(): Document {
   const doc = newDoc();
   const cloud = material(doc, [0.97, 0.97, 1]);
@@ -330,6 +425,12 @@ for (const [i, id] of RACERS.entries())
 await write('models/karts/bodies/standard-kart.glb', 'karts', kartBody());
 await write('models/karts/tires/standard-tires.glb', 'karts', tire());
 await write('models/npcs/lakitu.glb', 'npcs', lakitu());
+for (const [id, rgb, hull, extra] of BODIES)
+  await write(`models/karts/bodies/${id}.glb`, 'karts', otherBody(id, rgb, hull, extra));
+for (const [id, rgb, width] of TIRES)
+  await write(`models/karts/tires/${id}.glb`, 'karts', otherTire(id, rgb, width));
+for (const [id, rgb, depth] of GLIDERS)
+  await write(`models/karts/gliders/${id}.glb`, 'karts', glider(id, rgb, depth));
 
 const manifestFile = join(PACK, 'manifest.json');
 const manifest = JSON.parse(readFileSync(manifestFile, 'utf8')) as { version: 1; files: Entry[] };
