@@ -9,6 +9,7 @@
 // ring (scenery) and through the banked twist, the S-bend along the pool floor, up the ramp out of
 // the water over the glide board, back onto the start straight.
 import type { Mk8CourseContent } from '../types';
+import look from './look';
 import { route } from './route';
 
 /** Materials the pack has twice, the second as `<name>.001` (MK-122: checked mesh for mesh). */
@@ -59,6 +60,7 @@ const waterPark: Mk8CourseContent = {
   // A pack built from MK-93's name guesses calls every `park_Water_*` material water: the
   // underwater road and its walls (`materials.ts` maps them properly for the next build).
   surfaceRules: { waterIsRoad: true },
+  look,
 };
 
 export default waterPark;
