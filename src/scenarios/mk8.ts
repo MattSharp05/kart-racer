@@ -4,10 +4,12 @@ import { tracks } from '../content/tracks';
 import { sunnyCircuit } from '../content/tracks/sunny-circuit/sim';
 import { MK8_ITEM_SET } from '../mk8/content/items/id';
 import { giveItem } from '../sim/items';
-import { headingOf } from '../sim/math';
+import { nextEntityId } from '../sim/items/banana';
+import { forwardFromHeading, headingOf } from '../sim/math';
 import { routeGeometry } from '../sim/route';
 import { createSimState, type KartSpawn } from '../sim/state';
 import { trackGeometry } from '../sim/track';
+import { tuning } from '../sim/tuning';
 import { NEUTRAL_INPUT, type SimEvent, type SimState } from '../sim/types';
 import { attractMode } from './menus';
 import type { Scenario, ScenarioSetup } from './registry';
@@ -139,6 +141,56 @@ export function mk8TwoSlots(seed: number): SimState {
   return state;
 }
 
+/** Uses of a triple item (MK-112). */
+const TRIPLE = 3;
+
+/**
+ * Kart `kartId` holds MK8 item `item` with `uses` uses. Set directly: MK8's own items are only
+ * registered once the race has loaded MK8 Mode (`Flow.prepareMk8Race`), after this setup runs.
+ */
+function hold(state: SimState, kartId: number, item: string, uses: number): void {
+  const kart = state.karts[kartId];
+  if (!kart) return;
+  kart.item.held = item;
+  kart.item.uses = uses;
+}
+
+/**
+ * A triple item (MK-112) on Sunny Circuit's main straight: the player holding it (its shells
+ * circle the kart, or its bananas trail behind it, from the first tick), a kart parked 24 m ahead
+ * (a red shell's target) and a green shell fired by a kart behind, 30 m behind the player and
+ * closing: one of the shells or bananas stops it.
+ */
+export function mk8TripleItem(seed: number, item: string): SimState {
+  // Past the boost pad, short of the item boxes.
+  const state = mk8ItemsRace(seed, [spawn(-25, 0), spawn(-1, 0), spawn(-65, 0)]);
+  state.positions = [1, 0, 2];
+  hold(state, 0, item, TRIPLE);
+  const forward = forwardFromHeading(sunny.headingAt(fromBoxes(-55)));
+  state.entities.push({
+    id: nextEntityId(state),
+    kind: 'shell',
+    colour: 'green',
+    position: sunny.pointAt(fromBoxes(-55), 0),
+    direction: { x: forward.x, z: forward.z },
+    speed: tuning.topSpeed[state.engineClass] * tuning.greenShellSpeed,
+    bounces: 0,
+    life: tuning.greenShellLife,
+    ownerId: 2,
+    ownerImmune: 0,
+    targetId: -1,
+  });
+  return state;
+}
+
+/** The Golden Mushroom (MK-112): the player holding one, standing on the main straight. */
+export function mk8Golden(seed: number): SimState {
+  // Just past the first item boxes: 10 s of boosting reaches neither the next ones nor a boost pad.
+  const state = mk8ItemsRace(seed, [spawn(5, 0)]);
+  hold(state, 0, 'golden-mushroom', 1);
+  return state;
+}
+
 /**
  * MK8 Mode (MK-97). The pack is local only (ADR 0009): `mk8-mode` loads it under `pnpm dev` with a
  * built pack, and shows "MK8 pack not installed" anywhere else (previews, production, CI).
@@ -223,6 +275,49 @@ export const mk8Scenarios: Scenario[] = [
       'Second item slot (MK-103): holding a green shell, coasting into item boxes. The box fills slot 2; fire the shell and slot 2 moves up to slot 1.',
     defaultSeed: 1,
     setup: (seed) => ({ state: mk8TwoSlots(seed) }),
+  },
+  {
+    name: 'mk8-item-triple-red',
+    group: 'MK8 Mode',
+    description:
+      'Triple Red Shells (MK-112): three red shells circle the player. A green shell from behind hits one (both go, the player keeps going); each press fires one at the kart 24 m ahead; the icon counts down 3 → 2 → 1, then the slot empties.',
+    defaultSeed: 1,
+    setup: (seed) => ({ state: mk8TripleItem(seed, 'triple-red') }),
+  },
+  {
+    name: 'mk8-item-triple-green',
+    group: 'MK8 Mode',
+    description:
+      'Triple Green Shells (MK-112): three green shells circle the player and stop a green shell from behind; each press fires one straight ahead (backwards while braking).',
+    defaultSeed: 1,
+    setup: (seed) => ({ state: mk8TripleItem(seed, 'triple-green') }),
+  },
+  {
+    name: 'mk8-item-triple-banana',
+    group: 'MK8 Mode',
+    description:
+      'Triple Bananas (MK-112): three bananas trail the player and stop a green shell from behind; each press drops one behind (or throws it ahead while accelerating).',
+    defaultSeed: 1,
+    setup: (seed) => ({ state: mk8TripleItem(seed, 'triple-banana') }),
+  },
+  {
+    name: 'mk8-item-triple-mushroom',
+    group: 'MK8 Mode',
+    description:
+      'Triple Mushrooms (MK-112): three boosts, one per press; the icon counts down, then the slot empties.',
+    defaultSeed: 1,
+    setup: (seed) => {
+      const state = mk8Golden(seed);
+      hold(state, 0, 'triple-mushroom', TRIPLE);
+      return { state };
+    },
+  },
+  {
+    name: 'mk8-item-golden',
+    group: 'MK8 Mode',
+    description: `Golden Mushroom (MK-112): every press boosts, as often as you like, for ${tuning.mk8.goldenTime} s from the first press; then the slot empties.`,
+    defaultSeed: 1,
+    setup: (seed) => ({ state: mk8Golden(seed) }),
   },
   {
     name: 'mk8-ui-kit',

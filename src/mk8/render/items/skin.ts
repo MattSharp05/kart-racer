@@ -1,6 +1,7 @@
 // MK8 races' item look (MK-103): MK8's item box, bananas, shells and boomerang from the pack, the
-// item each kart holds (bananas and shells trail behind it, the rest float over the driver), a bolt
-// on each kart lightning strikes and a Blooper over each kart it inks.
+// item each kart holds (bananas and shells trail behind it, the rest float over the driver; triple
+// shells circle it and triple bananas trail it, MK-112), a bolt on each kart lightning strikes and
+// a Blooper over each kart it inks.
 import * as THREE from 'three';
 import { entitySpecs } from '../../../content/items/registries';
 import type { ItemRenderer } from '../../../content/items/views';
@@ -43,6 +44,15 @@ const BOLT_SECONDS = 0.6;
 const BLOOPER_TICKS = 75;
 /** Items held behind the kart, MK8 style (the rest float over the driver). */
 const TRAILING = new Set(['banana', 'green', 'red']);
+/**
+ * MK8's triple shells and bananas (MK-112): drawn where their escort entities are (circling or
+ * trailing the kart), so not as a held item; by the item whose model they share.
+ */
+const ESCORTS: ReadonlyMap<string, 'green' | 'red' | 'banana'> = new Map([
+  ['triple-green', 'green'],
+  ['triple-red', 'red'],
+  ['triple-banana', 'banana'],
+] as const);
 /** Each reskinned item's pack model, by item id. */
 const MODEL_OF: ReadonlyMap<string, string | null> = new Map(
   MK8_ITEMS.map((item) => [item.id, item.model]),
@@ -57,6 +67,7 @@ export function skinParts(models: ItemModels): Set<SkinPart> {
   if (has('green')) parts.add('shell:green');
   if (has('red')) parts.add('shell:red');
   if (has('boomerang')) parts.add('entity:boomerang');
+  for (const [item, like] of ESCORTS) if (has(like)) parts.add(`entity:${item}`);
   return parts;
 }
 
@@ -204,8 +215,12 @@ export class Mk8ItemRenderer implements ItemRenderer {
         placeBanana(banana?.next(), e);
       } else if (e.kind === 'shell') {
         placeShell(shells[e.colour]?.next(), e, time);
-      } else if (e.kind === 'item' && entitySpecs.get(e.spec).item === 'boomerang') {
-        placeBoomerang(boomerang?.next(), e);
+      } else if (e.kind === 'item') {
+        const item = entitySpecs.get(e.spec).item;
+        const like = ESCORTS.get(item);
+        if (item === 'boomerang') placeBoomerang(boomerang?.next(), e);
+        else if (like === 'banana') placeEscortBanana(banana?.next(), e);
+        else if (like) placeEscortShell(shells[like]?.next(), e, time);
       }
     }
   }
@@ -220,7 +235,7 @@ export class Mk8ItemRenderer implements ItemRenderer {
       return this.offset.set(kart.position.x + x, kart.position.y + y, kart.position.z + z);
     };
     const held = kart.item.roulette === 0 ? kart.item.held : null;
-    if (held && MODEL_OF.has(held) && kart.respawnTimer === 0) {
+    if (held && MODEL_OF.has(held) && !ESCORTS.has(held) && kart.respawnTimer === 0) {
       const trailing = TRAILING.has(held);
       const copy = this.pool(MODEL_OF.get(held), trailing ? SIZE.banana : SIZE.held)?.next();
       if (copy) {
@@ -270,4 +285,22 @@ function placeBoomerang(model: THREE.Object3D | undefined, entity: ItemEntity): 
   model.position.set(entity.position.x, entity.position.y + 1, entity.position.z);
   // Spins with its age (a paused frame is the same every time).
   model.rotation.set(0, entity.age * 0.5, 0);
+}
+
+/** A triple banana trailing its kart (MK-112), facing the way the kart goes. */
+function placeEscortBanana(model: THREE.Object3D | undefined, entity: ItemEntity): void {
+  if (!model) return;
+  model.position.set(entity.position.x, entity.position.y + TRAIL_HEIGHT, entity.position.z);
+  model.rotation.set(0, Math.atan2(-entity.direction.x, -entity.direction.z), 0);
+}
+
+/** A triple shell circling its kart (MK-112), spinning as a fired one does. */
+function placeEscortShell(
+  model: THREE.Object3D | undefined,
+  entity: ItemEntity,
+  time: number,
+): void {
+  if (!model) return;
+  model.position.set(entity.position.x, entity.position.y + TRAIL_HEIGHT, entity.position.z);
+  model.rotation.set(0, time * 12 + entity.id, 0);
 }

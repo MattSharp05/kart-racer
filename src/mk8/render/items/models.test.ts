@@ -62,10 +62,20 @@ describe('the mk8 item skin (MK-103)', () => {
 
   it('replaces only the parts the pack has models for', () => {
     expect([...skinParts(all)].sort()).toEqual(
-      ['banana', 'entity:boomerang', 'itemBox', 'shell:green', 'shell:red'].sort(),
+      [
+        'banana',
+        'entity:boomerang',
+        'itemBox',
+        'shell:green',
+        'shell:red',
+        // MK-112: the triple items' circling shells and trailing bananas share those models.
+        'entity:triple-green',
+        'entity:triple-red',
+        'entity:triple-banana',
+      ].sort(),
     );
     const some = new ItemModels(new Map([['banana', new THREE.Group()]]));
-    expect([...skinParts(some)]).toEqual(['banana']);
+    expect([...skinParts(some)]).toEqual(['banana', 'entity:triple-banana']);
   });
 
   it('dresses only races with the mk8 item set', () => {

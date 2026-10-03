@@ -1,8 +1,9 @@
+import { items } from '../../content/items/registries';
 import { cancelDrift } from '../drift';
 import { scale } from '../math';
 import { tuning } from '../tuning';
 import type { HitKind, KartState, SimEvent } from '../types';
-import { effectsBlockHit } from './effects';
+import { effectsBlockHit, type IncomingHit } from './effects';
 
 /** Whether items can hit this kart right now. */
 export function canBeHit(kart: KartState): boolean {
@@ -14,9 +15,13 @@ export function canBeHit(kart: KartState): boolean {
   );
 }
 
-/** Extra facts about a hit (`IncomingHit`): a crusher's hit is a `crush`. */
+/**
+ * Extra facts about a hit (`IncomingHit`): a crusher's hit is a `crush`; `from` is where the shell,
+ * banana or item entity was (MK-112).
+ */
 export interface HitOptions {
   crush?: boolean;
+  from?: { x: number; z: number };
 }
 
 /** How a hit went: it landed, the kart couldn't be hit, or one of its effects blocked it. */
@@ -59,14 +64,22 @@ export function screenHit(
   by: number,
   kind: HitKind,
   events: SimEvent[],
-  { crush = false }: HitOptions = {},
+  { crush = false, from }: HitOptions = {},
 ): HitResult {
   if (!canBeHit(kart)) return 'immune';
-  if (effectsBlockHit(kart, { by, kind, crush }, events)) {
+  const hit: IncomingHit = { by, kind, crush, ...(from ? { from: { x: from.x, z: from.z } } : {}) };
+  if (heldItemGuards(kart, hit, events) || effectsBlockHit(kart, hit, events)) {
     kart.invulnerableTimer = Math.max(kart.invulnerableTimer, tuning.blockedHitInvulnerableSeconds);
     return 'blocked';
   }
   return 'hit';
+}
+
+/** Whether the item the kart holds in slot 1 stops the hit (`ItemContent.guardHit`, MK-112). */
+function heldItemGuards(kart: KartState, hit: IncomingHit, events: SimEvent[]): boolean {
+  const { held, roulette } = kart.item;
+  if (held === null || roulette > 0 || !items.has(held)) return false;
+  return items.get(held).guardHit?.(kart, hit, events) ?? false;
 }
 
 /** `tryHit`, true when the hit landed. */

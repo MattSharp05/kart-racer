@@ -26,6 +26,12 @@
       "group": "items"
     },
     {
+      "path": "models/items/golden-mushroom.glb",
+      "bytes": 12748,
+      "sha256": "723108643e333b7f823c4fccd14e44087ffcb8cfd2d596672aa2fd0669d89bc8",
+      "group": "items"
+    },
+    {
       "path": "models/items/green-shell.glb",
       "bytes": 13632,
       "sha256": "e95eba645f74a24ddd447e11fdffbb6f5c9adb5539378e184cd47d081801e7f5",

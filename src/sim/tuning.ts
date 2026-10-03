@@ -153,6 +153,19 @@ export const tuning = {
   },
   // --- MK8 Mode (v3) ---
   mk8: {
+    // MK8 Mode's items (MK-112).
+    /** Golden Mushroom: boost as often as you like for this long from its first use, s. */
+    goldenTime: 7.5,
+    /** Triple shells circle the kart this far from its centre, m… */
+    orbitRadius: 1.6,
+    /** …this fast, rad/s. */
+    orbitSpeed: 4,
+    /** Triple bananas trail behind the kart: the first this far behind its centre, m… */
+    trailFirst: 1.8,
+    /** …and each next one this much further, m. */
+    trailSpacing: 1.1,
+    /** A circling shell or trailing banana touches karts and items this close, m. */
+    escortRadius: 1,
     // Surface-frame kart physics on mesh tracks (MK-99, ADR 0011; numbers from the MK-92 spike).
     /** How fast `up` turns towards the ground's normal while grounded, 1/s (exponential). */
     upTurnRate: 14,
