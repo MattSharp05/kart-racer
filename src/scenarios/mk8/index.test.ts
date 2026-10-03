@@ -19,7 +19,9 @@ describe('MK8 course scenarios (MK-99, MK-105)', () => {
     // MK-121's pause and results scenarios race on the test ramp too.
     const onRamp = ['mk8-ui-pause', 'mk8-ui-results', 'mk8-ui-standings'];
     const onCourse = mk8Scenarios
-      .filter((s) => /^mk8-(stadium-|test-|item-bullet)/.test(s.name) || onRamp.includes(s.name))
+      .filter(
+        (s) => /^mk8-(stadium-|canyon-|test-|item-bullet)/.test(s.name) || onRamp.includes(s.name),
+      )
       .map((s) => s.name);
     const withCourse = mk8Scenarios.filter((s) => s.mk8Course !== undefined).map((s) => s.name);
     expect(withCourse.sort()).toEqual(onCourse.sort());
