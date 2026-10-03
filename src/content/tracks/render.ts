@@ -1,4 +1,5 @@
 import type * as THREE from 'three';
+import type { TrackLook, TrackLookContext } from '../../render/trackLook';
 import type { TrackGeometry } from '../../sim/splineTrack';
 import { Registry } from '../registry';
 import canopyRush from './canopy-rush/render';
@@ -29,6 +30,11 @@ export interface TrackView {
    * share geometry and materials): the world disposes it when the track changes.
    */
   model?(): THREE.Object3D;
+  /**
+   * The track's own light, sky, post-processing and ambience (MK-125: MK8 courses), set up each
+   * time the world builds the track; the world calls its hooks and disposes it on a track change.
+   */
+  look?(context: TrackLookContext): TrackLook;
 }
 
 export const trackViews = new Registry<TrackView>('track view');
