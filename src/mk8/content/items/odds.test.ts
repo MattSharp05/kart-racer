@@ -10,10 +10,11 @@ import { MK8_ITEM_SET, MK8_ITEMS, MK8_ODDS, MK8_TABLE, mk8ItemSet, mk8ItemSim, O
 const ROWS = 9;
 const ROLLS = 10_000;
 /** Ids in MK8's table no item ticket has built yet: stubbed so every column is in play. */
-const stubs = Object.keys(MK8_ODDS).filter((id) => !items.has(id));
+let stubs: string[] = [];
 
 beforeAll(() => {
   registerMk8Content();
+  stubs = Object.keys(MK8_ODDS).filter((id) => !items.has(id));
   for (const id of stubs) registerItem(mk8ItemSim({ id, name: id, order: 900, onUse: () => {} }));
 });
 afterAll(() => {
@@ -78,6 +79,12 @@ describe('MK8 odds (MK-103)', () => {
       expect(Object.values(row).reduce((a, b) => a + b, 0)).toBeCloseTo(1, 6);
     }
     for (const id of stubs) expect(availableItems()).not.toContain(id);
+    // Nor the built ones (MK-112): Triple Mushrooms stand in for our Turbo Trio in MK8 races only.
+    for (const item of MK8_ITEMS.filter((i) => i.sim)) {
+      expect(availableItems()).not.toContain(item.id);
+    }
+    expect(availableItems(MK8_ITEM_SET)).toContain('triple-mushroom');
+    expect(availableItems(MK8_ITEM_SET)).not.toContain('turbo-trio');
   });
 
   it('is the registered mk8 set, with two slots', () => {

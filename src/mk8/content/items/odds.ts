@@ -21,8 +21,8 @@ export const MK8_TABLE = {
   'bob-omb': [0, 10, 15, 5, 0, 0, 0, 0, 0],
   'ink-cloud': [0, 0, 0, 5, 5, 0, 0, 0, 0],
   'spiny-shell': [0, 0, 0, 0, 5, 5, 5, 0, 0],
-  // Triple Mushrooms: our Turbo Trio is the same item (three boosts).
-  'turbo-trio': [0, 0, 15, 60, 85, 65, 35, 10, 30],
+  // Triple Mushrooms (MK-112: its own item, in place of our Turbo Trio).
+  'triple-mushroom': [0, 0, 15, 60, 85, 65, 35, 10, 30],
   star: [0, 0, 0, 0, 25, 40, 35, 30, 40],
   'bullet-bill': [0, 0, 0, 0, 10, 30, 60, 85, 70],
   lightning: [0, 0, 0, 0, 0, 5, 10, 15, 0],

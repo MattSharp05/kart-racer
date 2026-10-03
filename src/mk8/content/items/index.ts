@@ -3,17 +3,23 @@
 //
 // Adding an MK8 item (the item tickets after MK-103):
 //  1. its odds column in `./odds.ts` (`MK8_TABLE` already names every MK8 item's id);
-//  2. new behaviour: `src/mk8/content/items/<id>/sim.ts` default-exporting `mk8ItemSim({...})` (an
+//  2. new behaviour: `src/mk8/content/items/<id>/sim.ts` default-exporting `mk8ItemSim({...})` (`./sim.ts`, an
 //     `ItemContent` without `odds`: it is never handed out in the original game);
 //  3. one line in `MK8_ITEMS` below: its id, that sim, its pack model and its HUD icon sprite;
 //  4. its look: a line in `src/mk8/render/items/index.ts` (an `ItemView` for a new item, drawn with
 //     its pack model by `mk8EntityModel`).
-import { ODDS_ROWS, type ItemContent, type ItemSetContent } from '../../../content/items';
+import type { ItemContent, ItemSetContent } from '../../../content/items';
+import goldenMushroom from './golden-mushroom/sim';
 import { MK8_ITEM_SET } from './id';
 import { MK8_ODDS } from './odds';
+import tripleBanana from './triple-banana/sim';
+import tripleGreen from './triple-green/sim';
+import tripleMushroom from './triple-mushroom/sim';
+import tripleRed from './triple-red/sim';
 
 export { MK8_ITEM_SET } from './id';
 export { MK8_ODDS, MK8_TABLE, OURS } from './odds';
+export { mk8ItemSim } from './sim';
 
 /** MK8 Mode's item rules: MK8's odds with our five mixed in, and a second item slot. */
 export const mk8ItemSet: ItemSetContent = { id: MK8_ITEM_SET, odds: MK8_ODDS, slots: 2 };
@@ -33,12 +39,7 @@ export interface Mk8Item {
   icon: string;
 }
 
-/** A new MK8 item's sim: never handed out by the original game's roulette (zero odds there). */
-export function mk8ItemSim(def: Omit<ItemContent, 'odds'>): ItemContent {
-  return { ...def, odds: Array.from({ length: ODDS_ROWS }, () => 0) };
-}
-
-/** MK8 Mode's items so far: our items with MK8 looks. One line per item. */
+/** MK8 Mode's items so far: our items with MK8 looks, and MK8's own. One line per item. */
 export const MK8_ITEMS: readonly Mk8Item[] = [
   { id: 'banana', model: 'banana', icon: 'i_banana' },
   { id: 'green', model: 'green-shell', icon: 'i_green' },
@@ -50,6 +51,13 @@ export const MK8_ITEMS: readonly Mk8Item[] = [
   // Boomerang Flower = our boomerang; Blooper = our ink cloud.
   { id: 'boomerang', model: 'boomerang-flower', icon: 'i_boomerang' },
   { id: 'ink-cloud', model: 'blooper', icon: 'i_blooper' },
+  // MK-112: MK8's triple items (one pack model each, drawn three times) and the Golden Mushroom.
+  // Triple Mushrooms take Turbo Trio's place in MK8 races (`MK8_TABLE`).
+  { id: 'triple-green', sim: tripleGreen, model: 'green-shell', icon: 'i_green3' },
+  { id: 'triple-red', sim: tripleRed, model: 'red-shell', icon: 'i_red3' },
+  { id: 'triple-banana', sim: tripleBanana, model: 'banana', icon: 'i_banana3' },
+  { id: 'triple-mushroom', sim: tripleMushroom, model: 'mushroom', icon: 'i_mushroom3' },
+  { id: 'golden-mushroom', sim: goldenMushroom, model: 'golden-mushroom', icon: 'i_golden' },
 ];
 
 /** The item box's pack model. */
