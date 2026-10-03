@@ -240,4 +240,20 @@ export const mk8Scenarios: Scenario[] = [
     defaultSeed: 1,
     setup: (seed) => ({ state: attractMode(seed), screen: 'mk8UiKit' }),
   },
+  {
+    name: 'mk8-ui-title',
+    group: 'MK8 Mode',
+    description:
+      "MK8 Mode's title (MK-116): the logo pops in, Press start blinks, the 12 racers bob. Enter or a tap wipes to the mode select; Back returns to the Kart Racer title. The real logo and racers with a local pack, stand-ins otherwise.",
+    defaultSeed: 1,
+    setup: (seed) => ({ state: attractMode(seed), screen: 'mk8UiTitle' }),
+  },
+  {
+    name: 'mk8-ui-mode',
+    group: 'MK8 Mode',
+    description:
+      'MK8 mode select (MK-116): Grand Prix, VS Race, Time Trial and Online, the selected one pulsing with its art at the side. OK goes on to character select with the mode; Back wipes to the MK8 title.',
+    defaultSeed: 1,
+    setup: (seed) => ({ state: attractMode(seed), screen: 'mk8UiMode' }),
+  },
 ];
