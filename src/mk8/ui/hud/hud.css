@@ -1,0 +1,407 @@
+/* MK8 Mode's race HUD (MK-127), after the mockup's race screen. Sizes are the mockup's 1280×720
+   pixels times `--u`; phones (body.touch) move the bottom pieces up, clear of the touch controls. */
+
+/* Our HUD in a race this one draws: only its screen effects and warnings stay. */
+.hud.hud-skinned > :not(.hud-screen-effects, .hud-flash, .hud-wrong-way, .hud-hazard-warning) {
+  display: none !important;
+}
+
+.mk8-hud {
+  --u: min(calc(100vw / 1280), calc(100vh / 720));
+  --edge-top: max(calc(28 * var(--u)), env(safe-area-inset-top));
+  --edge-left: max(calc(40 * var(--u)), env(safe-area-inset-left));
+  --edge-right: max(calc(40 * var(--u)), env(safe-area-inset-right));
+  --edge-bottom: max(calc(30 * var(--u)), env(safe-area-inset-bottom));
+  --ink: #1b2448;
+  --slant: -8deg;
+
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-select: none;
+  color: #fff;
+  font-family: 'M PLUS Rounded 1c', 'Arial Rounded MT Bold', 'Helvetica Neue', Arial, sans-serif;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.mk8-hud[hidden],
+.mk8-hud [hidden] {
+  display: none !important;
+}
+
+/* Item slots: glossy round windows; the reel scrolls icons down through them. */
+.mk8-hud-slot {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: radial-gradient(circle at 40% 30%, #fff, #d7ddea 60%, #9aa5bd);
+  box-shadow:
+    0 0 0 calc(7 * var(--u)) var(--ink),
+    0 0 0 calc(11 * var(--u)) #fff,
+    0 calc(8 * var(--u)) calc(18 * var(--u)) #0008;
+}
+
+.mk8-hud-item {
+  left: var(--edge-left);
+  top: var(--edge-top);
+  width: calc(150 * var(--u));
+  height: calc(150 * var(--u));
+}
+
+.mk8-hud-item2 {
+  left: calc(var(--edge-left) + 122 * var(--u));
+  top: calc(var(--edge-top) - 8 * var(--u));
+  width: calc(66 * var(--u));
+  height: calc(66 * var(--u));
+  box-shadow:
+    0 0 0 calc(5 * var(--u)) var(--ink),
+    0 0 0 calc(8 * var(--u)) #fff;
+}
+
+.mk8-hud-reel {
+  position: relative;
+  width: 75%;
+  height: 75%;
+  overflow: hidden;
+  border-radius: 50%;
+  transform: scale(var(--land, 1));
+}
+
+.mk8-hud-cell {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+}
+
+.mk8-hud-cell img,
+.mk8-hud-cell svg {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+
+/* Spinning: the first icon moves down out of the window as the second comes in from above. */
+.mk8-hud-slot[data-state='spinning'] .mk8-hud-cell:first-child {
+  transform: translateY(calc(var(--reel, 0) * 100%));
+  opacity: calc(1 - var(--reel, 0) * 0.6);
+}
+
+.mk8-hud-slot[data-state='spinning'] .mk8-hud-cell:last-child {
+  transform: translateY(calc((var(--reel, 0) - 1) * 100%));
+  opacity: calc(0.4 + var(--reel, 0) * 0.6);
+}
+
+.mk8-hud-slot[data-state='spinning'] .mk8-hud-reel {
+  filter: blur(calc(0.6 * var(--u)));
+}
+
+/* Uses left of a triple item that its icon doesn't show. */
+.mk8-hud-count {
+  position: absolute;
+  right: -6%;
+  bottom: -4%;
+  font-size: calc(40 * var(--u));
+  transform: skewX(var(--slant));
+  -webkit-text-stroke: calc(7 * var(--u)) var(--ink);
+  paint-order: stroke fill;
+}
+
+.mk8-hud-item2 .mk8-hud-count {
+  font-size: calc(24 * var(--u));
+  -webkit-text-stroke-width: calc(5 * var(--u));
+}
+
+.mk8-hud-count:empty {
+  display: none;
+}
+
+/* Minimap: the course from above on a dark rounded square, a head per racer. */
+.mk8-hud-map {
+  position: absolute;
+  right: calc(var(--edge-right) + 52px);
+  top: var(--edge-top);
+  width: calc(190 * var(--u));
+  height: calc(190 * var(--u));
+  border-radius: calc(18 * var(--u));
+  background: #0b123099;
+}
+
+.mk8-hud-map-sprite,
+.mk8-hud-map-course {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.mk8-hud-map-sprite {
+  object-fit: contain;
+  opacity: 0.95;
+}
+
+.mk8-hud-map-road {
+  fill: none;
+  stroke: #fff;
+  stroke-width: 9;
+  stroke-linejoin: round;
+  paint-order: stroke;
+  filter: drop-shadow(0 0 2px #1b2448);
+}
+
+.mk8-hud-head {
+  position: absolute;
+  width: calc(26 * var(--u));
+  height: calc(26 * var(--u));
+  margin: calc(-13 * var(--u)) 0 0 calc(-13 * var(--u));
+  border: calc(3 * var(--u)) solid #fff;
+  border-radius: 50%;
+  overflow: hidden;
+  background: #c9cfdd;
+  box-shadow: 0 0 0 calc(1.5 * var(--u)) var(--ink);
+}
+
+.mk8-hud-head.you {
+  z-index: 1;
+  width: calc(34 * var(--u));
+  height: calc(34 * var(--u));
+  margin: calc(-17 * var(--u)) 0 0 calc(-17 * var(--u));
+  border-color: #ffd21f;
+}
+
+.mk8-hud-head img {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* Something homing on you: its icon in a blinking red ring under the minimap. */
+.mk8-hud-incoming {
+  position: absolute;
+  right: calc(var(--edge-right) + 52px);
+  top: calc(var(--edge-top) + 202 * var(--u));
+  display: flex;
+  gap: calc(8 * var(--u));
+}
+
+.mk8-hud-warning {
+  width: calc(60 * var(--u));
+  height: calc(60 * var(--u));
+  padding: calc(6 * var(--u));
+  box-sizing: border-box;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0 0 calc(5 * var(--u)) #e3262e;
+  animation: mk8-hud-blink 0.4s steps(2) infinite;
+}
+
+.mk8-hud-warning img,
+.mk8-hud-warning svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+@keyframes mk8-hud-blink {
+  50% {
+    box-shadow: 0 0 0 calc(5 * var(--u)) #fff;
+  }
+}
+
+/* Coins and lap: outlined, slanted numbers bottom-left. */
+.mk8-hud-coins,
+.mk8-hud-lap {
+  position: absolute;
+  bottom: var(--edge-bottom);
+  transform: skewX(var(--slant));
+  -webkit-text-stroke: calc(7 * var(--u)) var(--ink);
+  paint-order: stroke fill;
+}
+
+.mk8-hud-coins {
+  left: var(--edge-left);
+  display: flex;
+  align-items: center;
+  gap: calc(6 * var(--u));
+  font-size: calc(46 * var(--u));
+  transform: skewX(var(--slant)) scale(var(--pulse, 1));
+  transform-origin: 20% 60%;
+}
+
+.mk8-hud-coin {
+  width: calc(58 * var(--u));
+  height: calc(58 * var(--u));
+  transform: skewX(8deg);
+}
+
+.mk8-hud-coin img {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* Without the pack: a gold coin drawn in CSS. */
+.mk8-hud-coin.stand-in,
+.mk8-hud-coin:empty {
+  box-sizing: border-box;
+  border-radius: 50%;
+  border: calc(5 * var(--u)) solid #b8860b;
+  background: radial-gradient(circle at 40% 35%, #fff6b0, #ffd21f 45%, #f59b00);
+  box-shadow: 0 0 0 calc(3 * var(--u)) var(--ink);
+}
+
+.mk8-hud-coin-count {
+  min-width: 1.3em;
+}
+
+.mk8-hud-lap {
+  left: calc(var(--edge-left) + 210 * var(--u));
+  bottom: calc(var(--edge-bottom) + 4 * var(--u));
+  font-size: calc(40 * var(--u));
+}
+
+.mk8-hud-lap small {
+  font-size: calc(24 * var(--u));
+}
+
+/* Position: big gradient "1st" with a thick outline, bottom-right. */
+.mk8-hud-position {
+  position: absolute;
+  right: var(--edge-right);
+  bottom: calc(var(--edge-bottom) - 12 * var(--u));
+  font-size: calc(170 * var(--u));
+  transform: skewX(-10deg) scale(var(--pop, 1));
+  transform-origin: 70% 80%;
+  background: linear-gradient(180deg, #fff9c9 0, #ffe23a 40%, #ff9f00 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-stroke: calc(10 * var(--u)) var(--ink);
+  paint-order: stroke fill;
+  filter: drop-shadow(0 calc(6 * var(--u)) 0 var(--ink));
+}
+
+.mk8-hud-position small {
+  font-size: calc(70 * var(--u));
+}
+
+/* Lower places in blue, as in MK8. */
+.mk8-hud-position:not([data-position='1'], [data-position='2'], [data-position='3']) {
+  background-image: linear-gradient(180deg, #e3f3ff 0, #6cc4ff 45%, #1663d6 100%);
+}
+
+/* Countdown: big white numbers outlined in red, popping in. */
+.mk8-hud-countdown {
+  position: absolute;
+  left: 50%;
+  top: calc(var(--edge-top) + 190 * var(--u));
+  font-size: calc(140 * var(--u));
+  transform: translateX(-50%) scale(var(--pop, 1));
+  -webkit-text-stroke: calc(12 * var(--u)) #c21d24;
+  paint-order: stroke fill;
+  filter: drop-shadow(0 calc(6 * var(--u)) 0 #6b0e12);
+  white-space: nowrap;
+}
+
+.mk8-hud-countdown[data-text='GO!'] {
+  -webkit-text-stroke-color: #12872f;
+  filter: drop-shadow(0 calc(6 * var(--u)) 0 #0a4a1a);
+}
+
+/* Lakitu: drops in on his line holding the start light or the lap sign. */
+.mk8-hud-lakitu {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transform: translate(-50%, calc(var(--lift, 0) * -260 * var(--u)));
+}
+
+.mk8-hud-lakitu::before {
+  content: '';
+  width: calc(4 * var(--u));
+  height: calc(var(--edge-top) + 10 * var(--u));
+  background: #2a2f44;
+}
+
+.mk8-hud-light {
+  display: grid;
+  gap: calc(8 * var(--u));
+  padding: calc(10 * var(--u));
+  border-radius: calc(16 * var(--u));
+  background: linear-gradient(180deg, #4a4f61, #24283a);
+  box-shadow:
+    0 0 0 calc(4 * var(--u)) var(--ink),
+    0 calc(6 * var(--u)) calc(12 * var(--u)) #0008;
+}
+
+.mk8-hud-lamp {
+  width: calc(38 * var(--u));
+  height: calc(38 * var(--u));
+  border-radius: 50%;
+  background: radial-gradient(circle at 40% 35%, #555, #1a1a1a);
+}
+
+.mk8-hud-lamp[data-on='red'] {
+  background: radial-gradient(circle at 40% 35%, #ffb3a8, #ff2a1a 55%, #a30d00);
+  box-shadow: 0 0 calc(14 * var(--u)) #ff2a1a;
+}
+
+.mk8-hud-lamp[data-on='green'] {
+  background: radial-gradient(circle at 40% 35%, #c8ffd5, #2bff5a 55%, #08912a);
+  box-shadow: 0 0 calc(14 * var(--u)) #2bff5a;
+}
+
+.mk8-hud-sign {
+  min-width: calc(150 * var(--u));
+  padding: calc(14 * var(--u)) calc(22 * var(--u));
+  border-radius: calc(14 * var(--u));
+  background: linear-gradient(180deg, #fff, #dfe5f1);
+  box-shadow:
+    0 0 0 calc(5 * var(--u)) var(--ink),
+    0 calc(8 * var(--u)) calc(14 * var(--u)) #0008;
+  color: #1663d6;
+  font-size: calc(64 * var(--u));
+  text-align: center;
+  transform: rotate(-4deg);
+}
+
+.mk8-hud-sign[data-sign='FINAL LAP'] {
+  color: #e3262e;
+  font-size: calc(44 * var(--u));
+  line-height: 1.05;
+}
+
+/* Phones: the bottom row moves up under the item box and the position next to the minimap, so the
+   steering stick (bottom-left) and buttons (bottom-right) are clear. */
+body.touch .mk8-hud {
+  --u: min(calc(100vw / 1100), calc(100vh / 620));
+}
+
+body.touch .mk8-hud-coins,
+body.touch .mk8-hud-lap {
+  bottom: auto;
+  top: calc(var(--edge-top) + 172 * var(--u));
+}
+
+body.touch .mk8-hud-lap {
+  left: calc(var(--edge-left) + 196 * var(--u));
+  top: calc(var(--edge-top) + 176 * var(--u));
+}
+
+body.touch .mk8-hud-position {
+  bottom: auto;
+  top: calc(var(--edge-top) - 10 * var(--u));
+  right: calc(var(--edge-right) + 52px + 222 * var(--u));
+  font-size: calc(130 * var(--u));
+}
+
+body.touch .mk8-hud-position small {
+  font-size: calc(54 * var(--u));
+}
