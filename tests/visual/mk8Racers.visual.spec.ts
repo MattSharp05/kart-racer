@@ -20,3 +20,12 @@ test('mk8-lakitu-countdown at two red lamps (fixture pack, paused)', async ({ pa
   await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(resolve)));
   await expect(page).toHaveScreenshot('mk8-lakitu-countdown.png');
 });
+
+// MK-102: the 6 kart bodies, each on its own tires at its wheel anchors, gliders folded away.
+test('mk8-karts-lineup (fixture pack, paused)', async ({ page }) => {
+  await servePack(page);
+  await loadScenario(page, 'mk8-karts-lineup', { paused: true });
+  await expect(page.locator('.mk8-stage-label')).toHaveCount(6);
+  await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(resolve)));
+  await expect(page).toHaveScreenshot('mk8-karts-lineup.png');
+});

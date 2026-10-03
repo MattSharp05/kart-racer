@@ -99,6 +99,18 @@ export interface RaceInfo {
  */
 export type KartController = 'local' | 'remote' | 'ai';
 
+/**
+ * An MK8 Mode kart (MK-102): a racer plus body, tires and glider, ids from
+ * `src/mk8/content/stats.ts`. Its stats are the four pieces' summed (MK8's table, mapped by
+ * `tuning.mk8.statMap`).
+ */
+export interface Loadout {
+  racer: string;
+  body: string;
+  tires: string;
+  glider: string;
+}
+
 export interface KartState {
   id: number;
   /** Which of the four karts this is (stats + model). */
@@ -155,6 +167,11 @@ export interface KartState {
   gravityDir?: Vec3;
   /** Anti-gravity mode: set on `antigrav` ground, kept on offroad and walls, cleared on plain road. */
   antigrav?: boolean;
+  /**
+   * MK8 Mode's kart parts (MK-102): when set, its physics come from MK8's stat table instead of
+   * the racer's stats (`kartType` still picks the model). Set at the start of a race, never changed.
+   */
+  loadout?: Loadout;
 }
 
 /**

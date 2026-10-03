@@ -9,7 +9,7 @@ import { isKartId, KART_IDS, type KartId } from '../sim/data/karts';
 import type { EngineClass } from '../sim/tuning';
 import { createRace } from '../sim/race/createRace';
 import { step } from '../sim/step';
-import { NEUTRAL_INPUT, type InputFrame, type SimState } from '../sim/types';
+import { NEUTRAL_INPUT, type InputFrame, type Loadout, type SimState } from '../sim/types';
 import { showErrorBanner } from '../ui/errorBanner';
 import { Game } from './game';
 import type { LaunchParams } from './launchParams';
@@ -166,6 +166,8 @@ export interface RaceConfig {
   trackId: string;
   /** A registered item set (MK-119: `mk8`); the original game's by default. */
   itemSet?: string;
+  /** The player's MK8 kart parts (MK-102). */
+  playerLoadout?: Loadout;
 }
 
 /**
@@ -236,6 +238,7 @@ export class RaceSession {
         playerKart: config.playerKart,
         trackId: config.trackId,
         ...(config.itemSet !== undefined ? { itemSet: config.itemSet } : {}),
+        ...(config.playerLoadout ? { playerLoadout: config.playerLoadout } : {}),
       }),
     );
   }

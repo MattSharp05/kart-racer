@@ -35,7 +35,7 @@ function circles(kart: KartState, position: Vec3 = kart.position): Circle[] {
 }
 
 function mass(kart: KartState): number {
-  return 1 + kartPhysics(kart.kartType, 100).weight * tuning.bumpMassPerWeight;
+  return 1 + kartPhysics(kart.kartType, 100, kart.loadout).weight * tuning.bumpMassPerWeight;
 }
 
 /**
