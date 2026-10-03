@@ -33,8 +33,11 @@ export interface CoinLine {
 
 /** Special places on a route. */
 export type RouteZone =
-  /** A glide ramp: leaving the ground between `from` and `to` starts a glide. */
-  | { kind: 'glide'; from: number; to: number }
+  /**
+   * A glide ramp: leaving the ground between `from` and `to` starts a glide. With `landing` (a lap
+   * fraction) the flight is carried to the route there (MK-123: a long glide up to higher ground).
+   */
+  | { kind: 'glide'; from: number; to: number; landing?: number }
   /** A water volume (axis-aligned box, world space): karts inside are underwater. */
   | { kind: 'water'; min: Vec3; max: Vec3 }
   /** A boost bumper (anti-gravity spin boost on contact). */

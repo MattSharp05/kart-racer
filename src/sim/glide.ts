@@ -20,7 +20,7 @@ import {
   type Vec3,
 } from './math';
 import type { MeshSurface } from './meshTrack';
-import { progressAt, type RouteDef } from './route';
+import { progressAt, routeGeometry, type RouteDef } from './route';
 import { tuning } from './tuning';
 import type { InputFrame, KartState, SimEvent } from './types';
 
@@ -71,16 +71,30 @@ export interface GlideTuning {
 /** The glide numbers, typed (and checked) as `GlideTuning`. */
 export const glideTuning = (): GlideTuning => tuning.mk8.glide;
 
+/**
+ * `tuning.mk8.glideAim` (MK-123): a glide off a ramp whose route zone has a `landing` is carried
+ * there, like MK8's long glides up to higher ground: its height eases towards the landing's, so it
+ * arrives the same way at every engine class. Steering and the pitch's speed change still work.
+ */
+export interface GlideAimTuning {
+  /** It aims this far above the route at the landing, m. */
+  clearance: number;
+  /** Vertical speed eases towards the speed that reaches the aim at this rate, 1/s. */
+  rate: number;
+  /** Closer than this to the aim (or past it), m: it glides on freely and lands. */
+  release: number;
+}
+
+export const glideAimTuning = (): GlideAimTuning => tuning.mk8.glideAim;
+
 /** Whether lap fraction `t` is inside one of the route's glide zones (ranges may wrap past 0). */
 export function inGlideZone(route: RouteDef, t: number): boolean {
-  for (const zone of route.zones) {
-    if (zone.kind !== 'glide') continue;
-    const inside =
-      zone.from <= zone.to ? t >= zone.from && t <= zone.to : t >= zone.from || t <= zone.to;
-    if (inside) return true;
-  }
-  return false;
+  return route.zones.some((zone) => zone.kind === 'glide' && inRange(t, zone.from, zone.to));
 }
+
+/** Whether `t` is in `from`..`to` (a range may wrap past 0). */
+const inRange = (t: number, from: number, to: number): boolean =>
+  from <= to ? t >= from && t <= to : t >= from || t <= to;
 
 /**
  * Whether a kart that just left the ground glides: it left from a `glide` surface, or inside a
@@ -99,10 +113,28 @@ export function launchesGlide(
   return from.some((p) => inGlideZone(route, progressAt(route, p.position, hint)));
 }
 
-/** Opens the glider: a drift in progress ends (no mini-turbo), the pitch starts level. */
-export function startGlide(kart: KartState, events: SimEvent[]): void {
+/**
+ * Where a glide launched here is carried to (MK-123): above the route at the `landing` of the glide
+ * zone the kart is in, if that zone has one.
+ */
+export function glideAim(route: RouteDef, kart: KartState): Vec3 | undefined {
+  const zones = route.zones.flatMap((z) => (z.kind === 'glide' && z.landing !== undefined ? [z] : []));
+  if (zones.length === 0) return undefined;
+  const hint = kart.lastSafeT >= 0 ? kart.lastSafeT : undefined;
+  const t = progressAt(route, kart.position, hint);
+  const zone = zones.find((z) => inRange(t, z.from, z.to));
+  if (zone?.landing === undefined) return undefined;
+  const frame = routeGeometry(route).frameAt(zone.landing);
+  return add(frame.position, scale(frame.up, glideAimTuning().clearance));
+}
+
+/**
+ * Opens the glider: a drift in progress ends (no mini-turbo), the pitch starts level. `aim`: where
+ * the flight is carried to (`glideAim`).
+ */
+export function startGlide(kart: KartState, events: SimEvent[], aim?: Vec3): void {
   cancelDrift(kart, events);
-  kart.glide = { time: 0, pitch: 0 };
+  kart.glide = aim ? { time: 0, pitch: 0, aim } : { time: 0, pitch: 0 };
   events.push({ type: 'glideOpen', kartId: kart.id });
 }
 
@@ -186,7 +218,17 @@ export function glideStep(
     gravity * g.lift * speedShare -
     gravity * g.diveSink * Math.max(0, pitch) +
     gravity * g.floatLift * Math.max(0, -pitch);
-  const newVy = (vy + accel * dt) * Math.exp(-g.verticalDrag * dt);
+  let newVy = (vy + accel * dt) * Math.exp(-g.verticalDrag * dt);
+  // Carried to a landing (MK-123): the vertical speed that gets there at this speed, eased in.
+  if (glide.aim) {
+    const a = glideAimTuning();
+    const to = sub(glide.aim, kart.position);
+    const ahead = to.x * facing.x + to.z * facing.z;
+    if (ahead > a.release && speed > 0) {
+      const want = to.y / (Math.hypot(to.x, to.z) / speed);
+      newVy = vy + (want - vy) * (1 - Math.exp(-a.rate * dt));
+    } else delete glide.aim;
+  }
 
   const slip = scale(sideways, Math.exp(-g.grip * dt));
   const velocity = add(add(scale(facing, speed), slip), { x: 0, y: newVy, z: 0 });

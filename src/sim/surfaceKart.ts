@@ -23,7 +23,7 @@ import {
   updateAirState,
   updateForwardSpeed,
 } from './kart';
-import { endGlide, glideStep, launchesGlide, startGlide } from './glide';
+import { endGlide, glideAim, glideStep, launchesGlide, startGlide } from './glide';
 import { kartPhysics } from './kartStats';
 import {
   add,
@@ -394,11 +394,12 @@ export function updateMeshKart(
       }
       kart.antigrav = false;
       gravityDir = { ...DOWN };
-      startGlide(kart, events);
+      startGlide(kart, events, glideAim(track.route, kart));
     }
   } else if (kart.grounded) endGlide(kart, events);
   else if (!wasGrounded && !kart.glide && kart.airTime < m.glide.hopGrace) {
-    if (hopsOffLip(track, kart, position, forward)) startGlide(kart, events);
+    if (hopsOffLip(track, kart, position, forward))
+      startGlide(kart, events, glideAim(track.route, kart));
   }
   // Launch speed for tricks: how fast it leaves the ground against gravity.
   updateAirState(kart, wasGrounded, -dot(velocity, gravityDir), dt, events);
