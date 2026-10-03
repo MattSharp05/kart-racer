@@ -190,12 +190,24 @@ export function glideStep(
 
   const slip = scale(sideways, Math.exp(-g.grip * dt));
   const velocity = add(add(scale(facing, speed), slip), { x: 0, y: newVy, z: 0 });
-  const frameForward = orthonormal(facing, levelUp);
-  return {
-    velocity,
-    forward: length(frameForward) > 0.5 ? frameForward : facing,
-    up: levelUp,
-  };
+  return { velocity, forward: forwardAlong(facing, levelUp), up: levelUp };
+}
+
+/** Below this `up.y` (a kart launched off a wall) the frame can't keep its facing exactly. */
+const STEEP_UP_Y = 0.05;
+
+/**
+ * The kart's forward for level `facing` under `up`: perpendicular to `up` and pointing exactly
+ * along `facing` seen from above, so the next tick's facing (`level(forward)`) is this one. (Just
+ * making `facing` perpendicular to a tilted `up` swings it sideways, and tick after tick that
+ * turned karts launched off a steep slope right round, MK-106.)
+ */
+function forwardAlong(facing: Vec3, up: Vec3): Vec3 {
+  if (up.y < STEEP_UP_Y) {
+    const f = orthonormal(facing, up);
+    return length(f) > 0.5 ? f : facing;
+  }
+  return normalize({ x: facing.x, y: -dot(facing, up) / up.y, z: facing.z });
 }
 
 /** `v` with its vertical part removed, normalized (−Z if `v` is vertical). */

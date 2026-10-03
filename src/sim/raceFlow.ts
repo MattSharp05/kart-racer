@@ -1,5 +1,6 @@
 import { aiInput, maxCurvatureAhead } from './ai/driver';
 import { aiItemInput, aiSteerOffset } from './ai/items';
+import { meshAiInput, meshAutopilotInput } from './ai/meshDriver';
 import { rubberBandScale } from './ai/rubberBand';
 import { autopilotInput } from './autopilot';
 import { applyBoost } from './drift';
@@ -7,6 +8,9 @@ import { positionOf } from './race';
 import { trackGeometry, type TrackDef } from './track';
 import { DT, tuning } from './tuning';
 import { NEUTRAL_INPUT, type InputFrame, type SimEvent, type SimState } from './types';
+
+/** Finished karts drive on at this share of top speed. */
+const FINISHED_THROTTLE = 0.8;
 
 /** Ticks per countdown number. */
 const TICKS_PER_SECOND = Math.round(1 / DT);
@@ -53,7 +57,15 @@ export function beforeMovement(
       kart.race.stallTimer = Math.max(0, kart.race.stallTimer - DT);
       resolved[kart.id] = { ...NEUTRAL_INPUT };
     } else if (kart.race.finishTick !== undefined && geometry) {
-      resolved[kart.id] = autopilotInput(kart, geometry, 0.8);
+      resolved[kart.id] = autopilotInput(kart, geometry, FINISHED_THROTTLE);
+    } else if (kart.race.finishTick !== undefined && track.kind === 'mesh') {
+      resolved[kart.id] = meshAutopilotInput(
+        kart,
+        track,
+        state.engineClass,
+        FINISHED_THROTTLE,
+        kart.ai,
+      );
     } else if (kart.controller !== 'ai' || !kart.ai) {
       // Driven by a person (local or remote): their input as given.
     } else if (kart.respawnTimer > 0 || kart.spinTimer > 0) {
@@ -72,6 +84,11 @@ export function beforeMovement(
           )
         : {};
       resolved[kart.id] = { ...drive, ...items };
+    } else if (track.kind === 'mesh') {
+      // Mesh tracks (MK-105): the route's racing line; no items or rubber-banding yet (MK-128).
+      // It still backs out of trouble after the people finish (the AI finish in their own time).
+      const racing = state.phase === 'racing' || state.phase === 'finished';
+      resolved[kart.id] = meshAiInput(kart, kart.ai, track, state.engineClass, racing);
     }
   }
   return { inputs: resolved, frozen: false };

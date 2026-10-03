@@ -1,5 +1,5 @@
+import { routeGeometry } from './route';
 import { routeProgress } from './routes';
-import type { SplineTrackDef } from './splineTrack';
 import { trackGeometry, type TrackDef } from './track';
 import { DT, tuning } from './tuning';
 import type { KartState, SimEvent, SimState } from './types';
@@ -33,13 +33,12 @@ export function raceProgress(kart: KartState, t: number): number {
 
 function updateKartLaps(
   kart: KartState,
-  track: SplineTrackDef,
+  checkpoints: readonly number[],
   t: number,
   tick: number,
   events: SimEvent[],
 ): void {
   const race = kart.race;
-  const checkpoints = track.checkpoints;
   if (race.lastT < 0) {
     race.lastT = t;
     return;
@@ -79,8 +78,14 @@ function updateKartLaps(
   race.lastT = t;
 }
 
-function updateWrongWay(kart: KartState, tangent: { x: number; z: number }, dt: number): void {
-  const along = kart.velocity.x * tangent.x + kart.velocity.z * tangent.z;
+function updateWrongWay(
+  kart: KartState,
+  tangent: { x: number; y?: number; z: number },
+  dt: number,
+): void {
+  // Mesh routes (MK-105) pass a 3D tangent: up a wall the speed along the road is mostly in y.
+  const along =
+    kart.velocity.x * tangent.x + kart.velocity.y * (tangent.y ?? 0) + kart.velocity.z * tangent.z;
   const race = kart.race;
   race.wrongWayTime = along < -tuning.wrongWaySpeed ? race.wrongWayTime + dt : 0;
   race.wrongWay = race.wrongWayTime >= tuning.wrongWaySeconds;
@@ -98,17 +103,28 @@ export function updateRace(
   dt = DT,
   only?: number,
 ): void {
-  if (track.kind !== 'spline') return;
-  const geometry = trackGeometry(track);
+  if (track.kind === 'arena') return;
+  const geometry = track.kind === 'spline' ? trackGeometry(track) : undefined;
   const progress = new Map<number, number>();
   for (const kart of state.karts) {
     // Simulating one kart (`StepOptions.only`, MK-74): the others' laps and the order are the host's.
     if (only !== undefined && kart.id !== only) continue;
+    if (track.kind === 'mesh') {
+      // Mesh tracks (MK-105): progress along the 3D route, searched near last tick's (a road
+      // passing over or under itself can't swap it).
+      const route = routeGeometry(track.route);
+      const p = route.project(kart.position, kart.race.lastT >= 0 ? kart.race.lastT : undefined);
+      updateKartLaps(kart, track.route.checkpoints, p.t, state.tick, events);
+      updateWrongWay(kart, route.frameAt(p.t).tangent, dt);
+      progress.set(kart.id, raceProgress(kart, p.t));
+      continue;
+    }
+    if (!geometry || track.kind !== 'spline') continue;
     const p = geometry.project(kart.position);
     // On another route round part of the lap (MK-61), progress follows the route.
     const route = routeProgress(geometry, kart.position, p);
     const t = route?.t ?? p.t;
-    updateKartLaps(kart, track, t, state.tick, events);
+    updateKartLaps(kart, track.checkpoints, t, state.tick, events);
     updateWrongWay(kart, route?.tangent ?? p.tangent, dt);
     progress.set(kart.id, raceProgress(kart, t));
   }

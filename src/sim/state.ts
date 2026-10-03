@@ -1,5 +1,6 @@
 import type { KartId } from './data/karts';
 import { forwardFromHeading, orthonormal, scale, vec3 } from './math';
+import { routeGeometry } from './route';
 import { seedRng } from './rng';
 import type { EngineClass } from './tuning';
 import { getTrack, trackGeometry } from './track';
@@ -127,14 +128,19 @@ export function createSimState({
 /** One active item box per lateral slot on each of the track's item-box rows. */
 function itemBoxesFor(trackId: string): SimState['entities'] {
   const track = getTrack(trackId);
-  if (track.kind !== 'spline' || !track.itemBoxRows) return [];
-  const geometry = trackGeometry(track);
+  if (track.kind === 'arena') return [];
+  // Mesh tracks (MK-105): the route's rows, on the road surface.
+  const pointAt =
+    track.kind === 'spline'
+      ? (t: number, lateral: number) => trackGeometry(track).pointAt(t, lateral)
+      : (t: number, lateral: number) => routeGeometry(track.route).frameAt(t, lateral).position;
+  const rows = (track.kind === 'spline' ? track.itemBoxRows : track.route.itemBoxRows) ?? [];
   let id = 0;
-  return track.itemBoxRows.flatMap((row) =>
+  return rows.flatMap((row) =>
     row.laterals.map((lateral) => ({
       id: id++,
       kind: 'itemBox' as const,
-      position: geometry.pointAt(row.t, lateral),
+      position: pointAt(row.t, lateral),
       respawnTimer: 0,
     })),
   );

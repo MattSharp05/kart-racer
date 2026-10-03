@@ -1,3 +1,4 @@
+import { meshAutopilotInput, type StuckState } from '../sim/ai/meshDriver';
 import { autopilotInput } from '../sim/autopilot';
 import { step } from '../sim/step';
 import { getTrack, trackGeometry } from '../sim/track';
@@ -30,8 +31,11 @@ export class Game {
 
   private accumulator = 0;
   private readonly overrides = new Map<number, InputFrame>();
-  /** Karts driven by the centreline autopilot (tests, QA, perf runs). */
-  private readonly autopiloted = new Set<number>();
+  /**
+   * Karts driven by the centreline autopilot (tests, QA, perf runs), with the mesh-track
+   * autopilot's stuck counters for each (MK-105).
+   */
+  private readonly autopiloted = new Map<number, StuckState>();
   private pendingEvents: SimEvent[] = [];
   private readonly listeners: ((events: SimEvent[], state: SimState) => void)[] = [];
 
@@ -84,9 +88,9 @@ export class Game {
     else this.overrides.delete(kartId);
   }
 
-  /** Hands kart `kartId` to the centreline autopilot (spline tracks only) or back. */
+  /** Hands kart `kartId` to the centreline autopilot (spline and mesh tracks) or back. */
   setAutopilot(kartId: number, enabled: boolean): void {
-    if (enabled) this.autopiloted.add(kartId);
+    if (enabled) this.autopiloted.set(kartId, { stuckTime: 0, recoverTime: 0 });
     else this.autopiloted.delete(kartId);
   }
 
@@ -106,11 +110,13 @@ export class Game {
     const inputs = this.readInputs().slice();
     for (const [kartId, frame] of this.overrides) inputs[kartId] = frame;
     const track = getTrack(this.state.trackId);
-    if (track.kind === 'spline') {
-      for (const kartId of this.autopiloted) {
-        const kart = this.state.karts[kartId];
-        if (kart) inputs[kartId] = autopilotInput(kart, trackGeometry(track));
-      }
+    for (const [kartId, stuck] of this.autopiloted) {
+      const kart = this.state.karts[kartId];
+      if (!kart) continue;
+      if (track.kind === 'spline') inputs[kartId] = autopilotInput(kart, trackGeometry(track));
+      // Mesh tracks (MK-105): the route follower, slowing for corners.
+      else if (track.kind === 'mesh')
+        inputs[kartId] = meshAutopilotInput(kart, track, this.state.engineClass, 1, stuck);
     }
     const result = this.stepper(this.state, inputs);
     this.previousState = this.state;

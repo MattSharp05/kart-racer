@@ -363,11 +363,21 @@ export function updateMeshKart(
     else if (fit.plain) kart.antigrav = false;
     gravityDir = kart.antigrav ? scale(up, -1) : { ...DOWN };
   }
-  // Leaving a glide ramp (not hopping on it) opens the glider, as does hopping off its lip;
-  // landing folds it.
+  // Leaving a glide ramp (a `glide` surface or route zone; not a hop on it): launched level along
+  // the road with a ramp lip's lift and out of anti-gravity (MK-105), and the glider opens. Hopping
+  // off its lip opens it too; landing folds it.
   if (wasGrounded && !kart.grounded && !hopped) {
-    if (launchesGlide(track.route, kart, launchPoints(track, kart, under?.surface, forward, up)))
+    if (launchesGlide(track.route, kart, launchPoints(track, kart, under?.surface, forward, up))) {
+      const level = { x: forward.x, y: 0, z: forward.z };
+      const run = length(level);
+      if (run > 1e-6) {
+        const speed = Math.max(0, newSpeed);
+        velocity = add(scale(level, speed / run), { x: 0, y: speed * tuning.rampLaunch, z: 0 });
+      }
+      kart.antigrav = false;
+      gravityDir = { ...DOWN };
       startGlide(kart, events);
+    }
   } else if (kart.grounded) endGlide(kart, events);
   else if (!wasGrounded && !kart.glide && kart.airTime < m.glide.hopGrace) {
     if (hopsOffLip(track, kart, position, forward)) startGlide(kart, events);

@@ -6,7 +6,7 @@ import {
   testRampTrack,
 } from '../mk8/content/courses/test-ramp';
 import { registerTestRamp } from '../mk8/content/courses/test-ramp/register';
-import { inGlideZone, pitchInput } from './glide';
+import { glideStep, inGlideZone, pitchInput } from './glide';
 import { MESH_SURFACES, type MeshTrackDef } from './meshTrack';
 import type { RouteDef } from './route';
 import { createSimState } from './state';
@@ -336,8 +336,10 @@ describe('items while gliding (MK-106)', () => {
       s = step(s, [{ ...NEUTRAL_INPUT, throttle: 1, brake: 1 }]).state;
     const k = kart0(s);
     expect(k.glide).toBeDefined();
+    // A ready green shell (the run-up drove through the route's item boxes: no roulette spinning).
     k.item.held = 'green';
     k.item.uses = 1;
+    k.item.roulette = 0;
     s = step(s, [{ ...NEUTRAL_INPUT, throttle: 1, brake: 1, item: true }]).state;
     const shell = s.entities.find((e): e is ShellEntity => e.kind === 'shell');
     expect(shell).toBeDefined();
@@ -349,6 +351,28 @@ describe('items while gliding (MK-106)', () => {
     expect(later).toBeDefined();
     expect(later!.position.y).toBe(y0);
     expect(later!.position.x).toBeGreaterThan(x0 + 5);
+  });
+});
+
+describe('launching off a steep slope (MK-106)', () => {
+  it('keeps its heading while the kart levels out (no sideways swing)', () => {
+    // Facing +X down a 60° slope: up tilted towards +X. No steering: it must fly straight on.
+    const k = kart0(runUp());
+    const tilt = Math.PI / 3;
+    let up = { x: Math.sin(tilt), y: Math.cos(tilt), z: 0.02 };
+    let forward = { x: Math.cos(tilt), y: -Math.sin(tilt), z: 0 };
+    k.grounded = false;
+    k.glide = { time: 0, pitch: 0 };
+    k.velocity = { x: 26, y: 7, z: 0 };
+    for (let i = 0; i < 60; i += 1) {
+      const flight = glideStep(k, NEUTRAL_INPUT, forward, up, 28, 1, DT);
+      k.velocity = flight.velocity;
+      forward = flight.forward;
+      up = flight.up;
+    }
+    expect(Math.abs(forward.z)).toBeLessThan(1e-6);
+    expect(Math.abs(k.velocity.z)).toBeLessThan(1e-6);
+    expect(up.y).toBeGreaterThan(0.99);
   });
 });
 

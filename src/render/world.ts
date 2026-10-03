@@ -357,6 +357,8 @@ interface DrawnTrack {
 
 /** Frees the GPU side of `root`'s meshes (three re-uploads anything shared that's used again). */
 function disposeObject(root: THREE.Object3D): void {
+  // A course model keeps its geometry and textures for the next race on it (MK-105).
+  if (root.userData.sharedAssets === true) return;
   root.traverse((object) => {
     if (!(
       object instanceof THREE.Mesh ||

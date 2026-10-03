@@ -1,6 +1,6 @@
 import { cancelDrift } from './drift';
 import { endGlide } from './glide';
-import { add, headingOf, scale, WORLD_UP, type Vec3 } from './math';
+import { add, dot, headingOf, scale, sub, WORLD_UP, type Vec3 } from './math';
 import { raycastMesh, surfaceMask, type MeshTrackDef } from './meshTrack';
 import { routeGeometry, type RouteGeometry } from './route';
 import { routeProgress } from './routes';
@@ -134,11 +134,18 @@ function updateMeshRespawns(
       carryOnSurface(kart, track, dt);
       continue;
     }
+    // Landed on ground well below the road (off the course, under it): a fall too (MK-105).
+    let below = false;
     if (kart.grounded) {
-      const hint = kart.lastSafeT >= 0 ? kart.lastSafeT : undefined;
-      kart.lastSafeT = geometry.project(kart.position, hint).t;
+      // Last tick's progress (kept up in the air too, so a long jump lands where it should).
+      const last = kart.race.lastT >= 0 ? kart.race.lastT : kart.lastSafeT;
+      const t = geometry.project(kart.position, last >= 0 ? last : undefined).t;
+      const frame = geometry.frameAt(t);
+      below = dot(sub(kart.position, frame.position), frame.up) < -tuning.fallDepth;
+      if (!below) kart.lastSafeT = t;
     }
     const fell =
+      below ||
       kart.airTime > (kart.glide ? tuning.mk8.glide.fallSeconds : tuning.mk8.fallSeconds) ||
       kart.position.y < track.collision.gridMin[1] - tuning.fallDepth ||
       (!kart.grounded && overKillFloor(track, kart));
