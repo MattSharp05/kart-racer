@@ -6,7 +6,13 @@ import { showErrorBanner } from '../ui/errorBanner';
 import type { Router } from '../ui/router';
 import { Mk8AudioPlayer } from './audio/player';
 import type { SoundId } from './audio/soundIds';
-import { Mk8Loader, PackNotInstalledError, type LoaderOptions } from './loader';
+import {
+  mk8Login,
+  Mk8Loader,
+  PackLockedError,
+  PackNotInstalledError,
+  type LoaderOptions,
+} from './loader';
 import { registerMk8Content } from './register';
 import {
   STAGE_DEMOS,
@@ -19,6 +25,7 @@ import { Mk8Stage } from './render/stage';
 import { prepareMk8Items } from './render/items';
 import { styleGuide, type SpriteSource } from './ui/kit/styleGuide';
 import { Progress } from './ui/loading';
+import './ui/password';
 import { modeSelect } from './ui/screens/modeSelect';
 import type { Mk8Context, Mk8Flow } from './ui/screens/session';
 import { titleScreen } from './ui/screens/title';
@@ -51,11 +58,19 @@ declare global {
  * `mk8-loading` and `mk8-not-installed` scenarios show those screens without fetching anything;
  * `ui-kit` (the `mk8-ui-kit` scenario) shows the UI kit's style guide, and `title` / `mode` (the
  * `mk8-ui-title` / `mk8-ui-mode` scenarios, MK-116) the title or the mode select, with the pack's
- * sprites if it has one and stand-ins otherwise. A `StageDemoId` (MK-101's scenarios) loads those
+ * sprites if it has one and stand-ins otherwise; `password` (the `mk8-password` scenario, MK-135)
+ * asks for the site's pack password first. A `StageDemoId` (MK-101's scenarios) loads those
  * models and shows them on the 3D stage.
  */
 export type Mk8Start =
-  'load' | 'loading-demo' | 'not-installed' | 'ui-kit' | 'title' | 'mode' | StageDemoId;
+  | 'load'
+  | 'loading-demo'
+  | 'not-installed'
+  | 'ui-kit'
+  | 'title'
+  | 'mode'
+  | 'password'
+  | StageDemoId;
 
 /** Where the `mk8-loading` scenario holds the bar. */
 const DEMO_PROGRESS = 0.5;
@@ -122,11 +137,18 @@ export function start(host: Mk8Host, mode: Mk8Start = 'load'): Promise<void> {
     screens.show('mk8NotInstalled', { onBack: back });
     return Promise.resolve();
   }
-  const progress = new Progress(mode === 'loading-demo' ? DEMO_PROGRESS : 0);
-  screens.show('mk8Loading', { label: LOADING_LABEL, progress, onBack: back });
-  if (mode === 'loading-demo') return Promise.resolve();
+  if (mode === 'loading-demo') {
+    screens.show('mk8Loading', {
+      label: LOADING_LABEL,
+      progress: new Progress(DEMO_PROGRESS),
+      onBack: back,
+    });
+    return Promise.resolve();
+  }
 
   const load = async (): Promise<void> => {
+    const progress = new Progress(0);
+    screens.show('mk8Loading', { label: LOADING_LABEL, progress, onBack: back });
     try {
       await packLoader().loadUi((fraction) => progress.set(fraction));
       if (!left) await openMenus(host, back);
@@ -136,6 +158,10 @@ export function start(host: Mk8Host, mode: Mk8Start = 'load'): Promise<void> {
         screens.show('mk8NotInstalled', { onBack: back });
         return;
       }
+      if (e instanceof PackLockedError) {
+        askPassword();
+        return;
+      }
       banner = showErrorBanner(
         "Couldn't load the MK8 pack",
         [e instanceof Error ? e.message : String(e)],
@@ -143,6 +169,20 @@ export function start(host: Mk8Host, mode: Mk8Start = 'load'): Promise<void> {
       );
     }
   };
+  // The site's pack answered 401 (MK-135): the password sets the session cookie, then load again.
+  const askPassword = () =>
+    screens.show('mk8Password', {
+      onBack: back,
+      onSubmit: async (password) => {
+        const result = await mk8Login(password);
+        if (result === 'ok' && !left) void trackLoad(load());
+        return result;
+      },
+    });
+  if (mode === 'password') {
+    askPassword();
+    return Promise.resolve();
+  }
   return trackLoad(load());
 }
 
