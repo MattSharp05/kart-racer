@@ -23,6 +23,12 @@ export interface TrackView {
    * wall time, so screenshots stay stable.
    */
   update?(scenery: THREE.Object3D, ticks: number, camera: THREE.Vector3): void;
+  /**
+   * Mesh tracks (MK-105): the course's model, drawn instead of its collision mesh (MK8 courses
+   * register a view with their pack model once it's loaded). A fresh object each call (it may
+   * share geometry and materials): the world disposes it when the track changes.
+   */
+  model?(): THREE.Object3D;
 }
 
 export const trackViews = new Registry<TrackView>('track view');

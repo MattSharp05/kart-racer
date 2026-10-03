@@ -18,10 +18,11 @@ export type TrackViewUpdate = (ticks: number, camera: THREE.Vector3) => void;
  * flat walled test pad. Returns the per-frame update for tracks with moving scenery (MK-59).
  */
 export function createTrackView(scene: THREE.Scene, track: TrackDef): TrackViewUpdate | undefined {
-  // Mesh tracks (ADR 0010): the collision mesh by surface (MK-99) until the MK8 course renderer
-  // draws the course GLB.
+  // Mesh tracks (ADR 0010): the course's model when its view has one (MK-105: an MK8 course's
+  // GLB), else the collision mesh by surface (MK-99).
   if (track.kind === 'mesh') {
-    scene.add(createCollisionMeshView(track.collision));
+    const view = trackViews.has(track.id) ? trackViews.get(track.id) : undefined;
+    scene.add(view?.model?.() ?? createCollisionMeshView(track.collision));
     return undefined;
   }
   if (track.kind === 'spline') {

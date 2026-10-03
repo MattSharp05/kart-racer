@@ -107,11 +107,14 @@ interface DensePoint {
 export class RouteGeometry {
   readonly samples: RouteSample[];
   readonly length: number;
+  /** Distance of each control point from the start line, m (MK-105: the AI line between them). */
+  readonly pointS: number[];
   private readonly cells = new Map<string, number[]>();
 
   constructor(readonly def: RouteDef) {
     const dense = RouteGeometry.densePoints(def.points);
     this.length = dense.at(-1)?.s ?? 0;
+    this.pointS = def.points.map((_, i) => at(dense, i * SUBDIVISIONS).s);
     this.samples = RouteGeometry.resample(dense, this.length);
     this.samples.forEach((sample, i) => {
       const key = RouteGeometry.cellKey(sample.position);
@@ -194,6 +197,24 @@ export class RouteGeometry {
       const up = cross(right, tangent);
       return { position: p.position, tangent, up, right, width: p.width, s: (i / count) * length };
     });
+  }
+
+  /**
+   * The AI racing line's offset from the centreline at distance `s`, m (positive = right):
+   * the control points' `racingLine`, linear between them (MK-105).
+   */
+  racingLineAt(s: number): number {
+    const { points } = this.def;
+    const n = points.length;
+    const u = wrap(s, this.length);
+    let i = n - 1;
+    while (i > 0 && at(this.pointS, i) > u) i -= 1;
+    const from = at(this.pointS, i);
+    const to = i + 1 < n ? at(this.pointS, i + 1) : this.length;
+    const f = to > from ? (u - from) / (to - from) : 0;
+    const a = at(points, i).racingLine ?? 0;
+    const b = at(points, wrap(i + 1, n)).racingLine ?? 0;
+    return a + (b - a) * f;
   }
 
   sample(index: number): RouteSample {

@@ -150,6 +150,23 @@ export const tuning = {
      * sections (a road passing over or under itself) don't swap progress.
      */
     progressWindow: 40,
+    /**
+     * A course's road relabelled from its route (MK-105, `routeSurfaces.ts`): triangles this far
+     * from the centreline or nearer, m, within this height of the road along its up, m…
+     */
+    routeSurfaces: {
+      reach: 30,
+      heightTolerance: 3,
+      /** …in an anti-gravity zone up to this far past the road's edge are anti-gravity, m… */
+      antigravMargin: 1.5,
+      /** …and further than this past it, facing up like the road (|cos| ≥ this), offroad. */
+      offroadMargin: 1,
+      offroadFacing: 0.7,
+      /** …and standing up from it (|cos| below this) a wall. */
+      wallFacing: 0.5,
+      /** Over the road and higher than this above it (up to `heightTolerance`): a wall, m. */
+      overhead: 1.2,
+    },
   },
   // --- MK8 Mode (v3) ---
   mk8: {
@@ -224,6 +241,19 @@ export const tuning = {
       /** Bump weight (our 1–5 `weight`) per MK8 weight point: MK8's scale is about ours. */
       weightPerPoint: 1,
     },
+  },
+  /** The AI driver on mesh tracks (MK-105, `sim/ai/meshDriver.ts`). */
+  meshAi: {
+    /** Corners ahead are measured over route steps this long, m. */
+    curvatureStep: 4,
+    /** It looks for corners this far ahead, m, plus this many m per m/s (up to `ai.brakeHorizon`). */
+    horizonBase: 10,
+    horizonPerSpeed: 1.5,
+    /** It brakes (rather than just lifting) when this much over its target speed. */
+    brakeOver: 1.08,
+    /** Slower than this, m/s, for longer than `respawnAfter`, s, it asks to be put back. */
+    slowSpeed: 8,
+    respawnAfter: 5,
   },
   // --- Surfaces & hazards (MK-49) ---
   surfaces: {

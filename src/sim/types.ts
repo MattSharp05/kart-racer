@@ -46,6 +46,8 @@ export interface AiState {
   stuckTime: number;
   /** Seconds left of backing up to get unstuck. */
   recoverTime: number;
+  /** Mesh tracks (MK-105): seconds spent crawling; too long and it asks to be put back. */
+  slowTime?: number;
   /** Holding a drift through the current corner (MK-15). */
   drifting?: boolean;
   /** Top-speed multiplier from rubber-banding this tick (1 = none). */

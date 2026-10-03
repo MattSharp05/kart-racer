@@ -41,7 +41,9 @@ export type MenuScreen =
   // MK-102: the kart bodies, each on its own tires.
   | 'mk8KartsLineup'
   // MK-135: the site's pack password box.
-  | 'mk8Password';
+  | 'mk8Password'
+  // MK-105: an MK8 course scenario on the site before logging in: the password, then the scenario.
+  | 'mk8CoursePassword';
 
 export interface ScenarioSetup {
   state: SimState;

@@ -18,6 +18,8 @@ import {
   PackNotInstalledError,
   type LoaderOptions,
 } from './loader';
+import { mk8Course } from './content/courses';
+import { loadMk8Course } from './courses';
 import { registerMk8Content } from './register';
 import {
   STAGE_DEMOS,
@@ -79,7 +81,8 @@ declare global {
  * `ui-kit` (the `mk8-ui-kit` scenario) shows the UI kit's style guide, and `title` / `mode` (the
  * `mk8-ui-title` / `mk8-ui-mode` scenarios, MK-116) the title or the mode select, with the pack's
  * sprites if it has one and stand-ins otherwise; `password` (the `mk8-password` scenario, MK-135)
- * asks for the site's pack password first. A `StageDemoId` (MK-101's scenarios) loads those
+ * asks for the site's pack password first (`course-password`, MK-105: then reloads the page, an MK8
+ * course scenario opened before logging in). A `StageDemoId` (MK-101's scenarios) loads those
  * models and shows them on the 3D stage. MK-119: `cc` (a Grand Prix's engine class), `cup`
  * (a 150cc Grand Prix's cup select) and `course` (a 150cc VS Race's cup/course select), each over
  * the screens that lead there. MK-117: `char`, a Grand Prix's character select. MK-118: `kart`,
@@ -98,6 +101,7 @@ export type Mk8Start =
   | 'course'
   | 'kart'
   | 'password'
+  | 'course-password'
   | StageDemoId;
 
 /** The screens over the MK8 title a scenario opens on, and the choices made on the way. */
@@ -235,6 +239,19 @@ export function start(host: Mk8Host, mode: Mk8Start = 'load'): Promise<void> {
     askPassword();
     return Promise.resolve();
   }
+  // An MK8 course scenario on the site, pack still locked (MK-105): after the password, the
+  // scenario again (its course loads before the scenario is set up).
+  if (mode === 'course-password') {
+    screens.show('mk8Password', {
+      onBack: back,
+      onSubmit: async (password) => {
+        const result = await mk8Login(password);
+        if (result === 'ok' && !left) location.reload();
+        return result;
+      },
+    });
+    return Promise.resolve();
+  }
   return trackLoad(load());
 }
 
@@ -285,19 +302,22 @@ async function openMenus(
 }
 
 /**
- * A course's pack files, then the race's item models (MK-119), on one bar. Without a pack (or a
- * locked one), or a pack without this course yet, there is nothing to load: the race runs on the course's
- * stand-in track with our item models.
+ * A course's pack files, then the race's item models (MK-119), on one bar. A course with content
+ * (MK-105: Mario Kart Stadium) registers its track and model; without a pack (or a locked one, or
+ * a course not drivable yet) there is nothing to load and the race runs on the course's stand-in
+ * track with our item models.
  */
 async function loadCourse(
   files: Mk8Loader,
-  course: string,
+  pack: string,
   onProgress: (fraction: number) => void,
 ): Promise<void> {
+  const content = mk8Course(pack);
   try {
-    await files.loadCourse(course, (f) => onProgress(f * COURSE_SHARE));
+    if (content) await loadMk8Course(files, content, (f) => onProgress(f * COURSE_SHARE));
+    else await files.loadCourse(pack, (f) => onProgress(f * COURSE_SHARE));
   } catch (e) {
-    // No pack here, or (MK-135) the site's pack still locked: nothing to load.
+    // No pack here, or (MK-135) the site's pack still locked: the stand-in.
     if (!(e instanceof PackNotInstalledError || e instanceof PackLockedError)) throw e;
   }
   onProgress(COURSE_SHARE);
