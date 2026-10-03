@@ -198,8 +198,9 @@ export function mk8Golden(seed: number): SimState {
 }
 
 /**
- * MK8 Mode (MK-97). The pack is local only (ADR 0009): `mk8-mode` loads it under `pnpm dev` with a
- * built pack, and shows "MK8 pack not installed" anywhere else (previews, production, CI).
+ * MK8 Mode (MK-97). `mk8-mode` loads the pack: under `pnpm dev` from a local build, on the site
+ * behind its password (MK-135, ADR 0009 as amended), else "MK8 pack not installed" (CI, a deploy
+ * without the pack).
  */
 export const mk8Scenarios: Scenario[] = [
   {
@@ -223,6 +224,14 @@ export const mk8Scenarios: Scenario[] = [
       'The "MK8 pack not installed" screen with the commands to build the pack, and Back.',
     defaultSeed: 1,
     setup: (seed) => ({ state: attractMode(seed), screen: 'mk8NotInstalled' }),
+  },
+  {
+    name: 'mk8-password',
+    group: 'MK8 Mode',
+    description:
+      "The site's MK8 pack password box (MK-135): the right password loads the pack, a wrong one shows an error. MK8 Mode opens it itself when the pack answers 401.",
+    defaultSeed: 1,
+    setup: (seed) => ({ state: attractMode(seed), screen: 'mk8Password' }),
   },
   {
     name: 'mk8-mode',
