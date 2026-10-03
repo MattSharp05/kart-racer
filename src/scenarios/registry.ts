@@ -1,3 +1,4 @@
+import type { Mk8Start } from '../mk8';
 import type { NetConditions } from '../net/netsim';
 import type { CreateRaceOptions } from '../sim/race/createRace';
 import type { SimState } from '../sim/types';
@@ -15,35 +16,9 @@ export type MenuScreen =
   | 'nickname'
   | 'onlineResults'
   | 'leaderboard'
-  // MK8 Mode (MK-97): the title with its button picked, its loading bar held at 50 %, its "pack
-  // not installed" screen, and MK8 Mode opened as the button does (loading the pack). MK-104:
-  // the UI kit's style guide. MK-116: the MK8 title and the mode select. MK-135: the site's pack
-  // password box. MK-119: the engine class, and the cup/course select of a Grand Prix and of a
-  // VS Race. MK-117: the character select. MK-118: the kart builder.
+  // MK8 Mode (MK-97): the title with its button picked, and MK8 Mode opened as `mk8Start` says.
   | 'mk8Entry'
-  | 'mk8Loading'
-  | 'mk8NotInstalled'
-  | 'mk8'
-  | 'mk8UiKit'
-  | 'mk8UiTitle'
-  | 'mk8UiMode'
-  | 'mk8UiChar'
-  | 'mk8UiCc'
-  | 'mk8UiCup'
-  | 'mk8UiCourse'
-  | 'mk8UiKart'
-  // MK-101: MK8 racer models and Lakitu on a 3D stage.
-  | 'mk8RacersLineup'
-  | 'mk8RacerMotion'
-  | 'mk8LakituCountdown'
-  | 'mk8LakituLap'
-  | 'mk8LakituRespawn'
-  // MK-102: the kart bodies, each on its own tires.
-  | 'mk8KartsLineup'
-  // MK-135: the site's pack password box.
-  | 'mk8Password'
-  // MK-105: an MK8 course scenario on the site before logging in: the password, then the scenario.
-  | 'mk8CoursePassword';
+  | 'mk8';
 
 export interface ScenarioSetup {
   state: SimState;
@@ -53,6 +28,11 @@ export interface ScenarioSetup {
   follow?: number;
   /** Open a menu screen on top of this state (MK-25). */
   screen?: MenuScreen;
+  /**
+   * How MK8 Mode opens when `screen` is `mk8` (default `load`, as the title button does): a screen
+   * of its menus, the loading or "not installed" screen, a 3D stage demo… (`src/mk8/index.ts`).
+   */
+  mk8Start?: Mk8Start;
   /**
    * Saved data the scenario starts with (key → value, e.g. track records, MK-44). Kept in memory
    * over the real store, so it never replaces the player's own data.
@@ -85,6 +65,11 @@ export interface Scenario {
   description: string;
   defaultSeed: number;
   setup(seed: number): ScenarioSetup;
+  /**
+   * An MK8 driving scenario (MK-99, MK-105): the course it drives on (an MK8 course's pack id, or
+   * the test ramp's track id). `main.ts` registers that course before the scenario is set up.
+   */
+  mk8Course?: string;
 }
 
 export class ScenarioRegistry {

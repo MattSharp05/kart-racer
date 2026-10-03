@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it } from 'vitest';
-import { mk8HornVsSpiny, mk8Spiny, SPINY_FLYING } from '../../../scenarios/mk8';
+import { mk8HornVsSpiny, mk8Spiny, SPINY_FLYING } from '../../../scenarios/mk8/items';
 import { homingOn } from '../../../sim/items/entities';
 import { createSimState } from '../../../sim/state';
 import { step } from '../../../sim/step';

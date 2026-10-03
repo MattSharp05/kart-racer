@@ -15,7 +15,7 @@ import { launchLeaderboard } from './records/leaderboardMock';
 import { World } from './render/world';
 import { tracks } from './content/tracks';
 import { scenarios } from './scenarios';
-import { MK8_COURSE_SCENARIOS, mk8CourseLoad } from './scenarios/mk8';
+import { mk8CourseLoad } from './scenarios/mk8/lib/courses';
 import { getTrack } from './sim/track';
 import { tuning } from './sim/tuning';
 import { NetDebugOverlay } from './ui/netDebug';
@@ -29,10 +29,11 @@ if (!canvas) throw new Error('Missing #game canvas');
 const params = parseLaunchParams(window.location.search);
 // MK8 driving scenarios (MK-99, MK-105): register the course they drive on (the test ramp, or a
 // real course from the pack) before the scenario is set up. Lazy and only for them, so nothing
-// else loads it.
-if (params.scenario && MK8_COURSE_SCENARIOS.has(params.scenario)) {
+// else loads it. A scenario says which course with its `mk8Course`.
+const mk8Course = params.scenario ? scenarios.get(params.scenario)?.mk8Course : undefined;
+if (mk8Course !== undefined) {
   const { prepareMk8Scenario } = await import('./mk8/scenarioCourses');
-  mk8CourseLoad.state = await prepareMk8Scenario(params.scenario, window.location.search);
+  mk8CourseLoad.state = await prepareMk8Scenario(mk8Course, window.location.search);
 }
 // `&remote=` (MK-74, QA): how this device's online races draw and predict other karts.
 if (params.remote) tuning.net.remoteKarts = params.remote;

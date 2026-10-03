@@ -302,62 +302,8 @@ export class Flow {
         game.setAutopilot(launch.localKartId, true);
         this.showTitleScreen('mk8');
         break;
-      case 'mk8Loading':
-        this.openMk8('loading-demo');
-        break;
-      case 'mk8NotInstalled':
-        this.openMk8('not-installed');
-        break;
       case 'mk8':
-        this.openMk8('load');
-        break;
-      case 'mk8UiKit':
-        this.openMk8('ui-kit');
-        break;
-      case 'mk8RacersLineup':
-        this.openMk8('racers-lineup');
-        break;
-      case 'mk8RacerMotion':
-        this.openMk8('racer-motion');
-        break;
-      case 'mk8LakituCountdown':
-        this.openMk8('lakitu-countdown');
-        break;
-      case 'mk8LakituLap':
-        this.openMk8('lakitu-lap');
-        break;
-      case 'mk8LakituRespawn':
-        this.openMk8('lakitu-respawn');
-        break;
-      case 'mk8KartsLineup':
-        this.openMk8('karts-lineup');
-        break;
-      case 'mk8UiTitle':
-        this.openMk8('title');
-        break;
-      case 'mk8UiMode':
-        this.openMk8('mode');
-        break;
-      case 'mk8UiChar':
-        this.openMk8('char');
-        break;
-      case 'mk8UiCc':
-        this.openMk8('cc');
-        break;
-      case 'mk8UiCup':
-        this.openMk8('cup');
-        break;
-      case 'mk8UiCourse':
-        this.openMk8('course');
-        break;
-      case 'mk8UiKart':
-        this.openMk8('kart');
-        break;
-      case 'mk8Password':
-        this.openMk8('password');
-        break;
-      case 'mk8CoursePassword':
-        this.openMk8('course-password');
+        this.openMk8(launch.mk8Start ?? 'load');
         break;
       case 'leaderboard':
         // Over the title, so Back lands there (MK-56).

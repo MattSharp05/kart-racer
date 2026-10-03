@@ -7,6 +7,7 @@ import type { Mk8CourseKey, Mk8CupId } from '../../content/cups';
 import type { Mk8RaceSetup } from '../../flow';
 import type { KartPreviewFiles } from '../../render/kartPreview';
 import type { SpriteSource } from '../kit/styleGuide';
+import type { Mk8ScreenFactory } from '../stack';
 
 /** MK8 Mode's game modes, in the mode select's order. */
 export const MK8_MODES = [
@@ -74,4 +75,26 @@ export interface Mk8Context {
   loadCharacters(first: string, onFirst?: () => void): Promise<void>;
   /** Where MK8 Mode remembers picks (MK-117: the last racer; MK-118: the last loadout). */
   store: KeyValueStore;
+  /**
+   * The screen after screen `from` in the flow (`order.ts`, MK-142), for these choices: what OK
+   * pushes. Screens never import each other.
+   */
+  next(from: string): Mk8ScreenFactory;
+}
+
+/**
+ * An MK8 menu screen (MK-142): each screen file exports one as `screen`; `index.ts` finds them
+ * and `order.ts` puts them in the flow.
+ */
+export interface Mk8Screen {
+  /** Its place in `order.ts`. */
+  id: string;
+  build(ctx: Mk8Context): Mk8ScreenFactory;
+  /**
+   * Scenario starts (`Mk8Start`, a scenario's `mk8Start`) that open MK8 Mode on this screen, over
+   * the screens before it, each with the choices made on the way.
+   */
+  starts?: Record<string, Mk8Flow>;
+  /** Left out of the flow for these choices (the engine class in Time Trial). */
+  skip?(flow: Mk8Flow): boolean;
 }

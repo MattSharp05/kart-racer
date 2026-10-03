@@ -20,9 +20,7 @@ import type { Loadout } from '../../../sim/types';
 import { art, menuScreen, panel } from '../kit';
 import { menuAction } from '../kit/nav';
 import type { Mk8ScreenFactory } from '../stack';
-import { cupSelect } from './cupSelect';
-import { engineClass } from './engineClass';
-import type { Mk8Context } from './session';
+import type { Mk8Context, Mk8Screen } from './session';
 import './kartBuilder.css';
 
 /** The racer the builder starts on with nothing chosen or saved (MK8's first). */
@@ -140,7 +138,7 @@ export function kartBuilder(ctx: Mk8Context): Mk8ScreenFactory {
       ctx.flow.loadout = chosen;
       onShow = false;
       preview.pause();
-      stack.push(ctx.flow.mode === 'time-trial' ? cupSelect(ctx) : engineClass(ctx));
+      stack.push(ctx.next('kart'));
     };
     const { el, body } = menuScreen({
       name: 'kart',
@@ -396,3 +394,10 @@ function swipe(reel: HTMLElement, onTurn: (step: number) => void): void {
   // Touch scrolling would take the gesture otherwise.
   reel.style.touchAction = 'none';
 }
+
+/** The kart builder (MK-118); the `kart` scenario start opens on it for a Grand Prix. */
+export const screen: Mk8Screen = {
+  id: 'kart',
+  build: kartBuilder,
+  starts: { kart: { mode: 'grand-prix' } },
+};
