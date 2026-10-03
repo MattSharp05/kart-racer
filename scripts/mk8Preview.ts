@@ -89,7 +89,16 @@ async function handle(req: IncomingMessage, res: ServerResponse): Promise<void> 
   const { pathname } = new URL(request.url);
   if (pathname === '/api/mk8-login') return send(res, await handleMk8Login(request, process.env));
   let extra: Headers | undefined;
-  if (pathname.startsWith('/mk8/')) {
+  // Like Vercel's matcher, gate the decoded, case-folded path, so `/mk8%2F…` can't skip the gate.
+  let decoded: string;
+  try {
+    decoded = decodeURIComponent(pathname).toLowerCase();
+  } catch {
+    res.statusCode = 400;
+    res.end();
+    return;
+  }
+  if (decoded.startsWith('/mk8/')) {
     const gate = await gateMk8(request, process.env, Math.floor(Date.now() / 1000));
     if (gate.headers.get('x-middleware-next') !== '1') return send(res, gate);
     extra = gate.headers;
