@@ -164,40 +164,78 @@ export function bakeSkinned(root: THREE.Object3D): void {
   }
 }
 
-/**
- * One wheel of a tire model (baked, see `bakeSkinned`). The real pack's tire model is the kart's
- * four tires in place, each twice: its textured mesh and an overlay layer on exactly the same
- * geometry (a grey mask texture as its colour), which would z-fight it and flicker white. This
- * keeps the first tire's first mesh of each shape. A model of one tire comes back whole.
- */
-export function singleTire(scene: THREE.Object3D): THREE.Object3D {
-  bakeSkinned(scene);
-  scene.updateMatrixWorld(true);
+function meshesOf(root: THREE.Object3D): THREE.Mesh[] {
   const meshes: THREE.Mesh[] = [];
-  scene.traverse((o) => {
+  root.traverse((o) => {
     if (o instanceof THREE.Mesh) meshes.push(o);
   });
-  const [first] = meshes;
-  if (!first) return scene;
-  const firstBox = new THREE.Box3().setFromObject(first);
-  const centre = firstBox.getCenter(new THREE.Vector3());
-  const reach = firstBox.getSize(new THREE.Vector3()).length() / 2;
-  const kept: THREE.Box3[] = [];
-  for (const mesh of meshes) {
-    const box = new THREE.Box3().setFromObject(mesh);
-    const elsewhere = box.getCenter(new THREE.Vector3()).distanceTo(centre) > reach;
-    const layer = kept.some((k) => sameBox(k, box, reach * SAME_SHAPE_SHARE));
-    if (elsewhere || layer) mesh.removeFromParent();
-    else kept.push(box);
-  }
-  return scene;
+  return meshes;
 }
 
-/** Two meshes whose bounds agree to this share of the tire's size are the same shape. */
+/** Two meshes whose bounds agree to this share of the model's size are the same shape. */
 const SAME_SHAPE_SHARE = 1e-3;
 
 function sameBox(a: THREE.Box3, b: THREE.Box3, tolerance: number): boolean {
   return a.min.distanceTo(b.min) <= tolerance && a.max.distanceTo(b.max) <= tolerance;
+}
+
+/**
+ * Removes overlay layers: meshes on exactly the same geometry as an earlier one (the real pack's
+ * kart parts repeat each mesh up to three times, with mask textures, which z-fight it).
+ */
+export function dropLayers(root: THREE.Object3D): void {
+  root.updateMatrixWorld(true);
+  const tolerance =
+    new THREE.Box3().setFromObject(root).getSize(new THREE.Vector3()).length() * SAME_SHAPE_SHARE;
+  const kept: THREE.Box3[] = [];
+  for (const mesh of meshesOf(root)) {
+    const box = new THREE.Box3().setFromObject(mesh);
+    if (kept.some((k) => sameBox(k, box, tolerance))) mesh.removeFromParent();
+    else kept.push(box);
+  }
+}
+
+/**
+ * One wheel of a tire model (baked, see `bakeSkinned`; layers dropped, see `dropLayers`). The real
+ * pack's tire model is the kart's four tires in place; this keeps the meshes on the first one. A
+ * model of one tire comes back whole.
+ */
+export function singleTire(scene: THREE.Object3D): THREE.Object3D {
+  bakeSkinned(scene);
+  scene.updateMatrixWorld(true);
+  const [first, ...rest] = meshesOf(scene);
+  if (!first) return scene;
+  const firstBox = new THREE.Box3().setFromObject(first);
+  const centre = firstBox.getCenter(new THREE.Vector3());
+  const reach = firstBox.getSize(new THREE.Vector3()).length() / 2;
+  for (const mesh of rest) {
+    const at = new THREE.Box3().setFromObject(mesh).getCenter(new THREE.Vector3());
+    if (at.distanceTo(centre) > reach) mesh.removeFromParent();
+  }
+  dropLayers(scene);
+  return scene;
+}
+
+/** Z-up (+Y forward) to glTF's Y-up (+Z forward): a quarter turn about X, then a half about Y. */
+const Z_UP_TO_Y_UP = new THREE.Quaternion()
+  .setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI)
+  .multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), -Math.PI / 2));
+
+/**
+ * A kart body stood upright. Most of the real pack's bodies came out of the DAE conversion Z-up
+ * with +Y forward (the Standard Kart is Y-up): a body is longer than it is tall, so one whose Y
+ * extent beats its Z extent is turned into glTF's frame (wrapped, so `fitModel` can still turn it).
+ */
+export function uprightBody(body: THREE.Object3D): THREE.Object3D {
+  body.updateMatrixWorld(true);
+  const size = new THREE.Box3().setFromObject(body).getSize(new THREE.Vector3());
+  if (size.y <= size.z) return body;
+  const upright = new THREE.Group();
+  upright.quaternion.copy(Z_UP_TO_Y_UP);
+  upright.add(body);
+  const holder = new THREE.Group();
+  holder.add(upright);
+  return holder;
 }
 
 /**

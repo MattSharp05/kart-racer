@@ -10,7 +10,9 @@ import {
   Mk8RacerModel,
   parseGlb,
   racerModelPath,
+  dropLayers,
   singleTire,
+  uprightBody,
 } from './racerModel';
 
 // MK-136: the fixture pack's kart parts copy the real pack's quirks (`makeModels.ts`): skinned,
@@ -96,5 +98,30 @@ describe('MK8 racer model with the real pack’s quirks (MK-136)', () => {
     tire.add(new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 0.4), material));
     tire.add(new THREE.Mesh(new THREE.TorusGeometry(0.3, 0.05), material));
     expect(meshes(singleTire(tire))).toHaveLength(2);
+  });
+
+  it('drops overlay layers: meshes on the same geometry as an earlier one', () => {
+    const body = new THREE.Group();
+    const geometry = new THREE.BoxGeometry(1, 0.5, 2);
+    body.add(new THREE.Mesh(geometry, new THREE.MeshStandardMaterial({ name: 'm_Body' })));
+    body.add(new THREE.Mesh(geometry, new THREE.MeshStandardMaterial({ name: 'm_Body_001' })));
+    const decal = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.1, 0.2));
+    decal.position.set(0, 0.3, 0.8);
+    body.add(decal);
+    dropLayers(body);
+    expect(meshes(body).map((m) => (m.material as THREE.Material).name)).toEqual(['m_Body', '']);
+  });
+
+  it('stands a Z-up body upright, nose (+Y) to glTF forward (+Z); leaves a Y-up one alone', () => {
+    // Z-up: 1 wide, 2.5 long along +Y (its nose at +Y), 0.6 tall along Z.
+    const zUp = new THREE.Mesh(new THREE.BoxGeometry(1, 2.5, 0.6).translate(0, 0.5, 0.3));
+    const upright = boxOf(uprightBody(zUp)).getSize(new THREE.Vector3());
+    expect(upright.x).toBeCloseTo(1);
+    expect(upright.y).toBeCloseTo(0.6);
+    expect(upright.z).toBeCloseTo(2.5);
+    // Its longer end (the nose) now points +Z.
+    expect(boxOf(uprightBody(zUp.clone())).max.z).toBeCloseTo(1.75);
+    const yUp = new THREE.Mesh(new THREE.BoxGeometry(1, 0.6, 2.5));
+    expect(uprightBody(yUp)).toBe(yUp);
   });
 });

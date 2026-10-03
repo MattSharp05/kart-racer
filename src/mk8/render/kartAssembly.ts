@@ -3,7 +3,7 @@
 // the driver, hidden until the kart glides (glider flight is its own ticket).
 import * as THREE from 'three';
 import type { Mk8Body, Mk8Glider, Mk8Tires } from '../content/parts';
-import { fitModel, mergeStaticMeshes, singleTire } from './racerModel';
+import { dropLayers, fitModel, mergeStaticMeshes, singleTire, uprightBody } from './racerModel';
 
 export const bodyModelPath = (id: string) => `models/karts/bodies/${id}.glb`;
 export const tireModelPath = (id: string) => `models/karts/tires/${id}.glb`;
@@ -52,7 +52,9 @@ export class Mk8Kart {
   constructor(readonly parts: KartParts) {
     this.object.name = 'kart';
     const { body, tires, models } = parts;
-    const shell = fitModel(models.body, 'z', body.length);
+    // The real pack's bodies (MK-136): overlay layers dropped, most of them Z-up.
+    dropLayers(models.body);
+    const shell = fitModel(uprightBody(models.body), 'z', body.length);
     this.object.add(shell);
     const size = new THREE.Box3().setFromObject(shell).getSize(new THREE.Vector3());
     const radius = tires.diameter / 2;
