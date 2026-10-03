@@ -26,6 +26,13 @@ export type MenuScreen =
   | 'mk8UiKit'
   | 'mk8UiTitle'
   | 'mk8UiMode'
+  // MK-101: MK8 racer models and Lakitu on a 3D stage.
+  | 'mk8RacersLineup'
+  | 'mk8RacerMotion'
+  | 'mk8LakituCountdown'
+  | 'mk8LakituLap'
+  | 'mk8LakituRespawn'
+  // MK-135: the site's pack password box.
   | 'mk8Password';
 
 export interface ScenarioSetup {

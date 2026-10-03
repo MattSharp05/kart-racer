@@ -92,6 +92,21 @@ describe('MK8 pack loader (MK-97)', () => {
     expect(loader.hasGroups(['ui'])).toBe(false);
   });
 
+  it('loads single files by path (MK-101), and refuses a path the pack has not got', async () => {
+    const { fetch, requested } = server();
+    const loader = new Mk8Loader({ fetch });
+    const progress: number[] = [];
+    await loader.loadFiles(['models/racers/luigi.glb'], (f) => progress.push(f));
+    await loader.loadFiles(['models/racers/luigi.glb']);
+    expect(requested).toEqual(['/mk8/manifest.json', '/mk8/models/racers/luigi.glb']);
+    expect(loader.file('models/racers/luigi.glb')?.byteLength).toBe(40);
+    expect(loader.file('models/racers/mario.glb')).toBeUndefined();
+    expect(progress.at(-1)).toBe(1);
+    await expect(loader.loadFiles(['models/npcs/lakitu.glb'])).rejects.toThrow(
+      new PackLoadError('models/npcs/lakitu.glb', 'not in the pack'),
+    );
+  });
+
   it('a missing manifest means the pack is not installed', async () => {
     const loader = new Mk8Loader({ fetch: server({ manifest: undefined }).fetch });
     await expect(loader.loadUi()).rejects.toBeInstanceOf(PackNotInstalledError);

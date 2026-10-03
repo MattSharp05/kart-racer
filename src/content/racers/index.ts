@@ -36,10 +36,20 @@ export interface RacerContent {
    * normal rate.
    */
   strongDrift?: boolean;
+  /**
+   * The content pack that added this racer (MK8 Mode's racers say `mk8`, MK-101). The original
+   * game's racer select, lobby and leaderboards list only racers without one (`gameRacers`).
+   */
+  pack?: string;
 }
 
 /** Every racer. `sim/data/karts.ts` wraps it for the sim. */
 export const racers = new Registry<RacerContent>('racer');
+
+/** The original game's racers: every registered racer that no content pack added. */
+export function gameRacers(): readonly RacerContent[] {
+  return racers.list().filter((racer) => racer.pack === undefined);
+}
 
 // One line per racer folder, alphabetical (a unit test checks none is missing).
 racers.register(blaze);
