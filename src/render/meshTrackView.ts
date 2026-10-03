@@ -54,8 +54,6 @@ export function createCollisionMeshView(mesh: CollisionMesh): THREE.Group {
       side: THREE.DoubleSide,
       ...(seeThrough ? { transparent: true, opacity: 0.45, depthWrite: false } : {}),
     });
-    // By name, so an MK8 course look can draw the water as water (MK-125).
-    material.name = seeThrough ? 'mesh-water' : 'mesh-surface';
     group.add(new THREE.Mesh(geometry, material));
   }
   return group;
