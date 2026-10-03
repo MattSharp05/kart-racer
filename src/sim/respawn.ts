@@ -199,6 +199,8 @@ function startMeshRespawn(
   kart.airTime = 0;
   cancelDrift(kart, events);
   endGlide(kart, events);
+  // Back on the road: whether it's in water is looked at afresh, without a splash (MK-107).
+  delete kart.inWater;
   kart.respawnTimer = tuning.respawnSeconds;
   kart.respawnCooldown = tuning.respawnCooldownSeconds;
   kart.outTime = 0;

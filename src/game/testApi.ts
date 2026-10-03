@@ -65,6 +65,10 @@ export interface RenderInfo {
   };
   /** Each kart's glider, by kart id: 0 folded away (hidden) … 1 open (MK-106). */
   gliders?: number[];
+  /** The camera is under water: the blue tint and caustics show (MK-107). */
+  underwater?: boolean;
+  /** Each kart's propeller is showing (in the water), by kart id (MK-107). */
+  propellers?: boolean[];
 }
 
 declare global {
