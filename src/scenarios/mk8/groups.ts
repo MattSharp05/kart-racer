@@ -12,5 +12,4 @@ export { default as testRamp } from './testRamp';
 export { default as ui } from './ui';
 export { default as bulletBill } from './bulletBill';
 export { default as hud } from './hud';
-export { default as look } from './look';
 export { default as underwater } from './underwater';
