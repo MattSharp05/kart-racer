@@ -405,3 +405,38 @@ body.touch .mk8-hud-position {
 body.touch .mk8-hud-position small {
   font-size: calc(54 * var(--u));
 }
+
+/* Time Trial (MK-131): the race clock under the minimap, each finished lap's split under it. */
+.mk8-hud-timer {
+  position: absolute;
+  top: calc(var(--edge-top) + 204 * var(--u));
+  right: calc(var(--edge-right) + 52px);
+  display: grid;
+  justify-items: end;
+  gap: calc(4 * var(--u));
+  font-variant-numeric: tabular-nums;
+  -webkit-text-stroke: calc(6 * var(--u)) var(--ink);
+  paint-order: stroke fill;
+  transform: skewX(var(--slant));
+}
+
+.mk8-hud-clock {
+  font-size: calc(44 * var(--u));
+  color: #ffe23a;
+}
+
+.mk8-hud-timer ol {
+  display: grid;
+  justify-items: end;
+  gap: calc(2 * var(--u));
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: calc(26 * var(--u));
+}
+
+.mk8-hud-timer small {
+  margin-right: calc(10 * var(--u));
+  font-size: calc(18 * var(--u));
+  opacity: 0.8;
+}

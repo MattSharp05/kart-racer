@@ -5,17 +5,20 @@
 // its courses). VS Race and Time Trial: OK on a cup moves the cursor to its courses, and OK on a
 // course starts it. Starting shows the course loading (progress bar), then the race. MK-130: each
 // cup shows the best Grand Prix trophy won at this class, and in a Grand Prix the courses it skips
-// (not drivable yet) say so.
+// (not drivable yet) say so. MK-131: each card shows the course's best Time Trial race at this
+// class, and in VS Race and Time Trial a course not drivable yet is "Not installed" and can't start.
 import { cupInfo, MK8_CUPS, type Mk8Course, type Mk8Cup } from '../../content/cups';
 import { DEFAULT_ENGINE_CLASS, raceSetup } from '../../flow';
 import { gpCourses } from '../../gp/grandPrix';
 import { savedTrophy } from '../../gp/trophies';
+import { courseRecord } from '../../modes/timeTrial';
+import { formatTime } from '../../../ui/hud/format';
 import { art, Menu, menuScreen, squareTile } from '../kit';
 import type { Mk8ScreenFactory } from '../stack';
 import type { Mk8Context, Mk8Screen } from './session';
 import './cupSelect.css';
 
-/** Shown where a Time Trial best will be (the VS + Time Trial ticket fills it in). */
+/** Shown where a course has no Time Trial best yet. */
 export const NO_BEST_TIME = '—';
 /** How long a locked cup shakes when chosen, ms (matches `mk8-refuse` in cupSelect.css). */
 const REFUSE_MS = 300;
@@ -76,13 +79,14 @@ export function cupSelect(ctx: Mk8Context): Mk8ScreenFactory {
 
     const showCourses = (cup: Mk8Cup) => {
       // A locked cup previews nothing yet: its slots say "Later".
-      const raced = grandPrix && !cup.locked ? gpCourses(cup.id) : [];
+      const raced = cup.locked ? [] : gpCourses(cup.id);
       courseCards = cup.locked
         ? Array.from({ length: 4 }, () => lockedCard())
         : cup.courses.map((course) => {
-            const card = courseCard(ctx, course);
-            // A Grand Prix skips the courses not drivable yet (MK-130).
-            if (grandPrix && !raced.includes(course.key)) {
+            const card = courseCard(ctx, course, engineClass);
+            // A Grand Prix skips the courses not drivable yet (MK-130); VS and Time Trial can't
+            // start them (MK-131).
+            if (!raced.includes(course.key)) {
               card.classList.add('is-skipped');
               card.append(el('span', 'mk8-skipped', 'Not installed'));
             }
@@ -141,6 +145,8 @@ export function cupSelect(ctx: Mk8Context): Mk8ScreenFactory {
         ),
         sounds: stack.sounds,
         moveSound: 'ui/course-roulette',
+        canConfirm: (index) => !courseCards[index]?.classList.contains('is-skipped'),
+        onRefuse: (index) => refuse(courseCards[index]),
         onConfirm: (index) => {
           const course = cup.courses[index];
           if (course) start(course);
@@ -207,7 +213,7 @@ function cupArt(ctx: Mk8Context, cup: Mk8Cup): HTMLElement {
 }
 
 /** A course card: preview, anti-gravity tag, map, name and Time Trial best. */
-function courseCard(ctx: Mk8Context, course: Mk8Course): HTMLButtonElement {
+function courseCard(ctx: Mk8Context, course: Mk8Course, engineClass: number): HTMLButtonElement {
   const card = el('button', 'mk8-tile mk8-course');
   card.type = 'button';
   card.dataset.course = course.key;
@@ -238,7 +244,14 @@ function courseCard(ctx: Mk8Context, course: Mk8Course): HTMLButtonElement {
   }
   const name = el('span', 'mk8-course-name');
   name.append(el('span', 'mk8-slant', course.name));
-  card.append(name, el('span', 'mk8-course-best', `Best ${NO_BEST_TIME}`));
+  const best = courseRecord(ctx.store, course.key, engineClass).race;
+  const bestEl = el(
+    'span',
+    'mk8-course-best',
+    `Best ${best ? formatTime(best.time) : NO_BEST_TIME}`,
+  );
+  if (best) bestEl.dataset.time = String(best.time);
+  card.append(name, bestEl);
   return card;
 }
 
@@ -329,7 +342,7 @@ export function courseLoading(ctx: Mk8Context): Mk8ScreenFactory {
 
 /**
  * The cup/course select (MK-119), last before the race: the `cup` scenario start opens it for a
- * 150cc Grand Prix, `course` for a 150cc VS Race.
+ * 150cc Grand Prix, `course` for a 150cc VS Race, `tt-course` for a Time Trial (MK-131).
  */
 export const screen: Mk8Screen = {
   id: 'cup',
@@ -337,5 +350,7 @@ export const screen: Mk8Screen = {
   starts: {
     cup: { mode: 'grand-prix', engineClass: 150 },
     course: { mode: 'vs', engineClass: 150 },
+    // MK-131: a Time Trial's course select (its cards show the Time Trial bests).
+    'tt-course': { mode: 'time-trial', engineClass: 150 },
   },
 };
