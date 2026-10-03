@@ -286,9 +286,7 @@ export function updateMeshKart(
           )
         : updateForwardSpeed(forwardSpeed, pedals, topSpeed, dt, kartAccel);
   const spunSpeed = applySpinBoost(kart, pedalSpeed, forwardSpeed, pedals, topSpeed, dt);
-  const newSpeed = brakeDrift
-    ? spunSpeed * Math.exp(-tuning.brakeDrift.speedLoss * dt)
-    : spunSpeed;
+  const newSpeed = brakeDrift ? spunSpeed * Math.exp(-tuning.brakeDrift.speedLoss * dt) : spunSpeed;
   kart.boostTimer = Math.max(0, kart.boostTimer - dt);
   const grip =
     (isDrifting(kart) ? tuning.driftGrip : tuning.lateralGrip) * (effect.grip ?? 1) * physics.grip;

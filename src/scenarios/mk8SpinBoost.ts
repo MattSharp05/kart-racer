@@ -48,10 +48,10 @@ export const spinBoostScenarios: Scenario[] = [
     name: 'mk8-test-bumper',
     group: 'MK8 Mode',
     description:
-      'Boost bumper (MK-108): you on the test ramp tunnel’s anti-gravity wall, heading for the bumper on it 12 m ahead: hit it for a bounce and a spin boost. The bumper beside the road after the gap (x 140) is plain road: a bounce, no boost.',
+      'Boost bumper (MK-108): you on the test ramp tunnel’s anti-gravity wall, about to glance off the bumper on it 12 m ahead (1.2 m to one side): a bounce and a spin boost. The bumper beside the road after the gap (x 140) is plain road: a bounce, no boost.',
     defaultSeed: 1,
     setup: (seed) => ({
-      state: wallState(seed, [onWall(wallBumper.x - 12, wallBumper.height, 20)]),
+      state: wallState(seed, [onWall(wallBumper.x - 12, wallBumper.height + 1.2, 24)]),
     }),
   },
 ];

@@ -1,8 +1,8 @@
 import * as THREE from 'three';
 import type { RouteZone } from '../sim/route';
 
-/** Bumper colours: a cyan ball with a white band, like the anti-gravity road. */
-const BALL = 0x2ad4ff;
+/** Bumper colours: a pink ball with a white band (it stands out on the cyan anti-gravity road). */
+const BALL = 0xff4fa3;
 const BAND = 0xffffff;
 
 /**
