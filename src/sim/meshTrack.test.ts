@@ -188,6 +188,22 @@ describe('wallContact on mk8-test-ramp', () => {
     expect(contact?.push.z).toBeCloseTo(0.5, 6);
     expect(wallContact(mesh, v(45.5, 0.5, L.roadHalfWidth - 0.5), r, UP)).toBeNull();
   });
+
+  it('ignores walls touched only further than `below` under the centre: a step it rolls over', () => {
+    // A 0.25 m step face across the road at x = 0 (a ramp's lip): the kart's centre 0.5 m up.
+    const step = new Float32Array([
+      0, 0, -5, 0, 0, 5, 0, 0.25, 5, 0, 0, -5, 0, 0.25, 5, 0, 0.25, -5,
+    ]);
+    const lip: CollisionMesh = collisionFromTriangles(step, new Uint8Array(2).fill(3), 4);
+    const centre = v(0.6, 0.5, 0);
+    expect(wallContact(lip, centre, r, UP)?.push.x).toBeGreaterThan(0);
+    // Touched 0.25 m under the centre: ignored when only contacts within 0.2 m count…
+    expect(wallContact(lip, centre, r, UP, undefined, 0.2)).toBeNull();
+    // …kept when they count down to 0.3 m.
+    expect(wallContact(lip, centre, r, UP, undefined, 0.3)?.push.x).toBeGreaterThan(0);
+    // A tall wall touched beside the centre still pushes.
+    expect(wallContact(mesh, v(20, 0.5, -10.5), r, UP, undefined, 0.2)?.push.z).toBeCloseTo(0.5, 6);
+  });
 });
 
 describe('route queries on mk8-test-ramp', () => {

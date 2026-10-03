@@ -190,6 +190,8 @@ export interface GlideState {
   time: number;
   /** Eased pitch input: +1 diving (nose down), −1 floating (nose up), 0 level. */
   pitch: number;
+  /** Where a glide off a ramp with a `landing` is carried to (MK-123); gone once it's close. */
+  aim?: Vec3;
 }
 
 /**

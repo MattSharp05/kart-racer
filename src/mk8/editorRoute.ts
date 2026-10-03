@@ -6,10 +6,11 @@ import type { RouteDef } from '../sim/route';
 
 export const editorRouteKey = (courseId: string): string => `mk8-track-editor:route:${courseId}`;
 
-/** Scenario names of courses whose short key isn't their pack id (`mk8-stadium-*`, `mk8-waterpark-*`). */
+/** Scenario names of courses whose short key isn't their pack id (`mk8-stadium-*`, `mk8-waterpark-*`, `mk8-canyon-*`). */
 const SCENARIO_KEYS: Record<string, string> = {
   'mario-kart-stadium': 'stadium',
   'water-park': 'waterpark',
+  'sweet-sweet-canyon': 'canyon',
 };
 
 /** The free-drive scenario link for a course, using the editor's unsaved route. */
