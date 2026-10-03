@@ -8,7 +8,7 @@ import { sunnyRace } from '../scenarios/race';
 import type { MenuScreen, OnlineScenario, ScenarioView } from '../scenarios/registry';
 import { isKartId, KART_IDS, type KartId } from '../sim/data/karts';
 import type { EngineClass } from '../sim/tuning';
-import { createRace } from '../sim/race/createRace';
+import { createRace, type RacerSlot } from '../sim/race/createRace';
 import { step } from '../sim/step';
 import { NEUTRAL_INPUT, type InputFrame, type Loadout, type SimState } from '../sim/types';
 import { showErrorBanner } from '../ui/errorBanner';
@@ -172,6 +172,8 @@ export interface RaceConfig {
   itemSet?: string;
   /** The player's MK8 kart parts (MK-102). */
   playerLoadout?: Loadout;
+  /** Every kart and its grid slot (MK-130: an MK8 Grand Prix's field); random AI otherwise. */
+  racers?: readonly RacerSlot[];
 }
 
 /**
@@ -234,6 +236,12 @@ export class RaceSession {
 
   /** Starts a fresh race: the player plus the AI field. */
   startRace(config: RaceConfig): void {
+    const { seed, engineClass, trackId, itemSet, racers } = config;
+    if (racers) {
+      const opts = { trackId, racers, engineClass, itemsOn: true, seed };
+      this.load(createRace(itemSet !== undefined ? { ...opts, itemSet } : opts));
+      return;
+    }
     this.load(
       sunnyRace(config.seed, {
         karts: 1 + AI_RACERS,

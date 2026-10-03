@@ -9,7 +9,7 @@ import { courseFinalLap, onCourse } from './lib/courses';
 import { TEST_RAMP } from './testRamp';
 
 /** The field, kart by kart: MK8 racers, so the results show their icons with a pack. */
-const FIELD = [
+export const FIELD = [
   'mk8-mario',
   'mk8-luigi',
   'mk8-peach',
@@ -26,7 +26,7 @@ const WINNER_TIME = 78.412;
 const GAPS = [0.731, 1.204, 0.388, 2.15, 0.906, 1.47, 3.022];
 
 /** The final-lap race with the MK8 field. */
-function finalLap(track: MeshTrackDef, seed: number): SimState {
+export function finalLap(track: MeshTrackDef, seed: number): SimState {
   const state = courseFinalLap(track, seed);
   state.karts.forEach((kart, i) => {
     kart.kartType = FIELD[i] ?? kart.kartType;
@@ -36,11 +36,20 @@ function finalLap(track: MeshTrackDef, seed: number): SimState {
 }
 
 /** The race over, everyone across the line in `FINISH_ORDER`. */
-function finished(track: MeshTrackDef, seed: number): SimState {
+const finished = finishedIn(FINISH_ORDER);
+
+/** The race over, everyone across the line in `order` (kart ids; MK-130's Grand Prix races). */
+export function finishedIn(
+  order: readonly number[],
+): (track: MeshTrackDef, seed: number) => SimState {
+  return (track, seed) => finishedRace(track, seed, order);
+}
+
+function finishedRace(track: MeshTrackDef, seed: number, order: readonly number[]): SimState {
   const state = finalLap(track, seed);
   state.phase = 'finished';
   let time = WINNER_TIME;
-  FINISH_ORDER.forEach((kartId, place) => {
+  order.forEach((kartId, place) => {
     const kart = state.karts[kartId];
     if (!kart) return;
     if (place > 0) time += GAPS[place - 1] ?? 1;
@@ -50,13 +59,13 @@ function finished(track: MeshTrackDef, seed: number): SimState {
       finishTick: state.race.goTick + Math.round(time / DT),
     };
   });
-  state.tick = (state.karts[FINISH_ORDER[FINISH_ORDER.length - 1] ?? 0]?.race.finishTick ?? 0) + 1;
-  state.positions = [...FINISH_ORDER];
+  state.tick = (state.karts[order[order.length - 1] ?? 0]?.race.finishTick ?? 0) + 1;
+  state.positions = [...order];
   return state;
 }
 
 /** `build` on the test ramp, with `extra` (its screen or MK8 mode) once the ramp is there. */
-function onRamp(
+export function onRamp(
   build: (track: MeshTrackDef, seed: number) => SimState,
   extra: Partial<ScenarioSetup>,
 ): (seed: number) => ScenarioSetup {

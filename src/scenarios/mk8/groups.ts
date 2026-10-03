@@ -14,3 +14,4 @@ export { default as bulletBill } from './bulletBill';
 export { default as hud } from './hud';
 export { default as underwater } from './underwater';
 export { default as piranhaCrazy8 } from './piranhaCrazy8';
+export { default as grandPrix } from './grandPrix';

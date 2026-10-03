@@ -266,6 +266,12 @@
       "group": "racer/yoshi"
     },
     {
+      "path": "models/trophies/trophies.glb",
+      "bytes": 5532,
+      "sha256": "8e5a66b7fb6b9efa070c4338e16c5bca8e04e7101ed8fef89c123a9949d2e234",
+      "group": "trophies"
+    },
+    {
       "path": "ui/fixture-blue.webp",
       "bytes": 44,
       "sha256": "f9a74bfe55a6730280bba137dba9734fa2202129a72533b575b5c250a9b5f48b",
