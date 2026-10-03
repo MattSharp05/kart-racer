@@ -3,6 +3,7 @@
 // use it: docs/mk8-track-editor.md. `window.__editor` is the e2e test API.
 import {
   clearEditorRoute,
+  editorRouteKey,
   loadEditorRoute,
   saveEditorRoute,
   testDriveUrl,
@@ -27,8 +28,8 @@ import { EditorScene, SURFACE_COLOURS, type Handle } from './scene';
 import { materialsSource, routeSource } from './serialize';
 import './trackEditor.css';
 
-/** The dev server's write endpoint (vite.config.ts, `pnpm dev` only). */
-const SAVE_ENDPOINT = '/__track-editor/save';
+/** The dev server's write endpoint (`devServer.ts`, mounted by vite.config.ts under `pnpm dev`). */
+const SAVE_PATH = '/__track-editor/save';
 /** A press that moves less than this, px, is a click (not an orbit drag). */
 const CLICK_SLOP = 5;
 
@@ -145,6 +146,33 @@ function coursePicker(app: HTMLElement, message?: string): void {
   );
 }
 
+/** The `route.ts` a draft was made on (JSON), so a draft never replaces a newer file unasked. */
+const draftBaseKey = (id: string) => `${editorRouteKey(id)}:base`;
+
+function readDraftBase(id: string): string | null {
+  try {
+    return localStorage.getItem(draftBaseKey(id));
+  } catch {
+    return null;
+  }
+}
+
+function writeDraftBase(id: string, base: string): void {
+  try {
+    localStorage.setItem(draftBaseKey(id), base);
+  } catch {
+    // Storage full or blocked: the draft won't be restored.
+  }
+}
+
+function clearDraftBase(id: string): void {
+  try {
+    localStorage.removeItem(draftBaseKey(id));
+  } catch {
+    // Nothing to clear.
+  }
+}
+
 class TrackEditor {
   readonly model: EditorModel;
   readonly scene: EditorScene;
@@ -152,7 +180,10 @@ class TrackEditor {
   zoneTool: ZoneTool = 'glide';
   private readonly overrides: Record<string, MeshMaterialSurface>;
   private readonly materialNames: string[] = [];
-  private readonly committed: RouteDef;
+  /** The route as in `route.ts` (updated by a Save). */
+  private committed: RouteDef;
+  /** A draft made on an older `route.ts`, offered but not restored. */
+  private staleDraft: RouteDef | undefined;
   private issues: RouteIssue[] = [];
   private status = '';
   private hover = '';
@@ -168,8 +199,12 @@ class TrackEditor {
   ) {
     this.committed = course.route ?? emptyRoute();
     const draft = loadEditorRoute(course.id);
-    const restored =
-      draft !== undefined && JSON.stringify(draft) !== JSON.stringify(this.committed);
+    const committedJson = JSON.stringify(this.committed);
+    const differs = draft !== undefined && JSON.stringify(draft) !== committedJson;
+    // Only restore a draft made on this very route.ts; one from before a pull or a hand edit is
+    // offered instead, so it can't silently replace the newer file.
+    const restored = differs && readDraftBase(course.id) === committedJson;
+    if (differs && !restored) this.staleDraft = draft;
     this.model = new EditorModel(restored ? draft : this.committed);
     this.overrides = { ...course.materials };
 
@@ -209,12 +244,15 @@ class TrackEditor {
     this.status = [
       ...course.warnings,
       restored ? 'Restored your unsaved draft (Discard draft to go back to the file).' : '',
+      this.staleDraft
+        ? 'route.ts changed since your last draft: the file is loaded (Restore older draft to use the draft).'
+        : '',
     ]
       .filter(Boolean)
       .join(' ');
 
     this.model.onChange(() => {
-      saveEditorRoute(course.id, this.model.route);
+      this.keepDraft();
       this.refresh();
     });
     this.bindPointer(viewport);
@@ -635,7 +673,7 @@ class TrackEditor {
       buttons.push(
         el(
           'button',
-          { onclick: () => void this.save('route', routeFile()) },
+          { onclick: () => void this.save('route') },
           `Save to src/mk8/content/courses/${id}/route.ts`,
         ),
       );
@@ -645,7 +683,6 @@ class TrackEditor {
         'button',
         {
           onclick: () => {
-            clearEditorRoute(id);
             this.model.load(this.committed);
             this.setStatus('Back to the committed route.ts (Ctrl+Z undoes)');
           },
@@ -653,6 +690,21 @@ class TrackEditor {
         'Discard draft',
       ),
     );
+    const stale = this.staleDraft;
+    if (stale)
+      buttons.push(
+        el(
+          'button',
+          {
+            onclick: () => {
+              this.staleDraft = undefined;
+              this.model.load(stale);
+              this.setStatus('Restored the older draft (Ctrl+Z undoes)');
+            },
+          },
+          'Restore older draft',
+        ),
+      );
     return el('section', { className: 'export' }, el('h2', {}, 'Export'), ...buttons);
   }
 
@@ -695,31 +747,44 @@ class TrackEditor {
       list,
       el('button', { onclick: () => download('materials.ts', file()) }, 'Download materials.ts'),
       ...(import.meta.env.DEV
-        ? [
-            el(
-              'button',
-              { onclick: () => void this.save('materials', file()) },
-              'Save materials.ts',
-            ),
-          ]
+        ? [el('button', { onclick: () => void this.save('materials') }, 'Save materials.ts')]
         : []),
     );
     return section;
   }
 
-  private async save(file: 'route' | 'materials', source: string): Promise<void> {
+  /** Sends the data (the dev server writes the file from it, see `devServer.ts`). */
+  private async save(file: 'route' | 'materials'): Promise<void> {
+    const route = structuredClone(this.model.route);
+    const data = file === 'route' ? { route } : { materials: { ...this.overrides } };
     try {
-      const response = await fetch(SAVE_ENDPOINT, {
+      const response = await fetch(SAVE_PATH, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ course: this.course.id, file, source }),
+        body: JSON.stringify({ course: this.course.id, file, ...data }),
       });
       const body = (await response.json()) as { path?: string; error?: string };
       if (!response.ok) throw new Error(body.error ?? response.statusText);
-      if (file === 'route') clearEditorRoute(this.course.id);
+      if (file === 'route') {
+        this.committed = route;
+        this.keepDraft();
+      }
       this.setStatus(`Saved ${body.path}`);
     } catch (error) {
       this.setStatus(`Save failed: ${String(error)}`);
+    }
+  }
+
+  /** Keeps the route as the course's draft while it differs from `route.ts`; clears it otherwise. */
+  private keepDraft(): void {
+    const { id } = this.course;
+    const committed = JSON.stringify(this.committed);
+    if (JSON.stringify(this.model.route) === committed) {
+      clearEditorRoute(id);
+      clearDraftBase(id);
+    } else {
+      saveEditorRoute(id, this.model.route);
+      writeDraftBase(id, committed);
     }
   }
 

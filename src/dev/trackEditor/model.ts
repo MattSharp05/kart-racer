@@ -197,8 +197,9 @@ export class EditorModel {
         if (after > 0) index = after;
       }
     }
-    this.edit((r) => r.points.splice(index, 0, point));
+    // Select before the edit, so listeners see the new point selected.
     this.selected = index;
+    this.edit((r) => r.points.splice(index, 0, point));
     return index;
   }
 
@@ -212,9 +213,9 @@ export class EditorModel {
 
   deletePoint(index: number): void {
     if (!this.route.points[index]) return;
-    this.edit((r) => r.points.splice(index, 1));
     if (this.selected !== undefined && this.selected >= index)
       this.selected = this.selected === index ? undefined : this.selected - 1;
+    this.edit((r) => r.points.splice(index, 1));
   }
 
   setWidth(index: number, width: number, record = true): void {
@@ -262,8 +263,8 @@ export class EditorModel {
       case 'racingLine': {
         const index = this.nearestPoint(t);
         if (index === undefined) return 'No route points';
-        this.setRacingLine(index, lateral);
         this.selected = index;
+        this.setRacingLine(index, lateral);
         return `Racing line at point ${index + 1}: ${lateral} m`;
       }
       case 'gates': {

@@ -54,6 +54,21 @@ test.describe('track editor', () => {
     expect(file).toContain(`{ x: ${added!.x}, y: ${added!.y}, z: ${added!.z}, width: 14 }`);
   });
 
+  test('keeps unsaved work as a draft across a reload, until discarded', async ({ page }) => {
+    await open(page);
+    await clickAt(page, { x: 150, y: 0, z: 2.5 });
+    await page.reload();
+    await page.waitForFunction(() => window.__editor?.ready === true);
+    expect((await page.evaluate(() => window.__editor!.route())).points).toHaveLength(49);
+    await expect(page.locator('.status .message')).toContainText('Restored your unsaved draft');
+    await page.locator('.export button', { hasText: 'Discard draft' }).click();
+    expect((await page.evaluate(() => window.__editor!.route())).points).toHaveLength(48);
+    await page.reload();
+    await page.waitForFunction(() => window.__editor?.ready === true);
+    expect((await page.evaluate(() => window.__editor!.route())).points).toHaveLength(48);
+    await expect(page.locator('.status .message')).not.toContainText('draft');
+  });
+
   test('lists validation problems and switches to the layer', async ({ page }) => {
     await open(page);
     await page.locator('.tools [data-layer="grid"]').click();

@@ -16,7 +16,12 @@ type Data = number | string | boolean | Data[] | { [key: string]: Data | undefin
 
 /** Single quotes, or double when that needs fewer escapes (as Prettier picks). */
 function quote(s: string): string {
-  const escaped = s.replace(/\\/g, '\\\\');
+  const escaped = s
+    .replace(/\\/g, '\\\\')
+    .replace(/\n/g, '\\n')
+    .replace(/\r/g, '\\r')
+    .replace(/\u2028/g, '\\u2028')
+    .replace(/\u2029/g, '\\u2029');
   if (s.includes("'") && !s.includes('"')) return `"${escaped}"`;
   return `'${escaped.replace(/'/g, "\\'")}'`;
 }

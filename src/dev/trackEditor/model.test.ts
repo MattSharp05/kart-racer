@@ -69,6 +69,17 @@ describe('EditorModel', () => {
     expect(model.route).toEqual(testRampRoute);
   });
 
+  it('updates the selection before listeners hear about an edit', () => {
+    const model = new EditorModel(testRampRoute);
+    const seen: (number | undefined)[] = [];
+    model.onChange(() => seen.push(model.selected));
+    model.select(4);
+    model.addPoint(flat(65, 0, 0));
+    model.deletePoint(5);
+    model.place('racingLine', flat(60, 0, -3));
+    expect(seen).toEqual([4, 5, undefined, 3]);
+  });
+
   it('places gates in lap order and refuses a duplicate', () => {
     const model = new EditorModel({ ...testRampRoute, checkpoints: [0, 0.5] });
     model.place('gates', flat(40, 0, 1));
