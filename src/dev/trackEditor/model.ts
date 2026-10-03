@@ -6,14 +6,7 @@ import { RouteGeometry, type RouteDef, type RoutePoint, type RouteZone } from '.
 import { ROUTE_RULES } from '../../sim/routeValidation';
 
 export type Layer =
-  | 'route'
-  | 'racingLine'
-  | 'gates'
-  | 'respawn'
-  | 'grid'
-  | 'itemBoxes'
-  | 'coins'
-  | 'zones';
+  'route' | 'racingLine' | 'gates' | 'respawn' | 'grid' | 'itemBoxes' | 'coins' | 'zones';
 export type ZoneTool = RouteZone['kind'];
 /** Layers whose items live in one list of the route (everything but the points themselves). */
 export type ListLayer = Exclude<Layer, 'route' | 'racingLine'>;
@@ -129,13 +122,21 @@ export class EditorModel {
     return { t: wrapT(projection.t), lateral: round(projection.lateral, EDITOR.lateralSnap) };
   }
 
-  /** Runs `change` as one undoable edit. */
-  edit(change: (route: RouteDef) => void): void {
+  /**
+   * Runs `change` as one undoable edit. `record: false` folds it into the last edit (a drag records
+   * one snapshot when it starts, `checkpoint()`, then moves without filling the history).
+   */
+  edit(change: (route: RouteDef) => void, record = true): void {
+    if (record) this.checkpoint();
+    change(this.route);
+    this.changed();
+  }
+
+  /** Records the current route as an undo step. */
+  checkpoint(): void {
     this.undoStack.push(JSON.stringify(this.route));
     if (this.undoStack.length > EDITOR.maxHistory) this.undoStack.shift();
     this.redoStack = [];
-    change(this.route);
-    this.changed();
   }
 
   /** Replaces the whole route (loading a draft or a file); undoable. */
@@ -201,12 +202,12 @@ export class EditorModel {
     return index;
   }
 
-  movePoint(index: number, hit: Hit): void {
+  movePoint(index: number, hit: Hit, record = true): void {
     const old = this.route.points[index];
     if (!old) return;
     const moved = pointAt(hit, old.width);
     if (old.racingLine !== undefined) moved.racingLine = old.racingLine;
-    this.edit((r) => (r.points[index] = moved));
+    this.edit((r) => (r.points[index] = moved), record);
   }
 
   deletePoint(index: number): void {
@@ -216,15 +217,15 @@ export class EditorModel {
       this.selected = this.selected === index ? undefined : this.selected - 1;
   }
 
-  setWidth(index: number, width: number): void {
+  setWidth(index: number, width: number, record = true): void {
     if (!this.route.points[index] || !(width > 0)) return;
     this.edit((r) => {
       const point = r.points[index];
       if (point) point.width = round(width, EDITOR.lateralSnap);
-    });
+    }, record);
   }
 
-  setRacingLine(index: number, offset: number): void {
+  setRacingLine(index: number, offset: number, record = true): void {
     if (!this.route.points[index]) return;
     this.edit((r) => {
       const point = r.points[index];
@@ -232,7 +233,15 @@ export class EditorModel {
       const value = round(offset, EDITOR.lateralSnap);
       if (value === 0) delete point.racingLine;
       else point.racingLine = value;
-    });
+    }, record);
+  }
+
+  /** Lap fraction and frame at route point `index` (for its width and racing-line handles). */
+  frameAtPoint(index: number) {
+    const point = this.route.points[index];
+    const geometry = this.geometry();
+    if (!point || !geometry) return undefined;
+    return geometry.frameAt(geometry.project(point).t);
   }
 
   // --- Everything placed along the route ---
@@ -259,14 +268,19 @@ export class EditorModel {
       }
       case 'gates': {
         const { checkpoints } = this.route;
-        if (checkpoints.some((c) => Math.abs(c - t) < EDITOR.tSnap)) return 'A gate is already here';
+        if (checkpoints.some((c) => Math.abs(c - t) < EDITOR.tSnap))
+          return 'A gate is already here';
         const index = checkpoints.findIndex((c) => c > t);
         this.edit((r) => r.checkpoints.splice(index < 0 ? checkpoints.length : index, 0, t));
         return `Gate at t ${t}`;
       }
       case 'respawn':
         this.edit((r) =>
-          r.respawnPoints.push({ from: t, to: Math.min(wrapT(t + EDITOR.respawnSpan), 0.99999), t }),
+          r.respawnPoints.push({
+            from: t,
+            to: Math.min(wrapT(t + EDITOR.respawnSpan), 0.99999),
+            t,
+          }),
         );
         return `Respawn point at t ${t}`;
       case 'grid':
@@ -305,7 +319,13 @@ export class EditorModel {
     }
     const first = this.pending;
     if (!first || first.layer !== layer || (layer === 'zones' && first.zone !== zone)) {
-      this.pending = { layer, t, lateral, point: hit.point, ...(layer === 'zones' ? { zone } : {}) };
+      this.pending = {
+        layer,
+        t,
+        lateral,
+        point: hit.point,
+        ...(layer === 'zones' ? { zone } : {}),
+      };
       this.changed();
       return 'Click the end point';
     }
@@ -439,7 +459,7 @@ export function listOf(route: RouteDef, layer: ListLayer): readonly unknown[] {
 
 /** `EDITOR.itemBoxes` boxes evenly across a road `width` m wide. */
 export function itemBoxLaterals(width: number): number[] {
-  const n = EDITOR.itemBoxes;
+  const n: number = EDITOR.itemBoxes;
   const half = Math.max(0, width / 2 - EDITOR.itemBoxEdge);
   return Array.from({ length: n }, (_, i) =>
     round(n === 1 ? 0 : -half + (2 * half * i) / (n - 1), EDITOR.lateralSnap),

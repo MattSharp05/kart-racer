@@ -37,8 +37,7 @@ function print(value: Data, depth: number, used: number): string {
   const [open, close] = isArray ? ['[', ']'] : ['{', '}'];
   if (parts.length === 0) return `${open}${close}`;
   const flat = isArray ? `[${parts.join(', ')}]` : `{ ${parts.join(', ')} }`;
-  if (!flat.includes('\n') && used + depth * INDENT.length + flat.length < PRINT_WIDTH)
-    return flat;
+  if (!flat.includes('\n') && used + depth * INDENT.length + flat.length < PRINT_WIDTH) return flat;
   const inner = INDENT.repeat(depth + 1);
   return `${open}\n${parts.map((e) => `${inner}${e},`).join('\n')}\n${INDENT.repeat(depth)}${close}`;
 }

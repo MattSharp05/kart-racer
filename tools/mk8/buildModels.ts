@@ -2,6 +2,7 @@
 // exists → GLB + `-low` GLB (+ collision.bin and a material map stub for courses).
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import {
   buildCollision,
   COLLISION_DEFAULTS,
@@ -12,6 +13,9 @@ import {
 import { entryFor, type ManifestEntry } from './manifest.ts';
 import { convertModel, MODEL_DEFAULTS, type ModelStats } from './models.ts';
 import { modelGroup, modelOutputs, type ModelSource } from './sources.ts';
+
+/** Course content folders (the track editor writes `materials.ts` there). */
+const COURSES_DIR = join(import.meta.dirname, '../../src/mk8/content/courses');
 
 export interface ModelReport extends ModelStats {
   id: string;
@@ -61,10 +65,17 @@ export function findModelFile(rawModelDir: string, source: ModelSource): string 
   throw new Error(`${source.id}: no .dae or .obj in ${rawModelDir}`);
 }
 
-/** A course's material map: `tools/mk8/materials/<id>.json` when it exists, else the guesses. */
-function courseMaterials(source: ModelSource, stub: MaterialMap): MaterialMap {
+/**
+ * A course's material map: `tools/mk8/materials/<id>.json` when it exists, else the guesses, with
+ * the track editor's overrides (`src/mk8/content/courses/<id>/materials.ts`, MK-100) on top.
+ */
+async function courseMaterials(source: ModelSource, stub: MaterialMap): Promise<MaterialMap> {
   const file = join(import.meta.dirname, 'materials', `${source.id}.json`);
-  return existsSync(file) ? (JSON.parse(readFileSync(file, 'utf8')) as MaterialMap) : stub;
+  const base = existsSync(file) ? (JSON.parse(readFileSync(file, 'utf8')) as MaterialMap) : stub;
+  const overrides = join(COURSES_DIR, source.id, 'materials.ts');
+  if (!existsSync(overrides)) return base;
+  const module = (await import(pathToFileURL(overrides).href)) as { materials?: MaterialMap };
+  return { ...base, ...module.materials };
 }
 
 function write(root: string, path: string, bytes: Uint8Array) {
@@ -107,7 +118,7 @@ export async function buildModel(
     );
     const mesh = await buildCollision(converted.geometry, {
       ...COLLISION_DEFAULTS,
-      materials: courseMaterials(source, stub),
+      materials: await courseMaterials(source, stub),
     });
     const bytes = writeCollision(mesh);
     write(outRoot, out.collision, bytes);
