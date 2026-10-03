@@ -493,7 +493,7 @@ export const route: RouteDef = {
     { from: 0.87154, to: 0.89909, lateral: 1.5, count: 5 },
   ],
   zones: [
-    { kind: 'glide', from: 0.16944, to: 0.18971, landing: 0.36838 },
+    { kind: 'glide', from: 0.16944, to: 0.19538, landing: 0.36838 },
     { kind: 'antigrav', from: 0.53521, to: 0.7918 },
     { kind: 'water', min: { x: -200, y: -10, z: -200 }, max: { x: 25, y: 16.7, z: 200 } },
     { kind: 'water', min: { x: 25, y: -10, z: -200 }, max: { x: 200, y: 16.7, z: -22 } },

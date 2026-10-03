@@ -114,20 +114,28 @@ export function launchesGlide(
 }
 
 /**
- * Where a glide launched here is carried to (MK-123): above the route at the `landing` of the glide
- * zone the kart is in, if that zone has one.
+ * Where a glide launched from `from` (the points `launchesGlide` checked: the kart's centre, its rear
+ * axle) is carried to (MK-123): above the route at the `landing` of the first glide zone one of them
+ * is in, if that zone has one.
  */
-export function glideAim(route: RouteDef, kart: KartState): Vec3 | undefined {
+export function glideAim(
+  route: RouteDef,
+  kart: KartState,
+  from: readonly Vec3[] = [kart.position],
+): Vec3 | undefined {
   const zones = route.zones.flatMap((z) =>
     z.kind === 'glide' && z.landing !== undefined ? [z] : [],
   );
   if (zones.length === 0) return undefined;
   const hint = kart.lastSafeT >= 0 ? kart.lastSafeT : undefined;
-  const t = progressAt(route, kart.position, hint);
-  const zone = zones.find((z) => inRange(t, z.from, z.to));
-  if (zone?.landing === undefined) return undefined;
-  const frame = routeGeometry(route).frameAt(zone.landing);
-  return add(frame.position, scale(frame.up, glideAimTuning().clearance));
+  for (const position of from) {
+    const t = progressAt(route, position, hint);
+    const zone = zones.find((z) => inRange(t, z.from, z.to));
+    if (zone?.landing === undefined) continue;
+    const frame = routeGeometry(route).frameAt(zone.landing);
+    return add(frame.position, scale(frame.up, glideAimTuning().clearance));
+  }
+  return undefined;
 }
 
 /**

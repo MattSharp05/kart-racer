@@ -176,5 +176,10 @@ describe('a glide ramp with a landing (MK-123)', () => {
     expect(glideAim(plain.route, onRamp)).toBeUndefined();
     const before = { ...onRamp, position: { x: 20, y: 0, z: 0 } };
     expect(glideAim(aimed.route, before)).toBeUndefined();
+    // Past the zone's end, its rear axle still on the ramp: the rear's launch counts.
+    const past = { ...onRamp, position: { x: GAP.rampTo + 4, y: GAP.rise, z: 0 } };
+    expect(glideAim(aimed.route, past)).toBeUndefined();
+    const rear = { x: GAP.rampTo - 0.5, y: GAP.rise, z: 0 };
+    expect(glideAim(aimed.route, past, [past.position, rear])?.x).toBeCloseTo(GAP.deckFrom + 8, 0);
   });
 });
