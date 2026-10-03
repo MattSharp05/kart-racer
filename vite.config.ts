@@ -1,6 +1,7 @@
 import { createReadStream, existsSync, statSync } from 'node:fs';
-import { normalize, resolve } from 'node:path';
+import { normalize, relative, resolve } from 'node:path';
 import { defineConfig, type Plugin } from 'vite';
+import { handleSave, SAVE_PATH } from './src/dev/trackEditor/devServer';
 
 const MIME: Record<string, string> = {
   '.webp': 'image/webp',
@@ -32,8 +33,44 @@ function mk8Assets(): Plugin {
   };
 }
 
+/** `pnpm dev` only: the track editor's save endpoint (MK-100, `src/dev/trackEditor/devServer.ts`). */
+function trackEditorSave(): Plugin {
+  const courses = resolve(import.meta.dirname, 'src/mk8/content/courses');
+  return {
+    name: 'track-editor-save',
+    apply: 'serve',
+    configureServer(server) {
+      server.middlewares.use(SAVE_PATH, (req, res) => {
+        let body = '';
+        req.on('data', (chunk: Buffer) => (body += chunk.toString()));
+        req.on('end', () => {
+          const request = {
+            method: req.method,
+            contentType: req.headers['content-type'],
+            origin: req.headers.origin,
+            host: req.headers.host,
+            remote: req.socket.remoteAddress,
+            body,
+          };
+          void handleSave(request, courses)
+            .catch((error: unknown) => ({ status: 500, body: { error: String(error) } }))
+            .then(({ status, body: reply }) => {
+              res.statusCode = status;
+              res.setHeader('Content-Type', 'application/json');
+              const file =
+                'file' in reply && reply.file
+                  ? relative(import.meta.dirname, reply.file)
+                  : undefined;
+              res.end(JSON.stringify(file ? { path: file } : reply));
+            });
+        });
+      });
+    },
+  };
+}
+
 export default defineConfig({
-  plugins: [mk8Assets()],
+  plugins: [mk8Assets(), trackEditorSave()],
   build: {
     target: 'es2022',
     // three.js alone is ~520 kB minified; the real budget (≤ 700 kB gzipped) is enforced in MK-28.
@@ -43,6 +80,7 @@ export default defineConfig({
         main: resolve(import.meta.dirname, 'index.html'),
         dev: resolve(import.meta.dirname, 'dev.html'),
         mk8Sprites: resolve(import.meta.dirname, 'dev/mk8-sprites.html'),
+        trackEditor: resolve(import.meta.dirname, 'dev/track-editor.html'),
       },
     },
   },

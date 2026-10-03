@@ -136,4 +136,12 @@ export const mk8Scenarios: Scenario[] = [
     defaultSeed: 1,
     setup: (seed) => ({ state: mk8TwoSlots(seed) }),
   },
+  {
+    name: 'mk8-ui-kit',
+    group: 'MK8 Mode',
+    description:
+      "The MK8 UI kit's style guide (MK-104): mode tiles, colours and type → character grid → ready, with the stripe wipe, A/B button bar and menu sounds. Pack sprites when a local pack is built, stand-ins otherwise.",
+    defaultSeed: 1,
+    setup: (seed) => ({ state: attractMode(seed), screen: 'mk8UiKit' }),
+  },
 ];
