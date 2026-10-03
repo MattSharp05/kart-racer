@@ -146,10 +146,15 @@ function updateMeshRespawns(
   }
 }
 
-/** Whether a kart in the air is about to land on the void floor (within `fallDepth` below it). */
+/**
+ * Whether a kart in the air is over the void floor, within `fallDepth` below it with no ground
+ * in between (a bridge over a kill plane is fine to hop on).
+ */
 function overKillFloor(track: MeshTrackDef, kart: KartState): boolean {
   const down = kart.gravityDir ?? { x: 0, y: -1, z: 0 };
-  return raycastMesh(track.collision, kart.position, down, tuning.fallDepth, VOID) !== null;
+  const kill = raycastMesh(track.collision, kart.position, down, tuning.fallDepth, VOID);
+  if (!kill) return false;
+  return raycastMesh(track.collision, kart.position, down, kill.distance, RESPAWN_GROUND) === null;
 }
 
 function startMeshRespawn(

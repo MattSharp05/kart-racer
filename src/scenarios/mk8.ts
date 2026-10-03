@@ -1,4 +1,3 @@
-import { LAYOUT as TEST_RAMP_LAYOUT, TEST_RAMP_ID } from '../mk8/content/courses/test-ramp/layout';
 import { tracks } from '../content/tracks';
 import { headingOf } from '../sim/math';
 import { routeGeometry } from '../sim/route';
@@ -12,9 +11,19 @@ export const MK8_STADIUM_SCENARIO = 'mk8-stadium-antigrav';
 /** Mario Kart Stadium's collision as a dev course (`src/mk8/scenarioCourses.ts` registers it). */
 export const MK8_STADIUM_DEV_ID = 'mk8-dev-stadium';
 
-const { tunnel, roadHalfWidth } = TEST_RAMP_LAYOUT;
+/**
+ * The MK8 test ramp (`src/mk8/content/courses/test-ramp/layout.ts`), copied as plain numbers: this
+ * module is in the main bundle, which must not pull in MK8 code (`mk8.test.ts` keeps them equal).
+ * `main.ts` registers the course before an `mk8-*` scenario is set up.
+ */
+export const TEST_RAMP = {
+  id: 'mk8-test-ramp',
+  roadHalfWidth: 7,
+  tunnel: { from: 30, height: 8 },
+} as const;
+const { tunnel, roadHalfWidth } = TEST_RAMP;
 
-/** One kart (150cc, free drive) on the test ramp. `main.ts` registers the course first. */
+/** One kart (150cc, free drive) on the test ramp. */
 function onTestRamp(
   seed: number,
   at: { x: number; y: number; z: number },
@@ -23,7 +32,7 @@ function onTestRamp(
 ): SimState {
   return createSimState({
     seed,
-    trackId: TEST_RAMP_ID,
+    trackId: TEST_RAMP.id,
     engineClass: 150,
     itemsOn: false,
     karts: [{ position: at, heading, ...(upsideDown ? { up: { x: 0, y: -1, z: 0 } } : {}) }],

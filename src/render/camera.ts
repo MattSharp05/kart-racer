@@ -112,9 +112,21 @@ export class ChaseCamera {
       this.turn.setFromAxisAngle(axis.normalize(), step);
       this.surfaceUp.applyQuaternion(this.turn).normalize();
     }
-    // Facing: towards the kart's, then flat to the camera's up.
-    this.surfaceForward.lerp(frame.forward, 1 - Math.exp(-HEADING_RATE * dt));
+    // Facing: flat to the camera's up, then turned about it towards the kart's (by angle, so it
+    // swings round even from straight behind).
     this.flatten();
+    const want = this.scratch
+      .copy(frame.forward)
+      .addScaledVector(this.surfaceUp, -frame.forward.dot(this.surfaceUp));
+    if (want.lengthSq() > 1e-8) {
+      want.normalize();
+      const turn = Math.acos(Math.min(1, Math.max(-1, this.surfaceForward.dot(want))));
+      const side =
+        Math.sign(this.target.crossVectors(this.surfaceForward, want).dot(this.surfaceUp)) || 1;
+      this.turn.setFromAxisAngle(this.surfaceUp, side * turn * (1 - Math.exp(-HEADING_RATE * dt)));
+      this.surfaceForward.applyQuaternion(this.turn);
+      this.flatten();
+    }
     this.placeOnSurface(kart, 1 - Math.exp(-FOLLOW_RATE * dt), clip);
     this.juice(dt, speedRatio);
   }

@@ -12,7 +12,6 @@ import {
   type MeshSurface,
 } from '../sim/meshTrack';
 import type { RouteDef } from '../sim/route';
-import { MK8_STADIUM_DEV_ID, MK8_STADIUM_SCENARIO } from '../scenarios/mk8';
 import { registerTestRamp } from './content/courses/test-ramp/register';
 import { packLoader } from './index';
 import { PackNotInstalledError } from './loader';
@@ -21,13 +20,24 @@ import { PackNotInstalledError } from './loader';
 const STADIUM_COURSE = 'mario-kart-stadium';
 const collisionPath = (course: string) => `models/courses/${course}/collision.bin`;
 
+/** Which scenario drives Stadium and the track id it expects (`src/scenarios/mk8.ts`). */
+export interface StadiumScenario {
+  scenario: string;
+  trackId: string;
+}
+
 /**
- * Gets the course `scenario` drives on ready. Returns the scenario to open: itself, or
- * `mk8-not-installed` when it needs the local pack and there is none.
+ * Gets the course `scenario` drives on ready: the test ramp always (cheap), and Stadium when it's
+ * the Stadium scenario and the local pack has it. Without the pack nothing is registered and that
+ * scenario shows "MK8 pack not installed" itself.
  */
-export async function prepareMk8Scenario(scenario: string, search: string): Promise<string> {
+export async function prepareMk8Scenario(
+  scenario: string,
+  search: string,
+  stadium: StadiumScenario,
+): Promise<void> {
   registerTestRamp();
-  if (scenario !== MK8_STADIUM_SCENARIO || tracks.has(MK8_STADIUM_DEV_ID)) return scenario;
+  if (scenario !== stadium.scenario || tracks.has(stadium.trackId)) return;
   try {
     const loader = packLoader();
     await loader.loadCourse(STADIUM_COURSE);
@@ -35,16 +45,14 @@ export async function prepareMk8Scenario(scenario: string, search: string): Prom
     if (!bytes) throw new PackNotInstalledError();
     const params = new URLSearchParams(search);
     tracks.register({
-      id: MK8_STADIUM_DEV_ID,
+      id: stadium.trackId,
       name: 'Mario Kart Stadium (collision)',
       order: 1001,
-      def: stadiumDev(decodeCollision(bytes), params),
+      def: stadiumDev(stadium.trackId, decodeCollision(bytes), params),
       testOnly: true,
     });
-    return scenario;
   } catch (e) {
     if (!(e instanceof PackNotInstalledError)) console.error(e);
-    return 'mk8-not-installed';
   }
 }
 
@@ -56,7 +64,7 @@ export async function prepareMk8Scenario(scenario: string, search: string): Prom
  * anti-gravity, or with `&antigrav=road`, every road triangle counts as anti-gravity so the
  * section can be driven before the material map marks it.
  */
-function stadiumDev(collision: CollisionMesh, params: URLSearchParams): MeshTrackDef {
+function stadiumDev(id: string, collision: CollisionMesh, params: URLSearchParams): MeshTrackDef {
   const antigrav = MESH_SURFACES.indexOf('antigrav');
   const road = MESH_SURFACES.indexOf('road');
   const hasAntigrav = collision.surfaces.includes(antigrav);
@@ -64,8 +72,9 @@ function stadiumDev(collision: CollisionMesh, params: URLSearchParams): MeshTrac
   const mesh = asRoad
     ? { ...collision, surfaces: collision.surfaces.map((s) => (s === road ? antigrav : s)) }
     : collision;
-  const start = parseStart(params) ?? nearestToCentre(mesh, hasAntigrav ? 'antigrav' : 'road');
-  return { id: MK8_STADIUM_DEV_ID, kind: 'mesh', collision: mesh, route: stubRoute(start) };
+  // Start on anti-gravity ground: the course's own, or (relabelled above) its road.
+  const start = parseStart(params) ?? nearestToCentre(mesh, 'antigrav');
+  return { id, kind: 'mesh', collision: mesh, route: stubRoute(start) };
 }
 
 interface Start {
@@ -88,6 +97,8 @@ function nearestToCentre(mesh: CollisionMesh, surface: MeshSurface): Start {
   const { gridMin, gridDims, cellSize, positions, surfaces } = mesh;
   const cx = gridMin[0] + (gridDims[0] * cellSize) / 2;
   const cz = gridMin[2] + (gridDims[2] * cellSize) / 2;
+  // None of that surface: the mesh's centre, 1 m above its bottom (the kart falls onto whatever).
+  if (!surfaces.includes(code)) return { x: cx, y: gridMin[1] + 1, z: cz, yaw: 0 };
   let best = 0;
   let bestD = Infinity;
   for (let t = 0; t < surfaces.length; t += 1) {

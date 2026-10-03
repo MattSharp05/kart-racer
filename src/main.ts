@@ -13,7 +13,9 @@ import { localRoomBackend } from './net/roomBackendLocal';
 import { supabaseRoomBackend } from './net/roomBackendSupabase';
 import { launchLeaderboard } from './records/leaderboardMock';
 import { World } from './render/world';
+import { tracks } from './content/tracks';
 import { scenarios } from './scenarios';
+import { MK8_STADIUM_DEV_ID, MK8_STADIUM_SCENARIO } from './scenarios/mk8';
 import { getTrack } from './sim/track';
 import { tuning } from './sim/tuning';
 import { NetDebugOverlay } from './ui/netDebug';
@@ -29,7 +31,10 @@ const params = parseLaunchParams(window.location.search);
 // the local pack) before the scenario is set up. Lazy, so the original game never loads MK8 code.
 if (params.scenario?.startsWith('mk8-')) {
   const { prepareMk8Scenario } = await import('./mk8/scenarioCourses');
-  params.scenario = await prepareMk8Scenario(params.scenario, window.location.search);
+  await prepareMk8Scenario(params.scenario, window.location.search, {
+    scenario: MK8_STADIUM_SCENARIO,
+    trackId: MK8_STADIUM_DEV_ID,
+  });
 }
 // `&remote=` (MK-74, QA): how this device's online races draw and predict other karts.
 if (params.remote) tuning.net.remoteKarts = params.remote;
@@ -87,7 +92,10 @@ installTestApi(
   (name, seed) => {
     const scenario = scenarios.get(name);
     if (!scenario) return false;
-    session.load(scenario.setup(seed ?? scenario.defaultSeed).state);
+    const { state } = scenario.setup(seed ?? scenario.defaultSeed);
+    // An MK8 course registers when the page boots into its scenario (MK-99), not in place.
+    if (!tracks.has(state.trackId)) return false;
+    session.load(state);
     world.reset(world.view, session.localKartId);
     return true;
   },
