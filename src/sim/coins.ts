@@ -90,13 +90,15 @@ export function updateCoins(state: SimState, events: SimEvent[], dt: number, onl
   for (const kart of state.karts) {
     if (kart.coins === undefined || isRespawning(kart)) continue;
     if (only !== undefined && kart.id !== only) continue;
-    state.coins = state.coins.filter((coin) => {
-      if (!canTake(kart, coin)) return true;
+    const left = state.coins;
+    for (let i = left.length - 1; i >= 0; i -= 1) {
+      const coin = left[i];
+      if (!coin || !canTake(kart, coin)) continue;
       takeCoin(kart, state, events);
-      if (coin.life !== undefined) return false;
-      coin.respawnTimer = c.respawn;
-      return true;
-    });
+      // A dropped coin is gone once taken; a line coin comes back.
+      if (coin.life !== undefined) left.splice(i, 1);
+      else coin.respawnTimer = c.respawn;
+    }
   }
 }
 
