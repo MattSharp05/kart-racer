@@ -167,10 +167,10 @@ describe('Spiny Shell (MK-113)', () => {
       itemsOn: false,
       itemSet: MK8_ITEM_SET,
       itemSlots: 2,
-      // Just past the start line, and the leader half a lap on, on C (the far straight).
-      karts: [at(0.05), at(0.55)],
+      // The thrower just past the start line, and the leader on C (the far straight), so the
+      // leader is ahead by lap progress (mesh tracks rank karts by route progress since MK-105).
+      karts: [at(0.1), at(0.55)],
     });
-    // Mesh tracks race in lap order (MK-105): the kart half a lap on leads.
     state.positions = [1, 0];
     state.karts[0]!.item.held = SPINY;
     state.karts[0]!.item.uses = 1;
