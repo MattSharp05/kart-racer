@@ -4,7 +4,6 @@
 import * as THREE from 'three';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
-import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import type { Mk8Loader } from '../../loader';
 
 /** A model's GLB in the pack. */
@@ -21,25 +20,11 @@ interface ModelFix {
    * (MK8 colours shells in its shader).
    */
   swapRedGreen?: boolean;
-  /**
-   * The model already stands upright (MK-126: the coin, whose DAE isn't turned like the others),
-   * so `normalise` leaves it as it is.
-   */
-  upright?: boolean;
-  /**
-   * Materials the conversion left fully transparent that are really solid (MK-126: the Piranha
-   * Plant and its pot), drawn opaque instead of as glass.
-   */
-  opaque?: boolean;
-  /** Keeps its skeleton (posed by its bones) instead of `unskin`'s rest pose. */
-  skinned?: boolean;
 }
 
 const FIXES: Readonly<Record<string, ModelFix>> = {
   lightning: { tint: '#ffd21f', glow: 0.35 },
   'red-shell': { swapRedGreen: true },
-  coin: { upright: true },
-  'piranha-plant': { opaque: true, upright: true, skinned: true },
 };
 /**
  * See-through materials the DAE conversion left fully transparent (the item box's glass came out
@@ -65,28 +50,19 @@ export class ItemModels {
   instance(model: string, size: number): THREE.Object3D | undefined {
     const template = this.templates.get(model);
     if (!template) return undefined;
-    const copy = skinnedIn(template) ? cloneSkinned(template) : template.clone(true);
+    const copy = template.clone(true);
     copy.scale.setScalar(size);
     return copy;
   }
-}
-
-/** Whether `model` has a skinned mesh (`ModelFix.skinned`). */
-function skinnedIn(model: THREE.Object3D): boolean {
-  let found = false;
-  model.traverse((node) => {
-    if (node instanceof THREE.SkinnedMesh) found = true;
-  });
-  return found;
 }
 
 /**
  * Wraps `scene` so it stands upright (the pack's item models come out of the DAE conversion with
  * their top along −Z), centred on the origin with its largest side 1 m.
  */
-export function normalise(scene: THREE.Object3D, alreadyUpright = false): THREE.Object3D {
+export function normalise(scene: THREE.Object3D): THREE.Object3D {
   const upright = new THREE.Group();
-  if (!alreadyUpright) upright.rotation.x = Math.PI / 2;
+  upright.rotation.x = Math.PI / 2;
   upright.add(scene);
   const box = new THREE.Box3().setFromObject(upright);
   const size = box.getSize(new THREE.Vector3());
@@ -109,10 +85,7 @@ function fixMaterials(scene: THREE.Object3D, fix: ModelFix = {}): void {
       ? node.material
       : [node.material];
     for (const material of materials) {
-      if (fix.opaque && material.transparent && material.opacity === 0) {
-        material.transparent = false;
-        material.opacity = 1;
-      } else if (material.transparent && material.opacity === 0) {
+      if (material.transparent && material.opacity === 0) {
         material.opacity = node.name.includes('Ref') ? REFLECTION_OPACITY : GLASS_OPACITY;
         material.blending = THREE.AdditiveBlending;
         material.depthWrite = false;
@@ -161,11 +134,11 @@ export function unskin(scene: THREE.Object3D): void {
 }
 
 /** Parses one GLB into a static model. */
-export async function parseModel(bytes: ArrayBuffer, keepSkin = false): Promise<THREE.Object3D> {
+export async function parseModel(bytes: ArrayBuffer): Promise<THREE.Object3D> {
   const gltf = new GLTFLoader();
   gltf.setMeshoptDecoder(MeshoptDecoder);
   const scene = (await gltf.parseAsync(bytes, '')).scene;
-  if (!keepSkin) unskin(scene);
+  unskin(scene);
   return scene;
 }
 
@@ -182,9 +155,9 @@ export async function loadItemModels(
   for (const id of ids) {
     const bytes = loader.file(itemModelPath(id));
     if (!bytes) continue;
-    const scene = await parseModel(bytes, FIXES[id]?.skinned);
+    const scene = await parseModel(bytes);
     fixMaterials(scene, FIXES[id]);
-    templates.set(id, normalise(scene, FIXES[id]?.upright));
+    templates.set(id, normalise(scene));
   }
   return new ItemModels(templates);
 }

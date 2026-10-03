@@ -37,28 +37,6 @@ describe('MK8 item models (MK-103)', () => {
     expect(models.instance('missing', 1)).toBeUndefined();
   });
 
-  it('leaves a model that already stands upright as it is (MK-126: the coin)', () => {
-    const size = sizeOf(normalise(boxModel(), true));
-    expect(size.z).toBeCloseTo(1, 5);
-    expect(size.y).toBeCloseTo(4 / 6, 5);
-  });
-
-  it('copies a skinned model with its own bones (MK-126: the Piranha Plant)', () => {
-    const bone = new THREE.Bone();
-    const mesh = new THREE.SkinnedMesh(new THREE.BoxGeometry(), new THREE.MeshBasicMaterial());
-    const scene = new THREE.Group();
-    scene.add(bone, mesh);
-    mesh.bind(new THREE.Skeleton([bone]));
-    const models = new ItemModels(new Map([['plant', scene]]));
-    const copy = models.instance('plant', 1)!;
-    let copied: THREE.SkinnedMesh | undefined;
-    copy.traverse((node) => {
-      if (node instanceof THREE.SkinnedMesh) copied = node;
-    });
-    expect(copied?.skeleton.bones[0]).not.toBe(bone);
-    expect(copy.children).toContain(copied?.skeleton.bones[0]);
-  });
-
   it('swaps skinned meshes for plain ones in the same place', () => {
     const scene = new THREE.Group();
     const skinned = new THREE.SkinnedMesh(new THREE.BoxGeometry(), new THREE.MeshBasicMaterial());
