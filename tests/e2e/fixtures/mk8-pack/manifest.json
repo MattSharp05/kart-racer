@@ -38,6 +38,12 @@
       "group": "items"
     },
     {
+      "path": "models/items/bob-omb.glb",
+      "bytes": 12748,
+      "sha256": "2a15d5c4725ddd256a1fd932b919aee514afe1c7f6498f2d9cb8f072fdef8f26",
+      "group": "items"
+    },
+    {
       "path": "models/items/boomerang-flower.glb",
       "bytes": 1576,
       "sha256": "f017f03768c0c976f04408d5d0be22c74f412ab01317ee0ee34700bb9fdf1f92",
