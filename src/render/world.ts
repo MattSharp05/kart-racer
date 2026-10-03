@@ -19,7 +19,10 @@ import { NameTags } from './nameTags';
 import { AdaptiveQuality } from './quality';
 import { CAMERA_FAR, CAMERA_NEAR, createScene, defaultLook } from './scene';
 import { trackTheme } from './theme';
+import type { TrackLook } from './trackLook';
 import { createTrackView, overviewCamera, type TrackViewUpdate } from './trackView';
+import { trackViews } from '../content/tracks/render';
+import { UnderwaterView } from './underwater';
 
 /** Longest real frame we feed the sim, so a backgrounded tab doesn't cause a huge catch-up. */
 const MAX_FRAME_SECONDS = 0.25;
@@ -94,6 +97,8 @@ export class World {
   private readonly itemBoxes: ItemBoxRenderer;
   /** Coins (MK-109), on tracks that have them. */
   private readonly coins: CoinRenderer;
+  /** Underwater look (MK-107), on tracks with water. */
+  private readonly underwater: UnderwaterView;
   /** The other people's names over their karts (online, MK-55). */
   private readonly nameTags: NameTags;
   /** The track drawn now (MK-78: rebuilt when a race on another track loads). */
@@ -134,13 +139,17 @@ export class World {
     this.effects = new Effects(this.scene, this.karts, this.chaseCamera);
     this.itemBoxes = new ItemBoxRenderer(this.scene);
     this.coins = new CoinRenderer(this.scene);
+    this.underwater = new UnderwaterView(this.scene);
     this.nameTags = new NameTags(this.scene);
     this.addItemRenderers();
     this.aiDebug = options.aiDebug ? new AiDebugView(this.scene) : undefined;
     window.addEventListener('resize', () => this.markChanged());
 
     // Adaptive quality (MK-28).
-    this.lowQualityHooks = [(low) => this.effects.setLowQuality(low)];
+    this.lowQualityHooks = [
+      (low) => this.effects.setLowQuality(low),
+      (low) => this.track.look?.setLowQuality?.(low),
+    ];
     this.quality = new AdaptiveQuality(window.devicePixelRatio, (pixelRatio, lowQuality) => {
       this.renderer.setPixelRatio(pixelRatio);
       this.lowQualityHooks.forEach((hook) => hook(lowQuality));
@@ -261,8 +270,12 @@ export class World {
       this.options.playerColour ?? (() => DEFAULT_TAG_COLOUR),
       view === 'chase',
     );
+    const route = this.track.def.kind === 'mesh' ? this.track.def.route : undefined;
+    this.underwater.sync(state, route, simTime, (id) => this.karts.body(id), this.camera);
     this.onUpdate(frameSeconds);
-    if (draw) this.renderer.render(this.scene, this.camera);
+    const look = this.track.look;
+    look?.update?.({ state, ticks, followId, camera: this.camera, paused: game.paused });
+    if (draw && !look?.render?.()) this.renderer.render(this.scene, this.camera);
   }
 
   /** Makes a renderer for each item renderer class not made yet (MK8 items register later). */
@@ -292,11 +305,23 @@ export class World {
     const update = createTrackView(this.scene, def);
     const hazards = new HazardRenderer(this.scene, def);
     const objects = this.scene.children.filter((o) => !before.has(o));
-    this.track = { def, update, hazards, objects };
+    // An MK8 course's look (MK-125): light, sky, post-processing, water, ambience.
+    const view = trackViews.has(def.id) ? trackViews.get(def.id) : undefined;
+    const look = view?.look?.({
+      renderer: this.renderer,
+      scene: this.scene,
+      camera: this.camera,
+      objects,
+      // The launch track is built before adaptive quality exists (`forceLow` tells it later).
+      lowQuality: (this.quality as AdaptiveQuality | undefined)?.lowQuality ?? false,
+      reducedMotion: this.options.reducedMotion,
+    });
+    this.track = { def, update, hazards, objects, look };
   }
 
   /** Swaps the drawn track for `def` (MK-78): an online or menu race on another track. */
   private setTrack(def: TrackDef): void {
+    this.track.look?.dispose();
     for (const object of this.track.objects) {
       this.scene.remove(object);
       disposeObject(object);
@@ -326,6 +351,8 @@ export class World {
         distance: this.chaseCamera.distance(),
       },
       gliders: this.game.state.karts.map((_, i) => this.karts.gliderOpenness(i)),
+      underwater: this.underwater.cameraUnder,
+      propellers: this.underwater.propellersShown(),
     };
   }
 
@@ -374,6 +401,8 @@ interface DrawnTrack {
   /** Track hazards (MK-49), posed from the tick. */
   hazards: HazardRenderer;
   objects: THREE.Object3D[];
+  /** The track's own look (MK-125), if its view has one. */
+  look: TrackLook | undefined;
 }
 
 /** Frees the GPU side of `root`'s meshes (three re-uploads anything shared that's used again). */

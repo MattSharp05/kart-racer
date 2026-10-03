@@ -55,6 +55,14 @@ import { applySpinBoost, hitBumpers } from './spinBoost';
 import { surfaceEffect } from './surfaces';
 import { tuning, type EngineClass } from './tuning';
 import type { InputFrame, KartState, SimEvent } from './types';
+import {
+  hopSpeed,
+  limitSink,
+  updateWater,
+  waterGravityScale,
+  waterSpeedScale,
+  waterTuning,
+} from './underwater';
 
 /** What a kart can stand on or climb onto (a kill floor isn't ground: the kart falls through it). */
 const DRIVABLE = surfaceMask('road', 'offroad', 'boost', 'antigrav', 'glide');
@@ -215,10 +223,12 @@ export function updateMeshKart(
 ): KartState {
   const m = tuning.mk8;
   ensureSurfaceFrame(kart);
+  // Under water (MK-107): slower, floatier, higher hops.
+  updateWater(kart, track.route, events);
   let up = kart.up ?? { ...WORLD_UP };
   let forward = kart.forward ?? forwardFromHeading(kart.heading);
   const physics = kartPhysics(kart.kartType, engineClass, kart.loadout);
-  const topSpeed = kartTopSpeed(kart, engineClass);
+  const topSpeed = kartTopSpeed(kart, engineClass) * waterSpeedScale(kart);
   const kartAccel = accelRate(physics.timeTo95);
 
   // Split the velocity in the kart's frame: along forward, along up, and the sideways slide.
@@ -231,7 +241,7 @@ export function updateMeshKart(
   handleDriftButton(kart, input, forwardSpeed, topSpeed, events);
   // A hop goes along the kart's up (`handleDriftButton` sets a world-Y speed for flat tracks).
   const hopped = groundedBefore && !kart.grounded;
-  if (hopped) upSpeed = tuning.hopVelocity;
+  if (hopped) upSpeed = hopSpeed(kart);
   const under = kart.grounded ? meshGroundAt(track.collision, kart.position, up, DRIVABLE) : null;
   const effect = surfaceEffect(DRIVES_LIKE[under?.surface ?? 'road']);
   if (driftPressed && !kart.grounded) tryTrick(kart, events);
@@ -280,7 +290,14 @@ export function updateMeshKart(
             kartAccel,
             tuning.offroadDecel,
           )
-        : updateForwardSpeed(forwardSpeed, pedals, topSpeed, dt, kartAccel);
+        : updateForwardSpeed(
+            forwardSpeed,
+            pedals,
+            topSpeed,
+            dt,
+            kartAccel,
+            kart.inWater ? waterTuning().drag : undefined,
+          );
   const spunSpeed = applySpinBoost(kart, pedalSpeed, forwardSpeed, pedals, topSpeed, dt);
   const newSpeed = brakeDrift ? spunSpeed * Math.exp(-tuning.brakeDrift.speedLoss * dt) : spunSpeed;
   kart.boostTimer = Math.max(0, kart.boostTimer - dt);
@@ -310,7 +327,8 @@ export function updateMeshKart(
     up = flight.up;
     gravityDir = { ...DOWN };
   } else if (!wasGrounded) {
-    velocity = add(velocity, scale(gravityDir, tuning.gravity * dt));
+    velocity = add(velocity, scale(gravityDir, tuning.gravity * waterGravityScale(kart) * dt));
+    velocity = limitSink(kart, velocity, gravityDir);
     if (!stuck) {
       // In the air, ease back upright (rolling about the nose if upside down).
       up = turnTowards(up, WORLD_UP, 1 - Math.exp(-m.airUpTurnRate * dt), forward);
