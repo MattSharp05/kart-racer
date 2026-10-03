@@ -22,8 +22,8 @@ export const MK8_STADIUM_DEV_ID = 'mk8-dev-stadium';
 export const MK8_COURSE_SCENARIOS: ReadonlySet<string> = new Set([
   'mk8-test-antigrav',
   'mk8-test-ceiling',
-  'mk8-test-glide',
   MK8_STADIUM_SCENARIO,
+  'mk8-test-glide',
 ]);
 
 /**
@@ -298,17 +298,6 @@ export const mk8Scenarios: Scenario[] = [
       state: onTestRamp(seed, { x: tunnel.from + 10, y: tunnel.height, z: 0 }, -Math.PI / 2, true),
     }),
   },
-  // Gliders (MK-106) on the test ramp: no pack needed.
-  {
-    name: 'mk8-test-glide',
-    group: 'MK8 Mode',
-    description:
-      'Gliding on the MK8 test ramp, 150cc: the kart 60 m before the glide ramp (purple), the gap and its void beyond it. Hold accelerate: off the ramp the glider opens; steer in the air, hold accelerate to dive (sooner, faster) or brake to float (longer). Tap drift off the lip for a trick boost.',
-    defaultSeed: 1,
-    setup: (seed) => ({
-      state: onTestRamp(seed, { x: glide.from - GLIDE_RUN_UP, y: 0, z: 0 }, -Math.PI / 2),
-    }),
-  },
   {
     name: MK8_STADIUM_SCENARIO,
     group: 'MK8 Mode',
@@ -490,4 +479,15 @@ export const mk8Scenarios: Scenario[] = [
     defaultSeed: 1,
     setup: (seed) => ({ state: attractMode(seed), screen }),
   })),
+  // Gliders (MK-106) on the test ramp: no pack needed.
+  {
+    name: 'mk8-test-glide',
+    group: 'MK8 Mode',
+    description:
+      'Gliding on the MK8 test ramp, 150cc: the kart 60 m before the glide ramp (purple), the gap and its void beyond it. Hold accelerate: off the ramp the glider opens; steer in the air, hold accelerate to dive (sooner, faster) or brake to float (longer). Tap drift off the lip for a trick boost.',
+    defaultSeed: 1,
+    setup: (seed) => ({
+      state: onTestRamp(seed, { x: glide.from - GLIDE_RUN_UP, y: 0, z: 0 }, -Math.PI / 2),
+    }),
+  },
 ];

@@ -24,6 +24,53 @@ import { progressAt, type RouteDef } from './route';
 import { tuning } from './tuning';
 import type { InputFrame, KartState, SimEvent } from './types';
 
+/**
+ * `tuning.mk8.glide`: off a glide ramp the kart flies on its glider. Gravity is cut and the wing
+ * lifts in proportion to speed; vertical drag gives it a steady sink rate. Throttle dives (nose
+ * down: sinks faster, gains speed), brake floats (nose up: sinks slower, loses speed). Speeds scale
+ * with the kart's top speed, so every class glides the same shape.
+ */
+export interface GlideTuning {
+  /** The glider unfolds over this long on launch (and folds as fast on landing), s. */
+  openSeconds: number;
+  /** Gravity while gliding, as a share of `tuning.gravity`. */
+  gravityScale: number;
+  /** Upward lift at top speed, as a share of `tuning.gravity` (proportional to speed). */
+  lift: number;
+  /** Vertical speed decays at this rate, 1/s: a steady sink instead of a fall. */
+  verticalDrag: number;
+  /** Diving adds this much downward pull (share of `tuning.gravity`) at full stick… */
+  diveSink: number;
+  /** …and gains speed at this share of top speed per second, up to `diveMaxSpeed` × top speed. */
+  diveAccel: number;
+  diveMaxSpeed: number;
+  /** Floating lifts this much more (share of `tuning.gravity`) at full stick… */
+  floatLift: number;
+  /** …and loses speed at this share of top speed per second, down to `minSpeed` × top speed. */
+  floatDrag: number;
+  minSpeed: number;
+  /** Pitch eases towards the stick at this rate, 1/s. */
+  pitchRate: number;
+  /** Turn rate while gliding, as a share of `tuning.maxYawRate` (× the kart's handling). */
+  turnRate: number;
+  /** Sideways slip dies away at this rate, 1/s: turns carry the flight round. */
+  grip: number;
+  /** The kart levels out (up towards +Y) at this rate while gliding, 1/s. */
+  upTurnRate: number;
+  /** A glide this long without landing counts as falling off the course, s. */
+  fallSeconds: number;
+  /**
+   * A kart hopping off a glide ramp's lip glides too: in the air for less than this (a hop lasts
+   * about a third of a second), with no ground within `lipReach` m under its centre and glide ramp
+   * under its rear axle, s.
+   */
+  hopGrace: number;
+  lipReach: number;
+}
+
+/** The glide numbers, typed (and checked) as `GlideTuning`. */
+export const glideTuning = (): GlideTuning => tuning.mk8.glide;
+
 /** Whether lap fraction `t` is inside one of the route's glide zones (ranges may wrap past 0). */
 export function inGlideZone(route: RouteDef, t: number): boolean {
   for (const zone of route.zones) {
@@ -93,7 +140,7 @@ export function glideStep(
   handling: number,
   dt: number,
 ): GlideStep {
-  const g = tuning.mk8.glide;
+  const g = glideTuning();
   const glide = kart.glide ?? { time: 0, pitch: 0 };
   glide.time += dt;
   glide.pitch += (pitchInput(input) - glide.pitch) * (1 - Math.exp(-g.pitchRate * dt));
