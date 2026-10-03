@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { racers } from '../content/racers';
+import { gameRacers, racers } from '../content/racers';
 import { tracks } from '../content/tracks';
 import { MK8_CONTENT, registerMk8Content } from './register';
 
@@ -19,10 +19,16 @@ describe('MK8 content registration (MK-97)', () => {
     expect(racers.get('mk8-fixture')).toBe(racer);
   });
 
-  it('registers nothing yet: the course, racer and item tickets add to the lists', () => {
-    const before = [tracks.ids(), racers.ids()];
+  it("registers the 12 MK8 racers (MK-101), which the original game's lists leave out", () => {
+    const game = gameRacers();
     registerMk8Content();
-    expect([tracks.ids(), racers.ids()]).toEqual(before);
-    expect(MK8_CONTENT.tracks).toEqual([]);
+    try {
+      expect(MK8_CONTENT.racers).toHaveLength(12);
+      for (const racer of MK8_CONTENT.racers) expect(racers.get(racer.id)).toBe(racer);
+      expect(gameRacers()).toEqual(game);
+      expect(MK8_CONTENT.tracks).toEqual([]);
+    } finally {
+      for (const racer of MK8_CONTENT.racers) racers.unregister(racer.id);
+    }
   });
 });

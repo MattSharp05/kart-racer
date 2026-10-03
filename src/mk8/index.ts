@@ -8,10 +8,19 @@ import { Mk8AudioPlayer } from './audio/player';
 import type { SoundId } from './audio/soundIds';
 import { Mk8Loader, PackNotInstalledError, type LoaderOptions } from './loader';
 import { registerMk8Content } from './register';
+import {
+  STAGE_DEMOS,
+  buildDemo,
+  demoFiles,
+  type StageDemoId,
+  type StageHooks,
+} from './render/demos';
+import { Mk8Stage } from './render/stage';
 import { styleGuide, type SpriteSource } from './ui/kit/styleGuide';
 import { Progress } from './ui/loading';
 import { sprite } from './ui/sprites';
 import './ui/stack';
+import './ui/stage';
 
 /** What MK8 Mode needs from the game: the screen router, and the way back to the title. */
 export interface Mk8Host {
@@ -24,8 +33,11 @@ export interface Mk8Host {
 
 declare global {
   interface Window {
-    /** MK8 Mode's test hooks (MK-104): every sound id the player was asked to play. */
-    __mk8?: { sounds: SoundId[] };
+    /**
+     * MK8 Mode's test hooks: every sound id the player was asked to play (MK-104), and the model
+     * stage's demo (MK-101).
+     */
+    __mk8?: { sounds: SoundId[]; stage?: StageHooks };
   }
 }
 
@@ -33,8 +45,9 @@ declare global {
  * How MK8 Mode opens: `load` (the menu button) loads the pack; the `mk8-loading` and
  * `mk8-not-installed` scenarios show those screens without fetching anything; `ui-kit` (the
  * `mk8-ui-kit` scenario) shows the UI kit's style guide, with the pack's sprites if it has one.
+ * A `StageDemoId` (MK-101's scenarios) loads those models and shows them on the 3D stage.
  */
-export type Mk8Start = 'load' | 'loading-demo' | 'not-installed' | 'ui-kit';
+export type Mk8Start = 'load' | 'loading-demo' | 'not-installed' | 'ui-kit' | StageDemoId;
 
 /** Where the `mk8-loading` scenario holds the bar. */
 const DEMO_PROGRESS = 0.5;
@@ -58,7 +71,7 @@ export function audioPlayer(): Mk8AudioPlayer {
   if (!player) {
     const files = packLoader();
     player = new Mk8AudioPlayer({ file: (path) => files.file(path), isMuted: () => muted() });
-    window.__mk8 = { sounds: player.played };
+    window.__mk8 = { ...window.__mk8, sounds: player.played };
   }
   return player;
 }
@@ -76,6 +89,7 @@ export function start(host: Mk8Host, mode: Mk8Start = 'load'): Promise<void> {
     host.exit();
   };
   if (mode === 'ui-kit') return trackLoad(openUiKit(host, back));
+  if (mode in STAGE_DEMOS) return trackLoad(openStage(host, mode as StageDemoId, () => left, back));
   if (mode === 'not-installed') {
     screens.show('mk8NotInstalled', { onBack: back });
     return Promise.resolve();
@@ -121,6 +135,60 @@ async function openUiKit(host: Mk8Host, onExit: () => void): Promise<void> {
     first: styleGuide(packSprites(files)),
     sounds: audioPlayer(),
     onExit,
+  });
+}
+
+/** Whether the page was opened paused (`&paused=1`): the stage then holds still for tests. */
+const openedPaused = () => new URLSearchParams(location.search).get('paused') === '1';
+
+/**
+ * A model scenario (MK-101): loads its racer, kart and Lakitu models behind the loading bar, then
+ * shows them on the 3D stage. No pack → "not installed", as the menu button does.
+ */
+async function openStage(
+  host: Mk8Host,
+  id: StageDemoId,
+  hasLeft: () => boolean,
+  onBack: () => void,
+): Promise<void> {
+  const { screens } = host;
+  const progress = new Progress(0);
+  screens.show('mk8Loading', { label: LOADING_LABEL, progress, onBack });
+  const files = packLoader();
+  try {
+    await files.loadFiles(demoFiles(id), (fraction) => progress.set(fraction));
+  } catch (e) {
+    if (hasLeft()) return;
+    if (e instanceof PackNotInstalledError) {
+      screens.show('mk8NotInstalled', { onBack });
+      return;
+    }
+    showErrorBanner("Couldn't load the MK8 pack", [e instanceof Error ? e.message : String(e)]);
+    return;
+  }
+  if (hasLeft()) return;
+  const stage = new Mk8Stage(openedPaused());
+  const overlay = document.createElement('div');
+  const built = await buildDemo(id, stage, (path) => files.file(path), overlay);
+  if (hasLeft()) {
+    built.dispose();
+    stage.dispose();
+    return;
+  }
+  screens.show('mk8Stage', {
+    title: STAGE_DEMOS[id].title,
+    mount: (el) => {
+      el.append(stage.canvas, overlay);
+      stage.start(built.demo);
+      window.__mk8 = { sounds: [], ...window.__mk8, stage: built.hooks };
+      return () => {
+        if (window.__mk8?.stage === built.hooks) delete window.__mk8.stage;
+        built.dispose();
+        stage.dispose();
+        overlay.remove();
+      };
+    },
+    onBack,
   });
 }
 

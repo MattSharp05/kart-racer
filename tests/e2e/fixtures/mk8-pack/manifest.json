@@ -8,6 +8,96 @@
       "group": "audio/ui"
     },
     {
+      "path": "models/karts/bodies/standard-kart.glb",
+      "bytes": 4208,
+      "sha256": "77427c9e69a1a9a46e7d1717e35cfbf0e27badc213e48f69a10944e245c62309",
+      "group": "karts"
+    },
+    {
+      "path": "models/karts/tires/standard-tires.glb",
+      "bytes": 2996,
+      "sha256": "f4b813b96f6c4c53096f0067db336091b8b2cd460b8c9be348b81af53ec35637",
+      "group": "karts"
+    },
+    {
+      "path": "models/npcs/lakitu.glb",
+      "bytes": 4104,
+      "sha256": "31e68ef285538ee21e1d48475426c2f2e8ff169cb4eec290f89dec80f3d6365e",
+      "group": "npcs"
+    },
+    {
+      "path": "models/racers/bowser.glb",
+      "bytes": 7288,
+      "sha256": "816aae445328f91d8395a4978b42a5e956c47b3a7b8594901386fe543416dd25",
+      "group": "racer/bowser"
+    },
+    {
+      "path": "models/racers/daisy.glb",
+      "bytes": 7276,
+      "sha256": "bf6c355d0b73e6e58b239cde902ab49de027fa83b9ac120c5eb4371ab0d72f78",
+      "group": "racer/daisy"
+    },
+    {
+      "path": "models/racers/donkey-kong.glb",
+      "bytes": 7276,
+      "sha256": "e44637413403318f3beb4e5fe27387a157da458f0494af88608fe79bb0ccb8e0",
+      "group": "racer/donkey-kong"
+    },
+    {
+      "path": "models/racers/koopa-troopa.glb",
+      "bytes": 7276,
+      "sha256": "af2a947a980138dfafd0f45906e4d670c9ed91ad633cc6cb22842f2f3dfec23e",
+      "group": "racer/koopa-troopa"
+    },
+    {
+      "path": "models/racers/luigi.glb",
+      "bytes": 7288,
+      "sha256": "e0a7df6c880f21ed7cffa49e7db4cb9a10c6f4a5dfe44c754f1e28ed731d7b30",
+      "group": "racer/luigi"
+    },
+    {
+      "path": "models/racers/mario.glb",
+      "bytes": 7276,
+      "sha256": "6862c3777eeb8c4142ef3f71c7329c3cc3f0051bb5bd123cd8aa2740657df2f1",
+      "group": "racer/mario"
+    },
+    {
+      "path": "models/racers/peach.glb",
+      "bytes": 7280,
+      "sha256": "a14b84394f36d859e67fbd028b1e2c5e82f5bc8066b633c8161921dbb9839646",
+      "group": "racer/peach"
+    },
+    {
+      "path": "models/racers/shy-guy.glb",
+      "bytes": 7276,
+      "sha256": "21437e22d87b476356046b0ef49998597411d25bb6208514595f0706b536646d",
+      "group": "racer/shy-guy"
+    },
+    {
+      "path": "models/racers/toad.glb",
+      "bytes": 7288,
+      "sha256": "97fd6ce2cb505192c42fc16b34d374aaf36ee2e08e7c3bd95ea7bcd9561d58f9",
+      "group": "racer/toad"
+    },
+    {
+      "path": "models/racers/waluigi.glb",
+      "bytes": 7276,
+      "sha256": "790a94af1a539582c0ff11e2b9ffa5b73be639efc9e2b8610d09a7625229bb7b",
+      "group": "racer/waluigi"
+    },
+    {
+      "path": "models/racers/wario.glb",
+      "bytes": 7276,
+      "sha256": "44d50725f76dabf19decbad77335782fe51663236b352c5e3ea47ee4c7568812",
+      "group": "racer/wario"
+    },
+    {
+      "path": "models/racers/yoshi.glb",
+      "bytes": 7276,
+      "sha256": "4323e60e6f9819ba9482f0923c614842a7662f7b7901f7f74478005657a36962",
+      "group": "racer/yoshi"
+    },
+    {
       "path": "ui/fixture-blue.webp",
       "bytes": 44,
       "sha256": "f9a74bfe55a6730280bba137dba9734fa2202129a72533b575b5c250a9b5f48b",

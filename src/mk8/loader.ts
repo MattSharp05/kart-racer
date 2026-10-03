@@ -103,6 +103,18 @@ export class Mk8Loader {
     return this.loadGroups(racerGroups(ids), onProgress);
   }
 
+  /**
+   * Single files by manifest path (MK-101: the Standard Kart and Lakitu, whose groups hold every
+   * kart part and NPC). Throws `PackLoadError` for a path the pack hasn't got.
+   */
+  async loadFiles(paths: readonly string[], onProgress: OnProgress = () => {}): Promise<void> {
+    const manifest = await this.loadManifest();
+    const missing = paths.find((path) => !manifest.files.some((e) => e.path === path));
+    if (missing !== undefined) throw new PackLoadError(missing, 'not in the pack');
+    const wanted = new Set(paths);
+    await this.loadEntries((e) => wanted.has(e.path), onProgress);
+  }
+
   /** A loaded file's bytes, by its manifest path. */
   file(path: string): ArrayBuffer | undefined {
     return this.files.get(path);
@@ -118,15 +130,25 @@ export class Mk8Loader {
     return (this.manifest?.files ?? []).filter((e) => wanted.has(e.group));
   }
 
-  /** Fetches every not-yet-loaded file of `groups` (plus the font when asked), by bytes. */
-  private async loadGroups(
+  /** Fetches every not-yet-loaded file of `groups` (plus the font when asked). */
+  private loadGroups(
     groups: readonly string[],
     onProgress: OnProgress,
     fonts = false,
   ): Promise<void> {
+    const wanted = new Set(groups);
+    return this.loadEntries((e) => wanted.has(e.group), onProgress, fonts);
+  }
+
+  /** Fetches every not-yet-loaded file `select` picks (plus the font when asked), by bytes. */
+  private async loadEntries(
+    select: (entry: ManifestEntry) => boolean,
+    onProgress: OnProgress,
+    fonts = false,
+  ): Promise<void> {
     onProgress(0);
-    await this.loadManifest();
-    const todo = this.entriesOf(groups).filter((e) => !this.files.has(e.path));
+    const manifest = await this.loadManifest();
+    const todo = manifest.files.filter((e) => select(e) && !this.files.has(e.path));
     const withFonts = fonts && !this.fontsLoaded && this.loadFonts !== undefined;
     const total =
       todo.reduce((sum, e) => sum + e.bytes, 0) + (withFonts ? FONT_WEIGHT_BYTES : 0) || 1;

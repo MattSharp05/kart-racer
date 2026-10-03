@@ -5,6 +5,7 @@ import { items, type ItemContent } from '../content/items';
 import { racers, type RacerContent } from '../content/racers';
 import { tracks, type TrackContent } from '../content/tracks';
 import type { Registry } from '../content/registry';
+import { MK8_RACERS } from './content/racers';
 
 export interface Mk8Content {
   tracks: readonly TrackContent[];
@@ -12,8 +13,8 @@ export interface Mk8Content {
   items: readonly ItemContent[];
 }
 
-/** Everything MK8 Mode adds. Empty until the course, racer and item tickets land. */
-export const MK8_CONTENT: Mk8Content = { tracks: [], racers: [], items: [] };
+/** Everything MK8 Mode adds (racers since MK-101; courses and items as their tickets land). */
+export const MK8_CONTENT: Mk8Content = { tracks: [], racers: MK8_RACERS, items: [] };
 
 /** Registers `content`; what is already registered (MK8 Mode opened twice) is left alone. */
 export function registerMk8Content(content: Mk8Content = MK8_CONTENT): void {

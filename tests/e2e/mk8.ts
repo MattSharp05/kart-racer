@@ -7,6 +7,7 @@ const TYPES: Record<string, string> = {
   json: 'application/json',
   webp: 'image/webp',
   m4a: 'audio/mp4',
+  glb: 'model/gltf-binary',
 };
 
 export interface PackOptions {

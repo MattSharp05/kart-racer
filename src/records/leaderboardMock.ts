@@ -1,4 +1,4 @@
-import { racers } from '../content/racers';
+import { gameRacers } from '../content/racers';
 import { PROFILE_COLOURS, readProfile } from '../game/profile';
 import type { KeyValueStore } from '../game/storage/store';
 import { Leaderboard, supabaseLeaderboard, type RpcCall } from './leaderboard';
@@ -91,7 +91,7 @@ interface MockRow {
 /** The made-up rows of a board, fastest first, without yours. */
 function otherRows(trackId: string, engineClass: number): Omit<MockRow, 'you'>[] {
   const seed = hash(`${trackId}:${engineClass}`);
-  const racerIds = racers.ids();
+  const racerIds = gameRacers().map((r) => r.id);
   const classesSlower = Math.max(0, (FASTEST_CLASS - engineClass) / CLASS_GAP);
   let raceMs = BASE_RACE_MS + (hash(trackId) % TRACK_SPREAD_MS) + classesSlower * CLASS_STEP_MS;
   return Array.from({ length: MOCK_TOTAL - 1 }, (_, i) => {
@@ -181,7 +181,7 @@ function madeUpRow(
     nickname: profile?.nickname ?? DEFAULT_NAME,
     race_ms: raceMs,
     best_lap_ms: Math.round((raceMs / LAPS) * BEST_LAP_SHARE),
-    racer: racers.ids()[0] ?? '',
+    racer: gameRacers()[0]?.id ?? '',
     colour: profile?.colour ?? '',
     you: true,
   };
