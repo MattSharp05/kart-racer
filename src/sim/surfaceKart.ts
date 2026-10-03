@@ -47,6 +47,7 @@ import {
   raycastMesh,
   surfaceMask,
   wallContact,
+  WALL_SURFACES,
   type MeshSurface,
   type MeshTrackDef,
 } from './meshTrack';
@@ -409,7 +410,8 @@ export function updateMeshKart(
   kart.position = position;
   // Walls push the kart back in its own plane (never lift it off the road).
   const centre = add(position, scale(up, m.wallLift));
-  const wall = wallContact(track.collision, centre, m.wallRadius, up);
+  const below = m.wallLift - m.wallFloor;
+  const wall = wallContact(track.collision, centre, m.wallRadius, up, WALL_SURFACES, below);
   if (wall) {
     kart.position = add(kart.position, wall.push);
     const hit = bounceOffSurface(kart, wall.normal, up, forward, events);

@@ -118,7 +118,9 @@ export function launchesGlide(
  * zone the kart is in, if that zone has one.
  */
 export function glideAim(route: RouteDef, kart: KartState): Vec3 | undefined {
-  const zones = route.zones.flatMap((z) => (z.kind === 'glide' && z.landing !== undefined ? [z] : []));
+  const zones = route.zones.flatMap((z) =>
+    z.kind === 'glide' && z.landing !== undefined ? [z] : [],
+  );
   if (zones.length === 0) return undefined;
   const hint = kart.lastSafeT >= 0 ? kart.lastSafeT : undefined;
   const t = progressAt(route, kart.position, hint);

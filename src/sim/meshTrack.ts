@@ -262,7 +262,9 @@ export interface WallContact {
  * Walls (surfaces in `mask`) within `radius` of `position`, resolved in the road plane (walls push
  * sideways, never lift a kart off the road, so the part along `up` is dropped). Each touching
  * triangle adds only what the push so far doesn't already cover along its normal, so two triangles
- * of one flat wall push once. `null` when nothing touches.
+ * of one flat wall push once. Walls touched only further than `below` under `position` along `up`
+ * don't push (MK-123: the face of a step down under the kart's floor, a ramp's lip). `null` when
+ * nothing touches.
  */
 export function wallContact(
   mesh: CollisionMesh,
@@ -270,6 +272,7 @@ export function wallContact(
   radius: number,
   up: Vec3,
   mask = WALL_SURFACES,
+  below = Infinity,
 ): WallContact | null {
   const cx = position.x;
   const cy = position.y;
@@ -305,6 +308,7 @@ export function wallContact(
           if (dist >= radius || dist < PARALLEL_EPSILON) continue;
           // In the road plane only.
           const along = nx * up.x + ny * up.y + nz * up.z;
+          if (along > below) continue;
           nx -= up.x * along;
           ny -= up.y * along;
           nz -= up.z * along;
