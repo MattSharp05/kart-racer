@@ -23,7 +23,7 @@ import { ByteReader, ByteWriter } from './bytes';
  * copy of the race, so fields that never change during a race (kart type, AI personality) are only
  * sent once, in Start.
  */
-export const PROTOCOL_VERSION = 4;
+export const PROTOCOL_VERSION = 5;
 
 export const MSG = {
   start: 1,
@@ -777,6 +777,8 @@ const EVENT_FIELDS: Record<EventType, readonly (readonly [string, FieldKind])[]>
     ['item', 'item'],
     ['fx', 'str'],
   ],
+  glideOpen: [['kartId', 'u8']],
+  glideClose: [['kartId', 'u8']],
   spinBoost: [['kartId', 'u8']],
 };
 

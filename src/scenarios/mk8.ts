@@ -25,6 +25,7 @@ export const MK8_COURSE_SCENARIOS: ReadonlySet<string> = new Set([
   'mk8-stadium-race',
   'mk8-stadium-antigrav',
   'mk8-stadium-final-lap',
+  'mk8-test-glide',
   ...spinBoostScenarios.map((s) => s.name),
 ]);
 
@@ -39,8 +40,11 @@ export const TEST_RAMP = {
   id: 'mk8-test-ramp',
   roadHalfWidth: 7,
   tunnel: { from: 30, height: 8 },
+  glide: { from: 90 },
 } as const;
-const { tunnel, roadHalfWidth } = TEST_RAMP;
+const { tunnel, roadHalfWidth, glide } = TEST_RAMP;
+/** `mk8-test-glide` starts this far before the glide ramp: enough run-up for top speed, m. */
+const GLIDE_RUN_UP = 60;
 
 /** One kart (150cc, free drive) on the test ramp. */
 function onTestRamp(
@@ -607,6 +611,17 @@ export const mk8Scenarios: Scenario[] = [
     defaultSeed: 1,
     setup: (seed) => ({ state: attractMode(seed), screen }),
   })),
+  // Gliders (MK-106) on the test ramp: no pack needed.
+  {
+    name: 'mk8-test-glide',
+    group: 'MK8 Mode',
+    description:
+      'Gliding on the MK8 test ramp, 150cc: the kart 60 m before the glide ramp (purple), the gap and its void beyond it. Hold accelerate: off the ramp the glider opens; steer in the air, hold accelerate to dive (sooner, faster) or brake to float (longer). Tap drift off the lip for a trick boost.',
+    defaultSeed: 1,
+    setup: (seed) => ({
+      state: onTestRamp(seed, { x: glide.from - GLIDE_RUN_UP, y: 0, z: 0 }, -Math.PI / 2),
+    }),
+  },
   // Spin boost on the test ramp (MK-108).
   ...spinBoostScenarios,
 ];

@@ -35,10 +35,21 @@ const EXAMPLES = {
   spinBoost: { type: 'spinBoost', kartId: 0 },
   // Silent unless the item's view registers a sound for the fx (see `content/items/framework.test.ts`).
   itemFx: { type: 'itemFx', kartId: 0, item: 'mushroom', fx: 'nothing' },
+  // MK8 Mode only (MK-106): its own sounds play the glider.
+  glideOpen: { type: 'glideOpen', kartId: 0 },
+  glideClose: { type: 'glideClose', kartId: 0 },
 } satisfies { [K in SimEvent['type']]: Extract<SimEvent, { type: K }> };
 
 /** Events that are deliberately silent (something else already makes the sound, or nothing to hear). */
-const SILENT = new Set(['phaseChanged', 'checkpoint', 'positionChange', 'boost', 'itemFx']);
+const SILENT = new Set([
+  'phaseChanged',
+  'checkpoint',
+  'positionChange',
+  'boost',
+  'itemFx',
+  'glideOpen',
+  'glideClose',
+]);
 
 describe('event → sound mapping', () => {
   it('covers every SimEvent type', () => {
