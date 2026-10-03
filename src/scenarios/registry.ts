@@ -30,7 +30,9 @@ export type MenuScreen =
   | 'mk8RacerMotion'
   | 'mk8LakituCountdown'
   | 'mk8LakituLap'
-  | 'mk8LakituRespawn';
+  | 'mk8LakituRespawn'
+  // MK-102: the kart bodies, each on its own tires.
+  | 'mk8KartsLineup';
 
 export interface ScenarioSetup {
   state: SimState;

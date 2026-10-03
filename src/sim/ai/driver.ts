@@ -44,7 +44,7 @@ export function aiInput(
   // Kart effects can make it drive worse (inked, MK-68): a nudge on the wheel, a shorter look-ahead.
   const impaired = effectsAiDriving(kart);
   const lookAhead = (cfg.lookAheadBase + speed * cfg.lookAheadPerSpeed) * impaired.lookAhead;
-  const physics = kartPhysics(kart.kartType, engineClass);
+  const physics = kartPhysics(kart.kartType, engineClass, kart.loadout);
   const top = physics.topSpeed * (ai.speedScale ?? 1);
   // A nimbler kart turns tighter at speed, so it plans corners with more grip (MK-88).
   const nimble = physics.handling ** cfg.cornerHandling;
