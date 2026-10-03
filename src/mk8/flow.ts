@@ -7,16 +7,13 @@ import { tracks } from '../content/tracks';
 import type { KartId } from '../sim/data/karts';
 import type { EngineClass } from '../sim/tuning';
 import { MK8_ITEM_SET } from './content/items/id';
+import { defaultLoadout } from './content/parts';
+import { isKnownLoadout } from './content/stats';
 import { courseInfo, cupInfo, type Mk8CourseKey, type Mk8CupId } from './content/cups';
 import type { Mk8Flow, Mk8Loadout } from './ui/screens/session';
 
-/** The kart before character select and the kart builder pick one (MK8's defaults). */
-export const DEFAULT_LOADOUT: Mk8Loadout = {
-  racer: 'mk8-mario',
-  body: 'standard',
-  tires: 'standard',
-  glider: 'super',
-};
+/** The kart before character select and the kart builder pick one (MK8's defaults, MK-102). */
+export const DEFAULT_LOADOUT: Mk8Loadout = defaultLoadout('mk8-mario');
 
 /** Engine class the menus start on (the mockup's, and MK8's usual pick). */
 export const DEFAULT_ENGINE_CLASS: EngineClass = 150;
@@ -32,6 +29,11 @@ export interface Mk8RaceSetup {
   trackId: string;
   engineClass: EngineClass;
   loadout: Mk8Loadout;
+  /**
+   * The loadout the player's kart races with (MK-102: its physics from MK8's stat table), when the
+   * table knows its racer and every part; otherwise none, and the kart drives on its racer's stats.
+   */
+  raceLoadout?: Mk8Loadout;
   /** The racer the player's kart is: the loadout's, or the stand-in. */
   playerKart: KartId;
   itemSet: string;
@@ -50,6 +52,7 @@ export function raceSetup(flow: Mk8Flow): Mk8RaceSetup {
     trackId: tracks.has(course.trackId) ? course.trackId : course.standIn,
     engineClass: flow.engineClass ?? DEFAULT_ENGINE_CLASS,
     loadout,
+    ...(isKnownLoadout(loadout) ? { raceLoadout: loadout } : {}),
     playerKart: racers.has(loadout.racer) ? loadout.racer : STAND_IN_RACER,
     itemSet: MK8_ITEM_SET,
   };

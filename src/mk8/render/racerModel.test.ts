@@ -3,12 +3,11 @@ import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 import mario from '../content/racers/mario/render';
 import peach from '../content/racers/peach/render';
+import { STANDARD_PARTS, mk8Body, mk8Tires } from '../content/parts';
 import {
   KART_BODY_PATH,
-  KART_LENGTH,
   KART_TIRE_PATH,
   Mk8RacerModel,
-  TIRE_DIAMETER,
   parseGlb,
   racerModelPath,
   singleTire,
@@ -17,6 +16,8 @@ import {
 // MK-136: the fixture pack's kart parts copy the real pack's quirks (`makeModels.ts`): skinned,
 // quantized meshes, the tire model as the set of four with overlay layers, physical materials, a
 // white glow on the tires and fully transparent paint. Parsed here as on the stage.
+const KART_LENGTH = mk8Body(STANDARD_PARTS.body).length;
+const TIRE_DIAMETER = mk8Tires(STANDARD_PARTS.tires).diameter;
 const PACK = new URL('../../../tests/e2e/fixtures/mk8-pack/', import.meta.url);
 const glb = (path: string) => {
   const bytes = readFileSync(new URL(path, PACK));

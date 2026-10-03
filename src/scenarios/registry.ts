@@ -36,6 +36,8 @@ export type MenuScreen =
   | 'mk8LakituCountdown'
   | 'mk8LakituLap'
   | 'mk8LakituRespawn'
+  // MK-102: the kart bodies, each on its own tires.
+  | 'mk8KartsLineup'
   // MK-135: the site's pack password box.
   | 'mk8Password';
 

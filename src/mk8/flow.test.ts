@@ -20,6 +20,8 @@ describe('MK8 race setup from the menus (MK-119)', () => {
       trackId: 'dune-canyon',
       engineClass: 150,
       loadout: DEFAULT_LOADOUT,
+      // MK-102: the default kart's parts are in MK8's stat table, so the race uses them.
+      raceLoadout: DEFAULT_LOADOUT,
       playerKart: STAND_IN_RACER,
       itemSet: MK8_ITEM_SET,
     });
@@ -36,6 +38,8 @@ describe('MK8 race setup from the menus (MK-119)', () => {
       playerKart: 'mk8-test-racer',
     });
     expect(setup.loadout).toEqual(loadout);
+    // Parts the stat table doesn't know (MK-102): the kart races on its racer's own stats.
+    expect(setup.raceLoadout).toBeUndefined();
   });
 
   it('keeps an unregistered racer in the loadout but drives the stand-in', () => {

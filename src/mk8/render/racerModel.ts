@@ -1,6 +1,6 @@
 // An MK8 racer in its kart (MK-101): the racer's GLB from the pack, scaled to its view's height and
-// seated in the Standard Kart (body + 4 tires; other parts are the loadout ticket, MK-102), posed
-// each frame from `motion.ts`. The models have skeletons but no animations: the head bone (when
+// seated in a kart assembled from its parts (`kartAssembly.ts`, MK-102; the Standard Kart unless
+// told otherwise), posed each frame from `motion.ts`. The models have skeletons but no animations: the head bone (when
 // there is one) turns to look back; everything else is transforms on the groups below.
 //
 // The real pack (MK-136) differs from the fixture's block figures, handled here: every mesh is
@@ -10,21 +10,17 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import { STANDARD_PARTS, mk8Body, mk8Glider, mk8Tires } from '../content/parts';
 import type { Mk8RacerView } from '../content/racers/view';
+import { Mk8Kart, bodyModelPath, tireModelPath } from './kartAssembly';
 import { trickRoll, type MotionState } from './motion';
 
 /** The pack's files this needs (`tools/mk8/sources.ts` → `modelOutputs`). */
-export const KART_BODY_PATH = 'models/karts/bodies/standard-kart.glb';
-export const KART_TIRE_PATH = 'models/karts/tires/standard-tires.glb';
+export const KART_BODY_PATH = bodyModelPath(STANDARD_PARTS.body);
+export const KART_TIRE_PATH = tireModelPath(STANDARD_PARTS.tires);
 export const racerModelPath = (view: Pick<Mk8RacerView, 'model'>) =>
   `models/racers/${view.model}.glb`;
 
-/** The Standard Kart's size here, metres: body length (the sim's kart is ~1.7 m across). */
-export const KART_LENGTH = 1.7;
-export const TIRE_DIAMETER = 0.42;
-/** Tires sit this share of the body's half-length/half-width from its centre. */
-const AXLE_SHARE = 0.68;
-const TRACK_SHARE = 0.92;
 /** How much of the driver's lean the kart body shares. */
 const KART_LEAN_SHARE = 0.3;
 /** Without a head bone the whole driver turns this share of the look-back. */
@@ -266,11 +262,20 @@ export interface RacerParts {
   body: THREE.Object3D;
   /** The tire model (one tire, or the set of four); the kart gets four clones of one tire. */
   tire: THREE.Object3D;
+  /** The glider, when the kart has one (hidden until it glides). */
+  glider?: THREE.Object3D;
+}
+
+/** Which kart parts a racer model is built with (part ids); default the standard kart. */
+export interface RacerKartParts {
+  body: string;
+  tires: string;
+  glider?: string;
 }
 
 /**
- * One racer in the Standard Kart. Place `object` at the kart (position, heading) and call `pose`
- * with the kart's motion every frame.
+ * One racer in its kart. Place `object` at the kart (position, heading) and call `pose` with the
+ * kart's motion every frame.
  */
 export class Mk8RacerModel {
   /** The caller's handle: kart position and heading go here. */
@@ -282,38 +287,34 @@ export class Mk8RacerModel {
   private readonly head: THREE.Bone | undefined;
   private readonly headRest = new THREE.Quaternion();
   private readonly look = new THREE.Quaternion();
+  /** The kart the racer sits in. */
+  readonly kart: Mk8Kart;
 
   constructor(
     readonly view: Mk8RacerView,
     parts: RacerParts,
+    kartParts: RacerKartParts = STANDARD_PARTS,
   ) {
     this.object.name = view.id;
     this.motion.rotation.order = 'YXZ';
     this.object.add(this.motion);
 
-    const kart = new THREE.Group();
-    kart.name = 'kart';
-    const body = fitModel(parts.body, 'z', KART_LENGTH);
-    kart.add(body);
-    const size = new THREE.Box3().setFromObject(body).getSize(new THREE.Vector3());
-    const wheel = singleTire(parts.tire);
-    for (const [side, end] of [
-      [-1, -1],
-      [1, -1],
-      [-1, 1],
-      [1, 1],
-    ] as const) {
-      const tire = fitModel(wheel.clone(), 'y', TIRE_DIAMETER, side > 0 ? Math.PI : 0);
-      tire.position.set((side * size.x * TRACK_SHARE) / 2, 0, (end * size.z * AXLE_SHARE) / 2);
-      kart.add(tire);
-    }
-    // The tires sit under the body: lift it to rest on them.
-    body.position.y = TIRE_DIAMETER / 2;
-    mergeStaticMeshes(kart);
-    this.motion.add(kart);
+    this.kart = new Mk8Kart({
+      body: mk8Body(kartParts.body),
+      tires: mk8Tires(kartParts.tires),
+      ...(kartParts.glider !== undefined && parts.glider
+        ? { glider: mk8Glider(kartParts.glider) }
+        : {}),
+      models: {
+        body: parts.body,
+        tire: parts.tire,
+        ...(parts.glider ? { glider: parts.glider } : {}),
+      },
+    });
+    this.motion.add(this.kart.object);
 
     const [x, y, z] = view.seat;
-    this.driver.position.set(x, y + TIRE_DIAMETER / 2, z);
+    this.driver.position.set(x, y + this.kart.rideHeight, z);
     this.driver.add(fitModel(parts.racer, 'y', view.height, view.yaw));
     this.motion.add(this.driver);
 

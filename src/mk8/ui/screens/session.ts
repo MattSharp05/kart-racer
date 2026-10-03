@@ -1,6 +1,7 @@
 // What MK8 Mode's menus have chosen so far (MK-116): the screens write it as the player goes and
 // later screens (character select, cups, the race) read it. Tests read it via `window.__mk8.flow`.
 import type { EngineClass } from '../../../sim/tuning';
+import type { Loadout } from '../../../sim/types';
 import type { Mk8CourseKey, Mk8CupId } from '../../content/cups';
 import type { Mk8RaceSetup } from '../../flow';
 import type { SpriteSource } from '../kit/styleGuide';
@@ -32,15 +33,11 @@ export function modeInfo(id: Mk8GameMode): (typeof MK8_MODES)[number] {
 }
 
 /**
- * The player's kart (TDD v3 → Loadout): racer, body, tires and glider. Character select and the
- * kart builder fill it in; until they exist it is the default one.
+ * The player's kart (TDD v3 → Loadout): racer, body, tires and glider, ids from MK8's stat table
+ * (`content/stats.ts`, MK-102). Character select and the kart builder fill it in; until they
+ * exist it is the default one.
  */
-export interface Mk8Loadout {
-  racer: string;
-  body: string;
-  tires: string;
-  glider: string;
-}
+export type Mk8Loadout = Loadout;
 
 /** The player's choices on the way to a race. */
 export interface Mk8Flow {
