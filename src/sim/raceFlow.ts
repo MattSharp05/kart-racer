@@ -88,7 +88,7 @@ export function beforeMovement(
       // Mesh tracks (MK-105): the route's racing line; no items or rubber-banding yet (MK-128).
       // It still backs out of trouble after the people finish (the AI finish in their own time).
       const racing = state.phase === 'racing' || state.phase === 'finished';
-      resolved[kart.id] = meshAiInput(kart, kart.ai, track, state.engineClass, racing);
+      resolved[kart.id] = meshAiInput(kart, kart.ai, track, state.engineClass, racing, state.tick);
     }
   }
   return { inputs: resolved, frozen: false };

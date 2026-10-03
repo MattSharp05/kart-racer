@@ -2,6 +2,7 @@
 // centreline, for unit tests (the synthetic test ramp in CI, the real course with a local pack)
 // and `pnpm mk8:course-check`. Pure: no pack loading here, the course is registered first.
 import { meshAutopilotInput } from '../../../sim/ai/meshDriver';
+import { HAZARD_HITTER } from '../../../sim/hazards';
 import { add, scale, type Vec3 } from '../../../sim/math';
 import { groundAt, surfaceMask, type MeshTrackDef } from '../../../sim/meshTrack';
 import { createRace, type RacerSlot } from '../../../sim/race/createRace';
@@ -28,6 +29,8 @@ export interface CourseRaceResult {
   stuckAt?: Vec3;
   /** Respawns of each kart. */
   respawns: number[];
+  /** Times each kart was squashed by a hazard (MK-124: a Thwomp landing on it). */
+  crushes: number[];
   /** Laps completed by kart 0. */
   playerLaps: number;
   /** Where karts that didn't finish ended up. */
@@ -59,6 +62,7 @@ export function courseRace(
   const still = state.karts.map(() => 0);
   const playerStuck = { stuckTime: 0, recoverTime: 0 };
   const respawns = state.karts.map(() => 0);
+  const crushes = state.karts.map(() => 0);
   let worstStuck = 0;
   let stuckAt: Vec3 | undefined;
   for (let tick = 0; tick < RACE_TIME_LIMIT / DT; tick += 1) {
@@ -68,8 +72,11 @@ export function courseRace(
       : [];
     const result = step(state, inputs);
     state = result.state;
-    for (const e of result.events)
+    for (const e of result.events) {
       if (e.type === 'respawn') respawns[e.kartId] = (respawns[e.kartId] ?? 0) + 1;
+      if (e.type === 'kartHit' && e.by === HAZARD_HITTER && e.kind === 'hazard')
+        crushes[e.kartId] = (crushes[e.kartId] ?? 0) + 1;
+    }
     // Stuck counts until each kart finishes, after the player's finish too.
     if (state.phase === 'racing' || state.phase === 'finished') {
       for (const kart of state.karts) {
@@ -96,6 +103,7 @@ export function courseRace(
     worstStuck,
     ...(stuckAt ? { stuckAt } : {}),
     respawns,
+    crushes,
     playerLaps: Math.min(laps, (state.karts[0]?.race.lap ?? 1) - 1),
     unfinished: state.karts
       .filter((k) => k.race.finishTick === undefined)

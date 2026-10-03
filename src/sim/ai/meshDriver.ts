@@ -7,6 +7,7 @@ import { clamp, cross, dot, sub, type Vec3 } from '../math';
 import type { MeshTrackDef } from '../meshTrack';
 import { routeGeometry, type RouteGeometry } from '../route';
 import { rightOf } from '../surfaceKart';
+import { meshCrusherSpeedLimit } from './hazards';
 import { DT, tuning, type EngineClass } from '../tuning';
 import { NEUTRAL_INPUT, type AiState, type InputFrame, type KartState } from '../types';
 
@@ -49,13 +50,17 @@ export function maxTurnAhead(geometry: RouteGeometry, s: number, horizon: number
   return worst;
 }
 
-/** One tick of an AI kart on a mesh track. */
+/**
+ * One tick of an AI kart on a mesh track. With `tick`, it times the course's crushers (MK-124:
+ * Thwomps), slowing to pass under each one while it's up.
+ */
 export function meshAiInput(
   kart: KartState,
   ai: AiState,
   track: MeshTrackDef,
   engineClass: EngineClass,
   racing: boolean,
+  tick?: number,
 ): InputFrame {
   const cfg = tuning.ai;
   const geometry = routeGeometry(track.route);
@@ -79,12 +84,16 @@ export function meshAiInput(
   const physics = kartPhysics(kart.kartType, engineClass, kart.loadout);
   const top = physics.topSpeed * (ai.speedScale ?? 1);
   const cruise = top * (cfg.cruiseBase + cfg.cruiseSkill * ai.skill);
+  const crusher =
+    racing && tick !== undefined && track.hazards?.length
+      ? meshCrusherSpeedLimit(kart, tick, track, kart.race.lastT >= 0 ? kart.race.lastT : undefined)
+      : Infinity;
   return {
     ...pedals(
       geometry,
       s,
       speed,
-      cruise,
+      Math.min(cruise, crusher),
       ai.skill * physics.handling ** cfg.cornerHandling,
       kart.glide !== undefined,
     ),
