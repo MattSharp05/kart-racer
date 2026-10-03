@@ -779,6 +779,7 @@ const EVENT_FIELDS: Record<EventType, readonly (readonly [string, FieldKind])[]>
   ],
   glideOpen: [['kartId', 'u8']],
   glideClose: [['kartId', 'u8']],
+  spinBoost: [['kartId', 'u8']],
 };
 
 const EVENT_TYPES = Object.keys(EVENT_FIELDS) as EventType[];

@@ -26,6 +26,7 @@ interface Particle {
 interface KartMemory {
   spin: number;
   boost: number;
+  spinBoost: number;
   airTime: number;
   finished: boolean;
   squash: number;
@@ -44,6 +45,8 @@ const CONFETTI = ['#ef476f', '#ffd166', '#06d6a0', '#118ab2', '#c77dff'].map(
   (c) => new THREE.Color(c),
 );
 const DUST = new THREE.Color('#b08d57');
+/** Anti-gravity glow trail (MK-108). */
+const HOVER_COLOURS = ['#3fd0ff', '#8be9ff', '#1f8fff'].map((c) => new THREE.Color(c));
 
 /**
  * Juice (MK-27): boost trails, dust off-road, star bursts on hits, confetti at the finish,
@@ -125,6 +128,7 @@ export class Effects {
     const now: KartMemory = {
       spin: kart.spinTimer,
       boost: kart.boostTimer,
+      spinBoost: kart.spinBoostTimer ?? 0,
       airTime: kart.airTime,
       finished: kart.race.finishTick !== undefined,
       squash: seen?.squash ?? 0,
@@ -138,6 +142,8 @@ export class Effects {
     }
     // Boost start (mini-turbo, mushroom, pad, rocket start).
     if (seen && kart.boostTimer > seen.boost + 0.05 && isFollowed) this.camera.kickFov();
+    // Spin boost start (MK-108): the same kick.
+    if (seen && now.spinBoost > seen.spinBoost + 0.05 && isFollowed) this.camera.kickFov();
     // Landing after real air time: squash + a little shake.
     if (seen && seen.airTime > 0.25 && kart.grounded && kart.airTime === 0) {
       now.squash = Math.min(0.35, seen.airTime * 0.3);
@@ -190,6 +196,30 @@ export class Effects {
         size: 0.22,
         gravity: 0,
         colour,
+      });
+    }
+    // Anti-gravity (MK-108): a blue glow trail low behind the kart, in its own frame.
+    if (
+      kart.antigrav &&
+      kart.grounded &&
+      Math.abs(kart.speed) > 6 &&
+      this.karts.frame(kart.id, this.frame)
+    ) {
+      const { forward: f, up: u } = this.frame;
+      const side = hash(tick, kart.id, 6) - 0.5;
+      const r = { x: f.y * u.z - f.z * u.y, y: f.z * u.x - f.x * u.z, z: f.x * u.y - f.y * u.x };
+      this.spawn({
+        x: at.x - f.x * 1.2 + u.x * 0.15 + r.x * side,
+        y: at.y - f.y * 1.2 + u.y * 0.15 + r.y * side,
+        z: at.z - f.z * 1.2 + u.z * 0.15 + r.z * side,
+        vx: -f.x * 1.5,
+        vy: -f.y * 1.5,
+        vz: -f.z * 1.5,
+        born: tick,
+        life: 16,
+        size: 0.18,
+        gravity: 0,
+        colour: HOVER_COLOURS[(tick + kart.id) % HOVER_COLOURS.length] ?? WHITE,
       });
     }
     if (kart.grounded && Math.abs(kart.speed) > 6) {

@@ -2,6 +2,7 @@
 export { mk8BobombFireTuning } from './bobombFire';
 export { mk8GlideTuning } from './glide';
 export { mk8ItemTuning } from './items';
+export { mk8SpinBoostTuning } from './spinBoost';
 export { mk8SpinyHornTuning } from './spinyHorn';
 export { mk8StatMapTuning } from './statMap';
 export { mk8SurfaceKartTuning } from './surfaceKart';

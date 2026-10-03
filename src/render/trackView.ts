@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { trackViews } from '../content/tracks/render';
 import { trackGeometry, type TrackDef } from '../sim/track';
 import { CAMERA_FAR, CAMERA_NEAR } from './scene';
+import { createBumperViews } from './bumpers';
 import { createCollisionMeshView } from './meshTrackView';
 import { createScenery } from './scenery';
 import { applyTheme, createNightLamps, trackTheme } from './theme';
@@ -22,7 +23,10 @@ export function createTrackView(scene: THREE.Scene, track: TrackDef): TrackViewU
   // GLB), else the collision mesh by surface (MK-99).
   if (track.kind === 'mesh') {
     const view = trackViews.has(track.id) ? trackViews.get(track.id) : undefined;
-    scene.add(view?.model?.() ?? createCollisionMeshView(track.collision));
+    const model = view?.model?.();
+    scene.add(model ?? createCollisionMeshView(track.collision));
+    // Boost bumpers (MK-108) on courses drawn from their collision mesh.
+    if (!model) scene.add(createBumperViews(track.route.zones));
     return undefined;
   }
   if (track.kind === 'spline') {
