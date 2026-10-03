@@ -23,7 +23,7 @@ from what the specs make.
   as the set of four, each with an overlay layer on the same geometry; physical materials; a white
   glow on the tires; transparent paint), then 5 bodies, 3 tires and 3 gliders.
 - `specs/npcs.ts` (MK-101): Lakitu on his cloud.
-- `specs/items.ts` (MK-103, MK-112, MK-113, MK-114): one plain shape per MK8 item model id, with the real pack's
+- `specs/items.ts` (MK-103, MK-112, MK-113, MK-114, MK-126): one plain shape per MK8 item model id, with the real pack's
   quirks the loader fixes (top along −Z, the item box's glass at opacity 0, the red shell coloured
   like the green one).
 - `specs/static.ts` (MK-97, MK-117): committed files made elsewhere, listed for the manifest: two

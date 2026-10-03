@@ -1,4 +1,4 @@
-// The fixture pack's item models (MK-103, MK-112, MK-113): one plain coloured shape per MK8 item model id,
+// The fixture pack's item models (MK-103, MK-112, MK-113, MK-114, MK-126): one plain coloured shape per MK8 item model id,
 // in the pack's layout (`models/items/<id>.glb`, group `items`) and its quirks the loader fixes:
 // the top along −Z, the item box's glass at opacity 0, the red shell coloured like the green one.
 import { Document } from '@gltf-transform/core';
@@ -50,6 +50,12 @@ const SHAPES: Record<string, () => Shape> = {
   }),
   // MK-114 (the fire flower has no pack model).
   'bob-omb': () => ({ geometry: new THREE.SphereGeometry(1, 12, 8), colour: [0.1, 0.1, 0.12] }),
+  // MK-126 (Crazy 8 has no pack model).
+  'piranha-plant': () => ({
+    geometry: new THREE.CylinderGeometry(0.6, 0.4, 2, 10),
+    colour: [0.85, 0.12, 0.15],
+  }),
+  coin: () => ({ geometry: new THREE.CylinderGeometry(1, 1, 0.2, 16), colour: [0.95, 0.75, 0.1] }),
 };
 
 /** One shape as a GLB, turned so its top is along −Z (as the pack's DAE conversions are). */
