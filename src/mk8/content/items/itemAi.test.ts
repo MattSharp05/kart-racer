@@ -10,7 +10,7 @@ import { registerMk8Content } from '../../register';
 import { testRampTrack } from '../courses/test-ramp';
 import { registerTestRamp } from '../courses/test-ramp/register';
 import { SPINY } from './spiny-shell/sim';
-import { HORN } from './super-horn/sim';
+import { HORN, hornAiUse } from './super-horn/sim';
 
 beforeAll(() => {
   registerMk8Content();
@@ -73,6 +73,32 @@ describe('AI Super Horn (MK-129)', () => {
       (e) => e.type === 'kartHit' && e.kartId === 0 && e.kind === SPINY,
     );
     expect(blown).toEqual([]);
+  });
+});
+
+describe('AI Super Horn into a crowd (MK-129)', () => {
+  it('counts karts and others’ bananas within reach, not its own', () => {
+    const state = mk8HornVsSpiny(1);
+    state.entities = state.entities.filter((e) => e.kind === 'itemBox');
+    const [me, other] = state.karts;
+    if (!me || !other) throw new Error('scenario karts');
+    const near = { ...me.position, x: me.position.x + 3 };
+    other.position = { ...near };
+    const ctx = { giveUp: false } as Parameters<typeof hornAiUse>[2];
+    expect(hornAiUse(me, state, ctx)).toBe(false);
+    const banana = (ownerId: number) => ({
+      id: 900 + ownerId,
+      kind: 'banana' as const,
+      position: { ...near },
+      from: { ...near },
+      flightTimer: 0,
+      ownerId,
+      ownerImmune: 0,
+    });
+    state.entities.push(banana(me.id));
+    expect(hornAiUse(me, state, ctx)).toBe(false);
+    state.entities.push(banana(other.id));
+    expect(hornAiUse(me, state, ctx)).toBe(true);
   });
 });
 

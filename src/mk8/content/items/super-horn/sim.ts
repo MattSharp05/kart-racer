@@ -107,8 +107,13 @@ export function hornAiUse(kart: KartState, state: SimState, { giveUp }: AiItemCo
       other.respawnTimer <= 0 &&
       distance(other.position, kart.position) <= r,
   ).length;
+  // Others' bananas, shells and item entities it would destroy (not its own).
   const things = state.entities.filter(
-    (e) => e.kind === 'item' && breakable(e, kart) && distance(e.position, kart.position) <= r,
+    (e) =>
+      e.kind !== 'itemBox' &&
+      e.ownerId !== kart.id &&
+      breakable(e, kart) &&
+      distance(e.position, kart.position) <= r,
   ).length;
   return karts + things >= tuning.mk8.aiHornCrowd || giveUp;
 }

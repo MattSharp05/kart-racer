@@ -163,8 +163,9 @@ export class SoundManager {
     const synth = this.synth;
     const me = state.karts[followId];
     // A race's own sounds (MK-129: MK8's items) come first; they start on their own gesture.
+    // Muted, everything goes to the (silent) synth.
     const skin = soundSkin();
-    const skinned = skin?.owns(state) ? skin : undefined;
+    const skinned = !this.muted && skin?.owns(state) ? skin : undefined;
     for (const event of events) {
       if (skinned?.play(event, state, followId)) continue;
       if (!synth) continue;
@@ -195,10 +196,11 @@ export class SoundManager {
 
     const me = state.karts[view.followId];
     const racing = !view.menu;
-    // The skin's own star music (MK-129) replaces our star loop.
+    // The skin's own star music (MK-129) replaces our star loop: the race music rests meanwhile.
     const skin = soundSkin();
-    const starLoop = !(skin?.owns(state) && skin.starMusic());
-    this.music?.play(!racing ? 'menu' : me && me.starTimer > 0 && starLoop ? 'star' : 'race');
+    const star = !!me && me.starTimer > 0;
+    const skinStar = star && !this.muted && skin?.owns(state) === true && skin.starMusic();
+    this.music?.play(!racing ? 'menu' : skinStar ? 'none' : star ? 'star' : 'race');
 
     // Roulette ticking while your item slot spins.
     if (racing && me && me.item.roulette > 0 && state.tick !== this.lastRouletteTick) {
