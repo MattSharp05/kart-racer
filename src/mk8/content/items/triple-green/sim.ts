@@ -1,3 +1,4 @@
+import { greenTactic } from '../../../../sim/ai/itemTactics';
 import { fireShell } from '../../../../sim/items/shell';
 import { escorts } from '../escort';
 import { mk8ItemSim } from '../sim';
@@ -16,5 +17,7 @@ export default mk8ItemSim({
   order: 310,
   uses: TRIPLE_USES,
   onUse: (kart, state, _events, input) => fireShell(kart, state, input, 'green'),
+  // AI (MK-129): one at a time at a kart lined up ahead, like a green shell; the rest guard it.
+  aiUse: greenTactic,
   ...escorts('triple-green', 'orbit'),
 });

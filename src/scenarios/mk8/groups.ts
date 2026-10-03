@@ -17,3 +17,4 @@ export { default as look } from './look';
 export { default as underwater } from './underwater';
 export { default as waterPark } from './waterPark';
 export { default as grandPrix } from './grandPrix';
+export { default as allItems } from './allItems';

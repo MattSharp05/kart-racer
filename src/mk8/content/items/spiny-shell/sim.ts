@@ -11,6 +11,7 @@ import {
   lapTrack,
   wrapLap,
 } from '../../../../sim/items/routeFollow';
+import { positionOf } from '../../../../sim/race';
 import { add, lerp, scale, WORLD_UP, type Vec3 } from '../../../../sim/math';
 import { DT, TICK_RATE, tuning } from '../../../../sim/tuning';
 import type { ItemEntity, KartState, SimEvent, SimState } from '../../../../sim/types';
@@ -254,6 +255,9 @@ const blastSpec: EntitySpec = {
  * within reach destroys it (`../super-horn/sim.ts`). The HUD warns its target (`chases`, and an
  * `incoming` itemFx when it's thrown or the lead changes); it's drawn by `./render.ts`.
  */
+/** AI (MK-129): thrown from behind the leader; the leader holds it (it would be the target). */
+const aiUse = (kart: KartState, state: SimState): boolean => positionOf(state, kart.id) > 1;
+
 export default mk8ItemSim({
   id: SPINY,
   name: 'Spiny Shell',
@@ -268,5 +272,6 @@ export default mk8ItemSim({
       events.push({ type: 'itemFx', kartId: spiny.targetId, item: SPINY, fx: 'incoming' });
     }
   },
+  aiUse,
   entities: [spinySpec, blastSpec],
 });

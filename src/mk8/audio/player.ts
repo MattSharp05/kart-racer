@@ -19,7 +19,8 @@ export type MenuSoundId = (typeof MENU_SOUNDS)[number];
 
 /** What MK8 screens need to make a sound. */
 export interface SoundPlayer {
-  play(id: SoundId): void;
+  /** Plays a sound at `volume` (0..1, default 1: MK-129's item sounds fade with distance). */
+  play(id: SoundId, volume?: number): void;
   /**
    * A racer's voice line (MK-117), by the pipeline's voice id (`mario`, `shy-guy`). Silent when
    * the pack hasn't got the clip: there is no stand-in for a voice.
@@ -132,7 +133,7 @@ export class Mk8AudioPlayer implements SoundPlayer {
     }
   }
 
-  play(id: SoundId): void {
+  play(id: SoundId, volume = 1): void {
     this.played.push(id);
     const ctx = this.ctx;
     if (!ctx || this.isMuted()) return;
@@ -141,7 +142,12 @@ export class Mk8AudioPlayer implements SoundPlayer {
       this.synth(ctx, id);
       return;
     }
-    this.sample(ctx, path);
+    this.sample(ctx, path, volume);
+  }
+
+  /** Whether the pack's file for `id` is loaded (MK-129: else the race's synth sound plays). */
+  has(id: SoundId): boolean {
+    return this.file(soundPath(id)) !== undefined;
   }
 
   /**
@@ -197,12 +203,12 @@ export class Mk8AudioPlayer implements SoundPlayer {
     return this.voices;
   }
 
-  private sample(ctx: AudioContext, path: string): void {
+  private sample(ctx: AudioContext, path: string, volume = 1): void {
     void this.buffer(path).then((buffer) => {
       if (!buffer || !this.out) return;
       const source = ctx.createBufferSource();
       const gain = ctx.createGain();
-      gain.gain.value = SAMPLE_VOLUME;
+      gain.gain.value = SAMPLE_VOLUME * volume;
       source.buffer = buffer;
       source.connect(gain).connect(this.out);
       source.start();

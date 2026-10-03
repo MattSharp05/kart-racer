@@ -1,3 +1,4 @@
+import { kartsAlongLap } from '../../../../sim/ai/itemTactics';
 import type { EntityContext, EntitySpec } from '../../../../sim/items/entities';
 import { spawnEntity, touchKarts } from '../../../../sim/items/entities';
 import { nextEntityId } from '../../../../sim/items/banana';
@@ -160,6 +161,14 @@ export default mk8ItemSim({
   order: 380,
   onUse: (kart, state, _events, input) => {
     throwBobomb(kart, state, input.brake > 0 && input.throttle <= 0);
+  },
+  // AI (MK-129): thrown forward into a pack (`aiBobombPack` karts within `aiBobombAhead` m), or
+  // dropped behind (braking for the tick) on a kart right behind; else on giving up.
+  aiUse: (kart, state, ctx) => {
+    const m = tuning.mk8;
+    if (kartsAlongLap(kart, state, ctx, m.aiBobombAhead, 1) >= m.aiBobombPack) return true;
+    if (kartsAlongLap(kart, state, ctx, m.aiBobombBehind, -1) > 0) return { throttle: 0, brake: 1 };
+    return ctx.giveUp;
   },
   entities: [bobombSpec, blastSpec],
 });
