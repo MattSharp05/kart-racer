@@ -15,7 +15,7 @@ import {
   uprightBody,
 } from './racerModel';
 
-// MK-136: the fixture pack's kart parts copy the real pack's quirks (`makeModels.ts`): skinned,
+// MK-136: the fixture pack's kart parts copy the real pack's quirks (`specs/karts.ts`): skinned,
 // quantized meshes, the tire model as the set of four with overlay layers, physical materials, a
 // white glow on the tires and fully transparent paint. Parsed here as on the stage.
 const KART_LENGTH = mk8Body(STANDARD_PARTS.body).length;

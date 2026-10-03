@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { items } from '../../../content/items';
-import { mk8Golden, mk8TripleItem } from '../../../scenarios/mk8';
+import { mk8Golden, mk8TripleItem } from '../../../scenarios/mk8/items';
 import { hitKart } from '../../../sim/items/hit';
 import { forwardFromHeading } from '../../../sim/math';
 import { step } from '../../../sim/step';

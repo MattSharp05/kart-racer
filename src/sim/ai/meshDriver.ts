@@ -80,7 +80,14 @@ export function meshAiInput(
   const top = physics.topSpeed * (ai.speedScale ?? 1);
   const cruise = top * (cfg.cruiseBase + cfg.cruiseSkill * ai.skill);
   return {
-    ...pedals(geometry, s, speed, cruise, ai.skill * physics.handling ** cfg.cornerHandling),
+    ...pedals(
+      geometry,
+      s,
+      speed,
+      cruise,
+      ai.skill * physics.handling ** cfg.cornerHandling,
+      kart.glide !== undefined,
+    ),
     steer,
   };
 }
@@ -109,14 +116,20 @@ function recovering(
   return { ...NEUTRAL_INPUT, brake: 1, steer };
 }
 
-/** Throttle up to `cruise`, lifting and braking for the corners ahead (grip × `gripScale`). */
+/**
+ * Throttle up to `cruise`, lifting and braking for the corners ahead (grip × `gripScale`). On a
+ * glider (MK-106) braking would mean floating on past the corner: it holds the throttle (a dive)
+ * to get back down sooner.
+ */
 function pedals(
   geometry: RouteGeometry,
   s: number,
   speed: number,
   cruise: number,
   gripScale: number,
+  gliding = false,
 ): InputFrame {
+  if (gliding) return { ...NEUTRAL_INPUT, throttle: 1 };
   const m = tuning.meshAi;
   const horizon = Math.min(tuning.ai.brakeHorizon, m.horizonBase + speed * m.horizonPerSpeed);
   const turn = maxTurnAhead(geometry, s, horizon);
@@ -146,6 +159,13 @@ export function meshAutopilotInput(
   const lookAhead = tuning.ai.lookAheadBase + speed * tuning.ai.lookAheadPerSpeed;
   const steer = steerTowards(kart, aimPoint(geometry, s, lookAhead, 0), tuning.ai.steerGain);
   const physics = kartPhysics(kart.kartType, engineClass, kart.loadout);
-  const drive = pedals(geometry, s, speed, physics.topSpeed * throttle, physics.handling);
+  const drive = pedals(
+    geometry,
+    s,
+    speed,
+    physics.topSpeed * throttle,
+    physics.handling,
+    kart.glide !== undefined,
+  );
   return { ...drive, steer };
 }

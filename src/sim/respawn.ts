@@ -1,4 +1,5 @@
 import { cancelDrift } from './drift';
+import { endGlide } from './glide';
 import { add, dot, headingOf, scale, sub, WORLD_UP, type Vec3 } from './math';
 import { raycastMesh, surfaceMask, type MeshTrackDef } from './meshTrack';
 import { routeGeometry, type RouteGeometry } from './route';
@@ -145,7 +146,7 @@ function updateMeshRespawns(
     }
     const fell =
       below ||
-      kart.airTime > tuning.mk8.fallSeconds ||
+      kart.airTime > (kart.glide ? tuning.mk8.glide.fallSeconds : tuning.mk8.fallSeconds) ||
       kart.position.y < track.collision.gridMin[1] - tuning.fallDepth ||
       (!kart.grounded && overKillFloor(track, kart));
     const asked = inputs[kart.id]?.respawn === true && kart.respawnCooldown <= 0;
@@ -197,6 +198,7 @@ function startMeshRespawn(
   kart.grounded = false;
   kart.airTime = 0;
   cancelDrift(kart, events);
+  endGlide(kart, events);
   kart.respawnTimer = tuning.respawnSeconds;
   kart.respawnCooldown = tuning.respawnCooldownSeconds;
   kart.outTime = 0;

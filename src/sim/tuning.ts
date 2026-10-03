@@ -4,6 +4,7 @@
  * `tuning` is a plain mutable object so the dev tuning panel (`?tune=1`) can edit it live.
  * Nothing else may write to it; tests and normal play always use these defaults.
  */
+import { mk8Tuning } from './tuning/mk8';
 
 /** Fixed simulation rate (docs/TDD.md → Architecture). */
 export const TICK_RATE = 60;
@@ -168,140 +169,8 @@ export const tuning = {
       overhead: 1.2,
     },
   },
-  // --- MK8 Mode (v3) ---
-  mk8: {
-    // MK8 Mode's items (MK-112).
-    /** Golden Mushroom: boost as often as you like for this long from its first use, s. */
-    goldenTime: 7.5,
-    /** Triple shells circle the kart this far from its centre, m… */
-    orbitRadius: 1.6,
-    /** …this fast, rad/s. */
-    orbitSpeed: 4,
-    /** Triple bananas trail behind the kart: the first this far behind its centre, m… */
-    trailFirst: 1.8,
-    /** …and each next one this much further, m. */
-    trailSpacing: 1.1,
-    /** A circling shell or trailing banana touches karts and items this close, m. */
-    escortRadius: 1,
-    // Spiny Shell (MK-113): flies along the route to the race leader and explodes on it.
-    /** Speed along the route, as a fraction of the engine class's top speed. */
-    spinySpeed: 2.2,
-    /** It skims the road for this long after it's thrown, hitting karts it touches, s… */
-    spinyGroundSeconds: 1.5,
-    /** …then climbs to this height above the route (along its up) at this rate, m and m/s. */
-    spinyAirHeight: 6,
-    spinyClimbRate: 8,
-    /** It skims the road this high, m (karts touch it there). */
-    spinyGroundHeight: 0.4,
-    /** It touches karts this close on the ground leg, m. */
-    spinyTouchRadius: 1.4,
-    /** Thrown off the centreline, it eases back onto it at this rate, 1/s (exponential). */
-    spinyCentreRate: 2,
-    /** It dives once the leader is this close ahead along the route (or behind it), m… */
-    spinyDiveDistance: 18,
-    /** …taking this long from there to the explosion, s (hover over the leader, then drop). */
-    spinyDiveSeconds: 1.4,
-    /** The last this share of the dive is the drop onto the leader (before it, it closes in). */
-    spinyDropShare: 0.4,
-    /** The explosion hits every kart this close to where it lands, m… */
-    spinyRadius: 6,
-    /** …and the blast stays up (hitting karts that drive into it) this long, s. */
-    spinyBlastSeconds: 0.5,
-    /** A kart it blows up spins this long (a shell's spin-out is `spinSeconds`), s… */
-    spinySpinSeconds: 1.8,
-    /** …thrown up at this speed along its up, m/s. */
-    spinyLaunchSpeed: 9,
-    /** It's gone after this long whatever happens, s. */
-    spinyLifeSeconds: 60,
-    /** Super Horn (MK-113): its shockwave reaches this far round the user, m… */
-    hornRadius: 9,
-    /** …and is drawn for this long, s. */
-    hornWaveSeconds: 0.4,
-    // Bob-omb (MK-114): thrown ahead in an arc (dropped behind while braking), then a blast.
-    /** It lands this far ahead (or is dropped this far behind), m, after flying this long, s… */
-    bobombThrowDistance: 20,
-    bobombDropDistance: 2.5,
-    bobombFlightSeconds: 0.8,
-    /** …this high at the top of its arc, m. */
-    bobombArcHeight: 3,
-    /** It explodes this long after it's let go, or as soon as a kart touches it (this close, m). */
-    bobombFuse: 3,
-    bobombTouchRadius: 1.3,
-    /** Its owner can't set off one it dropped for this long, s (nor ever one thrown ahead). */
-    bobombOwnerImmuneSeconds: 1,
-    /** The blast hits every kart this close, m, and stays up (hitting karts driving in) this long, s… */
-    bobombRadius: 7,
-    bobombBlastSeconds: 0.5,
-    /** …each spins this long, s, thrown up at this speed, m/s. */
-    bobombSpinSeconds: 1.6,
-    bobombLaunchSpeed: 7,
-    // Fire Flower (MK-114): a fireball per press, up to `fireShots`, for `fireTime` s from the first.
-    fireTime: 6,
-    fireShots: 10,
-    /** Fireball speed (a fraction of the engine class's top speed), touch radius (m), bounces, life (s). */
-    fireballSpeed: 1.4,
-    fireballRadius: 1,
-    fireballBounces: 3,
-    fireballLifeSeconds: 4,
-    // Surface-frame kart physics on mesh tracks (MK-99, ADR 0011; numbers from the MK-92 spike).
-    /** How fast `up` turns towards the ground's normal while grounded, 1/s (exponential). */
-    upTurnRate: 14,
-    /** …and back towards +Y in the air, 1/s. */
-    airUpTurnRate: 4,
-    /** Off anti-gravity ground, gravity keeps pulling along −up this long, s (short gaps). */
-    antigravAirHold: 0.35,
-    /** Plain ground steeper than this (from level) is a wall, radians (50°). */
-    maxSlope: (50 * Math.PI) / 180,
-    /** A grounded kart stays on plain ground that drops away by up to this per tick, m. */
-    groundSnap: 0.3,
-    /** …and on anti-gravity ground (holds it through convex bits), m. */
-    antigravSnap: 1.5,
-    /** The four wheel rays start this far ahead/behind and either side of the kart's centre, m. */
-    wheelForward: 1,
-    wheelRight: 0.7,
-    /**
-     * The ground rays start this far above the kart along up, m: half-way round a 90° corner a
-     * wheel ray from 1 m up would start under the floor it should find.
-     */
-    probeLift: 2,
-    /** The climb ray (finds a wall or ceiling ahead to drive onto) starts this high, m… */
-    climbLift: 0.4,
-    /** …and reaches this far past the kart's nose (plus a tick's travel), m. */
-    climbReach: 1,
-    /** Ground ahead turned more than this from the kart's up is a new surface to climb, radians. */
-    climbAngle: (20 * Math.PI) / 180,
-    /** Wall query sphere: radius, and how high above the road its centre sits, m. */
-    wallRadius: 0.9,
-    wallLift: 0.5,
-    /** Karts further apart than this along their up don't bump (a floor and a ceiling), m. */
-    bumpHeight: 1.5,
-    /** In the air longer than this, a kart has fallen off the course, s. */
-    fallSeconds: 3,
-    /**
-     * How a loadout's MK8 stats (0.75–5.75, `mk8/content/stats.ts`) become physics (MK-102), like
-     * `stats` does for our 1–5 racers: each point away from `neutral` changes a number by its share.
-     */
-    statMap: {
-      /** The MK8 stat that means "average": the middle of MK8's scale. */
-      neutral: 3.25,
-      /**
-       * Top speed ± this share per point: MK8's own ground-speed curve (+0.03 per level of ~7.66,
-       * 4 levels a point). With `stats.speedPerPoint` (0.006) the classes' top speeds were within
-       * 0.8 %; this keeps their lap times within 1.5 % (MK-102 measurements on the ticket).
-       */
-      speedPerPoint: 0.0157,
-      /** Time to 95 % of top speed − this share per point (faster). */
-      accelerationPerPoint: 0.1,
-      /** Turn rates ± this share per point. */
-      handlingPerPoint: 0.06,
-      /** Sideways grip (road and drift) ± this share per point of traction. */
-      gripPerPoint: 0.05,
-      /** Drift mini-turbo charge rate ± this share per point. */
-      miniTurboPerPoint: 0.05,
-      /** Bump weight (our 1–5 `weight`) per MK8 weight point: MK8's scale is about ours. */
-      weightPerPoint: 1,
-    },
-  },
+  // --- MK8 Mode (v3): one module per feature in `tuning/mk8/` ---
+  mk8: mk8Tuning,
   /** The AI driver on mesh tracks (MK-105, `sim/ai/meshDriver.ts`). */
   meshAi: {
     /** Corners ahead are measured over route steps this long, m. */

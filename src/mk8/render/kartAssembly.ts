@@ -1,6 +1,6 @@
 // An MK8 kart put together from its parts (MK-102): the body's GLB scaled to the body's length,
 // four instances of the tire GLB on the body's wheel anchors, and the glider's GLB above and behind
-// the driver, hidden until the kart glides (glider flight is its own ticket).
+// the driver, hidden until the kart glides (MK-106: it unfolds on launch and folds on landing).
 import * as THREE from 'three';
 import type { Mk8Body, Mk8Glider, Mk8Tires } from '../content/parts';
 import { dropLayers, fitModel, mergeStaticMeshes, singleTire, uprightBody } from './racerModel';
@@ -48,6 +48,9 @@ export class Mk8Kart {
   /** The wheel centres in the kart's frame, front left, front right, rear left, rear right. */
   readonly wheels: THREE.Vector3[] = [];
   private readonly glider: THREE.Group | undefined;
+  /** The open glider's scale (as fitted to its span). */
+  private readonly gliderScale = new THREE.Vector3(1, 1, 1);
+  private openness = 0;
 
   constructor(readonly parts: KartParts) {
     this.object.name = 'kart';
@@ -78,6 +81,7 @@ export class Mk8Kart {
       this.glider = fitModel(models.glider, 'x', parts.glider.span);
       this.glider.name = 'glider';
       this.glider.position.set(0, GLIDER_HEIGHT + radius, GLIDER_BACK);
+      this.gliderScale.copy(this.glider.scale);
       this.glider.visible = false;
       this.object.add(this.glider);
     }
@@ -85,11 +89,29 @@ export class Mk8Kart {
 
   /** Opens (shows) or folds away (hides) the glider. */
   setGliderOpen(open: boolean): void {
-    if (this.glider) this.glider.visible = open;
+    this.setGliderOpenness(open ? 1 : 0);
+  }
+
+  /**
+   * Unfolds the glider part-way (MK-106; `render/glider.ts`'s `nextOpenness` times it): 0 folded
+   * away (hidden) … 1 fully open. It spreads sideways from the middle and rises into place.
+   */
+  setGliderOpenness(openness: number): void {
+    this.openness = Math.min(1, Math.max(0, openness));
+    if (!this.glider) return;
+    const s = Math.max(this.openness, 1e-3);
+    const { x, y, z } = this.gliderScale;
+    this.glider.scale.set(x * s, y * (0.5 + 0.5 * s), z * (0.5 + 0.5 * s));
+    this.glider.visible = this.openness > 0;
   }
 
   get gliderOpen(): boolean {
     return this.glider?.visible ?? false;
+  }
+
+  /** How far the glider is unfolded, 0–1. */
+  get gliderOpenness(): number {
+    return this.glider ? this.openness : 0;
   }
 
   get hasGlider(): boolean {

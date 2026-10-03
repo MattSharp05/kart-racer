@@ -1,5 +1,6 @@
 import { items } from '../content/items';
 import { PlayerInput } from '../input/playerInput';
+import type { Mk8Start } from '../mk8';
 import { scenarios } from '../scenarios';
 import { attractMode } from '../scenarios/menus';
 import { isOnlineScenario } from '../scenarios/online';
@@ -28,6 +29,8 @@ export interface Launch {
   view?: ScenarioView;
   follow?: number;
   screen?: MenuScreen;
+  /** How MK8 Mode opens when `screen` is `mk8` (the scenario's `mk8Start`). */
+  mk8Start?: Mk8Start;
   /** The kart this device drives (MK-38). */
   localKartId: number;
   /** The scenario's saved data (MK-44), layered over the real store for this page load. */
@@ -88,6 +91,7 @@ function initialState(params: LaunchParams): Launch {
         follow: setup.follow ?? localKartId,
         localKartId,
         ...(setup.screen ? { screen: setup.screen } : {}),
+        ...(setup.mk8Start ? { mk8Start: setup.mk8Start } : {}),
         ...(setup.storage ? { storage: setup.storage } : {}),
         ...(setup.lobby
           ? { lobby: lobbyLaunch(params.role ?? 'host', params.room, params.laps) }

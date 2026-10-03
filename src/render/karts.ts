@@ -10,6 +10,8 @@ import {
 } from './kartModels';
 import type { KartState } from '../sim/types';
 import { createHeadlights } from './headlights';
+import { Glider, nextOpenness } from './glider';
+import { racerViews } from '../content/racers/render';
 import { itemEffects } from '../content/items/registries';
 import { itemViews } from '../content/items/views';
 
@@ -138,6 +140,8 @@ export interface KartPoseFilter {
 /** Kart meshes driven by sim state, interpolated between ticks. */
 export class KartRenderer {
   private readonly models: KartModel[] = [];
+  /** Each kart's glider (MK-106), made the first time it glides. */
+  private readonly gliders: (Glider | undefined)[] = [];
   private readonly types: KartId[] = [];
   /** Last sim tick the wheels were advanced for, so they spin once per tick, not per frame. */
   private wheelTick = -1;
@@ -175,16 +179,42 @@ export class KartRenderer {
         model.root.quaternion.slerpQuaternions(beforeQ, after, alpha);
       } else model.root.rotation.set(0, pose.heading, 0);
 
-      if (current.tick !== this.wheelTick) {
-        const ticks = this.wheelTick < 0 ? 0 : current.tick - this.wheelTick;
+      const ticks =
+        current.tick === this.wheelTick || this.wheelTick < 0 ? 0 : current.tick - this.wheelTick;
+      if (ticks > 0) {
         const distance = kart.speed * ticks * DT;
         for (const wheel of model.wheels) wheel.rotation.x -= distance / model.wheelRadius;
       }
+      this.syncGlider(i, model, kart, ticks);
       const steer = inputs[i]?.steer ?? 0;
       for (const pivot of model.frontWheels) pivot.rotation.y = -steer * MAX_WHEEL_TURN;
       this.syncEffects(model, kart, current.tick);
     });
     this.wheelTick = current.tick;
+  }
+
+  /**
+   * Gliders (MK-106): unfolds over `glide.openSeconds` of the sim's glide time, then folds as fast
+   * once the kart lands (by the ticks stepped, so a paused frame holds it).
+   */
+  private syncGlider(i: number, model: KartModel, kart: KartState, ticks: number): void {
+    let glider = this.gliders[i];
+    if (!glider) {
+      if (!kart.glide) return;
+      glider = new Glider(racerViews.get(kart.kartType).colours.accent);
+      model.body.add(glider.object);
+      this.gliders[i] = glider;
+    }
+    // A tick's worth open on the launch tick (its glide time is still 0), so it shows at once.
+    const openness = kart.glide
+      ? Math.min(1, (kart.glide.time + DT) / tuning.mk8.glide.openSeconds)
+      : nextOpenness(glider.openness, false, ticks * DT);
+    glider.setOpenness(openness);
+  }
+
+  /** How open kart `id`'s glider is: 0 folded away (or none) … 1 open (MK-106). */
+  gliderOpenness(id: number): number {
+    return this.gliders[id]?.openness ?? 0;
   }
 
   private syncEffects(model: KartModel, kart: KartState, tick: number): void {
@@ -246,6 +276,7 @@ export class KartRenderer {
   reset(): void {
     for (const model of this.models) this.scene.remove(model.root);
     this.models.length = 0;
+    this.gliders.length = 0;
     this.types.length = 0;
     this.wheelTick = -1;
   }

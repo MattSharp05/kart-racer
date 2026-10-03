@@ -5,8 +5,7 @@ import type { EngineClass } from '../../../sim/tuning';
 import { DEFAULT_ENGINE_CLASS } from '../../flow';
 import { art, Menu, menuScreen } from '../kit';
 import type { Mk8ScreenFactory } from '../stack';
-import { cupSelect } from './cupSelect';
-import { modeInfo, type Mk8Context } from './session';
+import { modeInfo, type Mk8Context, type Mk8Screen } from './session';
 import './engineClass.css';
 
 /** MK8's engine classes, left to right. */
@@ -67,7 +66,7 @@ export function engineClass(ctx: Mk8Context): Mk8ScreenFactory {
       sounds: stack.sounds,
       onConfirm: (index) => {
         ctx.flow.engineClass = MK8_CLASSES[index]?.cc ?? DEFAULT_ENGINE_CLASS;
-        stack.push(cupSelect(ctx));
+        stack.push(ctx.next('cc'));
       },
     });
     const row = document.createElement('div');
@@ -86,3 +85,14 @@ function standIn(cc: EngineClass): HTMLElement {
   shield.textContent = String(cc);
   return shield;
 }
+
+/**
+ * The engine class (MK-119), skipped in Time Trial (always 150cc there); the `cc` scenario start
+ * opens on it for a Grand Prix.
+ */
+export const screen: Mk8Screen = {
+  id: 'cc',
+  build: engineClass,
+  starts: { cc: { mode: 'grand-prix' } },
+  skip: (flow) => flow.mode === 'time-trial',
+};
