@@ -8,7 +8,7 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
 import type { RouteDef } from '../sim/route';
 import { DT } from '../sim/tuning';
 import type { SimState } from '../sim/types';
-import { insideWater } from '../sim/underwater';
+import { hasWater, insideWater } from '../sim/underwater';
 
 /** Particles in the shared bubble/splash pool (one draw call). */
 const POOL = 384;
@@ -43,14 +43,10 @@ interface Particle {
   splash: boolean;
 }
 
-/** Whether the route has any water volume. */
-const hasWater = (route: RouteDef | undefined): route is RouteDef =>
-  route?.zones.some((zone) => zone.kind === 'water') ?? false;
-
 export class UnderwaterView {
   private built: Built | undefined;
   private route: RouteDef | undefined;
-  /** Each kart's `inWater` last frame (a change is a splash). */
+  /** Each kart's `inWater` last frame (a change is a splash; unset while respawning: none). */
   private readonly wasIn: (boolean | undefined)[] = [];
   private readonly propellers: (THREE.Mesh | undefined)[] = [];
   private lastTime: number | undefined;
@@ -70,7 +66,7 @@ export class UnderwaterView {
     camera: THREE.Camera,
   ): void {
     if (route !== this.route) this.reset(route);
-    if (!hasWater(route)) {
+    if (!route || !hasWater(route)) {
       this.cameraUnder = false;
       return;
     }
@@ -82,9 +78,9 @@ export class UnderwaterView {
       const body = kartBody(kart.id);
       const inWater = kart.inWater === true;
       const was = this.wasIn[kart.id];
-      if (was !== undefined && was !== inWater && body)
+      if (was !== undefined && kart.inWater !== undefined && was !== inWater && body)
         this.splash(built, body.getWorldPosition(built.scratch));
-      this.wasIn[kart.id] = inWater;
+      this.wasIn[kart.id] = kart.inWater;
       if (!body) continue;
       const prop = this.propeller(kart.id, body);
       prop.visible = inWater;
