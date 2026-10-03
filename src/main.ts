@@ -18,7 +18,7 @@ import { getTrack } from './sim/track';
 import { tuning } from './sim/tuning';
 import { NetDebugOverlay } from './ui/netDebug';
 import { restoreSteering } from './ui/settings/controlsSteering';
-import { PerfOverlay } from './ui/perfOverlay';
+import { PerfOverlay, poseLine } from './ui/perfOverlay';
 
 // Thin bootstrap (MK-35): read the URL, build the session, world and screen flow, start the loop.
 const canvas = document.querySelector<HTMLCanvasElement>('#game');
@@ -107,7 +107,8 @@ if (params.paused) game.pause();
 if (params.tune) {
   void import('./dev/tuningPanel').then(({ openTuningPanel }) => openTuningPanel());
 }
-if (params.perf) world.perf = new PerfOverlay();
+if (params.perf)
+  world.perf = new PerfOverlay(() => poseLine(game.state.karts[session.localKartId]));
 if (params.netdebug) {
   const overlay = new NetDebugOverlay(() => session.online?.debug() ?? null);
   const onUpdate = world.onUpdate;
