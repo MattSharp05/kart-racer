@@ -49,7 +49,12 @@ test.describe('MK8 anti-gravity (MK-99)', () => {
         if (phase > 0 && kart.forward) {
           const want = norm(targets[phase]!);
           const left = dot(want, cross(up, kart.forward));
-          steer = dot(want, kart.forward) < 0 ? (left > 0 ? -1 : 1) : Math.max(-1, Math.min(1, -3 * left));
+          steer =
+            dot(want, kart.forward) < 0
+              ? left > 0
+                ? -1
+                : 1
+              : Math.max(-1, Math.min(1, -3 * left));
         }
         game.setInput(0, { throttle: 0.75, steer });
         const state = game.step(1);
