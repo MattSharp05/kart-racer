@@ -5,8 +5,10 @@
 
 /** A course of a cup: its sprites (`p_<key>` preview, `m_<key>` map) and its pack group. */
 export interface Mk8Course {
-  /** Sprite key and pack course id (`course/<key>`). */
+  /** Sprite key (`p_<key>`, `m_<key>`) and the flow's course id. */
   key: 'stadium' | 'waterpark' | 'canyon' | 'ruins';
+  /** The pipeline's course id (`tools/mk8/sources.json`): its pack group is `course/<pack>`. */
+  pack: string;
   name: string;
   /** The course's track id once it is registered. */
   trackId: string;
@@ -29,6 +31,7 @@ export interface Mk8Cup {
 export const MUSHROOM_COURSES: readonly Mk8Course[] = [
   {
     key: 'stadium',
+    pack: 'mario-kart-stadium',
     name: 'Mario Kart Stadium',
     trackId: 'mk8-stadium',
     standIn: 'sunny-circuit',
@@ -36,6 +39,7 @@ export const MUSHROOM_COURSES: readonly Mk8Course[] = [
   },
   {
     key: 'waterpark',
+    pack: 'water-park',
     name: 'Water Park',
     trackId: 'mk8-waterpark',
     standIn: 'neon-harbour',
@@ -43,6 +47,7 @@ export const MUSHROOM_COURSES: readonly Mk8Course[] = [
   },
   {
     key: 'canyon',
+    pack: 'sweet-sweet-canyon',
     name: 'Sweet Sweet Canyon',
     trackId: 'mk8-canyon',
     standIn: 'dune-canyon',
@@ -50,6 +55,7 @@ export const MUSHROOM_COURSES: readonly Mk8Course[] = [
   },
   {
     key: 'ruins',
+    pack: 'thwomp-ruins',
     name: 'Thwomp Ruins',
     trackId: 'mk8-ruins',
     standIn: 'canopy-rush',
