@@ -2,11 +2,14 @@
 // Mode on the title (or opens an `mk8-*` scenario). Registers MK8 content, loads the pack's UI
 // group behind a progress bar, then shows MK8 Mode's first screen.
 import { trackLoad } from '../game/pending';
+import { browserStore, type KeyValueStore } from '../game/storage/store';
 import { showErrorBanner } from '../ui/errorBanner';
 import type { Router } from '../ui/router';
 import { Mk8AudioPlayer } from './audio/player';
 import type { Mk8RaceSetup } from './flow';
 import type { SoundId } from './audio/soundIds';
+import { parseVoiceIndex, voiceClips, VOICES_PATH, type VoiceSoundId } from './audio/voices';
+import { MK8_RACER_VIEWS } from './content/racers/render';
 import {
   mk8Login,
   Mk8Loader,
@@ -22,6 +25,7 @@ import {
   type StageDemoId,
   type StageHooks,
 } from './render/demos';
+import { previewFiles } from './render/preview';
 import { Mk8Stage } from './render/stage';
 import { prepareMk8Items } from './render/items';
 import { styleGuide, type SpriteSource } from './ui/kit/styleGuide';
@@ -29,7 +33,9 @@ import { Progress } from './ui/loading';
 import './ui/password';
 import { cupSelect } from './ui/screens/cupSelect';
 import { engineClass } from './ui/screens/engineClass';
-import { characterStandIn, modeSelect } from './ui/screens/modeSelect';
+import { characterSelect, type PreviewHooks } from './ui/screens/characterSelect';
+import { kartStandIn } from './ui/screens/kartStandIn';
+import { modeSelect } from './ui/screens/modeSelect';
 import type { Mk8Context, Mk8Flow } from './ui/screens/session';
 import { titleScreen } from './ui/screens/title';
 import { sprite } from './ui/sprites';
@@ -46,15 +52,23 @@ export interface Mk8Host {
   isMuted?: () => boolean;
   /** Leaves the menus for a race (MK-119: the cup/course select's choice, its course loaded). */
   startRace?: (setup: Mk8RaceSetup) => void;
+  /** Where picks are remembered (MK-117); the browser's storage by default. */
+  store?: KeyValueStore;
 }
 
 declare global {
   interface Window {
     /**
-     * MK8 Mode's test hooks: every sound id the player was asked to play (MK-104), what the menus
-     * have chosen so far (MK-116), and the model stage's demo (MK-101).
+     * MK8 Mode's test hooks: every sound id (and, MK-117, voice line) the player was asked to
+     * play (MK-104), what the menus have chosen so far (MK-116), the model stage's demo (MK-101)
+     * and the character select's 3D portrait (MK-117).
      */
-    __mk8?: { sounds: SoundId[]; flow?: Mk8Flow; stage?: StageHooks };
+    __mk8?: {
+      sounds: (SoundId | VoiceSoundId)[];
+      flow?: Mk8Flow;
+      stage?: StageHooks;
+      preview?: PreviewHooks;
+    };
   }
 }
 
@@ -67,7 +81,7 @@ declare global {
  * asks for the site's pack password first. A `StageDemoId` (MK-101's scenarios) loads those
  * models and shows them on the 3D stage. MK-119: `cc` (a Grand Prix's engine class), `cup`
  * (a 150cc Grand Prix's cup select) and `course` (a 150cc VS Race's cup/course select), each over
- * the screens that lead there.
+ * the screens that lead there. MK-117: `char`, a Grand Prix's character select.
  */
 export type Mk8Start =
   | 'load'
@@ -76,6 +90,7 @@ export type Mk8Start =
   | 'ui-kit'
   | 'title'
   | 'mode'
+  | 'char'
   | 'cc'
   | 'cup'
   | 'course'
@@ -87,14 +102,18 @@ const DEEP_STARTS: Partial<
   Record<Mk8Start, { flow: Mk8Flow; screens: ((ctx: Mk8Context) => Mk8ScreenFactory)[] }>
 > = {
   mode: { flow: {}, screens: [modeSelect] },
-  cc: { flow: { mode: 'grand-prix' }, screens: [modeSelect, characterStandIn, engineClass] },
+  char: { flow: { mode: 'grand-prix' }, screens: [modeSelect, characterSelect] },
+  cc: {
+    flow: { mode: 'grand-prix' },
+    screens: [modeSelect, characterSelect, kartStandIn, engineClass],
+  },
   cup: {
     flow: { mode: 'grand-prix', engineClass: 150 },
-    screens: [modeSelect, characterStandIn, engineClass, cupSelect],
+    screens: [modeSelect, characterSelect, kartStandIn, engineClass, cupSelect],
   },
   course: {
     flow: { mode: 'vs', engineClass: 150 },
-    screens: [modeSelect, characterStandIn, engineClass, cupSelect],
+    screens: [modeSelect, characterSelect, kartStandIn, engineClass, cupSelect],
   },
 };
 
@@ -245,6 +264,10 @@ async function openMenus(
     flow,
     loadCourse: (course, onProgress) => loadCourse(files, course, onProgress),
     startRace: (setup) => host.startRace?.(setup),
+    packFile: (path) => files.file(path),
+    frozen: openedPaused(),
+    loadCharacters: (first, onFirst) => loadCharacters(files, first, onFirst),
+    store: host.store ?? browserStore(),
   };
   const sounds = audioPlayer();
   if (window.__mk8) window.__mk8.flow = flow;
@@ -275,6 +298,32 @@ async function loadCourse(
   onProgress(COURSE_SHARE);
   await prepareRace();
   onProgress(1);
+}
+
+/**
+ * The character select's files (MK-117): the voice index, then racer `first`'s model, kart and
+ * select voice lines (then `onFirst`), then every other racer's. Files the pack hasn't got are skipped (the
+ * portrait stays 2D, the voice silent); no pack rejects.
+ */
+async function loadCharacters(
+  files: Mk8Loader,
+  first: string,
+  onFirst?: () => void,
+): Promise<void> {
+  const manifest = await files.loadManifest();
+  const has = new Set(manifest.files.map((e) => e.path));
+  const inPack = (paths: string[]) => [...new Set(paths)].filter((path) => has.has(path));
+  await files.loadFiles(inPack([VOICES_PATH]));
+  const indexBytes = files.file(VOICES_PATH);
+  const index = indexBytes ? parseVoiceIndex(indexBytes) : undefined;
+  const filesOf = (models: string[]) => [
+    ...models.flatMap((model) => previewFiles({ model })),
+    ...(index ? voiceClips(index, models, 'select') : []),
+  ];
+  const others = MK8_RACER_VIEWS.map((v) => v.model).filter((model) => model !== first);
+  await files.loadFiles(inPack(filesOf([first])));
+  onFirst?.();
+  await files.loadFiles(inPack(filesOf(others)));
 }
 
 async function loadPackIfThere(files: Mk8Loader): Promise<void> {

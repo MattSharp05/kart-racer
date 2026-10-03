@@ -9,3 +9,7 @@ MK-103 added `models/items/*.glb`: one plain coloured shape per MK8 item model i
 `node tests/e2e/fixtures/mk8-pack/makeItemModels.ts` (which also updates `manifest.json`). They
 copy the real pack's quirks the loader fixes: the top along −Z, the item box's glass at opacity 0,
 and the red shell coloured like the green one. MK-112 added `golden-mushroom`.
+
+MK-117 added `audio/voices.json` and one voice clip for Mario's select line
+(`audio/voice/mario/fixture-select.m4a`, the same synthesized sine), in the layout
+`pnpm mk8:build` writes for racer voices, so the character select loads its voice lines in CI.
