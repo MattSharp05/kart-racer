@@ -78,7 +78,8 @@ export function meshAiInput(
 
   const speed = Math.max(0, kart.speed);
   const lookAhead = cfg.lookAheadBase + speed * cfg.lookAheadPerSpeed;
-  const lateral = geometry.racingLineAt(s + lookAhead) + ai.lineOffset;
+  // Plus where items take it (MK-129, `./meshItems.ts`): round a banana, towards a box.
+  const lateral = geometry.racingLineAt(s + lookAhead) + ai.lineOffset + (ai.steerOffset ?? 0);
   const steer = steerTowards(kart, aimPoint(geometry, s, lookAhead, lateral), cfg.steerGain);
 
   const physics = kartPhysics(kart.kartType, engineClass, kart.loadout);

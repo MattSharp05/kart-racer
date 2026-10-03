@@ -1,3 +1,4 @@
+import { kartLinedUp } from '../../../../sim/ai/itemTactics';
 import { applyEffect, hasEffect } from '../../../../sim/items/effects';
 import { hitKarts, spawnEntity, type EntitySpec } from '../../../../sim/items/entities';
 import { add, forwardFromHeading, scale } from '../../../../sim/math';
@@ -59,6 +60,10 @@ export default mk8ItemSim({
       applyEffect(kart, FIRE, ticks(tuning.mk8.fireTime), state, events);
     }
   },
+  // AI (MK-129): the first fireball at a kart lined up ahead; then it keeps firing (it thinks again
+  // between shots) until the flower runs out.
+  aiUse: (kart, state, { giveUp }) =>
+    hasEffect(kart, FIRE) || kartLinedUp(kart, state, tuning.mk8.aiFireRange) || giveUp,
   entities: [fireballSpec],
   effects: [
     {

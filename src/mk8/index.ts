@@ -5,6 +5,7 @@ import { trackLoad } from '../game/pending';
 import { browserStore, type KeyValueStore } from '../game/storage/store';
 import { showErrorBanner } from '../ui/errorBanner';
 import type { Router } from '../ui/router';
+import { installMk8ItemSounds } from './audio/itemSoundSkin';
 import { Mk8AudioPlayer } from './audio/player';
 import { courseInfo } from './content/cups';
 import type { Mk8RaceSetup } from './flow';
@@ -111,6 +112,9 @@ installMk8Hud({
   play: (id) => audioPlayer().play(id),
   expose: (hud) => (window.__mk8 = { sounds: [], ...window.__mk8, hud }),
 });
+
+// MK8 races' item sounds (MK-129) from the pack, over our synth's.
+installMk8ItemSounds(() => audioPlayer());
 
 /** Where the `mk8-loading` scenario holds the bar. */
 const DEMO_PROGRESS = 0.5;

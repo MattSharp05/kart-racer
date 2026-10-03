@@ -76,8 +76,11 @@ export interface LoaderOptions {
   loadFonts?: () => Promise<void>;
 }
 
-/** Item and item box models (MK-103), one group. */
-export const ITEM_GROUPS = ['items'] as const;
+/**
+ * Item and item box models (MK-103), and (MK-129) the item sounds and star music: loaded together
+ * for a race.
+ */
+export const ITEM_GROUPS = ['items', 'audio/items', 'audio/star'] as const;
 
 /** The groups of a course and of some racers, as the pipeline names them (`tools/mk8/sources.ts`). */
 export const courseGroups = (id: string): string[] => [`course/${id}`, `audio/course/${id}`];

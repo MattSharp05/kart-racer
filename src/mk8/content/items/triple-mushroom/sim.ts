@@ -1,3 +1,4 @@
+import { mushroomTactic } from '../../../../sim/ai/itemTactics';
 import { applyBoost } from '../../../../sim/drift';
 import { tuning } from '../../../../sim/tuning';
 import { mk8ItemSim } from '../sim';
@@ -13,4 +14,6 @@ export default mk8ItemSim({
   order: 340,
   uses: TRIPLE_USES,
   onUse: (kart, _state, events) => applyBoost(kart, tuning.mushroomSeconds, events),
+  // AI (MK-129): each boost on a straight, like a mushroom.
+  aiUse: mushroomTactic,
 });
