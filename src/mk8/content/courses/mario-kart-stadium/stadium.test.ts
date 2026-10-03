@@ -20,7 +20,7 @@ const hasPack = existsSync(COLLISION);
 describe('Mario Kart Stadium: route and data (MK-105)', () => {
   it('is the Mushroom Cup’s first course, by its pack id and track id', () => {
     const course = MK8_CUPS.find((c) => c.id === 'mushroom')?.courses[0];
-    expect(course).toMatchObject({ packId: stadium.packId, trackId: stadium.trackId });
+    expect(course).toMatchObject({ pack: stadium.packId, trackId: stadium.trackId });
     expect(mk8Course('mario-kart-stadium')).toBe(stadium);
     expect(stadium.trackId).toBe('mk8-stadium');
     expect(stadium.name).toBe('Mario Kart Stadium');

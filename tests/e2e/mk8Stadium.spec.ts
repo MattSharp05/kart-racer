@@ -74,6 +74,35 @@ test.describe('Mario Kart Stadium on the real pack (MK-105, local only)', () => 
     expect(state.phase).toBe('countdown');
   });
 
+  test('the whole flow: title → Grand Prix → character → kart builder → 150cc → Mushroom Cup races on Stadium', async ({
+    page,
+  }) => {
+    const settled = async (n: number) => {
+      await expect(page.locator('.mk8')).toHaveAttribute('data-depth', String(n));
+      await expect(page.locator('.mk8')).toHaveAttribute('data-transitioning', 'false');
+    };
+    await loadScenario(page, 'mk8-ui-title');
+    await settled(1);
+    // Title → mode select → character select → kart builder → engine class → cup select.
+    for (const [depth, screen] of [
+      [2, '.mk8-scr-modes'],
+      [3, '.mk8-scr-char'],
+      [4, '.mk8-scr-kart-next'],
+      [5, '.mk8-scr-cc'],
+      [6, '.mk8-scr-cup'],
+    ] as const) {
+      await page.keyboard.press('Enter');
+      await settled(depth);
+      await expect(page.locator(screen)).toBeVisible();
+    }
+    await page.keyboard.press('Enter');
+    await expect(page.locator('.mk8')).toHaveCount(0, { timeout: 60_000 });
+    const state = await getState(page);
+    expect(state.trackId).toBe('mk8-stadium');
+    expect(state.phase).toBe('countdown');
+    expect(state.karts).toHaveLength(8);
+  });
+
   test('mk8-stadium-final-lap: one more time over the line finishes the race', async ({ page }) => {
     await loadScenario(page, 'mk8-stadium-final-lap', { paused: true });
     const before = await getState(page);

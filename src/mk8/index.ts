@@ -6,6 +6,7 @@ import { browserStore, type KeyValueStore } from '../game/storage/store';
 import { showErrorBanner } from '../ui/errorBanner';
 import type { Router } from '../ui/router';
 import { Mk8AudioPlayer } from './audio/player';
+import { courseInfo } from './content/cups';
 import type { Mk8RaceSetup } from './flow';
 import type { SoundId } from './audio/soundIds';
 import { parseVoiceIndex, voiceClips, VOICES_PATH, type VoiceSoundId } from './audio/voices';
@@ -17,7 +18,6 @@ import {
   PackNotInstalledError,
   type LoaderOptions,
 } from './loader';
-import { courseInfo, type Mk8CourseKey } from './content/cups';
 import { mk8Course } from './content/courses';
 import { loadMk8Course } from './courses';
 import { registerMk8Content } from './register';
@@ -280,7 +280,7 @@ async function openMenus(
   const ctx: Mk8Context = {
     sprites: packSprites(files),
     flow,
-    loadCourse: (course, onProgress) => loadCourse(files, course, onProgress),
+    loadCourse: (course, onProgress) => loadCourse(files, courseInfo(course).pack, onProgress),
     startRace: (setup) => host.startRace?.(setup),
     packFile: (path) => files.file(path),
     frozen: openedPaused(),
@@ -305,14 +305,13 @@ async function openMenus(
  */
 async function loadCourse(
   files: Mk8Loader,
-  key: Mk8CourseKey,
+  pack: string,
   onProgress: (fraction: number) => void,
 ): Promise<void> {
-  const content = mk8Course(courseInfo(key).packId);
+  const content = mk8Course(pack);
   try {
-    // A course not drivable yet loads nothing from the pack, but its race waits for the manifest.
     if (content) await loadMk8Course(files, content, (f) => onProgress(f * COURSE_SHARE));
-    else await files.loadManifest();
+    else await files.loadCourse(pack, (f) => onProgress(f * COURSE_SHARE));
   } catch (e) {
     // No pack here, or (MK-135) the site's pack still locked: the stand-in.
     if (!(e instanceof PackNotInstalledError || e instanceof PackLockedError)) throw e;

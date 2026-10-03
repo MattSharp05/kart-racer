@@ -1,13 +1,19 @@
 // Writes the fixture pack's synthetic models (MK-101): a block figure per MK8 racer id (two
 // materials, a two-joint skeleton with a `Head` bone, like the real rigged racers), the Standard
-// Kart's body and tire, and Lakitu on his cloud, and adds them to `manifest.json`. MK-102 added the
+// Kart's body and tires, and Lakitu on his cloud, and adds them to `manifest.json`. MK-102 added the
 // other kart parts: 5 bodies, 3 tires and 3 gliders, each its own colour and proportions. No Nintendo
-// files: every shape is a coloured box or cylinder made here. Run from the repo root:
+// files: every shape is a coloured box or cylinder made here. MK-136: the Standard Kart's parts copy
+// the real pack's quirks `render/racerModel.ts` handles: skinned and quantized meshes, the tire
+// model as the set of four (each tire with an overlay layer on the same geometry), physical
+// materials, a full white glow on the tires, and fully transparent materials (the paint, Peach).
+// Run from the repo root:
 //   node tests/e2e/fixtures/mk8-pack/makeModels.ts
 import { createHash } from 'node:crypto';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { Document, NodeIO, type Material, type Mesh, type Node } from '@gltf-transform/core';
+import { KHRMaterialsIOR, KHRMeshQuantization } from '@gltf-transform/extensions';
+import { quantize } from '@gltf-transform/functions';
 
 const PACK = import.meta.dirname;
 const RACERS = [
@@ -142,6 +148,32 @@ function material(doc: Document, rgb: readonly number[]): Material {
     .setMetallicFactor(0);
 }
 
+/** What the real pack's DAE conversion makes of an opaque material: blend, opacity 0. */
+function lostOpacity(m: Material): Material {
+  const [r, g, b] = m.getBaseColorFactor();
+  return m.setAlphaMode('BLEND').setBaseColorFactor([r, g, b, 0]);
+}
+
+/** A one-joint skin at the origin (the real kart parts are all skinned). */
+function rootSkin(
+  doc: Document,
+  name: string,
+): { joint: Node; skin: ReturnType<Document['createSkin']> } {
+  const joint = doc.createNode(`${name}_root`);
+  const skin = doc
+    .createSkin(name)
+    .addJoint(joint)
+    .setSkeleton(joint)
+    .setInverseBindMatrices(
+      doc
+        .createAccessor()
+        .setType('MAT4')
+        .setArray(new Float32Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]))
+        .setBuffer(doc.getRoot().listBuffers()[0]!),
+    );
+  return { joint, skin };
+}
+
 /** A primitive from shapes (merged), optionally bound to one joint each. */
 function primitive(doc: Document, shapes: Shape[], mat: Material, joint?: number) {
   const buffer = doc.getRoot().listBuffers()[0]!;
@@ -207,6 +239,8 @@ function racer(index: number): Document {
   const tall = 1 + (index % 4) * 0.08;
   const headY = 0.62 * tall;
   const bodyMat = material(doc, COLOURS[index]!);
+  // Peach's materials came out of the real conversion fully transparent.
+  if (RACERS[index] === 'peach') lostOpacity(bodyMat);
   const skinMat = material(doc, [0.98, 0.82, 0.68]);
   const mesh: Mesh = doc
     .createMesh('figure')
@@ -254,7 +288,7 @@ function racer(index: number): Document {
 
 function kartBody(): Document {
   const doc = newDoc();
-  const paint = material(doc, [0.85, 0.12, 0.12]);
+  const paint = lostOpacity(material(doc, [0.85, 0.12, 0.12]));
   const trim = material(doc, [0.2, 0.2, 0.22]);
   const mesh = doc
     .createMesh('standard-kart')
@@ -263,6 +297,7 @@ function kartBody(): Document {
         doc,
         [box([0, 0.2, 0], [1.1, 0.3, 1.7]), box([0, 0.38, 0.62], [0.9, 0.12, 0.4])],
         paint,
+        0,
       ),
     )
     .addPrimitive(
@@ -270,18 +305,73 @@ function kartBody(): Document {
         doc,
         [box([0, 0.55, -0.2], [0.7, 0.5, 0.12]), box([0, 0.45, 0.75], [0.35, 0.25, 0.08])],
         trim,
+        0,
       ),
     );
-  scene(doc, doc.createNode('standard-kart').setMesh(mesh));
+  const { joint, skin } = rootSkin(doc, 'standard-kart');
+  scene(doc, joint, doc.createNode('standard-kart').setMesh(mesh).setSkin(skin));
   return doc;
 }
 
+/** Where the set's four tires sit, in its own (bigger) units, like the real model's. */
+const TIRE_SPOTS: Record<string, Vec3> = {
+  LF: [3, 0, 3.5],
+  RF: [-3, 0, 3.5],
+  LB: [3, 0, -3.5],
+  RB: [-3, 0, -3.5],
+};
+const TIRE_SET_SCALE = 3.5;
+
+/**
+ * The Standard Tires as the real pack has them: the kart's four tires in place, each a skinned
+ * mesh drawn at its wheel by a joint, plus an overlay layer on the same geometry (pale, like the
+ * real mask texture). The rubber is a physical material with a full white glow, as converted.
+ */
 function tire(): Document {
   const doc = newDoc();
-  const mesh = doc
-    .createMesh('standard-tire')
-    .addPrimitive(primitive(doc, [cylinder()], material(doc, [0.08, 0.08, 0.1])));
-  scene(doc, doc.createNode('standard-tire').setMesh(mesh));
+  const ior = doc.createExtension(KHRMaterialsIOR).createIOR().setIOR(1.45);
+  const rubber = material(doc, [0.08, 0.08, 0.1])
+    .setName('m_Tire')
+    .setEmissiveFactor([1, 1, 1])
+    .setExtension('KHR_materials_ior', ior);
+  const overlay = material(doc, [0.95, 0.95, 0.95]).setName('m_Tire.001');
+  const buffer = doc.getRoot().listBuffers()[0]!;
+  const root = doc.createNode('tires_root');
+  const joints = Object.entries(TIRE_SPOTS).map(([name, at]) => {
+    const joint = doc.createNode(`Tire_${name}`).setTranslation(at);
+    root.addChild(joint);
+    return joint;
+  });
+  const skin = doc
+    .createSkin('tires')
+    .setSkeleton(root)
+    .setInverseBindMatrices(
+      doc
+        .createAccessor()
+        .setType('MAT4')
+        .setArray(
+          new Float32Array(joints.flatMap(() => [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1])),
+        )
+        .setBuffer(buffer),
+    );
+  for (const joint of joints) skin.addJoint(joint);
+  const scaled = (shape: Shape): Shape => ({
+    ...shape,
+    positions: shape.positions.map((v) => v * TIRE_SET_SCALE),
+  });
+  const nodes = Object.keys(TIRE_SPOTS).flatMap((name, i) =>
+    [rubber, overlay].map((mat, layer) =>
+      doc
+        .createNode(`TireK_${name}__m_Tire${layer ? '_001' : ''}`)
+        .setMesh(
+          doc
+            .createMesh(`tire-${name}-${layer}`)
+            .addPrimitive(primitive(doc, [scaled(cylinder())], mat, i)),
+        )
+        .setSkin(skin),
+    ),
+  );
+  scene(doc, root, ...nodes);
   return doc;
 }
 
@@ -406,9 +496,11 @@ interface Entry {
   group: string;
 }
 
-const io = new NodeIO();
+const io = new NodeIO().registerExtensions([KHRMaterialsIOR, KHRMeshQuantization]);
 const written: Entry[] = [];
-async function write(path: string, group: string, doc: Document): Promise<void> {
+async function write(path: string, group: string, doc: Document, quantized = false): Promise<void> {
+  // The real pack's meshes are quantized: a skinned mesh's scale then lives in its bind matrices.
+  if (quantized) await doc.transform(quantize());
   const bytes = await io.writeBinary(doc);
   mkdirSync(dirname(join(PACK, path)), { recursive: true });
   writeFileSync(join(PACK, path), bytes);
@@ -422,8 +514,8 @@ async function write(path: string, group: string, doc: Document): Promise<void> 
 
 for (const [i, id] of RACERS.entries())
   await write(`models/racers/${id}.glb`, `racer/${id}`, racer(i));
-await write('models/karts/bodies/standard-kart.glb', 'karts', kartBody());
-await write('models/karts/tires/standard-tires.glb', 'karts', tire());
+await write('models/karts/bodies/standard-kart.glb', 'karts', kartBody(), true);
+await write('models/karts/tires/standard-tires.glb', 'karts', tire(), true);
 await write('models/npcs/lakitu.glb', 'npcs', lakitu());
 for (const [id, rgb, hull, extra] of BODIES)
   await write(`models/karts/bodies/${id}.glb`, 'karts', otherBody(id, rgb, hull, extra));
