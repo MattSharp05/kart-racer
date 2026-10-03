@@ -6,6 +6,7 @@ import { browserStore, type KeyValueStore } from '../game/storage/store';
 import { showErrorBanner } from '../ui/errorBanner';
 import type { Router } from '../ui/router';
 import { Mk8AudioPlayer } from './audio/player';
+import { courseInfo } from './content/cups';
 import type { Mk8RaceSetup } from './flow';
 import type { SoundId } from './audio/soundIds';
 import { parseVoiceIndex, voiceClips, VOICES_PATH, type VoiceSoundId } from './audio/voices';
@@ -266,7 +267,7 @@ async function openMenus(
     sprites: packSprites(files),
     flow,
     files: { load: (paths) => files.loadFiles(paths), file: (path) => files.file(path) },
-    loadCourse: (course, onProgress) => loadCourse(files, course, onProgress),
+    loadCourse: (course, onProgress) => loadCourse(files, courseInfo(course).pack, onProgress),
     startRace: (setup) => host.startRace?.(setup),
     packFile: (path) => files.file(path),
     frozen: openedPaused(),
