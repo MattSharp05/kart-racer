@@ -29,9 +29,11 @@ import { Progress } from './ui/loading';
 import './ui/password';
 import { cupSelect } from './ui/screens/cupSelect';
 import { engineClass } from './ui/screens/engineClass';
+import { kartBuilder } from './ui/screens/kartBuilder';
 import { characterStandIn, modeSelect } from './ui/screens/modeSelect';
 import type { Mk8Context, Mk8Flow } from './ui/screens/session';
 import { titleScreen } from './ui/screens/title';
+import { browserStore } from '../game/storage/store';
 import { sprite } from './ui/sprites';
 import type { Mk8ScreenFactory } from './ui/stack';
 import './ui/stack';
@@ -67,7 +69,7 @@ declare global {
  * asks for the site's pack password first. A `StageDemoId` (MK-101's scenarios) loads those
  * models and shows them on the 3D stage. MK-119: `cc` (a Grand Prix's engine class), `cup`
  * (a 150cc Grand Prix's cup select) and `course` (a 150cc VS Race's cup/course select), each over
- * the screens that lead there.
+ * the screens that lead there. MK-118: `kart` (a Grand Prix's kart builder).
  */
 export type Mk8Start =
   | 'load'
@@ -79,6 +81,7 @@ export type Mk8Start =
   | 'cc'
   | 'cup'
   | 'course'
+  | 'kart'
   | 'password'
   | StageDemoId;
 
@@ -87,14 +90,18 @@ const DEEP_STARTS: Partial<
   Record<Mk8Start, { flow: Mk8Flow; screens: ((ctx: Mk8Context) => Mk8ScreenFactory)[] }>
 > = {
   mode: { flow: {}, screens: [modeSelect] },
-  cc: { flow: { mode: 'grand-prix' }, screens: [modeSelect, characterStandIn, engineClass] },
+  kart: { flow: { mode: 'grand-prix' }, screens: [modeSelect, characterStandIn, kartBuilder] },
+  cc: {
+    flow: { mode: 'grand-prix' },
+    screens: [modeSelect, characterStandIn, kartBuilder, engineClass],
+  },
   cup: {
     flow: { mode: 'grand-prix', engineClass: 150 },
-    screens: [modeSelect, characterStandIn, engineClass, cupSelect],
+    screens: [modeSelect, characterStandIn, kartBuilder, engineClass, cupSelect],
   },
   course: {
     flow: { mode: 'vs', engineClass: 150 },
-    screens: [modeSelect, characterStandIn, engineClass, cupSelect],
+    screens: [modeSelect, characterStandIn, kartBuilder, engineClass, cupSelect],
   },
 };
 
@@ -243,6 +250,9 @@ async function openMenus(
   const ctx: Mk8Context = {
     sprites: packSprites(files),
     flow,
+    store: browserStore(),
+    files: { load: (paths) => files.loadFiles(paths), file: (path) => files.file(path) },
+    frozen: openedPaused(),
     loadCourse: (course, onProgress) => loadCourse(files, course, onProgress),
     startRace: (setup) => host.startRace?.(setup),
   };

@@ -396,10 +396,18 @@ export const mk8Scenarios: Scenario[] = [
     setup: (seed) => ({ state: attractMode(seed), screen: 'mk8UiMode' }),
   },
   {
+    name: 'mk8-ui-kart',
+    group: 'MK8 Mode',
+    description:
+      "MK8 kart builder for a Grand Prix (MK-118): Body, Tires and Glider reels (←→ column, ↑↓ part; tap the arrows or swipe a reel) and the stats panel, whose 5 bars slide to the loadout's MK8 stats. Starts on the last saved kart (Mario in the standard kart the first time). With a local pack the panel shows the racer in the kart in 3D, glider open on the Glider column. OK saves the kart and goes on to the engine class.",
+    defaultSeed: 1,
+    setup: (seed) => ({ state: attractMode(seed), screen: 'mk8UiKart' }),
+  },
+  {
     name: 'mk8-ui-cc',
     group: 'MK8 Mode',
     description:
-      'MK8 engine class (MK-119): the 50/100/150/200cc shields (200cc NEW) for a Grand Prix, 150cc selected. OK goes on to the cup select; Back walks back through character select (a stand-in for now) and the mode select. The real shields with a local pack, stand-ins otherwise.',
+      'MK8 engine class (MK-119): the 50/100/150/200cc shields (200cc NEW) for a Grand Prix, 150cc selected. OK goes on to the cup select; Back walks back through the kart builder, character select (a stand-in for now) and the mode select. The real shields with a local pack, stand-ins otherwise.',
     defaultSeed: 1,
     setup: (seed) => ({ state: attractMode(seed), screen: 'mk8UiCc' }),
   },

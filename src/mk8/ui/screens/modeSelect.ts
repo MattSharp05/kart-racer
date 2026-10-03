@@ -1,11 +1,11 @@
 // MK8 mode select (MK-116, the approved mockup's screen 3): Grand Prix, VS Race, Time Trial and
 // Online as slanted tiles, the selected one's art in the side panel. OK records the mode in the
-// flow and goes on to character select (a stand-in until its ticket, MK-119: OK there goes on to
-// the engine class); Back returns to the title.
+// flow and goes on to character select (a stand-in until its ticket, MK-117: OK there goes on to
+// the kart builder, MK-118); Back returns to the title.
 import { art, Menu, menuScreen, panel, wideTile } from '../kit';
 import { menuAction } from '../kit/nav';
 import type { Mk8ScreenFactory } from '../stack';
-import { engineClass } from './engineClass';
+import { kartBuilder } from './kartBuilder';
 import { MK8_MODES, modeInfo, type Mk8Context, type Mk8GameMode } from './session';
 import './modeSelect.css';
 
@@ -51,9 +51,9 @@ export function modeSelect(ctx: Mk8Context): Mk8ScreenFactory {
 }
 
 /**
- * Where a mode leads: character select and the kart builder, which later tickets build. Until
- * then a stand-in that shows the mode it was given; OK goes on to the engine class (MK-119),
- * except Online, whose rooms come with their ticket.
+ * Where a mode leads: character select, which its own ticket (MK-117) builds. Until then a
+ * stand-in that shows the mode it was given; OK goes on to the kart builder (MK-118), except
+ * Online, whose rooms come with their ticket.
  */
 export function characterStandIn(ctx: Mk8Context): Mk8ScreenFactory {
   return (stack) => {
@@ -61,7 +61,7 @@ export function characterStandIn(ctx: Mk8Context): Mk8ScreenFactory {
     const goesOn = mode !== 'online';
     const ok = () => {
       stack.sounds.play('ui/decide');
-      stack.push(engineClass(ctx));
+      stack.push(kartBuilder(ctx));
     };
     const { el, body } = menuScreen({
       name: 'character-next',
