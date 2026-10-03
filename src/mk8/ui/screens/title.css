@@ -1,0 +1,145 @@
+/* MK8 title (MK-116), in the mockup's 1280×720 positions times `--u`. */
+
+.mk8 .mk8-scr-title {
+  display: block;
+  background: radial-gradient(ellipse at 50% 40%, #fff 0, #dfe9fb 45%, #9fc3f2 100%);
+  cursor: pointer;
+}
+
+.mk8 .mk8-title-back {
+  position: absolute;
+  top: max(calc(22 * var(--u)), env(safe-area-inset-top));
+  left: max(calc(24 * var(--u)), env(safe-area-inset-left));
+  z-index: 1;
+  min-height: var(--tap);
+  padding: 0 max(10px, calc(12 * var(--u)));
+  border-radius: 6px;
+  background: #ffffffcc;
+  color: #3d4b74;
+  font-size: max(13px, calc(15 * var(--u)));
+  font-weight: 700;
+}
+
+.mk8 .mk8-title-back b {
+  font-weight: 900;
+}
+
+.mk8-title-logo {
+  position: absolute;
+  top: calc(150 * var(--u));
+  left: 50%;
+  width: calc(760 * var(--u));
+  transform: translateX(-50%);
+  filter: drop-shadow(0 calc(10 * var(--u)) calc(18 * var(--u)) #0a2a6a55);
+  animation: mk8-logo-in 0.9s cubic-bezier(0.2, 1.4, 0.4, 1);
+}
+
+/* The pack's logo sprite has an opaque white background: multiply drops it into the sky (a
+   drop shadow would outline the box). */
+img.mk8-title-logo {
+  filter: none;
+  mix-blend-mode: multiply;
+}
+
+/* No pack: our own wordmark, the size of the logo. */
+.mk8-title-logo-stand-in {
+  display: flex;
+  justify-content: center;
+  align-items: baseline;
+  gap: calc(24 * var(--u));
+  height: calc(232 * var(--u));
+  padding-top: calc(10 * var(--u));
+  color: var(--mk8-red);
+  font-weight: 900;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.mk8-title-logo-stand-in b {
+  font-size: calc(190 * var(--u));
+  text-shadow: 0 calc(8 * var(--u)) 0 #8a1218;
+  -webkit-text-stroke: calc(8 * var(--u)) #fff;
+  paint-order: stroke fill;
+}
+
+.mk8-title-logo-stand-in span {
+  color: var(--mk8-blue);
+  font-size: calc(96 * var(--u));
+  -webkit-text-stroke: calc(6 * var(--u)) #fff;
+  paint-order: stroke fill;
+}
+
+@keyframes mk8-logo-in {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) scale(0.6);
+  }
+}
+
+.mk8-title-press {
+  position: absolute;
+  top: calc(500 * var(--u));
+  left: 0;
+  right: 0;
+  color: var(--mk8-blue-deep);
+  font-size: max(18px, calc(34 * var(--u)));
+  font-weight: 900;
+  text-align: center;
+  animation: mk8-blink 1.1s steps(2) infinite;
+}
+
+.mk8-title-press-touch {
+  display: none;
+}
+
+/* Phones and tablets: just "Tap to start". */
+@media (hover: none) and (pointer: coarse) {
+  .mk8-title-press-keys {
+    display: none;
+  }
+
+  .mk8-title-press-touch {
+    display: inline;
+  }
+}
+
+@keyframes mk8-blink {
+  50% {
+    opacity: 0.25;
+  }
+}
+
+.mk8-title-racers {
+  position: absolute;
+  bottom: max(calc(30 * var(--u)), env(safe-area-inset-bottom));
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: center;
+  gap: calc(10 * var(--u));
+}
+
+.mk8-title-racers .mk8-art {
+  width: calc(64 * var(--u));
+  height: calc(64 * var(--u));
+  font-size: calc(30 * var(--u));
+  animation: mk8-bob 1.6s ease-in-out infinite alternate;
+}
+
+.mk8-title-racers .mk8-art:nth-child(odd) {
+  animation-delay: 0.4s;
+}
+
+@keyframes mk8-bob {
+  to {
+    transform: translateY(calc(-8 * var(--u)));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mk8-title-logo,
+  .mk8-title-press,
+  .mk8-title-racers .mk8-art {
+    animation: none;
+  }
+}

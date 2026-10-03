@@ -1,5 +1,5 @@
 import type { AiItemContext } from '../../sim/ai/items';
-import type { EffectContent } from '../../sim/items/effects';
+import type { EffectContent, IncomingHit } from '../../sim/items/effects';
 import type { EntitySpec } from '../../sim/items/entities';
 import type { InputFrame, KartState, SimEvent, SimState } from '../../sim/types';
 import { Registry } from '../registry';
@@ -38,6 +38,12 @@ export interface ItemContent {
    * fills slot 2.
    */
   keepsSlot?(kart: KartState, state: SimState): boolean;
+  /**
+   * A hit is about to land on a kart holding this item in slot 1 (roulette finished): return true
+   * to stop it (MK-112: MK8's triple shells and bananas stop one hit from behind each, using one
+   * up). Runs before the kart's effects are asked.
+   */
+  guardHit?(kart: KartState, hit: IncomingHit, events: SimEvent[]): boolean;
   /** Runs every tick while a kart holds this item (roulette finished), before it can be used. */
   onHoldTick?(kart: KartState, state: SimState, dt: number, events: SimEvent[]): void;
   /**

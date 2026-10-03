@@ -34,6 +34,10 @@ const SHAPES: Record<string, () => Shape> = {
     colour: green,
   }),
   mushroom: () => ({ geometry: new THREE.SphereGeometry(1, 12, 8), colour: [0.9, 0.1, 0.1] }),
+  'golden-mushroom': () => ({
+    geometry: new THREE.SphereGeometry(1, 12, 8),
+    colour: [0.95, 0.7, 0.05],
+  }),
   star: () => ({ geometry: new THREE.OctahedronGeometry(1), colour: [1, 0.9, 0.1] }),
   lightning: () => ({ geometry: new THREE.ConeGeometry(0.5, 2, 4), colour: [1, 1, 1] }),
   'boomerang-flower': () => ({

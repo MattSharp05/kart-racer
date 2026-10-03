@@ -11,6 +11,12 @@ export interface IncomingHit {
    * guards against items and bumps lets it through.
    */
   crush?: boolean;
+  /**
+   * Where the thing that hit it was (a shell, a banana, an item entity), on the XZ plane; absent
+   * for hits from no place in particular (a star bump, lightning, a hazard). MK8's triple items
+   * (MK-112) stop hits from behind.
+   */
+  from?: { x: number; z: number };
 }
 
 /**

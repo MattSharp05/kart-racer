@@ -59,7 +59,7 @@ test.describe('MK8 pack password (MK-135)', () => {
 
     await field.fill(PASSWORD);
     await field.press('Enter');
-    await expect(page.locator('.menu-mk8Placeholder')).toBeVisible();
+    await expect(page.locator('.mk8-scr-title')).toBeVisible();
     const [cookie] = await context.cookies();
     expect(cookie?.name).toBe('mk8_session');
     expect(cookie?.httpOnly).toBe(true);

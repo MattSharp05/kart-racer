@@ -17,12 +17,15 @@ export type MenuScreen =
   | 'leaderboard'
   // MK8 Mode (MK-97): the title with its button picked, its loading bar held at 50 %, its "pack
   // not installed" screen, and MK8 Mode opened as the button does (loading the pack). MK-104:
-  // the UI kit's style guide. MK-135: the site's pack password box.
+  // the UI kit's style guide. MK-116: the MK8 title and the mode select. MK-135: the site's pack
+  // password box.
   | 'mk8Entry'
   | 'mk8Loading'
   | 'mk8NotInstalled'
   | 'mk8'
   | 'mk8UiKit'
+  | 'mk8UiTitle'
+  | 'mk8UiMode'
   | 'mk8Password';
 
 export interface ScenarioSetup {

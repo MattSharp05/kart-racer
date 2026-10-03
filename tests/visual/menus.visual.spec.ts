@@ -14,6 +14,8 @@ for (const name of [
   'mk8-loading',
   'mk8-not-installed',
   'mk8-ui-kit',
+  'mk8-ui-title',
+  'mk8-ui-mode',
 ]) {
   test(`${name} (paused)`, async ({ page }) => {
     await loadScenario(page, name, { paused: true });

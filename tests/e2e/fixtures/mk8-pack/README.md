@@ -8,4 +8,4 @@ Playwright route interception, so the loader's e2e tests run in CI, which never 
 MK-103 added `models/items/*.glb`: one plain coloured shape per MK8 item model id, written by
 `node tests/e2e/fixtures/mk8-pack/makeItemModels.ts` (which also updates `manifest.json`). They
 copy the real pack's quirks the loader fixes: the top along −Z, the item box's glass at opacity 0,
-and the red shell coloured like the green one.
+and the red shell coloured like the green one. MK-112 added `golden-mushroom`.

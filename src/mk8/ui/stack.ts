@@ -68,8 +68,11 @@ export class Mk8Stack {
     return this.busy;
   }
 
-  /** Shows a new screen over the current one (the first one shows at once). */
-  push(factory: Mk8ScreenFactory): void {
+  /**
+   * Shows a new screen over the current one, behind the wipe; the first one (or an `instant`
+   * one: a scenario opening a screen deep in the menus) shows at once.
+   */
+  push(factory: Mk8ScreenFactory, instant = false): void {
     if (this.busy) return;
     const below = this.screens[this.screens.length - 1];
     const swap = () => {
@@ -78,7 +81,7 @@ export class Mk8Stack {
       this.screens.push(screen);
       this.root.insertBefore(screen.el, this.wipe);
     };
-    if (below) this.transition(swap);
+    if (below && !instant) this.transition(swap);
     else {
       swap();
       this.mark();
@@ -161,6 +164,8 @@ export class Mk8Stack {
 
 export interface Mk8StackProps {
   first: Mk8ScreenFactory;
+  /** Screens shown over `first` at once (Back walks down through them). */
+  then?: readonly Mk8ScreenFactory[];
   sounds: SoundPlayer;
   onExit: () => void;
 }
@@ -171,10 +176,11 @@ declare module '../../ui/router' {
   }
 }
 
-registerScreen('mk8Stack', (panel, { first, sounds, onExit }) => {
+registerScreen('mk8Stack', (panel, { first, then = [], sounds, onExit }) => {
   const stack = new Mk8Stack({ sounds, onExit });
   panel.classList.add('mk8-host');
   panel.append(stack.root);
   stack.push(first);
+  for (const screen of then) stack.push(screen, true);
   return { onKey: (e) => stack.handleKey(e), dispose: () => stack.dispose() };
 });
