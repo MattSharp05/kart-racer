@@ -6,3 +6,4 @@ export { mk8SpinBoostTuning } from './spinBoost';
 export { mk8SpinyHornTuning } from './spinyHorn';
 export { mk8StatMapTuning } from './statMap';
 export { mk8SurfaceKartTuning } from './surfaceKart';
+export { mk8BulletBillTuning } from './bulletBill';
