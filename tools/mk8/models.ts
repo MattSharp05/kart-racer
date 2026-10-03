@@ -1,4 +1,5 @@
-// OBJ → compressed GLB (MK-93, ADR 0009): obj2gltf, then glTF-Transform: dedup, weld, prune,
+// OBJ or DAE → compressed GLB (MK-93, ADR 0009): obj2gltf (OBJ) or assimpjs (DAE, keeps skins),
+// then glTF-Transform: dedup, weld, prune,
 // simplify decoration (meshoptimizer), WebP textures (max 1024 px, and a 512 px `-low` set),
 // meshopt compression. Same input → same bytes: nothing reads the clock or the file system
 // order, and the writer is given everything in a fixed order.
@@ -13,6 +14,10 @@ import {
   weld,
 } from '@gltf-transform/functions';
 import { MeshoptDecoder, MeshoptEncoder, MeshoptSimplifier } from 'meshoptimizer';
+import assimpjs from 'assimpjs';
+import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { basename, dirname, extname, join } from 'node:path';
 import obj2gltf from 'obj2gltf';
 import sharp from 'sharp';
 
@@ -67,6 +72,100 @@ async function readGlb(bytes: Uint8Array): Promise<Document> {
 export async function loadObj(objPath: string): Promise<Document> {
   const glb = await obj2gltf(objPath, { binary: true, secure: true, logger: () => {} });
   return readGlb(new Uint8Array(glb.buffer, glb.byteOffset, glb.byteLength));
+}
+
+let assimpPromise: ReturnType<typeof assimpjs> | undefined;
+
+/**
+ * Reads a COLLADA file (with its textures beside it) into a glTF-Transform document. assimp keeps
+ * the skeleton (skins, joints). Texture names in the DAE don't always match the files' case
+ * (`Peach_Alb.png` vs `peach_alb.png`), so image URIs are matched case-insensitively.
+ */
+export async function loadDae(daePath: string): Promise<Document> {
+  const ajs = await (assimpPromise ??= assimpjs());
+  const dir = dirname(daePath);
+  const names = readdirSync(dir, { withFileTypes: true })
+    .filter((e) => e.isFile())
+    .map((e) => e.name)
+    .sort();
+  const files = new ajs.FileList();
+  // The DAE first, so assimp picks it as the main file; textures after it.
+  files.AddFile(basename(daePath), readFileSync(daePath));
+  for (const name of names)
+    if (name !== basename(daePath) && !/\.(dae|obj|fbx|smd)$/i.test(name))
+      files.AddFile(name, readFileSync(join(dir, name)));
+  const result = ajs.ConvertFileList(files, 'gltf2');
+  if (!result.IsSuccess()) throw new Error(`${daePath}: assimp failed (${result.GetErrorCode()})`);
+  const tmp = mkdtempSync(join(tmpdir(), 'mk8-dae-'));
+  try {
+    let gltfName = '';
+    for (let i = 0; i < result.FileCount(); i++) {
+      const file = result.GetFile(i);
+      writeFileSync(join(tmp, file.GetPath()), file.GetContent());
+      if (file.GetPath().endsWith('.gltf')) gltfName = file.GetPath();
+    }
+    const gltfPath = join(tmp, gltfName);
+    const json = JSON.parse(readFileSync(gltfPath, 'utf8')) as {
+      images?: { uri?: string }[];
+      extensionsUsed?: string[];
+    };
+    // assimp tags meshes with FB_ngon_encoding, which no reader needs (triangles are triangles).
+    if (json.extensionsUsed)
+      json.extensionsUsed = json.extensionsUsed.filter((e) => e !== 'FB_ngon_encoding');
+    const byLower = new Map(names.map((n) => [n.toLowerCase(), n]));
+    // Images whose file isn't in the folder are dropped (their textures fall back to no map).
+    const missing = new Set<number>();
+    json.images?.forEach((image, index) => {
+      const name = basename(decodeURIComponent(image.uri ?? ''));
+      const found = byLower.get(name.toLowerCase());
+      if (!found) {
+        missing.add(index);
+        return;
+      }
+      writeFileSync(join(tmp, found), readFileSync(join(dir, found)));
+      image.uri = encodeURIComponent(found);
+    });
+    if (missing.size) dropImages(json, missing);
+    writeFileSync(gltfPath, JSON.stringify(json));
+    const doc = await (await createIO()).read(gltfPath);
+    return doc.setLogger(new Logger(Logger.Verbosity.WARN));
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+}
+
+/** Removes images (and the textures and material slots using them) from glTF JSON. */
+function dropImages(json: Record<string, unknown>, drop: Set<number>) {
+  type Json = Record<string, unknown>;
+  const textures = (json.textures ?? []) as Json[];
+  const deadTextures = new Set(
+    textures.flatMap((t, i) => (drop.has(t.source as number) ? [i] : [])),
+  );
+  const keep = (o: unknown): unknown => {
+    if (Array.isArray(o)) return o.map(keep);
+    if (!o || typeof o !== 'object') return o;
+    const out: Json = {};
+    for (const [k, v] of Object.entries(o as Json)) {
+      const ref = v as Json;
+      if (ref && typeof ref === 'object' && typeof ref.index === 'number' && /Texture$/.test(k))
+        if (deadTextures.has(ref.index)) continue;
+      out[k] = keep(v);
+    }
+    return out;
+  };
+  json.materials = keep(json.materials ?? []);
+  // Texture and image indices are kept (unused ones are pruned later), only the URI is cleared
+  // by pointing dead images at a 1×1 PNG.
+  const images = (json.images ?? []) as Json[];
+  for (const i of drop) images[i] = { uri: ONE_PIXEL_PNG };
+}
+
+const ONE_PIXEL_PNG =
+  'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=';
+
+/** Reads a model file (OBJ or DAE) into a document. */
+export function loadModel(path: string): Promise<Document> {
+  return extname(path).toLowerCase() === '.dae' ? loadDae(path) : loadObj(path);
 }
 
 /** Simplifies primitives whose material name matches one of `patterns`. */
@@ -143,11 +242,11 @@ export interface ConvertedModel {
 }
 
 export async function convertModel(
-  objPath: string,
+  modelPath: string,
   opts: ModelOptions = MODEL_DEFAULTS,
 ): Promise<ConvertedModel> {
   const io = await createIO();
-  const doc = await loadObj(objPath);
+  const doc = await loadModel(modelPath);
   await optimiseGeometry(doc, opts);
   const stats = modelStats(doc);
   // Each texture set encodes its own copy: the encoders mutate the document.

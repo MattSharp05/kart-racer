@@ -21,7 +21,9 @@ export interface ModelSource {
   kind: ModelKind;
   /** The source site's asset id, null when not looked up yet. */
   assetId: number | null;
-  /** The OBJ inside the raw folder, when there is more than one. */
+  /** The model file (OBJ or DAE) inside the raw folder, when there is more than one. */
+  file?: string;
+  /** Older name for `file`. */
   obj?: string;
   /** Material-name regexes whose meshes are simplified as decoration. */
   decoration?: string[];

@@ -45,6 +45,14 @@ export async function writeCubeModel(raw: string, id: string): Promise<void> {
   writeFileSync(join(dir, 'checker.png'), await checkerPng());
 }
 
+/** `<raw>/models/<id>/` with the hand-written cube as COLLADA (one textured material). */
+export async function writeCubeDaeModel(raw: string, id: string): Promise<void> {
+  const dir = join(raw, 'models', id);
+  mkdirSync(dir, { recursive: true });
+  copyFileSync(join(FIXTURES, 'cube', 'cube.dae'), join(dir, 'cube.dae'));
+  writeFileSync(join(dir, 'checker.png'), await checkerPng());
+}
+
 /** A flat `n × n` grid OBJ (2n² triangles) in one material: for the collision simplifier. */
 export function writeGridModel(raw: string, id: string, n: number): void {
   const dir = join(raw, 'models', id);

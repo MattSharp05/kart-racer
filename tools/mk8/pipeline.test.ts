@@ -2,7 +2,7 @@ import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import sharp from 'sharp';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
-import { buildModel, buildModels } from './buildModels.ts';
+import { buildModel, buildModels, findModelFile } from './buildModels.ts';
 import { checkAssets, loadBudgets } from './check.ts';
 import { readCollision, SURFACES } from './collision.ts';
 import { daeInfo } from './daeInfo.ts';
@@ -14,6 +14,7 @@ import {
   parseGlb,
   readTree,
   tempDir,
+  writeCubeDaeModel,
   writeCubeModel,
   writeGridModel,
 } from './testUtils.ts';
@@ -145,6 +146,34 @@ describe('mk8 model pipeline (fixture cube)', () => {
   }, 60_000);
 });
 
+describe('mk8 model pipeline (DAE)', () => {
+  const dae: ModelSource = { id: 'cube-dae', name: 'Cube (DAE)', kind: 'item', assetId: null };
+
+  it('converts a COLLADA model with its texture, deterministically', async () => {
+    const rawDae = temp('raw-dae');
+    await writeCubeDaeModel(rawDae, dae.id);
+    const a = await buildModel(dae, rawDae, temp('out-dae-a'));
+    const b = await buildModel(dae, rawDae, temp('out-dae-b'));
+    expect(a.report.triangles).toBe(12);
+    expect(a.report.textures).toBe(1);
+    expect(a.report.materials).toEqual(['road']);
+    expect(a.entries.map((e) => e.sha256)).toEqual(b.entries.map((e) => e.sha256));
+  });
+
+  it('picks the model file: "file" first, then a single .dae over a single .obj', async () => {
+    const dir = join(temp('pick'), 'models', 'x');
+    const raw2 = join(dir, '..', '..');
+    await writeCubeModel(raw2, 'x');
+    const src: ModelSource = { id: 'x', name: 'x', kind: 'racer', assetId: null };
+    expect(findModelFile(dir, src)).toBe(join(dir, 'cube.obj'));
+    await writeCubeDaeModel(raw2, 'x');
+    expect(findModelFile(dir, src)).toBe(join(dir, 'cube.dae'));
+    expect(findModelFile(dir, { ...src, file: 'cube.obj' })).toBe(join(dir, 'cube.obj'));
+    writeFileSync(join(dir, 'second.dae'), '<COLLADA/>');
+    expect(() => findModelFile(dir, src)).toThrow(/2 \.dae files.*set "file"/);
+  });
+});
+
 describe('mk8:check', () => {
   it('fails on a missing file, a hash mismatch and a budget overrun', async () => {
     const out = temp('out');
@@ -189,6 +218,8 @@ describe('sources.json', () => {
       ['standard-kart', 293519],
       ['item-box', 311932],
       ['lakitu', 293528],
+      ['slim-tires', 342341],
+      ['paper-glider', 315058],
     ] as const)
       expect(byId.get(id)?.assetId, id).toBe(assetId);
     expect(models.filter((m) => m.kind === 'racer')).toHaveLength(12);

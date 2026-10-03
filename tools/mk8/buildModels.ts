@@ -42,16 +42,23 @@ function listFiles(dir: string): string[] {
   return out;
 }
 
-export function findObj(rawModelDir: string, source: ModelSource): string {
-  if (source.obj) return join(rawModelDir, source.obj);
-  const objs = listFiles(rawModelDir).filter((f) => f.toLowerCase().endsWith('.obj'));
-  const [obj] = objs;
-  if (objs.length !== 1 || !obj)
-    throw new Error(
-      `${source.id}: expected one .obj in ${rawModelDir}, found ${objs.length}` +
-        (objs.length ? ` (${objs.join(', ')}); set "obj" in sources.json` : ''),
-    );
-  return join(rawModelDir, obj);
+/**
+ * The model file in a raw folder: `file` (or the older `obj`) from sources.json, else the only
+ * `.dae` (preferred: it keeps racers' skeletons), else the only `.obj`.
+ */
+export function findModelFile(rawModelDir: string, source: ModelSource): string {
+  const chosen = source.file ?? source.obj;
+  if (chosen) return join(rawModelDir, chosen);
+  const files = listFiles(rawModelDir);
+  for (const ext of ['.dae', '.obj']) {
+    const found = files.filter((f) => f.toLowerCase().endsWith(ext));
+    if (found.length === 1 && found[0]) return join(rawModelDir, found[0]);
+    if (found.length > 1)
+      throw new Error(
+        `${source.id}: ${found.length} ${ext} files in ${rawModelDir} (${found.join(', ')}); set "file" in sources.json`,
+      );
+  }
+  throw new Error(`${source.id}: no .dae or .obj in ${rawModelDir}`);
 }
 
 /** A course's material map: `tools/mk8/materials/<id>.json` when it exists, else the guesses. */
@@ -71,8 +78,8 @@ export async function buildModel(
   rawRoot: string,
   outRoot: string,
 ): Promise<{ entries: ManifestEntry[]; report: ModelReport }> {
-  const objPath = findObj(join(rawRoot, 'models', source.id), source);
-  const converted = await convertModel(objPath, {
+  const modelPath = findModelFile(join(rawRoot, 'models', source.id), source);
+  const converted = await convertModel(modelPath, {
     ...MODEL_DEFAULTS,
     decoration: source.decoration ?? [],
   });
@@ -123,7 +130,7 @@ export async function buildModels(
       continue;
     }
     const { entries, report } = await buildModel(source, rawRoot, outRoot);
-    result.entries.push(...entries);
+    for (const entry of entries) result.entries.push(entry);
     result.reports.push(report);
     log(
       `  ${source.id}: ${report.triangles} triangles, ${report.glbBytes} B (low ${report.glbLowBytes} B)`,
