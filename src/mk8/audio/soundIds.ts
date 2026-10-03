@@ -65,6 +65,9 @@ const FIXED = {
   'race/lakitu-rescue': { pack: 'mk8dx-race', file: 'lakitu-rescue.wav' },
   'race/finish': { pack: 'mk8dx-race', file: 'finish.wav' },
   'race/rank-up': { pack: 'mk8dx-race', file: 'rank-up.wav' },
+  // MK-121: the pause menu opening and closing (placeholder file names, like the others).
+  'race/pause': { pack: 'mk8dx-race', file: 'pause.wav' },
+  'race/unpause': { pack: 'mk8dx-race', file: 'unpause.wav' },
 
   'items/item-box-break': { pack: 'mkt-item', file: 'item-box-break.wav' },
   'items/mushroom-use': { pack: 'mkt-item', file: 'mushroom-use.wav' },

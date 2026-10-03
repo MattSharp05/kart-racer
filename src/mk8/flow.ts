@@ -10,7 +10,7 @@ import { MK8_ITEM_SET } from './content/items/id';
 import { defaultLoadout } from './content/parts';
 import { isKnownLoadout } from './content/stats';
 import { courseInfo, cupInfo, type Mk8CourseKey, type Mk8CupId } from './content/cups';
-import type { Mk8Flow, Mk8Loadout } from './ui/screens/session';
+import type { Mk8Flow, Mk8GameMode, Mk8Loadout } from './ui/screens/session';
 
 /** The kart before character select and the kart builder pick one (MK8's defaults, MK-102). */
 export const DEFAULT_LOADOUT: Mk8Loadout = defaultLoadout('mk8-mario');
@@ -37,6 +37,8 @@ export interface Mk8RaceSetup {
   /** The racer the player's kart is: the loadout's, or the stand-in. */
   playerKart: KartId;
   itemSet: string;
+  /** The game mode it was picked in (MK-121: the results' choices and Grand Prix standings). */
+  mode?: Mk8GameMode;
 }
 
 /** The race the menus' choices make. Throws when no course was picked. */
@@ -55,5 +57,6 @@ export function raceSetup(flow: Mk8Flow): Mk8RaceSetup {
     ...(isKnownLoadout(loadout) ? { raceLoadout: loadout } : {}),
     playerKart: racers.has(loadout.racer) ? loadout.racer : STAND_IN_RACER,
     itemSet: MK8_ITEM_SET,
+    ...(flow.mode ? { mode: flow.mode } : {}),
   };
 }

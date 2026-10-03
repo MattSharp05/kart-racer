@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { scenarios } from '../../../scenarios';
 import { STAGE_DEMOS } from '../../render/demos';
 import { flowScreens, Mk8ScreenFlow } from './index';
-import type { Mk8Screen } from './session';
+import { MK8_MODES, type Mk8Screen } from './session';
 
 const ids = (screens: Mk8Screen[]) => screens.map((s) => s.id);
 
@@ -61,6 +61,8 @@ describe('MK8 screen flow (MK-142)', () => {
     ];
     const known = new Set([...fixed, ...Object.keys(STAGE_DEMOS), ...flow.starts()]);
     expect(known.size).toBe(fixed.length + Object.keys(STAGE_DEMOS).length + flow.starts().length);
+    // A race scenario's `mk8Start` is its MK8 mode (MK-121: the results' mode).
+    for (const mode of MK8_MODES) known.add(mode.id);
     for (const scenario of scenarios.list()) {
       const setup = scenario.setup(scenario.defaultSeed);
       if (setup.mk8Start) expect(known, scenario.name).toContain(setup.mk8Start);

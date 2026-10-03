@@ -3,6 +3,7 @@ export { default as coins } from './coins';
 export { default as entry } from './entry';
 export { default as items } from './items';
 export { default as loadouts } from './loadouts';
+export { default as raceScreens } from './raceScreens';
 export { default as spinBoost } from './spinBoost';
 export { default as stadium } from './stadium';
 export { default as stage } from './stage';
