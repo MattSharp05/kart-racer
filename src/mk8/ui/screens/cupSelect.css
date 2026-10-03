@@ -270,3 +270,41 @@
     transition: none;
   }
 }
+
+/* MK-130: the best Grand Prix trophy won in the cup at this class, a cup badge in its metal at the
+   tile's top right; and in a Grand Prix the courses it skips (not drivable yet). */
+.mk8-cup-trophy {
+  position: absolute;
+  top: calc(6 * var(--u));
+  right: calc(6 * var(--u));
+  width: max(16px, calc(38 * var(--u)));
+  height: max(16px, calc(38 * var(--u)));
+  border: max(2px, calc(3 * var(--u))) solid #fff;
+  border-radius: 50% 50% 30% 30%;
+  box-shadow: 0 2px 0 #0004;
+  background: radial-gradient(circle at 35% 30%, #fff9, #fff0 45%), var(--mk8-trophy, #ffc928);
+}
+
+.mk8-cup-trophy[data-trophy='silver'] {
+  --mk8-trophy: #c5ccd8;
+}
+
+.mk8-cup-trophy[data-trophy='bronze'] {
+  --mk8-trophy: #c9783a;
+}
+
+.mk8-course.is-skipped .mk8-course-pv {
+  filter: grayscale(1) brightness(0.8);
+}
+
+.mk8-skipped {
+  position: absolute;
+  top: calc(42 * var(--u));
+  left: calc(10 * var(--u));
+  padding: calc(2 * var(--u)) calc(8 * var(--u));
+  border-radius: calc(6 * var(--u));
+  background: #000a;
+  color: #fff;
+  font-size: max(10px, calc(13 * var(--u)));
+  font-weight: 800;
+}

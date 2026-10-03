@@ -17,6 +17,8 @@ export interface PauseOptions {
   /** Absent when the race can't restart. */
   onRestart?: () => void;
   onQuit: () => void;
+  /** Asked before quitting (MK-130: mid-Grand Prix), its yes quitting. */
+  quitConfirm?: Mk8ScreenFactory;
 }
 
 /** The options, top to bottom. */
@@ -64,7 +66,10 @@ export function pauseMenu(options: PauseOptions): Mk8ScreenFactory {
     const run: Record<PauseOption, () => void> = {
       continue: resume,
       restart: () => options.onRestart?.(),
-      quit: options.onQuit,
+      quit: () => {
+        if (options.quitConfirm) stack.push(options.quitConfirm);
+        else options.onQuit();
+      },
     };
     const menu = new Menu({
       items: tiles,

@@ -3,9 +3,13 @@
 // selected cup's 4 course cards: preview art, course map, anti-gravity tag and Time Trial best
 // ("—" until Time Trial records exist). Grand Prix: OK on a cup starts its GP (the cards preview
 // its courses). VS Race and Time Trial: OK on a cup moves the cursor to its courses, and OK on a
-// course starts it. Starting shows the course loading (progress bar), then the race.
+// course starts it. Starting shows the course loading (progress bar), then the race. MK-130: each
+// cup shows the best Grand Prix trophy won at this class, and in a Grand Prix the courses it skips
+// (not drivable yet) say so.
 import { cupInfo, MK8_CUPS, type Mk8Course, type Mk8Cup } from '../../content/cups';
 import { DEFAULT_ENGINE_CLASS, raceSetup } from '../../flow';
+import { gpCourses } from '../../gp/grandPrix';
+import { savedTrophy } from '../../gp/trophies';
 import { art, Menu, menuScreen, squareTile } from '../kit';
 import type { Mk8ScreenFactory } from '../stack';
 import type { Mk8Context, Mk8Screen } from './session';
@@ -48,6 +52,7 @@ export function cupSelect(ctx: Mk8Context): Mk8ScreenFactory {
       if (okHint?.lastChild) okHint.lastChild.textContent = label;
     };
 
+    const engineClass = ctx.flow.engineClass ?? DEFAULT_ENGINE_CLASS;
     const cupTiles = MK8_CUPS.map((cup) => {
       const tile = squareTile(cup.locked ? `${cup.name} (later)` : cup.name, cupArt(ctx, cup));
       tile.classList.add('mk8-cup-tile');
@@ -56,6 +61,14 @@ export function cupSelect(ctx: Mk8Context): Mk8ScreenFactory {
         tile.classList.add('is-locked');
         tile.append(el('span', 'mk8-later', 'Later'));
       }
+      // The best Grand Prix trophy won here at this class (MK-130).
+      const trophy = savedTrophy(ctx.store, cup.id, engineClass);
+      if (trophy) {
+        const badge = el('span', 'mk8-cup-trophy');
+        badge.dataset.trophy = trophy;
+        badge.setAttribute('aria-label', `${trophy} trophy`);
+        tile.append(badge);
+      }
       return tile;
     });
     const cards = el('div', 'mk8-courses');
@@ -63,9 +76,18 @@ export function cupSelect(ctx: Mk8Context): Mk8ScreenFactory {
 
     const showCourses = (cup: Mk8Cup) => {
       // A locked cup previews nothing yet: its slots say "Later".
+      const raced = grandPrix && !cup.locked ? gpCourses(cup.id) : [];
       courseCards = cup.locked
         ? Array.from({ length: 4 }, () => lockedCard())
-        : cup.courses.map((course) => courseCard(ctx, course));
+        : cup.courses.map((course) => {
+            const card = courseCard(ctx, course);
+            // A Grand Prix skips the courses not drivable yet (MK-130).
+            if (grandPrix && !raced.includes(course.key)) {
+              card.classList.add('is-skipped');
+              card.append(el('span', 'mk8-skipped', 'Not installed'));
+            }
+            return card;
+          });
       cards.classList.toggle('is-locked', cup.locked);
       cards.replaceChildren(...courseCards);
     };
@@ -91,7 +113,8 @@ export function cupSelect(ctx: Mk8Context): Mk8ScreenFactory {
       onConfirm: (index) => {
         const cup = cupAt(index);
         ctx.flow.cup = cup.id;
-        const first = cup.courses[0];
+        const firstKey = grandPrix ? gpCourses(cup.id)[0] : undefined;
+        const first = cup.courses.find((c) => c.key === firstKey) ?? cup.courses[0];
         if (grandPrix) {
           if (first) start(first);
           return;

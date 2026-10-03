@@ -168,7 +168,9 @@ test.describe('MK8 race results', () => {
     await expect(screen.locator('.mk8-hdr')).toContainText('Race 1 / 4');
   });
 
-  test('OK during the animation skips to the end; Quit opens MK8 Mode', async ({ page }) => {
+  test('OK during the animation skips to the end; Quit (confirmed) opens MK8 Mode', async ({
+    page,
+  }) => {
     await loadScenario(page, 'mk8-ui-standings');
     const screen = page.locator('.mk8-scr-results');
     await expect(screen).toBeVisible();
@@ -178,6 +180,11 @@ test.describe('MK8 race results', () => {
     // Esc doesn't leave the results.
     await page.keyboard.press('Escape');
     await expect(screen).toBeVisible();
+    await page.keyboard.press('ArrowDown');
+    await page.keyboard.press('Enter');
+    // MK-130: quitting a Grand Prix asks first ("Keep racing" selected).
+    await expect(page.locator('.mk8')).toHaveAttribute('data-depth', '2');
+    await expect(page.locator('.mk8')).toHaveAttribute('data-transitioning', 'false');
     await page.keyboard.press('ArrowDown');
     await page.keyboard.press('Enter');
     await expect(page.locator('.mk8-scr-title')).toBeVisible();

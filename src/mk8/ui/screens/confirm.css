@@ -1,0 +1,52 @@
+/* MK8 confirm prompt (MK-130): the race dimmed as behind the pause menu, the question in the header
+   band, a line on what is lost, then the two answers as wide slanted tiles. Mockup px × --u. */
+
+.mk8-scr.mk8-scr-confirm {
+  background: linear-gradient(90deg, #0b1230e6 0, #0b1230bf 55%, #0b123080 100%);
+}
+
+.mk8 .mk8-body.mk8-confirm {
+  display: grid;
+  place-content: center;
+  gap: max(12px, calc(26 * var(--u)));
+  padding-top: calc(16 * var(--u));
+  text-align: center;
+}
+
+.mk8-confirm-detail {
+  margin: 0;
+  color: #fff;
+  font-size: max(15px, calc(28 * var(--u)));
+  font-weight: 800;
+}
+
+.mk8-confirm-list {
+  display: grid;
+  gap: max(10px, calc(22 * var(--u)));
+  width: max(220px, calc(460 * var(--u)));
+  margin: 0 auto;
+}
+
+.mk8 .mk8-confirm-opt {
+  display: flex;
+  align-items: center;
+  height: max(var(--tap), calc(80 * var(--u)));
+  padding: 0 calc(36 * var(--u));
+  border-radius: calc(14 * var(--u));
+  background: linear-gradient(180deg, #fff, #e9eef8);
+  box-shadow: 0 4px 0 var(--mk8-shadow);
+  transform: skewX(var(--mk8-slant));
+  text-align: left;
+}
+
+.mk8-confirm-opt b {
+  display: block;
+  color: var(--mk8-navy);
+  font-size: max(18px, calc(34 * var(--u)));
+  font-weight: 900;
+  transform: skewX(calc(-1 * var(--mk8-slant)));
+}
+
+.mk8 .mk8-confirm-opt.is-selected {
+  background: linear-gradient(180deg, #fff7c2, var(--mk8-yellow));
+}
