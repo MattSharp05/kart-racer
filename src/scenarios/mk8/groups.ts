@@ -1,4 +1,5 @@
 // The list of MK8 scenario groups (`./index.ts` collects them): one line per group file.
+export { default as coins } from './coins';
 export { default as entry } from './entry';
 export { default as items } from './items';
 export { default as loadouts } from './loadouts';
