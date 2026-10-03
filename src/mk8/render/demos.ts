@@ -96,7 +96,13 @@ export async function buildDemo(
   const { racers, lakitu: withLakitu } = STAGE_DEMOS[id];
   const models = await Promise.all(racers.map((view) => racerModel(file, view)));
   for (const model of models) stage.scene.add(model.object);
-  const lakitu = withLakitu ? new Lakitu(await glb(file, LAKITU_PATH)) : undefined;
+  let lakitu: Lakitu | undefined;
+  try {
+    if (withLakitu) lakitu = new Lakitu(await glb(file, LAKITU_PATH));
+  } catch (e) {
+    for (const model of models) model.dispose();
+    throw e;
+  }
   if (lakitu) stage.scene.add(lakitu.object);
 
   let motion: MotionState | null = null;

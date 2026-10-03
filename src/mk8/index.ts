@@ -89,7 +89,22 @@ export function start(host: Mk8Host, mode: Mk8Start = 'load'): Promise<void> {
     host.exit();
   };
   if (mode === 'ui-kit') return trackLoad(openUiKit(host, back));
-  if (mode in STAGE_DEMOS) return trackLoad(openStage(host, mode as StageDemoId, () => left, back));
+  if (mode in STAGE_DEMOS) {
+    const id = mode as StageDemoId;
+    const open = async (): Promise<void> => {
+      try {
+        await openStage(host, id, () => left, back);
+      } catch (e) {
+        if (left) return;
+        banner = showErrorBanner(
+          "Couldn't load the MK8 pack",
+          [e instanceof Error ? e.message : String(e)],
+          { label: 'Retry', onClick: () => void trackLoad(open()) },
+        );
+      }
+    };
+    return trackLoad(open());
+  }
   if (mode === 'not-installed') {
     screens.show('mk8NotInstalled', { onBack: back });
     return Promise.resolve();
@@ -143,7 +158,8 @@ const openedPaused = () => new URLSearchParams(location.search).get('paused') ==
 
 /**
  * A model scenario (MK-101): loads its racer, kart and Lakitu models behind the loading bar, then
- * shows them on the 3D stage. No pack → "not installed", as the menu button does.
+ * shows them on the 3D stage. No pack → "not installed", as the menu button does; other failures
+ * (a file missing or unreadable) throw, for the caller's Retry banner.
  */
 async function openStage(
   host: Mk8Host,
@@ -163,13 +179,18 @@ async function openStage(
       screens.show('mk8NotInstalled', { onBack });
       return;
     }
-    showErrorBanner("Couldn't load the MK8 pack", [e instanceof Error ? e.message : String(e)]);
-    return;
+    throw e;
   }
   if (hasLeft()) return;
   const stage = new Mk8Stage(openedPaused());
   const overlay = document.createElement('div');
-  const built = await buildDemo(id, stage, (path) => files.file(path), overlay);
+  let built: Awaited<ReturnType<typeof buildDemo>>;
+  try {
+    built = await buildDemo(id, stage, (path) => files.file(path), overlay);
+  } catch (e) {
+    stage.dispose();
+    throw e;
+  }
   if (hasLeft()) {
     built.dispose();
     stage.dispose();

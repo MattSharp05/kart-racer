@@ -119,6 +119,21 @@ test.describe('MK8 racers and Lakitu', () => {
     await expect(page.locator('.mk8-stage-caption')).toContainText('Steering');
   });
 
+  test('a model that fails to load shows the error banner; Retry opens the stage', async ({
+    page,
+  }) => {
+    const pack = await servePack(page, { failOnce: ['models/npcs/lakitu.glb'] });
+    await loadScenario(page, 'mk8-lakitu-countdown', { paused: true });
+    const banner = page.getByRole('alert');
+    await expect(banner).toContainText('models/npcs/lakitu.glb');
+    await banner.getByRole('button', { name: 'Retry' }).click();
+    await page.evaluate(() => window.__game!.whenReady());
+    await expect(page.locator('.mk8-stage-canvas')).toBeVisible();
+    await expect(page.getByRole('alert')).toHaveCount(0);
+    expect((await stage(page))?.lakitu?.visible).toBe(true);
+    expect(pack.requested.filter((p) => p === 'models/npcs/lakitu.glb')).toHaveLength(2);
+  });
+
   test('without a pack the model scenarios say how to build it', async ({ page }) => {
     await loadScenario(page, 'mk8-racers-lineup');
     await expect(page.locator('.menu-mk8NotInstalled')).toContainText('MK8 pack not installed');
