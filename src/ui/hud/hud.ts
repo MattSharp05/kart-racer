@@ -10,6 +10,7 @@ import { formatTime, ordinal } from './format';
 import { iconShowsUses, itemIcon, itemName } from './icons';
 import { Minimap } from './minimap';
 import { ScreenEffects } from './screenEffects';
+import { hudSkin } from './skin';
 import './hud.css';
 
 export { formatTime, ordinal } from './format';
@@ -88,6 +89,8 @@ export class Hud {
 
   /** Big centre messages come from sim events (countdown numbers, GO, FINISH) for kart `kartId`. */
   onEvents(events: SimEvent[], state: SimState, kartId: number, now: number): void {
+    const skin = hudSkin();
+    if (skin?.owns(state)) skin.onEvents(events, state, kartId, now);
     for (const event of events) {
       if (event.type === 'countdown') this.flash(String(event.value), now, 1000);
       if (event.type === 'go') this.flash('GO!', now, 800);
@@ -130,11 +133,26 @@ export class Hud {
     this.show(this.waitingLine, this.waiting !== null && !menuOpen);
     const kart = state.karts[kartId];
     const racing = state.phase !== 'free';
-    if (!kart || state.trackId === 'test-pad' || menuOpen) {
+    const hidden = !kart || state.trackId === 'test-pad' || menuOpen;
+    // Another HUD's race (MK-127: MK8 Mode's): it draws the race; ours keeps its effects and warnings.
+    const skin = hudSkin();
+    const skinned = skin?.owns(state) === true;
+    skin?.update(state, kartId, now, skinned && !hidden);
+    if (hidden) {
       this.show(this.root, false);
       return;
     }
     this.show(this.root, true);
+    this.root.classList.toggle('hud-skinned', skinned);
+
+    this.show(this.wrongWay, kart.race.wrongWay);
+    const warning = hazardWarning(trackHazards(getTrack(state.trackId)), state.tick);
+    this.set(this.hazard, warning ?? '');
+    this.show(this.hazard, warning !== undefined);
+    if (skinned) {
+      this.screenEffects.update(kart, now);
+      return;
+    }
 
     const lap = Math.min(Math.max(1, kart.race.lap), state.race.laps);
     this.set(
@@ -157,11 +175,6 @@ export class Hud {
       const last = kart.race.lapTimes.at(-1);
       this.set(this.lastLap, last !== undefined ? `Last ${formatTime(last)}` : '');
     }
-
-    this.show(this.wrongWay, kart.race.wrongWay);
-    const warning = hazardWarning(trackHazards(getTrack(state.trackId)), state.tick);
-    this.set(this.hazard, warning ?? '');
-    this.show(this.hazard, warning !== undefined);
 
     if (this.waiting !== null) this.show(this.centre, false);
     else if (state.phase === 'countdown' && this.centre.hidden) {

@@ -20,7 +20,7 @@ test.describe('MK8 items', () => {
     let kart = (await getState(page)).karts[0]!;
     expect(kart.item.held).toBe('green');
     expect(kart.item.second).toEqual({ held: null, uses: 0, roulette: 0 });
-    await expect(page.locator('.hud-item2')).toBeVisible();
+    await expect(page.locator('.mk8-hud-item2')).toBeVisible();
 
     // Coast into the boxes 40 m ahead, then let the roulette land.
     for (let i = 0; i < 10 && !(await getState(page)).karts[0]!.item.second!.held; i += 1) {
@@ -30,15 +30,15 @@ test.describe('MK8 items', () => {
     expect(kart.item.held).toBe('green');
     const second = kart.item.second!.held;
     expect(second).not.toBeNull();
-    await expect(page.locator('.hud-item2')).toHaveAttribute('data-item', second!);
+    await expect(page.locator('.mk8-hud-item2')).toHaveAttribute('data-item', second!);
 
     await setInput(page, 0, { item: true });
     await step(page, 1);
     kart = (await getState(page)).karts[0]!;
     expect(kart.item.held).toBe(second);
     expect(kart.item.second).toEqual({ held: null, uses: 0, roulette: 0 });
-    await expect(page.locator('.hud-item')).toHaveAttribute('data-item', second!);
-    await expect(page.locator('.hud-item2')).toHaveAttribute('data-item', '');
+    await expect(page.locator('.mk8-hud-item')).toHaveAttribute('data-item', second!);
+    await expect(page.locator('.mk8-hud-item2')).toHaveAttribute('data-item', '');
     expect(errors).toEqual([]);
   });
 
@@ -65,7 +65,7 @@ test.describe('MK8 items', () => {
     expect(state.karts[0]!.spinTimer).toBe(0);
     expect(state.karts[0]!.item).toMatchObject({ held: 'triple-red', uses: 2 });
     expect(escorts(state)).toBe(2);
-    await expect(page.locator('.hud-item')).toHaveAttribute('data-uses', '2');
+    await expect(page.locator('.mk8-hud-item')).toHaveAttribute('data-uses', '2');
 
     for (const left of [1, 0]) {
       await setInput(page, 0, { item: true });
@@ -86,7 +86,7 @@ test.describe('MK8 items', () => {
   }) => {
     const errors = pageErrors(page);
     await loadScenario(page, 'mk8-item-golden', { paused: true });
-    await expect(page.locator('.hud-item')).toHaveAttribute('data-item', 'golden-mushroom');
+    await expect(page.locator('.mk8-hud-item')).toHaveAttribute('data-item', 'golden-mushroom');
     for (let press = 0; press < 3; press += 1) {
       await setInput(page, 0, { item: true });
       await step(page, 1);
@@ -97,7 +97,7 @@ test.describe('MK8 items', () => {
     }
     // Its 7.5 s run out.
     await step(page, 450);
-    await expect(page.locator('.hud-item')).toHaveAttribute('data-item', '');
+    await expect(page.locator('.mk8-hud-item')).toHaveAttribute('data-item', '');
     expect(errors).toEqual([]);
   });
 
@@ -107,7 +107,7 @@ test.describe('MK8 items', () => {
     const errors = pageErrors(page);
     const pack = await servePack(page);
     await loadScenario(page, 'mk8-item-spiny', { paused: true });
-    await expect(page.locator('.hud-item')).toHaveAttribute('data-item', 'spiny-shell');
+    await expect(page.locator('.mk8-hud-item')).toHaveAttribute('data-item', 'spiny-shell');
     await setInput(page, 0, { item: true });
     await step(page, 1);
     await setInput(page, 0, { item: false });
@@ -129,7 +129,7 @@ test.describe('MK8 items', () => {
     await loadScenario(page, 'mk8-item-horn-vs-spiny', { paused: true });
     // The HUD warns of the spiny coming for the player.
     await step(page, 1);
-    await expect(page.locator('.hud-incoming')).toHaveAttribute('data-items', 'spiny-shell');
+    await expect(page.locator('.mk8-hud-incoming')).toHaveAttribute('data-items', 'spiny-shell');
     // Until it dives (data[0] = 2) …
     const diving = (s: Awaited<ReturnType<typeof getState>>) =>
       s.entities.some((e) => e.kind === 'item' && e.spec === 'spiny-shell' && e.data[0] === 2);
@@ -154,7 +154,7 @@ test.describe('MK8 items', () => {
     const errors = pageErrors(page);
     const pack = await servePack(page);
     await loadScenario(page, 'mk8-item-bobomb', { paused: true });
-    await expect(page.locator('.hud-item')).toHaveAttribute('data-item', 'bob-omb');
+    await expect(page.locator('.mk8-hud-item')).toHaveAttribute('data-item', 'bob-omb');
     await setInput(page, 0, { item: true });
     await step(page, 1);
     await setInput(page, 0, { item: false });
@@ -176,7 +176,7 @@ test.describe('MK8 items', () => {
     const errors = pageErrors(page);
     await servePack(page);
     await loadScenario(page, 'mk8-item-fire-flower', { paused: true });
-    await expect(page.locator('.hud-item')).toHaveAttribute('data-item', 'fire-flower');
+    await expect(page.locator('.mk8-hud-item')).toHaveAttribute('data-item', 'fire-flower');
     for (let press = 0; press < 2; press += 1) {
       await setInput(page, 0, { item: true });
       await step(page, 1);
@@ -189,7 +189,7 @@ test.describe('MK8 items', () => {
     expect(state.karts[1]!.spinTimer).toBeGreaterThan(0);
     // Its time runs out: the slot empties.
     await step(page, 360);
-    await expect(page.locator('.hud-item')).toHaveAttribute('data-item', '');
+    await expect(page.locator('.mk8-hud-item')).toHaveAttribute('data-item', '');
     expect(errors).toEqual([]);
   });
 
