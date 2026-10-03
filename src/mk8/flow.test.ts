@@ -24,6 +24,7 @@ describe('MK8 race setup from the menus (MK-119)', () => {
       raceLoadout: DEFAULT_LOADOUT,
       playerKart: STAND_IN_RACER,
       itemSet: MK8_ITEM_SET,
+      mode: 'vs',
     });
   });
 
