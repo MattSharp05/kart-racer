@@ -1,5 +1,5 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
-import { getState, loadScenario } from './helpers';
+import { getState, loadScenario, step } from './helpers';
 import { loadoutStats } from '../../src/mk8/content/stats';
 import type { Loadout } from '../../src/sim/types';
 import { servePack } from './mk8';
@@ -208,6 +208,21 @@ async function raceStarted(page: Page) {
 }
 
 /**
+ * MK-138: the race draws its MK8 karts: over `frames` animation frames and a second of sim ticks,
+ * no page errors (MK8 karts used to throw building their model every frame).
+ */
+async function raceDrawsCleanly(page: Page, errors: string[], frames = 10) {
+  const nextFrames = () =>
+    page.evaluate(async (n) => {
+      for (let i = 0; i < n; i += 1) await new Promise((r) => requestAnimationFrame(r));
+    }, frames);
+  await nextFrames();
+  await step(page, 60);
+  await nextFrames();
+  expect(errors).toEqual([]);
+}
+
+/**
  * Holds the course loading: the pack's manifest answers "no pack" at once for the menus, then
  * waits for `release` (the course load's request).
  */
@@ -227,6 +242,8 @@ test.describe('MK8 engine class and cup/course select (MK-119)', () => {
   test('keyboard Grand Prix: shields, 200cc, locked cups refuse, the Mushroom Cup starts its first course', async ({
     page,
   }) => {
+    const errors: string[] = [];
+    page.on('pageerror', (e) => errors.push(e.message));
     await loadScenario(page, 'mk8-ui-cc');
     await settled(page, 5);
     await expect(page.locator('.mk8-scr-cc .mk8-hdr')).toContainText('Grand Prix');
@@ -284,6 +301,7 @@ test.describe('MK8 engine class and cup/course select (MK-119)', () => {
       player: 'mk8-mario',
       phase: 'countdown',
     });
+    await raceDrawsCleanly(page, errors);
     expect(await flow(page)).toMatchObject({
       mode: 'grand-prix',
       cup: 'mushroom',
