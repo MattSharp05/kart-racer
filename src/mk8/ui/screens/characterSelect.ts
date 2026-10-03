@@ -14,7 +14,7 @@ import { RacerPreview } from '../../render/preview';
 import { art, Menu, menuScreen, nameplate, panel, squareTile } from '../kit';
 import type { CHARACTER_SPRITES } from '../sprites';
 import type { Mk8ScreenFactory } from '../stack';
-import { kartStandIn } from './kartStandIn';
+import { kartBuilder } from './kartBuilder';
 import type { Mk8Context } from './session';
 import './characterSelect.css';
 
@@ -146,7 +146,7 @@ export function characterSelect(ctx: Mk8Context): Mk8ScreenFactory {
         const loadout = savedLoadout(ctx.store, racer);
         ctx.flow.loadout = loadout;
         saveLoadout(ctx.store, loadout);
-        stack.push(kartStandIn(ctx));
+        stack.push(kartBuilder(ctx));
       },
     });
 

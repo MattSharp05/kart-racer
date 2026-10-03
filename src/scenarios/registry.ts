@@ -19,7 +19,7 @@ export type MenuScreen =
   // not installed" screen, and MK8 Mode opened as the button does (loading the pack). MK-104:
   // the UI kit's style guide. MK-116: the MK8 title and the mode select. MK-135: the site's pack
   // password box. MK-119: the engine class, and the cup/course select of a Grand Prix and of a
-  // VS Race. MK-117: the character select.
+  // VS Race. MK-117: the character select. MK-118: the kart builder.
   | 'mk8Entry'
   | 'mk8Loading'
   | 'mk8NotInstalled'
@@ -31,6 +31,7 @@ export type MenuScreen =
   | 'mk8UiCc'
   | 'mk8UiCup'
   | 'mk8UiCourse'
+  | 'mk8UiKart'
   // MK-101: MK8 racer models and Lakitu on a 3D stage.
   | 'mk8RacersLineup'
   | 'mk8RacerMotion'

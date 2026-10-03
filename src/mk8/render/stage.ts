@@ -63,10 +63,21 @@ export class Mk8Stage {
     this.aspect = 0;
     demo.update(0);
     this.render();
-    if (!this.frozen) {
-      this.last = performance.now();
-      this.frame = requestAnimationFrame(this.loop);
-    }
+    this.resume();
+  }
+
+  /** Stops ticking and drawing (the stage is out of sight); `resume` carries on. */
+  pause(): void {
+    cancelAnimationFrame(this.frame);
+    this.frame = 0;
+  }
+
+  /** Ticks and draws again after `pause` (never when frozen). */
+  resume(): void {
+    if (this.frozen || this.frame !== 0) return;
+    this.last = performance.now();
+    this.carry = 0;
+    this.frame = requestAnimationFrame(this.loop);
   }
 
   /** Advances `ticks` ticks and draws. */

@@ -350,6 +350,9 @@ export class Flow {
       case 'mk8UiCourse':
         this.openMk8('course');
         break;
+      case 'mk8UiKart':
+        this.openMk8('kart');
+        break;
       case 'mk8Password':
         this.openMk8('password');
         break;
