@@ -58,6 +58,8 @@ export interface RenderInfo {
     trackInView?: number;
     /** The camera's height, m (MK-91: the overview's framing of the drawn track). */
     height?: number;
+    /** The camera's up (unit, world), MK-99: it follows karts onto walls and ceilings. */
+    up?: { x: number; y: number; z: number };
   };
 }
 

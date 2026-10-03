@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import type { DrawnFrame } from './karts';
 
 const DISTANCE = 6.5;
 const HEIGHT = 2.6;
@@ -10,6 +11,24 @@ const HEADING_RATE = 5;
 const BASE_FOV = 62;
 const MAX_EXTRA_FOV = 10;
 const MIN_HEIGHT_ABOVE_GROUND = 0.8;
+
+/** How fast the camera's up follows the kart's on walls and ceilings (MK-99), 1/s. */
+const UP_RATE = 4;
+/** The camera's up never turns more than this in one frame, radians (no sudden flips). */
+const MAX_UP_STEP = (25 * Math.PI) / 180;
+
+/** The camera stays this far in front of anything between it and the kart, m. */
+const CLIP_MARGIN = 0.4;
+
+/**
+ * Where a ray from `from` along the unit `direction` first hits the course within `maxDistance`,
+ * as a distance; null if nothing is in the way (MK-99: walls and ceilings around a mesh track).
+ */
+export type CameraClip = (
+  from: THREE.Vector3,
+  direction: THREE.Vector3,
+  maxDistance: number,
+) => number | null;
 
 /** Extra FOV right after a boost starts (MK-27), degrees. */
 const FOV_KICK = 8;
@@ -32,6 +51,11 @@ export class ChaseCamera {
   private readonly target = new THREE.Vector3();
   private readonly desired = new THREE.Vector3();
   private readonly lookAt = new THREE.Vector3();
+  /** Surface-following (mesh tracks, MK-99): the camera's smoothed up and facing. */
+  private surfaceUp: THREE.Vector3 | undefined;
+  private readonly surfaceForward = new THREE.Vector3();
+  private readonly turn = new THREE.Quaternion();
+  private readonly scratch = new THREE.Vector3();
 
   constructor(private readonly camera: THREE.PerspectiveCamera) {
     camera.fov = BASE_FOV;
@@ -43,6 +67,7 @@ export class ChaseCamera {
    */
   update(kart: THREE.Object3D, speedRatio: number, dt: number, groundY = 0, snap = false): void {
     const kartHeading = kart.rotation.y;
+    this.surfaceUp = undefined;
     if (this.heading === undefined || snap) {
       this.heading = kartHeading;
       this.place(kart, kartHeading, 1);
@@ -55,8 +80,86 @@ export class ChaseCamera {
 
     this.place(kart, this.heading, 1 - Math.exp(-FOLLOW_RATE * dt));
     this.camera.position.y = Math.max(this.camera.position.y, groundY + MIN_HEIGHT_ABOVE_GROUND);
+    // Shake: a quick wobble on top of the follow position, fading out. And the FOV.
+    this.juice(dt, speedRatio);
+  }
 
-    // Shake: a quick wobble on top of the follow position, fading out.
+  /**
+   * The chase camera for a kart on a mesh track (MK-99): behind and above the kart in its own
+   * frame, so it follows it up walls and onto ceilings. Its up eases towards the kart's (never more
+   * than `MAX_UP_STEP` a frame) and its facing towards the kart's, both by real time.
+   */
+  followSurface(
+    kart: THREE.Object3D,
+    frame: DrawnFrame,
+    speedRatio: number,
+    dt: number,
+    snap = false,
+    clip?: CameraClip,
+  ): void {
+    if (!this.surfaceUp || snap) {
+      this.surfaceUp = frame.up.clone();
+      this.surfaceForward.copy(frame.forward);
+      this.placeOnSurface(kart, 1, clip);
+      return;
+    }
+    // Up: towards the kart's, by a capped angle.
+    const angle = this.surfaceUp.angleTo(frame.up);
+    if (angle > 1e-6) {
+      const step = Math.min(angle * (1 - Math.exp(-UP_RATE * dt)), MAX_UP_STEP);
+      const axis = this.scratch.crossVectors(this.surfaceUp, frame.up);
+      if (axis.lengthSq() < 1e-12) axis.copy(frame.forward);
+      this.turn.setFromAxisAngle(axis.normalize(), step);
+      this.surfaceUp.applyQuaternion(this.turn).normalize();
+    }
+    // Facing: towards the kart's, then flat to the camera's up.
+    this.surfaceForward.lerp(frame.forward, 1 - Math.exp(-HEADING_RATE * dt));
+    this.flatten();
+    this.placeOnSurface(kart, 1 - Math.exp(-FOLLOW_RATE * dt), clip);
+    this.juice(dt, speedRatio);
+  }
+
+  /** The camera's up (unit, world) on a mesh track; +Y elsewhere. */
+  upVector(out: THREE.Vector3): THREE.Vector3 {
+    return out.set(0, 1, 0).applyQuaternion(this.camera.quaternion);
+  }
+
+  /** Makes `surfaceForward` perpendicular to `surfaceUp` (keeps the last facing if degenerate). */
+  private flatten(): void {
+    const up = this.surfaceUp;
+    if (!up) return;
+    const f = this.surfaceForward;
+    f.addScaledVector(up, -f.dot(up));
+    if (f.lengthSq() < 1e-8) f.set(1, 0, 0).addScaledVector(up, -up.x);
+    f.normalize();
+  }
+
+  private placeOnSurface(kart: THREE.Object3D, blend: number, clip?: CameraClip): void {
+    const up = this.surfaceUp;
+    if (!up) return;
+    const f = this.surfaceForward;
+    this.target.copy(kart.position);
+    this.desired.copy(this.target).addScaledVector(f, -DISTANCE).addScaledVector(up, HEIGHT);
+    this.camera.position.lerp(this.desired, blend);
+    if (clip) {
+      // Never behind a wall, the floor or the ceiling: pull in to just in front of it.
+      const from = this.scratch.copy(this.target).addScaledVector(up, LOOK_HEIGHT);
+      const ray = this.lookAt.subVectors(this.camera.position, from);
+      const distance = ray.length();
+      if (distance > 1e-6) {
+        ray.divideScalar(distance);
+        const hit = clip(from, ray, distance + CLIP_MARGIN);
+        if (hit !== null)
+          this.camera.position.copy(from).addScaledVector(ray, Math.max(0, hit - CLIP_MARGIN));
+      }
+    }
+    this.lookAt.copy(this.target).addScaledVector(f, LOOK_AHEAD).addScaledVector(up, LOOK_HEIGHT);
+    this.camera.up.copy(up);
+    this.camera.lookAt(this.lookAt);
+  }
+
+  /** Shake and the speed/boost FOV (both camera modes). */
+  private juice(dt: number, speedRatio: number): void {
     if (this.shake > 0.001) {
       this.shakeTime += dt;
       const s = this.shake;
@@ -66,7 +169,6 @@ export class ChaseCamera {
       this.shake *= Math.exp(-SHAKE_DECAY * dt);
     } else this.shake = 0;
     this.fovKick *= Math.exp(-FOV_KICK_DECAY * dt);
-
     const fov = BASE_FOV + MAX_EXTRA_FOV * Math.min(1, Math.max(0, speedRatio)) + this.fovKick;
     if (Math.abs(this.camera.fov - fov) > 0.01) {
       this.camera.fov += (fov - this.camera.fov) * (1 - Math.exp(-4 * dt));

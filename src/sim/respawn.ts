@@ -1,4 +1,7 @@
 import { cancelDrift } from './drift';
+import { add, headingOf, scale, WORLD_UP, type Vec3 } from './math';
+import { raycastMesh, surfaceMask, type MeshTrackDef } from './meshTrack';
+import { routeGeometry, type RouteGeometry } from './route';
 import { routeProgress } from './routes';
 import { inRange, type SplineTrackDef } from './splineTrack';
 import { groundAt, trackGeometry, type TrackDef } from './track';
@@ -22,6 +25,10 @@ export function updateRespawns(
   events: SimEvent[],
   only?: number,
 ): void {
+  if (track.kind === 'mesh') {
+    updateMeshRespawns(state, inputs, track, dt, events, only);
+    return;
+  }
   if (track.kind !== 'spline') return;
   const geometry = trackGeometry(track);
   for (const kart of state.karts) {
@@ -95,6 +102,116 @@ function carry(kart: KartState, track: TrackDef, dt: number): void {
   if (kart.respawnTimer === 0) {
     kart.position = { ...kart.position, y: ground };
     kart.grounded = true;
+    kart.invulnerableTimer = tuning.invulnerableSeconds;
+  }
+}
+
+// --- Mesh tracks (MK-99): the route says where to put a kart back, and which way is up there ---
+
+const VOID = surfaceMask('void');
+const RESPAWN_GROUND = surfaceMask('road', 'offroad', 'boost', 'antigrav', 'glide');
+
+/**
+ * Falls and the respawn pickup on a mesh track: like a spline track's, but the kart is put back on
+ * the route (at its respawn point if its last safe spot is in one's range) with the route's up
+ * there, so a fall from a wall or a ceiling puts it back on that surface's own frame.
+ */
+function updateMeshRespawns(
+  state: SimState,
+  inputs: readonly InputFrame[],
+  track: MeshTrackDef,
+  dt: number,
+  events: SimEvent[],
+  only?: number,
+): void {
+  const geometry = routeGeometry(track.route);
+  for (const kart of state.karts) {
+    if (only !== undefined && kart.id !== only) continue;
+    kart.respawnCooldown = Math.max(0, kart.respawnCooldown - dt);
+    kart.invulnerableTimer = Math.max(0, kart.invulnerableTimer - dt);
+    if (isRespawning(kart)) {
+      carryOnSurface(kart, track, dt);
+      continue;
+    }
+    if (kart.grounded) {
+      const hint = kart.lastSafeT >= 0 ? kart.lastSafeT : undefined;
+      kart.lastSafeT = geometry.project(kart.position, hint).t;
+    }
+    const fell =
+      kart.airTime > tuning.mk8.fallSeconds ||
+      kart.position.y < track.collision.gridMin[1] - tuning.fallDepth ||
+      (!kart.grounded && overKillFloor(track, kart));
+    const asked = inputs[kart.id]?.respawn === true && kart.respawnCooldown <= 0;
+    if (fell || asked) startMeshRespawn(state, kart, track, geometry, events);
+  }
+}
+
+/** Whether a kart in the air is about to land on the void floor (within `fallDepth` below it). */
+function overKillFloor(track: MeshTrackDef, kart: KartState): boolean {
+  const down = kart.gravityDir ?? { x: 0, y: -1, z: 0 };
+  return raycastMesh(track.collision, kart.position, down, tuning.fallDepth, VOID) !== null;
+}
+
+function startMeshRespawn(
+  state: SimState,
+  kart: KartState,
+  track: MeshTrackDef,
+  geometry: RouteGeometry,
+  events: SimEvent[],
+): void {
+  const safeT = kart.lastSafeT >= 0 ? kart.lastSafeT : geometry.project(kart.position).t;
+  const t = track.route.respawnPoints.find((point) => inRange(safeT, point))?.t ?? safeT;
+  const nearby = state.karts.filter(
+    (other) =>
+      other.id !== kart.id &&
+      isRespawning(other) &&
+      Math.abs(geometry.project(other.position).t - t) * geometry.length < 6,
+  ).length;
+  const spread =
+    nearby === 0 ? 0 : (nearby % 2 ? 1 : -1) * Math.ceil(nearby / 2) * tuning.respawnSpacing;
+  const centre = geometry.frameAt(t);
+  const room = Math.max(0, centre.width / 2 - tuning.kartHalfWidth);
+  const frame = geometry.frameAt(t, Math.min(room, Math.max(-room, spread)));
+
+  kart.position = add(frame.position, scale(frame.up, tuning.respawnLift));
+  kart.velocity = { x: 0, y: 0, z: 0 };
+  kart.speed = 0;
+  kart.up = frame.up;
+  kart.forward = frame.tangent;
+  kart.gravityDir = scale(frame.up, -1);
+  kart.antigrav = false;
+  kart.heading = headingOf(frame.tangent, kart.heading);
+  kart.boostTimer = 0;
+  kart.grounded = false;
+  kart.airTime = 0;
+  cancelDrift(kart, events);
+  kart.respawnTimer = tuning.respawnSeconds;
+  kart.respawnCooldown = tuning.respawnCooldownSeconds;
+  kart.outTime = 0;
+  kart.race.lastT = t;
+  events.push({ type: 'respawn', kartId: kart.id });
+}
+
+/** Lowers the kart along its up onto the ground below over the respawn time. */
+function carryOnSurface(kart: KartState, track: MeshTrackDef, dt: number): void {
+  kart.respawnTimer = Math.max(0, kart.respawnTimer - dt);
+  const up: Vec3 = kart.up ?? WORLD_UP;
+  const down = scale(up, -1);
+  const lift = tuning.meshTrack.groundProbeUp;
+  const from = add(kart.position, scale(up, lift));
+  const hit = raycastMesh(
+    track.collision,
+    from,
+    down,
+    lift + tuning.respawnLift * 2,
+    RESPAWN_GROUND,
+  );
+  const progress = 1 - kart.respawnTimer / tuning.respawnSeconds;
+  if (hit) kart.position = add(hit.point, scale(up, tuning.respawnLift * (1 - progress)));
+  kart.velocity = { x: 0, y: 0, z: 0 };
+  if (kart.respawnTimer === 0) {
+    if (hit) kart.position = hit.point;
+    kart.grounded = hit !== null;
     kart.invulnerableTimer = tuning.invulnerableSeconds;
   }
 }

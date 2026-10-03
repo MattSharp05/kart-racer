@@ -25,6 +25,12 @@ const canvas = document.querySelector<HTMLCanvasElement>('#game');
 if (!canvas) throw new Error('Missing #game canvas');
 
 const params = parseLaunchParams(window.location.search);
+// MK8 driving scenarios (MK-99): register the course they drive on (the test ramp, or Stadium from
+// the local pack) before the scenario is set up. Lazy, so the original game never loads MK8 code.
+if (params.scenario?.startsWith('mk8-')) {
+  const { prepareMk8Scenario } = await import('./mk8/scenarioCourses');
+  params.scenario = await prepareMk8Scenario(params.scenario, window.location.search);
+}
 // `&remote=` (MK-74, QA): how this device's online races draw and predict other karts.
 if (params.remote) tuning.net.remoteKarts = params.remote;
 const launch = resolveLaunch(params);

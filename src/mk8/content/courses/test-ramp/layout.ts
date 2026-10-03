@@ -26,7 +26,7 @@ export const LAYOUT = {
   /** Dash panel on A: x range and half width. */
   boost: { from: 10, to: 14, halfWidth: 2 },
   /** Tunnel on A: right wall (lateral +7) and ceiling are anti-gravity. */
-  tunnel: { from: 30, to: 60, height: 8 },
+  tunnel: { from: 30, to: 85, height: 8 },
   /** Glide ramp on A: the road rises `rise` m over the range, surface `glide`. */
   glide: { from: 90, to: 100, rise: 3 },
   /** Gap on A: no road; a void floor at `voidY` under it. */

@@ -25,6 +25,33 @@ const KART_HEADLIGHTS = [1.05, 0.4, 1.2, 9] as const;
 /** Scratch object for posing each spark instance. */
 const spark = new THREE.Object3D();
 
+/** Where a kart is drawn facing and which way is up (MK-99: walls and ceilings on mesh tracks). */
+export interface DrawnFrame {
+  forward: THREE.Vector3;
+  up: THREE.Vector3;
+}
+
+const basis = new THREE.Matrix4();
+const right = new THREE.Vector3();
+const axisUp = new THREE.Vector3();
+const axisBack = new THREE.Vector3();
+const beforeQ = new THREE.Quaternion();
+const after = new THREE.Quaternion();
+
+/** The rotation that takes the model's rest pose (facing −Z, +Y up) to `forward`/`up`. */
+function surfaceQuaternion(
+  forward: { x: number; y: number; z: number },
+  up: { x: number; y: number; z: number },
+  out: THREE.Quaternion,
+): THREE.Quaternion {
+  axisUp.set(up.x, up.y, up.z);
+  axisBack.set(-forward.x, -forward.y, -forward.z);
+  right.crossVectors(axisUp, axisBack).normalize();
+  axisBack.crossVectors(right, axisUp).normalize();
+  basis.makeBasis(right, axisUp, axisBack);
+  return out.setFromRotationMatrix(basis);
+}
+
 /** Deterministic 0..1 noise so sparks look random but freeze exactly when the sim is paused. */
 function noise(seed: number): number {
   const x = Math.sin(seed * 12.9898) * 43758.5453;
@@ -141,7 +168,12 @@ export class KartRenderer {
       pose.heading = lerpAngle(before.heading, kart.heading, alpha);
       filter?.adjust(i, pose, current.tick, alpha);
       model.root.position.set(pose.x, pose.y, pose.z);
-      model.root.rotation.y = pose.heading;
+      if (kart.up && kart.forward) {
+        // Mesh tracks (MK-99): stand on the surface, interpolating the frame between ticks.
+        surfaceQuaternion(before.forward ?? kart.forward, before.up ?? kart.up, beforeQ);
+        surfaceQuaternion(kart.forward, kart.up, after);
+        model.root.quaternion.slerpQuaternions(beforeQ, after, alpha);
+      } else model.root.rotation.set(0, pose.heading, 0);
 
       if (current.tick !== this.wheelTick) {
         const ticks = this.wheelTick < 0 ? 0 : current.tick - this.wheelTick;
@@ -226,6 +258,15 @@ export class KartRenderer {
 
   kart(id: number): THREE.Object3D | undefined {
     return this.models[id]?.root;
+  }
+
+  /** Kart `id`'s drawn facing and up (world), written into `out`; false if it has no model. */
+  frame(id: number, out: DrawnFrame): boolean {
+    const root = this.models[id]?.root;
+    if (!root) return false;
+    out.forward.set(0, 0, -1).applyQuaternion(root.quaternion);
+    out.up.set(0, 1, 0).applyQuaternion(root.quaternion);
+    return true;
   }
 
   private createModel(kart: KartState): KartModel {
