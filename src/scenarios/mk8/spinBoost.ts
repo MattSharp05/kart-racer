@@ -1,9 +1,9 @@
 // Anti-gravity spin boost scenarios (MK-108) on the synthetic MK8 test ramp: no pack needed. Like
-// `mk8.ts`, this module is in the main bundle, so the test ramp's numbers are copied as plain
-// numbers (`mk8SpinBoost.test.ts` keeps them equal to `test-ramp/layout.ts`).
-import { createSimState, type KartSpawn } from '../sim/state';
-import type { SimState } from '../sim/types';
-import type { Scenario } from './registry';
+// `testRamp.ts`, this module is in the main bundle, so the test ramp's numbers are copied as plain
+// numbers (`spinBoost.test.ts` keeps them equal to `test-ramp/layout.ts`).
+import { createSimState, type KartSpawn } from '../../sim/state';
+import type { SimState } from '../../sim/types';
+import type { Scenario } from '../registry';
 
 export const SPIN_BOOST_RAMP = {
   id: 'mk8-test-ramp',
@@ -33,13 +33,14 @@ function wallState(seed: number, karts: KartSpawn[]): SimState {
   });
 }
 
-export const spinBoostScenarios: Scenario[] = [
+const scenarios: Scenario[] = [
   {
     name: 'mk8-test-spinboost',
     group: 'MK8 Mode',
     description:
       'Spin boost (MK-108): you at full speed on the test ramp tunnel’s anti-gravity wall, about to bump a slower kart 6 m ahead. Hold throttle: both karts spin and boost (blue hover wheels and glow trail on the wall). Use &paused=1 to look first.',
     defaultSeed: 1,
+    mk8Course: SPIN_BOOST_RAMP.id,
     setup: (seed) => ({
       state: wallState(seed, [onWall(tunnel.from + 2, 5, 26), onWall(tunnel.from + 8, 5, 12)]),
     }),
@@ -50,8 +51,10 @@ export const spinBoostScenarios: Scenario[] = [
     description:
       'Boost bumper (MK-108): you on the test ramp tunnel’s anti-gravity wall, about to glance off the bumper on it 12 m ahead (1.2 m to one side): a bounce and a spin boost. The bumper beside the road after the gap (x 140) is plain road: a bounce, no boost.',
     defaultSeed: 1,
+    mk8Course: SPIN_BOOST_RAMP.id,
     setup: (seed) => ({
       state: wallState(seed, [onWall(wallBumper.x - 12, wallBumper.height + 1.2, 24)]),
     }),
   },
 ];
+export default scenarios;

@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { TEST_RAMP_ID, TEST_RAMP_LAYOUT as L } from '../mk8/content/courses/test-ramp';
 import { registerTestRamp } from '../mk8/content/courses/test-ramp/register';
-import { spinBoostScenarios } from '../scenarios/mk8SpinBoost';
+import spinBoostScenarios from '../scenarios/mk8/spinBoost';
 import { resolveKartCollisions } from './collisions';
 import type { Vec3 } from './math';
 import type { RouteZone } from './route';
