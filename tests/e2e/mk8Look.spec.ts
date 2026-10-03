@@ -78,7 +78,8 @@ test.describe('MK8 course look (MK-125)', () => {
     await page.evaluate(() => window.__game!.pause());
     await expect.poll(() => ambience(page)).toEqual([`start ${CROWD}`, `stop ${CROWD}`]);
 
-    // Racing again, then the pause menu's Quit: silent, and the look is gone with the course.
+    // Racing again, then the pause menu's Quit (MK-121: back to MK8 Mode's menus, the race
+    // stopped behind them): silent, and it stays silent.
     await page.evaluate(() => window.__game!.resume());
     await expect.poll(async () => (await ambience(page)).length).toBe(3);
     await page.keyboard.press('Escape');
@@ -86,6 +87,12 @@ test.describe('MK8 course look (MK-125)', () => {
     await expect
       .poll(() => ambience(page))
       .toEqual([`start ${CROWD}`, `stop ${CROWD}`, `start ${CROWD}`, `stop ${CROWD}`]);
-    await expect.poll(() => page.evaluate(() => window.__mk8Look === undefined)).toBe(true);
+    await expect(page.locator('.mk8').first()).toBeVisible();
+    // A few frames of the loop behind the menus: nothing starts again.
+    await page.evaluate(async () => {
+      for (let i = 0; i < 10; i += 1) await new Promise((r) => requestAnimationFrame(r));
+    });
+    expect((await ambience(page)).at(-1)).toBe(`stop ${CROWD}`);
+    expect(await page.evaluate(() => window.__game!.isPaused())).toBe(true);
   });
 });
