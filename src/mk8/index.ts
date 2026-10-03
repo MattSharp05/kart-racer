@@ -34,15 +34,10 @@ import { prepareMk8Items } from './render/items';
 import { styleGuide, type SpriteSource } from './ui/kit/styleGuide';
 import { Progress } from './ui/loading';
 import './ui/password';
-import { cupSelect } from './ui/screens/cupSelect';
-import { engineClass } from './ui/screens/engineClass';
-import { characterSelect, type PreviewHooks } from './ui/screens/characterSelect';
-import { kartBuilder } from './ui/screens/kartBuilder';
-import { modeSelect } from './ui/screens/modeSelect';
-import type { Mk8Context, Mk8Flow } from './ui/screens/session';
-import { titleScreen } from './ui/screens/title';
+import type { PreviewHooks } from './ui/screens/characterSelect';
+import { Mk8ScreenFlow } from './ui/screens';
+import type { Mk8Context, Mk8Flow, Mk8Screen } from './ui/screens/session';
 import { sprite } from './ui/sprites';
-import type { Mk8ScreenFactory } from './ui/stack';
 import './ui/stack';
 import './ui/stage';
 
@@ -78,52 +73,29 @@ declare global {
 /**
  * How MK8 Mode opens: `load` (the menu button) loads the pack, then shows the MK8 title; the
  * `mk8-loading` and `mk8-not-installed` scenarios show those screens without fetching anything;
- * `ui-kit` (the `mk8-ui-kit` scenario) shows the UI kit's style guide, and `title` / `mode` (the
- * `mk8-ui-title` / `mk8-ui-mode` scenarios, MK-116) the title or the mode select, with the pack's
- * sprites if it has one and stand-ins otherwise; `password` (the `mk8-password` scenario, MK-135)
- * asks for the site's pack password first (`course-password`, MK-105: then reloads the page, an MK8
- * course scenario opened before logging in). A `StageDemoId` (MK-101's scenarios) loads those
- * models and shows them on the 3D stage. MK-119: `cc` (a Grand Prix's engine class), `cup`
- * (a 150cc Grand Prix's cup select) and `course` (a 150cc VS Race's cup/course select), each over
- * the screens that lead there. MK-117: `char`, a Grand Prix's character select. MK-118: `kart`,
- * a Grand Prix's kart builder.
+ * `ui-kit` (the `mk8-ui-kit` scenario) shows the UI kit's style guide; `password` (the
+ * `mk8-password` scenario, MK-135) asks for the site's pack password first (`course-password`,
+ * MK-105: then reloads the page, an MK8 course scenario opened before logging in). A `StageDemoId`
+ * (MK-101's scenarios) loads those models and shows them on the 3D stage. Any other start is a
+ * menu screen's (its `starts`, MK-142: `title`, `mode`, `char`, `kart`, `cc`, `cup`, `course`…):
+ * that screen over the ones that lead there, with the pack's sprites if it has one and stand-ins
+ * otherwise.
  */
 export type Mk8Start =
   | 'load'
   | 'loading-demo'
   | 'not-installed'
   | 'ui-kit'
-  | 'title'
-  | 'mode'
-  | 'char'
-  | 'cc'
-  | 'cup'
-  | 'course'
-  | 'kart'
   | 'password'
   | 'course-password'
-  | StageDemoId;
+  | StageDemoId
+  | Mk8ScreenStart;
 
-/** The screens over the MK8 title a scenario opens on, and the choices made on the way. */
-const DEEP_STARTS: Partial<
-  Record<Mk8Start, { flow: Mk8Flow; screens: ((ctx: Mk8Context) => Mk8ScreenFactory)[] }>
-> = {
-  mode: { flow: {}, screens: [modeSelect] },
-  char: { flow: { mode: 'grand-prix' }, screens: [modeSelect, characterSelect] },
-  kart: { flow: { mode: 'grand-prix' }, screens: [modeSelect, characterSelect, kartBuilder] },
-  cc: {
-    flow: { mode: 'grand-prix' },
-    screens: [modeSelect, characterSelect, kartBuilder, engineClass],
-  },
-  cup: {
-    flow: { mode: 'grand-prix', engineClass: 150 },
-    screens: [modeSelect, characterSelect, kartBuilder, engineClass, cupSelect],
-  },
-  course: {
-    flow: { mode: 'vs', engineClass: 150 },
-    screens: [modeSelect, characterSelect, kartBuilder, engineClass, cupSelect],
-  },
-};
+/** A menu screen's scenario start (`Mk8Screen.starts`), checked when MK8 Mode opens. */
+export type Mk8ScreenStart = string & Record<never, never>;
+
+/** The menus' screens in flow order (`ui/screens/order.ts`). */
+const screenFlow = new Mk8ScreenFlow();
 
 /** Where the `mk8-loading` scenario holds the bar. */
 const DEMO_PROGRESS = 0.5;
@@ -167,11 +139,9 @@ export function start(host: Mk8Host, mode: Mk8Start = 'load'): Promise<void> {
     host.exit();
   };
   if (mode === 'ui-kit') return trackLoad(openUiKit(host, back));
-  const deep = DEEP_STARTS[mode];
-  if (mode === 'title' || deep) {
-    return trackLoad(
-      openMenus(host, back, deep?.screens ?? [], { optionalPack: true, flow: deep?.flow ?? {} }),
-    );
+  const deep = screenFlow.start(mode);
+  if (deep) {
+    return trackLoad(openMenus(host, back, deep.screens, { optionalPack: true, flow: deep.flow }));
   }
   if (mode in STAGE_DEMOS) {
     const id = mode as StageDemoId;
@@ -252,6 +222,7 @@ export function start(host: Mk8Host, mode: Mk8Start = 'load'): Promise<void> {
     });
     return Promise.resolve();
   }
+  if (mode !== 'load') return Promise.reject(new Error(`Unknown MK8 start: ${mode}`));
   return trackLoad(load());
 }
 
@@ -273,7 +244,7 @@ export async function prepareRace(): Promise<void> {
 async function openMenus(
   host: Mk8Host,
   onExit: () => void,
-  then: readonly ((ctx: Mk8Context) => Mk8ScreenFactory)[] = [],
+  then: readonly Mk8Screen[] = [],
   { optionalPack = false, flow: start = {} as Mk8Flow } = {},
 ): Promise<void> {
   const files = packLoader();
@@ -290,12 +261,13 @@ async function openMenus(
     frozen: openedPaused(),
     loadCharacters: (first, onFirst) => loadCharacters(files, first, onFirst),
     store: host.store ?? browserStore(),
+    next: (from) => screenFlow.next(from, flow).build(ctx),
   };
   const sounds = audioPlayer();
   if (window.__mk8) window.__mk8.flow = flow;
   host.screens.show('mk8Stack', {
-    first: titleScreen(ctx),
-    then: then.map((screen) => screen(ctx)),
+    first: screenFlow.first().build(ctx),
+    then: then.map((screen) => screen.build(ctx)),
     sounds,
     onExit,
   });

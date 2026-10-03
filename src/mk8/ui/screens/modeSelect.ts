@@ -3,8 +3,7 @@
 // flow and goes on to character select (MK-117); Back returns to the title.
 import { art, Menu, menuScreen, panel, wideTile } from '../kit';
 import type { Mk8ScreenFactory } from '../stack';
-import { characterSelect } from './characterSelect';
-import { MK8_MODES, type Mk8Context } from './session';
+import { MK8_MODES, type Mk8Context, type Mk8Screen } from './session';
 import './modeSelect.css';
 
 export function modeSelect(ctx: Mk8Context): Mk8ScreenFactory {
@@ -40,7 +39,7 @@ export function modeSelect(ctx: Mk8Context): Mk8ScreenFactory {
       onConfirm: (index) => {
         const mode = MK8_MODES[index]?.id ?? 'grand-prix';
         ctx.flow.mode = mode;
-        stack.push(characterSelect(ctx));
+        stack.push(ctx.next('mode'));
       },
     });
     body.append(div('mk8-modes-list', ...tiles), side);
@@ -54,3 +53,6 @@ function div(className: string, ...children: Node[]): HTMLDivElement {
   node.append(...children);
   return node;
 }
+
+/** The mode select (MK-116); the `mode` scenario start opens on it. */
+export const screen: Mk8Screen = { id: 'mode', build: modeSelect, starts: { mode: {} } };

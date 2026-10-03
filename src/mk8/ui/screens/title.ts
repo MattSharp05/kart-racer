@@ -6,8 +6,7 @@ import { art } from '../kit';
 import { menuAction } from '../kit/nav';
 import { CHARACTER_SPRITES } from '../sprites';
 import type { Mk8ScreenFactory } from '../stack';
-import { modeSelect } from './modeSelect';
-import type { Mk8Context } from './session';
+import type { Mk8Context, Mk8Screen } from './session';
 import './title.css';
 
 /** The racers' names, for the stand-ins' initials (same order as CHARACTER_SPRITES). */
@@ -81,7 +80,7 @@ export function titleScreen(ctx: Mk8Context): Mk8ScreenFactory {
       // The first press is the gesture that lets audio start (iOS).
       stack.sounds.unlock?.();
       stack.sounds.play('ui/decide');
-      stack.push(modeSelect(ctx));
+      stack.push(ctx.next('title'));
     };
     screen.addEventListener('click', start);
     return {
@@ -95,3 +94,6 @@ export function titleScreen(ctx: Mk8Context): Mk8ScreenFactory {
     };
   };
 }
+
+/** MK8 Mode's title (MK-116): first in the flow; the `title` scenario start opens on it. */
+export const screen: Mk8Screen = { id: 'title', build: titleScreen, starts: { title: {} } };
