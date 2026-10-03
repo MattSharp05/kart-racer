@@ -203,10 +203,13 @@ describe('anti-gravity on the test ramp (MK-99)', () => {
     ]);
     let state = s;
     const events: SimEvent[] = [];
-    for (let i = 0; i < 40; i += 1) {
+    // Until 3 ticks after the bump: their spin boosts (MK-108) then drive them back together.
+    let after = -1;
+    for (let i = 0; i < 40 && after < 3; i += 1) {
       const r = step(state, [input({ throttle: 0.3 }), input({ throttle: 0.3 })]);
       state = r.state;
       events.push(...r.events);
+      if (after >= 0 || r.events.some((e) => e.type === 'bump')) after += 1;
     }
     const bump = events.find((e) => e.type === 'bump');
     expect(bump).toBeDefined();

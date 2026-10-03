@@ -3,6 +3,7 @@ export { default as entry } from './entry';
 export { default as items } from './items';
 export { default as loadouts } from './loadouts';
 export { default as ourItems } from './ourItems';
+export { default as spinBoost } from './spinBoost';
 export { default as stadium } from './stadium';
 export { default as stage } from './stage';
 export { default as testRamp } from './testRamp';
