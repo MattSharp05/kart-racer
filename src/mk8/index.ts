@@ -19,7 +19,11 @@ import { Mk8Stage } from './render/stage';
 import { prepareMk8Items } from './render/items';
 import { styleGuide, type SpriteSource } from './ui/kit/styleGuide';
 import { Progress } from './ui/loading';
+import { modeSelect } from './ui/screens/modeSelect';
+import type { Mk8Context, Mk8Flow } from './ui/screens/session';
+import { titleScreen } from './ui/screens/title';
 import { sprite } from './ui/sprites';
+import type { Mk8ScreenFactory } from './ui/stack';
 import './ui/stack';
 import './ui/stage';
 
@@ -35,20 +39,23 @@ export interface Mk8Host {
 declare global {
   interface Window {
     /**
-     * MK8 Mode's test hooks: every sound id the player was asked to play (MK-104), and the model
-     * stage's demo (MK-101).
+     * MK8 Mode's test hooks: every sound id the player was asked to play (MK-104), what the menus
+     * have chosen so far (MK-116), and the model stage's demo (MK-101).
      */
-    __mk8?: { sounds: SoundId[]; stage?: StageHooks };
+    __mk8?: { sounds: SoundId[]; flow?: Mk8Flow; stage?: StageHooks };
   }
 }
 
 /**
- * How MK8 Mode opens: `load` (the menu button) loads the pack; the `mk8-loading` and
- * `mk8-not-installed` scenarios show those screens without fetching anything; `ui-kit` (the
- * `mk8-ui-kit` scenario) shows the UI kit's style guide, with the pack's sprites if it has one.
- * A `StageDemoId` (MK-101's scenarios) loads those models and shows them on the 3D stage.
+ * How MK8 Mode opens: `load` (the menu button) loads the pack, then shows the MK8 title; the
+ * `mk8-loading` and `mk8-not-installed` scenarios show those screens without fetching anything;
+ * `ui-kit` (the `mk8-ui-kit` scenario) shows the UI kit's style guide, and `title` / `mode` (the
+ * `mk8-ui-title` / `mk8-ui-mode` scenarios, MK-116) the title or the mode select, with the pack's
+ * sprites if it has one and stand-ins otherwise. A `StageDemoId` (MK-101's scenarios) loads those
+ * models and shows them on the 3D stage.
  */
-export type Mk8Start = 'load' | 'loading-demo' | 'not-installed' | 'ui-kit' | StageDemoId;
+export type Mk8Start =
+  'load' | 'loading-demo' | 'not-installed' | 'ui-kit' | 'title' | 'mode' | StageDemoId;
 
 /** Where the `mk8-loading` scenario holds the bar. */
 const DEMO_PROGRESS = 0.5;
@@ -90,6 +97,11 @@ export function start(host: Mk8Host, mode: Mk8Start = 'load'): Promise<void> {
     host.exit();
   };
   if (mode === 'ui-kit') return trackLoad(openUiKit(host, back));
+  if (mode === 'title' || mode === 'mode') {
+    return trackLoad(
+      openMenus(host, back, mode === 'mode' ? [modeSelect] : [], { optionalPack: true }),
+    );
+  }
   if (mode in STAGE_DEMOS) {
     const id = mode as StageDemoId;
     const open = async (): Promise<void> => {
@@ -117,7 +129,7 @@ export function start(host: Mk8Host, mode: Mk8Start = 'load'): Promise<void> {
   const load = async (): Promise<void> => {
     try {
       await packLoader().loadUi((fraction) => progress.set(fraction));
-      if (!left) screens.show('mk8Placeholder', { onBack: back });
+      if (!left) await openMenus(host, back);
     } catch (e) {
       if (left) return;
       if (e instanceof PackNotInstalledError) {
@@ -143,19 +155,53 @@ export async function prepareRace(): Promise<void> {
   await prepareMk8Items(packLoader());
 }
 
-/** The style guide (MK-104): over the pack's sprites when there is a pack, stand-ins otherwise. */
-async function openUiKit(host: Mk8Host, onExit: () => void): Promise<void> {
+/**
+ * MK8 Mode's menus (MK-116): the title, and any screens over it (`then`, a scenario starting
+ * deeper in). The pack is loaded by now, unless `optionalPack` (a scenario: no pack shows
+ * stand-ins). Every opening starts a fresh flow.
+ */
+async function openMenus(
+  host: Mk8Host,
+  onExit: () => void,
+  then: readonly ((ctx: Mk8Context) => Mk8ScreenFactory)[] = [],
+  { optionalPack = false } = {},
+): Promise<void> {
   const files = packLoader();
+  if (optionalPack) await loadPackIfThere(files);
+  await loadFontsIfThere();
+  const flow: Mk8Flow = {};
+  const ctx: Mk8Context = { sprites: packSprites(files), flow };
+  const sounds = audioPlayer();
+  if (window.__mk8) window.__mk8.flow = flow;
+  host.screens.show('mk8Stack', {
+    first: titleScreen(ctx),
+    then: then.map((screen) => screen(ctx)),
+    sounds,
+    onExit,
+  });
+}
+
+async function loadPackIfThere(files: Mk8Loader): Promise<void> {
   try {
     await files.loadUi();
   } catch {
-    // No pack (CI, previews, production): the kit shows stand-ins and synthesized sounds.
+    // No pack (CI, previews, production): stand-ins and synthesized sounds.
   }
+}
+
+async function loadFontsIfThere(): Promise<void> {
   try {
     await loadFonts();
   } catch {
     // The fallback fonts in kit.css.
   }
+}
+
+/** The style guide (MK-104): over the pack's sprites when there is a pack, stand-ins otherwise. */
+async function openUiKit(host: Mk8Host, onExit: () => void): Promise<void> {
+  const files = packLoader();
+  await loadPackIfThere(files);
+  await loadFontsIfThere();
   host.screens.show('mk8Stack', {
     first: styleGuide(packSprites(files)),
     sounds: audioPlayer(),

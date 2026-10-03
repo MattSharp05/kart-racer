@@ -1,5 +1,5 @@
-// MK8 Mode's first screens (MK-97): the loading bar, "pack not installed" and the placeholder the
-// UI tickets replace. They live in MK8 Mode's own chunk and register with the shared router when
+// MK8 Mode's first screens (MK-97): the loading bar and "pack not installed" (once the pack is
+// loaded, MK8 Mode's title shows, MK-116). They live in MK8 Mode's own chunk and register with the shared router when
 // it loads.
 import { registerScreen, type ScreenHandle } from '../../ui/router';
 import { button, heading } from '../../ui/screens/common';
@@ -33,15 +33,10 @@ export interface Mk8NotInstalledProps {
   onBack: () => void;
 }
 
-export interface Mk8PlaceholderProps {
-  onBack: () => void;
-}
-
 declare module '../../ui/router' {
   interface ScreenProps {
     mk8Loading: Mk8LoadingProps;
     mk8NotInstalled: Mk8NotInstalledProps;
-    mk8Placeholder: Mk8PlaceholderProps;
   }
 }
 
@@ -126,15 +121,6 @@ registerScreen('mk8NotInstalled', (panel, { onBack }) => {
   more.className = 'mk8-note';
   more.textContent = 'Then open MK8 Mode again. Details: tools/mk8/README.md.';
   body.append(intro, steps, more);
-  backFooter(panel, onBack);
-  return { onKey: backKeys(onBack) };
-});
-
-registerScreen('mk8Placeholder', (panel, { onBack }) => {
-  const body = frame(panel, 'MK8 Mode');
-  const text = document.createElement('p');
-  text.textContent = 'The MK8 pack is loaded. Its menus and races are on the way.';
-  body.append(text);
   backFooter(panel, onBack);
   return { onKey: backKeys(onBack) };
 });
