@@ -26,6 +26,8 @@ from what the specs make.
 - `specs/items.ts` (MK-103, MK-112, MK-113, MK-114): one plain shape per MK8 item model id, with the real pack's
   quirks the loader fixes (top along −Z, the item box's glass at opacity 0, the red shell coloured
   like the green one).
+- `specs/trophies.ts` (MK-130): the `trophies` model as two block cups, the Mushroom Cup's node
+  named `mushroom-cup` (the podium picks it).
 - `specs/static.ts` (MK-97, MK-117): committed files made elsewhere, listed for the manifest: two
   solid-colour 64 px WebP tiles (`sharp`), the synthesized sine from `../mk8-sine.m4a` as a menu
   sound and Mario's select voice line, and `audio/voices.json`.

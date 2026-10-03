@@ -15,4 +15,5 @@ export { default as canyon } from './canyon';
 export { default as hud } from './hud';
 export { default as underwater } from './underwater';
 export { default as waterPark } from './waterPark';
+export { default as grandPrix } from './grandPrix';
 export { default as allItems } from './allItems';

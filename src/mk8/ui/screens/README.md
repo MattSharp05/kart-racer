@@ -43,3 +43,7 @@ show over an MK8 race, each in its own MK8 stack, through `src/mk8/raceScreens.t
 finishes. The rows, points and choices are pure in `src/mk8/results.ts`. Scenarios:
 `mk8-ui-pause`, `mk8-ui-results` and `mk8-ui-standings` (`src/scenarios/mk8/raceScreens.ts`, on the
 test ramp; their `mk8Start` names the MK8 mode the results are for).
+
+MK-130 adds two more of these: `confirm.ts` (the "Quit the Grand Prix?" prompt the pause menu and
+the results push on their own stack before quitting a cup) and `podium.ts` (a Grand Prix's podium,
+its 3D in `src/mk8/render/podium.ts`). The cup logic is in `src/mk8/gp/` (README there).

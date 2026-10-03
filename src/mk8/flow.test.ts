@@ -51,7 +51,9 @@ describe('MK8 race setup from the menus (MK-119)', () => {
   });
 
   it('refuses a race without a course or from a locked cup', () => {
-    expect(() => raceSetup({ mode: 'grand-prix' })).toThrow(/no course/);
+    expect(() => raceSetup({ mode: 'vs' })).toThrow(/no course/);
+    // MK-130: a Grand Prix picks its own course, the cup's first drivable one.
+    expect(raceSetup({ mode: 'grand-prix' }).course).toBe('stadium');
     expect(() => raceSetup({ course: 'stadium', cup: 'star' })).toThrow(/locked/);
   });
 

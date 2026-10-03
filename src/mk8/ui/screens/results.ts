@@ -29,6 +29,8 @@ export interface ResultsChoice {
   id: Mk8ResultChoice;
   label: string;
   onPress: () => void;
+  /** Asked first (MK-130: quitting a Grand Prix), its yes running `onPress`. */
+  confirm?: Mk8ScreenFactory;
 }
 
 export interface ResultsOptions {
@@ -105,7 +107,11 @@ export function resultsScreen(options: ResultsOptions): Mk8ScreenFactory {
     const menu = new Menu({
       items: choiceTiles,
       sounds: stack.sounds,
-      onConfirm: (index) => options.choices[index]?.onPress(),
+      onConfirm: (index) => {
+        const choice = options.choices[index];
+        if (choice?.confirm) stack.push(choice.confirm);
+        else choice?.onPress();
+      },
     });
     menu.active = false;
     body.append(table, choiceList);
