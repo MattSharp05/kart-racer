@@ -1,7 +1,9 @@
 import { itemSets } from '../../content/items';
 import type { KartId } from '../data/karts';
+import { headingOf } from '../math';
+import { routeGeometry } from '../route';
 import { rngRange, seedRng, type RngHolder } from '../rng';
-import { createSimState } from '../state';
+import { createSimState, type KartSpawn } from '../state';
 import { getTrack, trackGeometry } from '../track';
 import { tuning, type EngineClass } from '../tuning';
 import type { AiState, KartController, SimState } from '../types';
@@ -54,9 +56,19 @@ export function createRace({
   rng = raceSetupRng(seed),
 }: CreateRaceOptions): SimState {
   const track = getTrack(trackId);
-  if (track.kind !== 'spline') throw new Error(`createRace: ${trackId} is not a race track`);
-  const geometry = trackGeometry(track);
-  const slots = track.gridSlots ?? [];
+  if (track.kind === 'arena') throw new Error(`createRace: ${trackId} is not a race track`);
+  // Mesh tracks (MK-105): the grid is on the route, each kart on the road's own up there.
+  const place =
+    track.kind === 'spline'
+      ? (t: number, lateral: number): KartSpawn => {
+          const geometry = trackGeometry(track);
+          return { position: geometry.pointAt(t, lateral), heading: geometry.headingAt(t) };
+        }
+      : (t: number, lateral: number): KartSpawn => {
+          const frame = routeGeometry(track.route).frameAt(t, lateral);
+          return { position: frame.position, heading: headingOf(frame.tangent, 0), up: frame.up };
+        };
+  const slots = (track.kind === 'spline' ? track.gridSlots : track.route.gridSlots) ?? [];
   const state = createSimState({
     seed,
     trackId,
@@ -72,8 +84,7 @@ export function createRace({
         kartType: racer.kartId,
         controller: racer.controller,
         ...(racer.name !== undefined ? { name: racer.name } : {}),
-        position: geometry.pointAt(slot.t, slot.lateral),
-        heading: geometry.headingAt(slot.t),
+        ...place(slot.t, slot.lateral),
       };
     }),
   });

@@ -49,7 +49,7 @@ import {
   type MeshSurface,
   type MeshTrackDef,
 } from './meshTrack';
-import type { Surface } from './splineTrack';
+import { inRange, type Surface } from './splineTrack';
 import { surfaceEffect } from './surfaces';
 import { tuning, type EngineClass } from './tuning';
 import type { InputFrame, KartState, SimEvent } from './types';
@@ -201,6 +201,12 @@ function bounceOffSurface(
   return { impact: into, forward: facing };
 }
 
+/** Whether lap fraction `t` is inside one of the track's glide zones. */
+function inGlideZone(track: MeshTrackDef, t: number): boolean {
+  if (t < 0) return false;
+  return track.route.zones.some((z) => z.kind === 'glide' && inRange(t, z));
+}
+
 /** Advances one kart by one tick on a mesh track. Mutates and returns `kart`. */
 export function updateMeshKart(
   kart: KartState,
@@ -343,6 +349,18 @@ export function updateMeshKart(
     if (fit.antigrav) kart.antigrav = true;
     else if (fit.plain) kart.antigrav = false;
     gravityDir = kart.antigrav ? scale(up, -1) : { ...DOWN };
+  }
+  // Off the end of a glide ramp (a route `glide` zone): launched level along the road, like a
+  // ramp lip, out of anti-gravity. A stand-in until gliders (MK-106) carry the kart over the gap.
+  if (wasGrounded && !kart.grounded && inGlideZone(track, kart.race.lastT)) {
+    const level = { x: forward.x, y: 0, z: forward.z };
+    const run = length(level);
+    if (run > 1e-6) {
+      const speed = Math.max(0, newSpeed);
+      velocity = add(scale(level, speed / run), { x: 0, y: speed * tuning.rampLaunch, z: 0 });
+      kart.antigrav = false;
+      gravityDir = { ...DOWN };
+    }
   }
   // Launch speed for tricks: how fast it leaves the ground against gravity.
   updateAirState(kart, wasGrounded, -dot(velocity, gravityDir), dt, events);
