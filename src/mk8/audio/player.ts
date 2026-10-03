@@ -29,16 +29,6 @@ export interface SoundPlayer {
   unlock?(): void;
 }
 
-/** A looping sound (MK-125: course ambience) playing until stopped. */
-export interface SoundLoop {
-  /** 0–1, eased over a moment so changes don't click. */
-  setVolume(volume: number): void;
-  stop(): void;
-}
-
-/** How quickly a loop's volume follows `setVolume`, s (time constant). */
-const LOOP_EASE = 0.15;
-
 /** Loudness of sampled sounds and of the stand-ins. */
 const SAMPLE_VOLUME = 0.8;
 const SYNTH_VOLUME = 0.2;
@@ -142,37 +132,6 @@ export class Mk8AudioPlayer implements SoundPlayer {
       return;
     }
     this.sample(ctx, path);
-  }
-
-  /**
-   * Loops `id` at `volume` until stopped. Undefined until audio has started (the first tap or
-   * key press); silent when the pack hasn't got the sound (no stand-in loops).
-   */
-  loop(id: SoundId, volume: number): SoundLoop | undefined {
-    const ctx = this.ctx;
-    const out = this.out;
-    if (!ctx || !out) return undefined;
-    const gain = ctx.createGain();
-    gain.gain.value = volume * SAMPLE_VOLUME;
-    gain.connect(out);
-    let source: AudioBufferSourceNode | undefined;
-    let stopped = false;
-    void this.buffer(soundPath(id)).then((buffer) => {
-      if (!buffer || stopped) return;
-      source = ctx.createBufferSource();
-      source.buffer = buffer;
-      source.loop = true;
-      source.connect(gain);
-      source.start();
-    });
-    return {
-      setVolume: (v) => gain.gain.setTargetAtTime(v * SAMPLE_VOLUME, ctx.currentTime, LOOP_EASE),
-      stop: () => {
-        stopped = true;
-        source?.stop();
-        gain.disconnect();
-      },
-    };
   }
 
   voice(racer: string, event: VoiceEvent): void {

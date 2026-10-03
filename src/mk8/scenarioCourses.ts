@@ -7,7 +7,7 @@
 import { tracks } from '../content/tracks';
 import { mk8Course } from './content/courses';
 import { registerTestRamp } from './content/courses/test-ramp/register';
-import { loadMk8Course, registerLookRamp } from './courses';
+import { loadMk8Course } from './courses';
 import { loadEditorRoute } from './editorRoute';
 import { packLoader } from './index';
 import { PackLockedError, PackLoadError, PackNotInstalledError } from './loader';
@@ -23,7 +23,6 @@ export type Mk8CourseState = 'ready' | 'missing' | 'locked';
  */
 export async function prepareMk8Scenario(course: string, search: string): Promise<Mk8CourseState> {
   registerTestRamp();
-  registerLookRamp(packLoader());
   // MK8's item set and racers, for the races' setup (`createRace` looks the item set up).
   registerMk8Content();
   const content = mk8Course(course);

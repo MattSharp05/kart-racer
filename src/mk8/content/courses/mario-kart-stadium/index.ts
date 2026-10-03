@@ -7,7 +7,6 @@
 // panels, back west over the bridge onto the gravity panel, the banked anti-gravity climb and the
 // U on the stadium wall, down off the glide board onto the dirt straight, round the last bend.
 import type { Mk8CourseContent } from '../types';
-import look from './look';
 import { route } from './route';
 
 const stadium: Mk8CourseContent = {
@@ -17,7 +16,6 @@ const stadium: Mk8CourseContent = {
   route,
   // The baked shadow layer lost its texture in the conversion: it would draw as grey patches.
   hiddenMaterials: ['fc_StaticShadow'],
-  look,
 };
 
 export default stadium;

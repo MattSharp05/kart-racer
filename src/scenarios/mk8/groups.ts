@@ -11,6 +11,5 @@ export { default as stage } from './stage';
 export { default as testRamp } from './testRamp';
 export { default as ui } from './ui';
 export { default as bulletBill } from './bulletBill';
-export { default as look } from './look';
 export { default as underwater } from './underwater';
 export { default as piranhaCrazy8 } from './piranhaCrazy8';
