@@ -1,4 +1,5 @@
 import { items } from '../../../../content/items/registries';
+import { aiItemTactic } from '../../../../sim/ai/items';
 import type { InputFrame, KartState, SimEvent, SimState } from '../../../../sim/types';
 import { mk8ItemSim } from '../sim';
 
@@ -68,5 +69,11 @@ export default mk8ItemSim({
     }
     const item = CRAZY8_PRESSES[CRAZY8_PRESSES.length - 1 - left];
     if (item) useRingItem(item, kart, state, events, input);
+  },
+  // AI drivers bring the ring out at once, then use each next item when its own tactic says so
+  // (a banana with someone close behind, a green shell lined up, …).
+  aiUse: (kart, state, ctx) => {
+    const next = crazy8Ring(kart)[0];
+    return next === undefined ? true : aiItemTactic(next, kart, state, ctx);
   },
 });

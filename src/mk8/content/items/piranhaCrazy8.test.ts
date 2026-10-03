@@ -8,6 +8,7 @@ import {
   mk8Crazy8,
   mk8Piranha,
 } from '../../../scenarios/mk8/piranhaCrazy8';
+import { aiItemTactic } from '../../../sim/ai/items';
 import { forwardFromHeading } from '../../../sim/math';
 import { step } from '../../../sim/step';
 import { TICK_RATE, tuning } from '../../../sim/tuning';
@@ -193,6 +194,24 @@ describe('Crazy 8 (MK-126)', () => {
     expect(s.entities.some((e) => e.kind === 'banana')).toBe(true);
     expect(s.entities.some((e) => e.kind === 'item' && e.spec === 'bob-omb')).toBe(true);
     expect(s.karts[1]!.effects.some((e) => e.kind === 'ink-cloud')).toBe(true);
+  });
+
+  it("AI drivers bring the ring out at once, then ask each next item's own tactic", () => {
+    const s = mk8Crazy8(1);
+    const kart = s.karts[0]!;
+    const aiUse = items.get(CRAZY8).aiUse!;
+    // A straight ahead and nobody around: enough context for the mushroom's and Blooper's tactics.
+    const ctx = {
+      giveUp: false,
+      straightAhead: () => 0,
+      aheadMetres: () => 0,
+    } as unknown as Parameters<typeof aiUse>[2];
+    expect(aiUse(kart, s, ctx)).toBe(true);
+    // Ring out, mushroom next (banana, green and red used).
+    kart.item.uses = 3;
+    expect(aiUse(kart, s, ctx)).toEqual(aiItemTactic('mushroom', kart, s, ctx));
+    kart.item.uses = 1;
+    expect(aiUse(kart, s, ctx)).toEqual(aiItemTactic('ink-cloud', kart, s, ctx));
   });
 
   it("the HUD icon is the 8, then the next item's", () => {
