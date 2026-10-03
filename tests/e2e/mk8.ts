@@ -1,7 +1,6 @@
 import { readFileSync } from 'node:fs';
 import type { Page, Route } from '@playwright/test';
-import { gateMk8 } from '../../api/_mk8Auth';
-import { handleMk8Login, resetLoginFailures } from '../../api/mk8-login';
+import { gateMk8, handleMk8Login, resetLoginFailures } from '../../api/mk8-login';
 
 /** The synthetic MK8 pack (`fixtures/mk8-pack/`): CI never has the real, local-only one (ADR 0009). */
 const PACK = new URL('./fixtures/mk8-pack/', import.meta.url);

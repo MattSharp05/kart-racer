@@ -1,18 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+  FAILURE_DELAY_MS,
   gateMk8,
+  handleMk8Login,
+  MAX_FAILURES,
   passwordMatches,
   readCookie,
+  resetLoginFailures,
   SESSION_COOKIE,
   SESSION_TTL_SECONDS,
   signSession,
   verifySession,
-} from '../../api/_mk8Auth';
-import {
-  FAILURE_DELAY_MS,
-  handleMk8Login,
-  MAX_FAILURES,
-  resetLoginFailures,
 } from '../../api/mk8-login';
 import middleware, { config } from '../../middleware';
 
@@ -74,7 +72,7 @@ describe('MK8 pack gate (MK-135)', () => {
       `${v}.${Number(exp) + 1}.${mac}`,
       `${v}.${exp}.${mac!.slice(0, -2)}AA`,
       (await signSession({ ...ENV, MK8_COOKIE_SECRET: 'other' }, NOW + 60))!,
-      (await signSession(ENV, NOW + SESSION_TTL_SECONDS + 10))!,
+      (await signSession(ENV, NOW + SESSION_TTL_SECONDS + 600))!,
       'v1.abc.def',
       'v2.1.2',
       '',
@@ -90,6 +88,11 @@ describe('MK8 pack gate (MK-135)', () => {
       expect(response.status, value).toBe(401);
     }
     expect(await verifySession(ENV, good, NOW)).toBe(true);
+  });
+
+  it('accepts a fresh cookie from a login server whose clock is a little ahead', async () => {
+    const value = (await signSession(ENV, NOW + 2 + SESSION_TTL_SECONDS))!;
+    expect(await verifySession(ENV, value, NOW)).toBe(true);
   });
 
   it('changing the password logs everyone out when no secret is set', async () => {
