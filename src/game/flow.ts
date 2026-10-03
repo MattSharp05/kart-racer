@@ -407,7 +407,10 @@ export class Flow {
     const prepare = import('../mk8')
       .then((mk8) => mk8.prepareRace())
       .then(() => {
-        if (!wasPaused) game.resume();
+        // Not if the player paused (a menu, the rotate prompt) while it loaded.
+        if (!wasPaused && this.screens.current === 'none' && !this.rotatePrompt.shown) {
+          game.resume();
+        }
         this.world.markChanged();
       })
       .catch((e: unknown) => {

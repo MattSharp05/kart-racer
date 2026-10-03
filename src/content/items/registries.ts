@@ -32,6 +32,12 @@ export interface ItemContent {
   uses?: number;
   /** Runs when the holder presses the item button. Mutates `state` (the tick's clone). */
   onUse(kart: KartState, state: SimState, events: SimEvent[], input: InputFrame): void;
+  /**
+   * Two-slot races (MK-103): whether `kart` still has a claim on slot 1 after using this item (a
+   * thrown boomerang coming back to be caught). While it does, slot 2 doesn't move up and a box
+   * fills slot 2.
+   */
+  keepsSlot?(kart: KartState, state: SimState): boolean;
   /** Runs every tick while a kart holds this item (roulette finished), before it can be used. */
   onHoldTick?(kart: KartState, state: SimState, dt: number, events: SimEvent[]): void;
   /**

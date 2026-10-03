@@ -41,6 +41,11 @@ export function giveItem(kart: KartState | ItemSlot, item: ItemId): void {
   slot.uses = items.get(item).uses ?? 1;
 }
 
+/** Whether an item `kart` used still claims its slot 1 (`ItemContent.keepsSlot`, MK-103). */
+function slotKept(kart: KartState, state: SimState): boolean {
+  return items.list().some((item) => item.keepsSlot?.(kart, state) ?? false);
+}
+
 /** The roulette's pick for `kart`: by its race position, from the race's item set's odds. */
 function rollItem(state: SimState, kart: KartState): ItemId | null {
   const position = positionOf(state, kart.id);
@@ -81,8 +86,11 @@ export function updateItems(
     if (only !== undefined && kart.id !== only) continue;
     kart.spinTimer = countDown(kart.spinTimer, dt);
     const slot = kart.item;
-    promoteSecondSlot(slot);
     const second = slot.second;
+    // Two-slot races (MK-103): slot 1 may be kept for an item on its way back (a boomerang).
+    const kept =
+      second !== undefined && slot.held === null && slot.roulette === 0 && slotKept(kart, state);
+    if (!kept) promoteSecondSlot(slot);
 
     // Drive through an active box: it breaks; start the roulette if the slot is free (else slot
     // 2's, in two-slot races, MK-103).
@@ -93,8 +101,9 @@ export function updateItems(
       if (Math.hypot(dx, dz) > tuning.itemBoxRadius) continue;
       box.respawnTimer = tuning.itemBoxRespawnSeconds;
       events.push({ type: 'itemBoxHit', kartId: kart.id, boxId: box.id });
-      if (slot.held === null && slot.roulette === 0) slot.roulette = tuning.rouletteSeconds;
-      else if (second && second.held === null && second.roulette === 0) {
+      if (slot.held === null && slot.roulette === 0 && !kept) {
+        slot.roulette = tuning.rouletteSeconds;
+      } else if (second && second.held === null && second.roulette === 0) {
         second.roulette = tuning.rouletteSeconds;
       }
     }
@@ -138,7 +147,7 @@ export function updateItems(
       }
       items.get(item).onUse(kart, state, events, inputs[kart.id] ?? NEUTRAL_INPUT);
       events.push({ type: 'itemUsed', kartId: kart.id, item });
-      promoteSecondSlot(slot);
+      if (second && !slotKept(kart, state)) promoteSecondSlot(slot);
     }
   }
 }

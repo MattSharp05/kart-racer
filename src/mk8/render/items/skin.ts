@@ -214,6 +214,8 @@ export class Mk8ItemRenderer implements ItemRenderer {
   private drawKart(kart: KartState, time: number, model: THREE.Object3D | undefined): void {
     const at = (x: number, y: number, z: number): THREE.Vector3 => {
       this.offset.set(x, y, z);
+      // This frame's pose: the kart was just placed, and its matrix is only updated when drawn.
+      model?.updateWorldMatrix(true, false);
       if (model) return model.localToWorld(this.offset);
       return this.offset.set(kart.position.x + x, kart.position.y + y, kart.position.z + z);
     };

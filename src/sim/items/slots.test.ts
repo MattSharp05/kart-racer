@@ -120,6 +120,22 @@ describe('the second item slot (MK-103)', () => {
     expect(state.karts[0]!.item.held).toBe('star');
   });
 
+  it("a thrown boomerang keeps slot 1 for its catch; slot 2 waits, then moves up if it's lost", () => {
+    const start = twoSlotRace();
+    giveItem(start.karts[0]!, 'boomerang');
+    giveItem(start.karts[0]!.item.second!, 'banana');
+    const thrown = run(start, 1, { item: true }).state;
+    expect(thrown.entities.some((e) => e.kind === 'item')).toBe(true);
+    expect(thrown.karts[0]!.item.held).toBeNull();
+    expect(thrown.karts[0]!.item.second?.held).toBe('banana');
+    // Still in the air a moment later: slot 2 hasn't moved.
+    const flying = run(thrown, 10).state;
+    expect(flying.karts[0]!.item.second?.held).toBe('banana');
+    // Gone without a catch: slot 2 moves up.
+    flying.entities = flying.entities.filter((e) => e.kind !== 'item');
+    expect(run(flying, 1).state.karts[0]!.item.held).toBe('banana');
+  });
+
   it('lightning drops both slots', () => {
     const state = twoSlotRace();
     const kart = state.karts[0]!;
