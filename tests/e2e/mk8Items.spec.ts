@@ -101,6 +101,53 @@ test.describe('MK8 items', () => {
     expect(errors).toEqual([]);
   });
 
+  test('spiny shell (MK-113): from last place it flies to the leader and blows it up', async ({
+    page,
+  }) => {
+    const errors = pageErrors(page);
+    const pack = await servePack(page);
+    await loadScenario(page, 'mk8-item-spiny', { paused: true });
+    await expect(page.locator('.hud-item')).toHaveAttribute('data-item', 'spiny-shell');
+    await setInput(page, 0, { item: true });
+    await step(page, 1);
+    await setInput(page, 0, { item: false });
+    let state = await step(page, 1);
+    expect(state.entities.some((e) => e.kind === 'item' && e.spec === 'spiny-shell')).toBe(true);
+    // It lands within a few seconds of flight; the leader (kart 1) spins out, thrown up.
+    for (let i = 0; i < 20 && state.karts[1]!.spinTimer === 0; i += 1) state = await step(page, 30);
+    expect(state.karts[1]!.spinTimer).toBeGreaterThan(0);
+    expect(state.entities.some((e) => e.kind === 'item' && e.spec === 'spiny-shell')).toBe(false);
+    expect(pack.requested).toContain('models/items/blue-shell.glb');
+    expect(errors).toEqual([]);
+  });
+
+  test('super horn (MK-113): timed under a diving spiny, it destroys it and the player is unhurt', async ({
+    page,
+  }) => {
+    const errors = pageErrors(page);
+    await servePack(page);
+    await loadScenario(page, 'mk8-item-horn-vs-spiny', { paused: true });
+    // The HUD warns of the spiny coming for the player.
+    await step(page, 1);
+    await expect(page.locator('.hud-incoming')).toHaveAttribute('data-items', 'spiny-shell');
+    // Until it dives (data[0] = 2) …
+    const diving = (s: Awaited<ReturnType<typeof getState>>) =>
+      s.entities.some((e) => e.kind === 'item' && e.spec === 'spiny-shell' && e.data[0] === 2);
+    let state = await getState(page);
+    for (let i = 0; i < 24 && !diving(state); i += 1) state = await step(page, 5);
+    expect(diving(state)).toBe(true);
+    // … and is right over the player (its dive closes in for the first 60 % of 1.4 s): honk.
+    await step(page, 45);
+    await setInput(page, 0, { item: true });
+    await step(page, 1);
+    await setInput(page, 0, { item: false });
+    state = await step(page, 180);
+    expect(state.entities.some((e) => e.kind === 'item' && e.spec === 'spiny-shell')).toBe(false);
+    expect(state.karts[0]!.spinTimer).toBe(0);
+    expect(state.karts[0]!.item.held).toBeNull();
+    expect(errors).toEqual([]);
+  });
+
   test('without a pack, MK8 races still run, with our items', async ({ page }) => {
     const errors = pageErrors(page);
     await loadScenario(page, 'mk8-two-slots');

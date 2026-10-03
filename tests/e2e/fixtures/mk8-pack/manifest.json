@@ -32,6 +32,12 @@
       "group": "items"
     },
     {
+      "path": "models/items/blue-shell.glb",
+      "bytes": 13636,
+      "sha256": "ff0990527afd8c4130ef084e022184ddf5f615f65d973c69154d24f14d34f90a",
+      "group": "items"
+    },
+    {
       "path": "models/items/boomerang-flower.glb",
       "bytes": 1576,
       "sha256": "f017f03768c0c976f04408d5d0be22c74f412ab01317ee0ee34700bb9fdf1f92",
@@ -77,6 +83,12 @@
       "path": "models/items/star.glb",
       "bytes": 1216,
       "sha256": "b747ec14e1c2c38a67baa9367d7f1489ef6653ad0fc8b8542e0cc1617de9c55c",
+      "group": "items"
+    },
+    {
+      "path": "models/items/super-horn.glb",
+      "bytes": 2184,
+      "sha256": "21f6b389f37024c395f4d955b9e86cf7c6475b77d7d63b87a1f7810decfcda75",
       "group": "items"
     },
     {

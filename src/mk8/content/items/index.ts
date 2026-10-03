@@ -12,6 +12,8 @@ import type { ItemContent, ItemSetContent } from '../../../content/items';
 import goldenMushroom from './golden-mushroom/sim';
 import { MK8_ITEM_SET } from './id';
 import { MK8_ODDS } from './odds';
+import spinyShell from './spiny-shell/sim';
+import superHorn from './super-horn/sim';
 import tripleBanana from './triple-banana/sim';
 import tripleGreen from './triple-green/sim';
 import tripleMushroom from './triple-mushroom/sim';
@@ -58,6 +60,9 @@ export const MK8_ITEMS: readonly Mk8Item[] = [
   { id: 'triple-banana', sim: tripleBanana, model: 'banana', icon: 'i_banana3' },
   { id: 'triple-mushroom', sim: tripleMushroom, model: 'mushroom', icon: 'i_mushroom3' },
   { id: 'golden-mushroom', sim: goldenMushroom, model: 'golden-mushroom', icon: 'i_golden' },
+  // MK-113: the Spiny Shell and its counter, the Super Horn.
+  { id: 'spiny-shell', sim: spinyShell, model: 'blue-shell', icon: 'i_spiny' },
+  { id: 'super-horn', sim: superHorn, model: 'super-horn', icon: 'i_horn' },
 ];
 
 /** The item box's pack model. */
