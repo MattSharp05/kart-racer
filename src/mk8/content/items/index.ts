@@ -10,6 +10,7 @@
 //     its pack model by `mk8EntityModel`).
 import type { ItemContent, ItemSetContent } from '../../../content/items';
 import bobomb from './bob-omb/sim';
+import bulletBill from './bullet-bill/sim';
 import fireFlower from './fire-flower/sim';
 import goldenMushroom from './golden-mushroom/sim';
 import { MK8_ITEM_SET } from './id';
@@ -68,6 +69,8 @@ export const MK8_ITEMS: readonly Mk8Item[] = [
   // MK-114: the Bob-omb, and the Fire Flower (no pack model: the skin draws ours).
   { id: 'bob-omb', sim: bobomb, model: 'bob-omb', icon: 'i_bobomb' },
   { id: 'fire-flower', sim: fireFlower, model: null, icon: 'i_fireflower' },
+  // MK-120: Bullet Bill (the kart rides the route as a bullet).
+  { id: 'bullet-bill', sim: bulletBill, model: 'bullet-bill', icon: 'i_bullet' },
 ];
 
 /** The item box's pack model. */
