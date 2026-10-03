@@ -26,7 +26,7 @@ test.describe('MK8 items: Piranha Plant, coin, Crazy 8', () => {
     const errors = pageErrors(page);
     const pack = await servePack(page);
     await loadScenario(page, 'mk8-item-piranha', { paused: true });
-    await expect(page.locator('.hud-item')).toHaveAttribute('data-item', 'piranha-plant');
+    await expect(page.locator('.mk8-hud-item')).toHaveAttribute('data-item', 'piranha-plant');
     let state = await press(page);
     expect(state.karts[0]!.effects.some((e) => e.kind === 'piranha-plant')).toBe(true);
     expect(state.entities.some((e) => e.kind === 'banana')).toBe(false);
@@ -48,7 +48,7 @@ test.describe('MK8 items: Piranha Plant, coin, Crazy 8', () => {
     await loadScenario(page, 'mk8-item-coin', { paused: true });
     const state = await press(page);
     expect(state.karts[0]!.coins).toBe(5);
-    await expect(page.locator('.hud-item')).toHaveAttribute('data-item', '');
+    await expect(page.locator('.mk8-hud-item')).toHaveAttribute('data-item', '');
   });
 
   test('crazy 8: the ring comes out (star and coin at once), then six presses use the rest', async ({
@@ -57,7 +57,7 @@ test.describe('MK8 items: Piranha Plant, coin, Crazy 8', () => {
     const errors = pageErrors(page);
     await servePack(page);
     await loadScenario(page, 'mk8-item-crazy8', { paused: true });
-    await expect(page.locator('.hud-item')).toHaveAttribute('data-item', 'crazy-8');
+    await expect(page.locator('.mk8-hud-item')).toHaveAttribute('data-item', 'crazy-8');
     let state = await press(page);
     expect(state.karts[0]!.starTimer).toBeGreaterThan(0);
     expect(state.karts[0]!.coins).toBe(2);
@@ -67,7 +67,7 @@ test.describe('MK8 items: Piranha Plant, coin, Crazy 8', () => {
       await step(page, 4);
     }
     expect(state.karts[0]!.item.held).toBeNull();
-    await expect(page.locator('.hud-item')).toHaveAttribute('data-item', '');
+    await expect(page.locator('.mk8-hud-item')).toHaveAttribute('data-item', '');
     expect(errors).toEqual([]);
   });
 });
