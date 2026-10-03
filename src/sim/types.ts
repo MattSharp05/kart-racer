@@ -178,6 +178,8 @@ export interface KartState {
   loadout?: Loadout;
   /** Gliding (MK-106, `sim/glide.ts`): set when the kart leaves a glide ramp, gone once it lands. */
   glide?: GlideState;
+  /** Coins held, 0–`tuning.mk8.coins.max` (MK-109, `sim/coins.ts`): only on tracks with coins. */
+  coins?: number;
 }
 
 /** A gliding kart's flight (MK-106). Plain data, mesh tracks only. */
@@ -276,6 +278,22 @@ export interface ItemEntity {
   data: number[];
 }
 
+/**
+ * A coin (MK-109, `sim/coins.ts`): one of the route's coin-line coins (comes back
+ * `respawnTimer` s after it's taken), or one a hit kart dropped (`life` s left, then gone).
+ */
+export interface CoinEntity {
+  id: number;
+  position: Vec3;
+  /** Line coins: seconds until it's back after being taken (0 = there). */
+  respawnTimer: number;
+  /** Dropped coins: seconds left before it vanishes. Absent on line coins. */
+  life?: number;
+  /** Dropped coins: the kart that dropped it, and seconds before it may take it back. */
+  ownerId?: number;
+  ownerImmune?: number;
+}
+
 /** Things in the world other than karts. */
 export type Entity = ItemBoxEntity | BananaEntity | ShellEntity | ItemEntity;
 
@@ -320,6 +338,8 @@ export interface SimState {
   race: RaceInfo;
   /** The registered item set this race hands out (MK-103: `mk8`); absent = the original game's. */
   itemSet?: string;
+  /** Coins on the track (MK-109): only on tracks whose route has coin lines. */
+  coins?: CoinEntity[];
 }
 
 export type SimEvent =
@@ -357,6 +377,8 @@ export type SimEvent =
   | { type: 'glideClose'; kartId: number }
   /** An anti-gravity spin boost started (MK-108): a bump or a boost bumper in anti-gravity. */
   | { type: 'spinBoost'; kartId: number }
+  /** A coin picked up (MK-109), also at the most coins (then it adds nothing). */
+  | { type: 'coin'; kartId: number }
   /**
    * An item's own moment (MK-52): a shield popping, ink splatting… `fx` names it; the item's view
    * maps it to a sound and, for `kartId`'s player, a screen overlay.
