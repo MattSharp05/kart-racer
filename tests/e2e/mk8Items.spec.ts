@@ -52,6 +52,55 @@ test.describe('MK8 items', () => {
     expect(errors).toEqual([]);
   });
 
+  test('triple red shells (MK-112): three circle the player; each press fires one, the HUD counts down', async ({
+    page,
+  }) => {
+    const errors = pageErrors(page);
+    const pack = await servePack(page);
+    await loadScenario(page, 'mk8-item-triple-red', { paused: true });
+    // The incoming shell from behind: an escort stops it.
+    let state = await step(page, 90);
+    const escorts = (s: typeof state) =>
+      s.entities.filter((e) => e.kind === 'item' && e.ownerId === 0).length;
+    expect(state.karts[0]!.spinTimer).toBe(0);
+    expect(state.karts[0]!.item).toMatchObject({ held: 'triple-red', uses: 2 });
+    expect(escorts(state)).toBe(2);
+    await expect(page.locator('.hud-item')).toHaveAttribute('data-uses', '2');
+
+    for (const left of [1, 0]) {
+      await setInput(page, 0, { item: true });
+      await step(page, 1);
+      await setInput(page, 0, { item: false });
+      state = await step(page, 1);
+      expect(state.karts[0]!.item.uses).toBe(left);
+      expect(escorts(state)).toBe(left);
+    }
+    expect(state.karts[0]!.item.held).toBeNull();
+    expect(state.entities.filter((e) => e.kind === 'shell')).toHaveLength(2);
+    expect(pack.requested).toContain('models/items/red-shell.glb');
+    expect(errors).toEqual([]);
+  });
+
+  test('golden mushroom (MK-112): presses keep boosting, then the slot empties', async ({
+    page,
+  }) => {
+    const errors = pageErrors(page);
+    await loadScenario(page, 'mk8-item-golden', { paused: true });
+    await expect(page.locator('.hud-item')).toHaveAttribute('data-item', 'golden-mushroom');
+    for (let press = 0; press < 3; press += 1) {
+      await setInput(page, 0, { item: true });
+      await step(page, 1);
+      await setInput(page, 0, { item: false });
+      const state = await step(page, 30);
+      expect(state.karts[0]!.item.held).toBe('golden-mushroom');
+      expect(state.karts[0]!.boostTimer).toBeGreaterThan(0);
+    }
+    // Its 7.5 s run out.
+    await step(page, 450);
+    await expect(page.locator('.hud-item')).toHaveAttribute('data-item', '');
+    expect(errors).toEqual([]);
+  });
+
   test('without a pack, MK8 races still run, with our items', async ({ page }) => {
     const errors = pageErrors(page);
     await loadScenario(page, 'mk8-two-slots');

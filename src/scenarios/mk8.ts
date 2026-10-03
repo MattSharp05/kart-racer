@@ -132,7 +132,8 @@ export function mk8TripleItem(seed: number, item: string): SimState {
 
 /** The Golden Mushroom (MK-112): the player holding one, standing on the main straight. */
 export function mk8Golden(seed: number): SimState {
-  const state = mk8ItemsRace(seed, [spawn(-120, 0)]);
+  // Just past the first item boxes: 10 s of boosting reaches neither the next ones nor a boost pad.
+  const state = mk8ItemsRace(seed, [spawn(5, 0)]);
   hold(state, 0, 'golden-mushroom', 1);
   return state;
 }
