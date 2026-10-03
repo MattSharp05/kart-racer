@@ -12,7 +12,6 @@
 // step onto the straight. The pack must be built with this `materials.ts`: MK-93's guesses made the
 // soda's surface solid road and the road under it water.
 import type { Mk8CourseContent } from '../types';
-import look from './look';
 import { route } from './route';
 
 const canyon: Mk8CourseContent = {
@@ -22,7 +21,6 @@ const canyon: Mk8CourseContent = {
   route,
   // MK8's caustics volume over the soda lake: invisible in the game, a pink box here.
   hiddenMaterials: ['CausticsArea3'],
-  look,
 };
 
 export default canyon;
