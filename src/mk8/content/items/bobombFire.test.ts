@@ -96,7 +96,7 @@ describe('Bob-omb (MK-114)', () => {
     const thrown = press(mk8Bobomb(1));
     const done = run(thrown.state, ticks(tuning.mk8.bobombFuse) + 5);
     const hit = hitsBy([...thrown.events, ...done.events], BOBOMB);
-    // Karts 1 and 2 are 4 m either side of where it lands; kart 3 is 12 m beyond; the player 20 m back.
+    // Karts 1 and 2 are 4 m either side of where it lands, kart 3 12 m beyond, the player 20 m back.
     expect(hit.sort()).toEqual([1, 2]);
     for (const id of [1, 2]) {
       const kart = done.state.karts[id]!;
@@ -132,6 +132,27 @@ describe('Bob-omb (MK-114)', () => {
     expect(ofSpec(touched.state, BOBOMB)).toHaveLength(0);
     expect(ofSpec(touched.state, BOBOMB_BLAST)).toHaveLength(1);
     expect(hitsBy(touched.events, BOBOMB).sort()).toEqual([1, 2, 3]);
+  });
+
+  it('its thrower driving into one it threw ahead does not set it off', () => {
+    const thrown = press(mk8Bobomb(1));
+    const landed = run(thrown.state, ticks(tuning.mk8.bobombOwnerImmuneSeconds) + 5).state;
+    const [bobomb] = ofSpec(landed, BOBOMB);
+    const s = structuredClone(landed);
+    s.karts[0]!.position = { ...bobomb!.position };
+    const next = run(s, 2);
+    expect(ofSpec(next.state, BOBOMB)).toHaveLength(1);
+    expect(ofSpec(next.state, BOBOMB_BLAST)).toHaveLength(0);
+  });
+
+  it('a dropped one is set off by its owner once the owner is no longer immune', () => {
+    const dropped = press(mk8Bobomb(1), { brake: 1 });
+    const later = run(dropped.state, ticks(tuning.mk8.bobombOwnerImmuneSeconds) + 2).state;
+    const [bobomb] = ofSpec(later, BOBOMB);
+    const s = structuredClone(later);
+    s.karts[0]!.position = { ...bobomb!.position };
+    const next = run(s, 1);
+    expect(hitsBy(next.events, BOBOMB)).toContain(0);
   });
 
   it('is dropped just behind while braking', () => {
@@ -175,6 +196,22 @@ describe('Fire Flower (MK-114)', () => {
     expect(shot).toBe(tuning.mk8.fireShots);
     expect(s.karts[0]!.item.held).toBeNull();
     expect(s.karts[0]!.effects.some((e) => e.kind === FIRE)).toBe(false);
+  });
+
+  it("a new flower's first shot starts its own timer, whatever an old one left", () => {
+    // Two shots, then the flower is lost (lightning) with its timer still running.
+    let s = press(press(mk8FireFlower(1)).state).state;
+    s.karts[0]!.item.held = null;
+    s.karts[0]!.item.uses = 0;
+    s = run(s, ticks(tuning.mk8.fireTime / 2)).state;
+    // A new one: its first shot, then most of its own time later it's still held.
+    s.karts[0]!.item.held = FIRE;
+    s.karts[0]!.item.uses = tuning.mk8.fireShots;
+    s = press(s).state;
+    s = run(s, ticks(tuning.mk8.fireTime) - 10).state;
+    expect(s.karts[0]!.item.held).toBe(FIRE);
+    s = run(s, 20).state;
+    expect(s.karts[0]!.item.held).toBeNull();
   });
 
   it('spins out the first kart it hits, and is gone', () => {

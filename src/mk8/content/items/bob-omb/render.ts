@@ -34,9 +34,12 @@ export function bobombEntityModel(entity: ItemEntity): THREE.Object3D {
   return entity.spec === BOBOMB_BLAST ? explosionModel() : bobombModel();
 }
 
-/** Animates the blast (the Bob-omb itself sits still). */
+/** Animates the blast; the Bob-omb itself faces the way it was thrown (it doesn't spin). */
 export function animateBobomb(model: THREE.Object3D, entity: ItemEntity): void {
-  if (entity.spec !== BOBOMB_BLAST) return;
+  if (entity.spec !== BOBOMB_BLAST) {
+    model.rotation.y = Math.atan2(-entity.direction.x, -entity.direction.z);
+    return;
+  }
   const life = Math.round(tuning.mk8.bobombBlastSeconds * TICK_RATE);
   animateExplosion(model, entity.age, life, tuning.mk8.bobombRadius);
 }

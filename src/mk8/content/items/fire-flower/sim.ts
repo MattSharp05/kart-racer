@@ -54,7 +54,8 @@ export default mk8ItemSim({
     if (kart.item.held === null) {
       // The last shot: the slot is already empty, so the timer has nothing left to clear.
       kart.effects = kart.effects.filter((e) => e.kind !== FIRE);
-    } else if (!hasEffect(kart, FIRE)) {
+    } else if (kart.item.uses === tuning.mk8.fireShots - 1 || !hasEffect(kart, FIRE)) {
+      // A new flower's first shot starts its own timer (replacing any left from one lightning took).
       applyEffect(kart, FIRE, ticks(tuning.mk8.fireTime), state, events);
     }
   },

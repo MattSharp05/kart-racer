@@ -250,14 +250,15 @@ export function mk8HornVsSpiny(seed: number): SimState {
  * side of where a throw lands (20 m ahead, inside the blast) and one 12 m beyond it (outside).
  */
 export function mk8Bobomb(seed: number): SimState {
-  const state = mk8ItemsRace(seed, [spawn(5, 0), spawn(25, 4), spawn(25, -4), spawn(37, 0)]);
+  // Past the item boxes, so they're behind the chase camera.
+  const state = mk8ItemsRace(seed, [spawn(20, 0), spawn(40, 4), spawn(40, -4), spawn(52, 0)]);
   hold(state, 0, 'bob-omb', 1);
   return state;
 }
 
 /** The Fire Flower (MK-114): the player holding one, a kart parked 30 m ahead in its line. */
 export function mk8FireFlower(seed: number): SimState {
-  const state = mk8ItemsRace(seed, [spawn(5, 0), spawn(35, 0)]);
+  const state = mk8ItemsRace(seed, [spawn(20, 0), spawn(50, 0)]);
   hold(state, 0, 'fire-flower', tuning.mk8.fireShots);
   return state;
 }

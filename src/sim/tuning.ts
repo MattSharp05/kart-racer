@@ -227,7 +227,7 @@ export const tuning = {
     /** It explodes this long after it's let go, or as soon as a kart touches it (this close, m). */
     bobombFuse: 3,
     bobombTouchRadius: 1.3,
-    /** Its owner can't set it off for this long, s. */
+    /** Its owner can't set off one it dropped for this long, s (nor ever one thrown ahead). */
     bobombOwnerImmuneSeconds: 1,
     /** The blast hits every kart this close, m, and stays up (hitting karts driving in) this long, s… */
     bobombRadius: 7,

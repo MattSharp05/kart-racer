@@ -100,9 +100,11 @@ const bobombSpec: EntitySpec = {
   spawnDistance: 0,
   walls: 'ghost',
   ownerImmuneTicks: ticks(tuning.mk8.bobombOwnerImmuneSeconds),
-  // A kart touching it sets it off.
+  // A kart touching it sets it off; not its thrower catching up with one thrown ahead (the blast
+  // can still catch them).
   collide: [
-    touchKarts((bobomb, _kart, ctx) => {
+    touchKarts((bobomb, kart, ctx) => {
+      if (kart.id === bobomb.ownerId && (bobomb.data[D.arc] ?? 0) > 0) return false;
       explode(bobomb, ctx);
       return true;
     }),
