@@ -96,4 +96,77 @@ describe('routeSurfaces (MK-105)', () => {
     expect([0, 1, 2].map((i) => surfaceOf(out, i))).toEqual(['road', 'road', 'road']);
     expect(surfaceOf(out, 3)).toBe('boost');
   });
+
+  it('keeps faces standing across the road in an antigrav zone out of it (MK-122: a deck’s end)', () => {
+    const along = (x: number) => routeGeometry(route()).project({ x, y: 0, z: 0 }).t;
+    // Facing along the road (a deck ending in a drop), and tilted 60° (still road-like).
+    const end: Tri = {
+      a: { x: 40, y: 0, z: -1 },
+      b: { x: 40, y: 0, z: 1 },
+      c: { x: 40, y: 1, z: 0 },
+    };
+    const tilt = Math.tan(Math.PI / 3);
+    const steep: Tri = {
+      a: { x: 41, y: 0, z: -1 },
+      b: { x: 41, y: 0, z: 1 },
+      c: { x: 42, y: tilt, z: 0 },
+    };
+    const out = routeSurfaces(
+      mesh([end, steep]),
+      route([{ kind: 'antigrav', from: along(30), to: along(50) }]),
+    );
+    expect(surfaceOf(out, 0)).toBe('road');
+    expect(surfaceOf(out, 1)).toBe('antigrav');
+  });
+});
+
+describe('routeSurfaces with waterIsRoad (MK-122)', () => {
+  const water = (t: Tri): Tri => ({ ...t, surface: 'water' });
+  /** A water volume over the second straight (z = 60), its top at y = 3. */
+  const pool: RouteDef['zones'][number] = {
+    kind: 'water',
+    min: { x: 20, y: -10, z: 50 },
+    max: { x: 80, y: 3, z: 70 },
+  };
+
+  it('relabels the pack’s water by the route like road', () => {
+    const rail: Tri = {
+      a: { x: 40, y: 0, z: 6 },
+      b: { x: 41, y: 0, z: 6 },
+      c: { x: 40, y: 1, z: 6 },
+      surface: 'water',
+    };
+    const tris = [water(flat(40, -1)), rail, water(flat(40, 9)), water(flat(40, 0, 2.2))];
+    // The road under the water patch over it.
+    const out = routeSurfaces(mesh([...tris, flat(39, -2, 0, 4)]), route(), { waterIsRoad: true });
+    // On the road → road; upright beside → wall; level beside → offroad; over the road → water.
+    expect([0, 1, 2, 3].map((i) => surfaceOf(out, i))).toEqual([
+      'road',
+      'wall',
+      'offroad',
+      'water',
+    ]);
+    // Without the option water is left alone.
+    const plain = routeSurfaces(mesh(tris), route());
+    expect([0, 1, 2, 3].map((i) => surfaceOf(plain, i))).toEqual([
+      'water',
+      'water',
+      'water',
+      'water',
+    ]);
+  });
+
+  it('makes anything lying flat on a water volume’s top water, even a huge lid labelled road', () => {
+    const lid: Tri = {
+      a: { x: -100, y: 3, z: 40 },
+      b: { x: 200, y: 3, z: 40 },
+      c: { x: 50, y: 3, z: 300 },
+    };
+    const surface = water(flat(50, 60, 3));
+    const floor = water(flat(50, 60, 0));
+    const out = routeSurfaces(mesh([lid, surface, floor]), route([pool]), { waterIsRoad: true });
+    expect([0, 1, 2].map((i) => surfaceOf(out, i))).toEqual(['water', 'water', 'road']);
+    // Without the option the lid stays the road it was labelled.
+    expect(surfaceOf(routeSurfaces(mesh([lid]), route([pool])), 0)).toBe('road');
+  });
 });
