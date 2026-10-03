@@ -777,6 +777,7 @@ const EVENT_FIELDS: Record<EventType, readonly (readonly [string, FieldKind])[]>
     ['item', 'item'],
     ['fx', 'str'],
   ],
+  spinBoost: [['kartId', 'u8']],
 };
 
 const EVENT_TYPES = Object.keys(EVENT_FIELDS) as EventType[];

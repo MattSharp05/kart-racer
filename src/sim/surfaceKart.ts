@@ -50,6 +50,7 @@ import {
   type MeshTrackDef,
 } from './meshTrack';
 import { inRange, type Surface } from './splineTrack';
+import { applySpinBoost, hitBumpers } from './spinBoost';
 import { surfaceEffect } from './surfaces';
 import { tuning, type EngineClass } from './tuning';
 import type { InputFrame, KartState, SimEvent } from './types';
@@ -284,9 +285,10 @@ export function updateMeshKart(
             tuning.offroadDecel,
           )
         : updateForwardSpeed(forwardSpeed, pedals, topSpeed, dt, kartAccel);
+  const spunSpeed = applySpinBoost(kart, pedalSpeed, forwardSpeed, pedals, topSpeed, dt);
   const newSpeed = brakeDrift
-    ? pedalSpeed * Math.exp(-tuning.brakeDrift.speedLoss * dt)
-    : pedalSpeed;
+    ? spunSpeed * Math.exp(-tuning.brakeDrift.speedLoss * dt)
+    : spunSpeed;
   kart.boostTimer = Math.max(0, kart.boostTimer - dt);
   const grip =
     (isDrifting(kart) ? tuning.driftGrip : tuning.lateralGrip) * (effect.grip ?? 1) * physics.grip;
@@ -379,6 +381,8 @@ export function updateMeshKart(
     wallImpact = Math.max(wallImpact, hit.impact);
   }
   if (wallImpact > tuning.driftWallCancel) cancelDrift(kart, events);
+  // Boost bumpers (MK-108): round colliders, a spin boost in anti-gravity.
+  hitBumpers(kart, track.route.zones, up, forward, events);
 
   kart.up = up;
   kart.forward = forward;

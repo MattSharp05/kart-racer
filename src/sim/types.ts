@@ -169,6 +169,8 @@ export interface KartState {
   gravityDir?: Vec3;
   /** Anti-gravity mode: set on `antigrav` ground, kept on offroad and walls, cleared on plain road. */
   antigrav?: boolean;
+  /** Seconds left of an anti-gravity spin boost (MK-108, `sim/spinBoost.ts`); mesh tracks only. */
+  spinBoostTimer?: number;
   /**
    * MK8 Mode's kart parts (MK-102): when set, its physics come from MK8's stat table instead of
    * the racer's stats (`kartType` still picks the model). Set at the start of a race, never changed.
@@ -340,6 +342,8 @@ export type SimEvent =
   | { type: 'launch'; kartId: number }
   | { type: 'trick'; kartId: number }
   | { type: 'land'; kartId: number; airTime: number }
+  /** An anti-gravity spin boost started (MK-108): a bump or a boost bumper in anti-gravity. */
+  | { type: 'spinBoost'; kartId: number }
   /**
    * An item's own moment (MK-52): a shield popping, ink splatting… `fx` names it; the item's view
    * maps it to a sound and, for `kartId`'s player, a screen overlay.

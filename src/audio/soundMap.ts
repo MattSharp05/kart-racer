@@ -127,6 +127,9 @@ export function cueFor(event: SimEvent, laps = 3): SoundCue | null {
       return event.airTime > 0.3
         ? { id: 'land', scope: 'player', kartId: event.kartId, volume: Math.min(1, event.airTime) }
         : null;
+    case 'spinBoost':
+      // MK-108: the mini-turbo's whoosh, from the kart that spun.
+      return { id: 'miniTurbo', scope: 'near', kartId: event.kartId, pitch: 1 };
     case 'itemFx': {
       // Registered by the item's view (`sounds: { [fx]: recipe }`); silent without one.
       const id = `${event.item}.${event.fx}` as const;
