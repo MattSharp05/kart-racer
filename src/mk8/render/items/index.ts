@@ -9,12 +9,26 @@ import * as THREE from 'three';
 import { itemViews, registerItemView, type ItemView } from '../../../content/items/views';
 import { itemSkins } from '../../../render/itemSkins';
 import { MK8_ITEM_BOX_MODEL, MK8_ITEM_SET, MK8_ITEMS } from '../../content/items';
+import goldenMushroom from '../../content/items/golden-mushroom/render';
+import tripleBanana from '../../content/items/triple-banana/render';
+import tripleGreen from '../../content/items/triple-green/render';
+import tripleMushroom from '../../content/items/triple-mushroom/render';
+import tripleRed from '../../content/items/triple-red/render';
 import type { Mk8Loader } from '../../loader';
 import { loadItemModels, type ItemModels } from './models';
 import { mk8ItemSkin } from './skin';
 
-/** New MK8 items' views (none yet: MK-103 only reskins ours). One line per item. */
-export const MK8_ITEM_VIEWS: readonly ItemView[] = [];
+/**
+ * New MK8 items' views: our HUD's icons, and stand-in models without a pack (MK-112: the triple
+ * items and the Golden Mushroom, in `src/mk8/content/items/<id>/render.ts`). One line per item.
+ */
+export const MK8_ITEM_VIEWS: readonly ItemView[] = [
+  tripleGreen,
+  tripleRed,
+  tripleBanana,
+  tripleMushroom,
+  goldenMushroom,
+];
 
 /** Every pack model MK8 items use. */
 export const MK8_ITEM_MODELS: readonly string[] = [

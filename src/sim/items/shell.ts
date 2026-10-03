@@ -161,7 +161,7 @@ export function updateShells(state: SimState, dt: number, events: SimEvent[]): v
       const d = Math.hypot(kart.position.x - shell.position.x, kart.position.z - shell.position.z);
       if (d > tuning.shellHitRadius || Math.abs(kart.position.y - shell.position.y) > 2) continue;
       // A shell breaks on any kart it touches; only vulnerable karts are knocked about.
-      hitKart(kart, shell.ownerId, shell.colour, events);
+      hitKart(kart, shell.ownerId, shell.colour, events, { from: shell.position });
       gone.add(shell.id);
       break;
     }

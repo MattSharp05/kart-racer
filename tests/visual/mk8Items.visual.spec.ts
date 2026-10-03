@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { loadScenario } from '../e2e/helpers';
+import { loadScenario, step } from '../e2e/helpers';
 import { servePack } from '../e2e/mk8';
 
 const frame = (page: import('@playwright/test').Page) =>
@@ -14,3 +14,16 @@ test('mk8-items-lineup (paused)', async ({ page }) => {
   await frame(page);
   await expect(page).toHaveScreenshot('mk8-items-lineup.png');
 });
+
+// MK-112: triple shells circling the player and triple bananas trailing it (one tick in, once the
+// race has MK8's items and placed them), drawn with the fixture pack's models.
+for (const item of ['triple-red', 'triple-banana']) {
+  test(`mk8-item-${item} (paused)`, async ({ page }) => {
+    await servePack(page);
+    await loadScenario(page, `mk8-item-${item}`, { paused: true });
+    await step(page, 1);
+    await frame(page);
+    await frame(page);
+    await expect(page).toHaveScreenshot(`mk8-item-${item}.png`);
+  });
+}

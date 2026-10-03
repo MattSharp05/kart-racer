@@ -62,7 +62,7 @@ export function updateBananas(state: SimState, dt: number, events: SimEvent[]): 
       if (Math.hypot(dx, dz) > tuning.bananaRadius) continue;
       if (Math.abs(kart.position.y - banana.position.y) > 2) continue;
       // Invulnerable karts pass straight through without using it up; a shield (MK-52) uses it up.
-      if (tryHit(kart, banana.ownerId, 'banana', events) !== 'immune') {
+      if (tryHit(kart, banana.ownerId, 'banana', events, { from: banana.position }) !== 'immune') {
         gone.add(banana.id);
         break;
       }

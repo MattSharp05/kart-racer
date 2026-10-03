@@ -2,9 +2,12 @@ import { items } from '../../content/items';
 import { itemViews } from '../../content/items/render';
 import type { ItemId } from '../../sim/types';
 
+// An MK8-only item a scenario hands out is drawn before MK8 Mode has registered it (MK-112: the race
+// waits for it, `Flow.prepareMk8Race`): until then it has no name or icon.
+
 /** The item's display name (registered in `src/content/items/<id>/sim.ts`). */
 export function itemName(item: ItemId): string {
-  return items.get(item).name;
+  return items.has(item) ? items.get(item).name : item;
 }
 
 /**
@@ -12,12 +15,12 @@ export function itemName(item: ItemId): string {
  * `uses`, the icon for that many uses left if the item draws its own count.
  */
 export function itemIcon(item: ItemId, uses?: number): string {
-  const view = itemViews.get(item);
-  const body = uses !== undefined && view.iconFor ? view.iconFor(uses) : view.icon;
+  const view = itemViews.has(item) ? itemViews.get(item) : undefined;
+  const body = uses !== undefined && view?.iconFor ? view.iconFor(uses) : (view?.icon ?? '');
   return `<svg viewBox="0 0 64 64" aria-hidden="true">${body}</svg>`;
 }
 
 /** Whether the item's icon shows how many uses are left (so the HUD adds no "×n" badge). */
 export function iconShowsUses(item: ItemId): boolean {
-  return itemViews.get(item).iconFor !== undefined;
+  return itemViews.has(item) && itemViews.get(item).iconFor !== undefined;
 }

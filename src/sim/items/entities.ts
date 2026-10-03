@@ -173,7 +173,7 @@ export function hitKarts({ pierce = false } = {}): CollisionRule {
   return (entity, { state, events, spec }) => {
     for (const kart of state.karts) {
       if (!canTouch(entity, kart, spec)) continue;
-      hitKart(kart, entity.ownerId, spec.item, events);
+      hitKart(kart, entity.ownerId, spec.item, events, { from: entity.position });
       if (!pierce) return true;
     }
     return false;
