@@ -27,6 +27,10 @@ export interface InitialStateOptions {
   karts?: KartSpawn[];
   /** Item boxes on tracks that have them (default true). */
   itemsOn?: boolean;
+  /** A registered item set (MK-103: `mk8`); default the original game's items. */
+  itemSet?: string;
+  /** Item slots per kart (MK-103): 2 adds `item.second` (the item set's `slots`). Default 1. */
+  itemSlots?: 1 | 2;
 }
 
 /** Builds a fresh SimState. With no karts given, places one kart at the origin facing −Z. */
@@ -38,6 +42,8 @@ export function createSimState({
   engineClass = 100,
   karts = [{}],
   itemsOn = true,
+  itemSet,
+  itemSlots = 1,
 }: InitialStateOptions): SimState {
   return {
     tick: 0,
@@ -73,7 +79,13 @@ export function createSimState({
           wrongWay: false,
           stallTimer: 0,
         },
-        item: { held: null, uses: 0, roulette: 0, buttonHeld: false },
+        item: {
+          held: null,
+          uses: 0,
+          roulette: 0,
+          buttonHeld: false,
+          ...(itemSlots === 2 ? { second: { held: null, uses: 0, roulette: 0 } } : {}),
+        },
         respawnTimer: 0,
         invulnerableTimer: 0,
         lastSafeT: -1,
@@ -92,6 +104,7 @@ export function createSimState({
       countdownStartTick: 0,
       goTick: phase === 'countdown' ? Math.round(tuning.countdownSeconds / DT) : 0,
     },
+    ...(itemSet !== undefined ? { itemSet } : {}),
   };
 }
 

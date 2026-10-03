@@ -8,6 +8,60 @@
       "group": "audio/ui"
     },
     {
+      "path": "models/items/banana.glb",
+      "bytes": 11124,
+      "sha256": "e5820e3566da60ff5cf2322485dfeb58a80de66f408da4c2023cbaa1aeba8c12",
+      "group": "items"
+    },
+    {
+      "path": "models/items/blooper.glb",
+      "bytes": 1864,
+      "sha256": "6388c2a41b682b6c4e37f07f5311ad0adfcac8bfbf512449c2cf2a98d80b9d4e",
+      "group": "items"
+    },
+    {
+      "path": "models/items/boomerang-flower.glb",
+      "bytes": 1576,
+      "sha256": "f017f03768c0c976f04408d5d0be22c74f412ab01317ee0ee34700bb9fdf1f92",
+      "group": "items"
+    },
+    {
+      "path": "models/items/green-shell.glb",
+      "bytes": 13632,
+      "sha256": "e95eba645f74a24ddd447e11fdffbb6f5c9adb5539378e184cd47d081801e7f5",
+      "group": "items"
+    },
+    {
+      "path": "models/items/item-box.glb",
+      "bytes": 1520,
+      "sha256": "20f0c5d09a5ec2b20976b1b23d95bd2525072bfa5780e70d27a227958d03fc92",
+      "group": "items"
+    },
+    {
+      "path": "models/items/lightning.glb",
+      "bytes": 1196,
+      "sha256": "2d6c8e88e4023c63283a37af7af228c5c04ddaf68e439547f51ccadc13816251",
+      "group": "items"
+    },
+    {
+      "path": "models/items/mushroom.glb",
+      "bytes": 12744,
+      "sha256": "35d9cc165987ea6c30cfe99f5c3e2d10a29e2bbe1c29758cd7a70c974362241b",
+      "group": "items"
+    },
+    {
+      "path": "models/items/red-shell.glb",
+      "bytes": 13632,
+      "sha256": "e95eba645f74a24ddd447e11fdffbb6f5c9adb5539378e184cd47d081801e7f5",
+      "group": "items"
+    },
+    {
+      "path": "models/items/star.glb",
+      "bytes": 1216,
+      "sha256": "b747ec14e1c2c38a67baa9367d7f1489ef6653ad0fc8b8542e0cc1617de9c55c",
+      "group": "items"
+    },
+    {
       "path": "models/karts/bodies/standard-kart.glb",
       "bytes": 4208,
       "sha256": "77427c9e69a1a9a46e7d1717e35cfbf0e27badc213e48f69a10944e245c62309",

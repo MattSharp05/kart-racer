@@ -16,6 +16,7 @@ import {
   type StageHooks,
 } from './render/demos';
 import { Mk8Stage } from './render/stage';
+import { prepareMk8Items } from './render/items';
 import { styleGuide, type SpriteSource } from './ui/kit/styleGuide';
 import { Progress } from './ui/loading';
 import { sprite } from './ui/sprites';
@@ -131,6 +132,15 @@ export function start(host: Mk8Host, mode: Mk8Start = 'load'): Promise<void> {
     }
   };
   return trackLoad(load());
+}
+
+/**
+ * Gets a race with MK8 items ready (MK-103): registers MK8 content (the `mk8` item set) and loads
+ * the pack's item models; without a pack the race draws our items.
+ */
+export async function prepareRace(): Promise<void> {
+  registerMk8Content();
+  await prepareMk8Items(packLoader());
 }
 
 /** The style guide (MK-104): over the pack's sprites when there is a pack, stand-ins otherwise. */

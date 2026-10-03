@@ -3,6 +3,7 @@ import { positionOf } from '../race';
 import { tuning } from '../tuning';
 import type { KartState, SimEvent, SimState } from '../types';
 import { isIntangible } from './effects';
+import { dropItems } from './slots';
 import { hitKart, tryHit } from './hit';
 
 /** Star (MK-20): 6 s of speed, immunity, and knocking over anyone you touch. */
@@ -28,7 +29,7 @@ export function useLightning(kart: KartState, state: SimState, events: SimEvent[
     if (other.id === kart.id || other.starTimer > 0 || other.respawnTimer > 0) continue;
     // A kart whose effect blocks it (a shield, MK-52) is spared; others (even spinning ones) shrink.
     if (tryHit(other, kart.id, 'lightning', events) === 'blocked') continue;
-    other.item = { ...other.item, held: null, uses: 0, roulette: 0 };
+    dropItems(other);
     other.shrinkTimer = shrinkSeconds(positionOf(state, other.id), state.karts.length);
   }
 }

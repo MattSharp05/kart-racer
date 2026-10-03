@@ -44,6 +44,9 @@ export interface LoaderOptions {
   loadFonts?: () => Promise<void>;
 }
 
+/** Item and item box models (MK-103), one group. */
+export const ITEM_GROUPS = ['items'] as const;
+
 /** The groups of a course and of some racers, as the pipeline names them (`tools/mk8/sources.ts`). */
 export const courseGroups = (id: string): string[] => [`course/${id}`, `audio/course/${id}`];
 export const racerGroups = (ids: readonly string[]): string[] => ids.map((id) => `racer/${id}`);
@@ -113,6 +116,11 @@ export class Mk8Loader {
     if (missing !== undefined) throw new PackLoadError(missing, 'not in the pack');
     const wanted = new Set(paths);
     await this.loadEntries((e) => wanted.has(e.path), onProgress);
+  }
+
+  /** Item and item box models (MK-103), on demand. */
+  loadItems(onProgress: OnProgress = () => {}): Promise<void> {
+    return this.loadGroups(ITEM_GROUPS, onProgress);
   }
 
   /** A loaded file's bytes, by its manifest path. */

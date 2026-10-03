@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, it } from 'vitest';
+import { itemSets } from '../content/items';
 import { gameRacers, racers } from '../content/racers';
 import { tracks } from '../content/tracks';
+import { MK8_ITEM_SET } from './content/items';
 import { MK8_CONTENT, registerMk8Content } from './register';
 
 describe('MK8 content registration (MK-97)', () => {
@@ -30,5 +32,11 @@ describe('MK8 content registration (MK-97)', () => {
     } finally {
       for (const racer of MK8_CONTENT.racers) racers.unregister(racer.id);
     }
+  });
+
+  it('registers the mk8 item set (MK-103), once', () => {
+    registerMk8Content();
+    registerMk8Content();
+    expect(itemSets.get(MK8_ITEM_SET).slots).toBe(2);
   });
 });
