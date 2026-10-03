@@ -48,6 +48,7 @@ import { getRecord, type RecordUpdate } from './storage/records';
 import { hasSeenHowToPlay, markHowToPlaySeen } from './storage/settings';
 import type { KeyValueStore } from './storage/store';
 import type { Mk8Start } from '../mk8';
+import type { Mk8RaceSetup } from '../mk8/flow';
 import { showErrorBanner } from '../ui/errorBanner';
 import { trackLoad } from './pending';
 
@@ -125,6 +126,8 @@ export class Flow {
   private hiddenAt = -1;
   /** MK8 Mode's chunk is downloading (MK-97): the button does nothing more meanwhile. */
   private mk8Opening = false;
+  /** The MK8 race running (MK-119), so Restart and Again race it again; unset outside MK8 Mode. */
+  private mk8Race: Mk8RaceSetup | undefined;
 
   constructor(
     private readonly session: RaceSession,
@@ -335,6 +338,15 @@ export class Flow {
       case 'mk8UiMode':
         this.openMk8('mode');
         break;
+      case 'mk8UiCc':
+        this.openMk8('cc');
+        break;
+      case 'mk8UiCup':
+        this.openMk8('cup');
+        break;
+      case 'mk8UiCourse':
+        this.openMk8('course');
+        break;
       case 'mk8Password':
         this.openMk8('password');
         break;
@@ -362,6 +374,7 @@ export class Flow {
   };
 
   private readonly showTitle = (): void => {
+    this.mk8Race = undefined;
     this.rooms.leave();
     this.onlineSince = 0;
     this.session.stop();
@@ -407,7 +420,12 @@ export class Flow {
       .then((mk8) => {
         this.mk8Opening = false;
         return mk8.start(
-          { screens: this.screens, exit: this.showTitle, isMuted: () => this.sound.isMuted },
+          {
+            screens: this.screens,
+            exit: this.showTitle,
+            isMuted: () => this.sound.isMuted,
+            startRace: this.startMk8Race,
+          },
           mode,
         );
       })
@@ -486,6 +504,7 @@ export class Flow {
   };
 
   private readonly showRacerSelect = (): void => {
+    this.mk8Race = undefined;
     this.rooms.leave();
     this.onlineSince = 0;
     if (this.screens.current !== 'ccSelect') this.load(sunnyLineup(DEFAULT_SEED), 'lineup');
@@ -546,6 +565,8 @@ export class Flow {
   }
 
   private readonly startRace = (): void => {
+    // Restart / Again in MK8 Mode race the same MK8 race again.
+    if (this.mk8Race) return this.startMk8Race(this.mk8Race);
     // A local race (also "Again" after an online one): not in a room any more.
     this.rooms.leave();
     this.onlineSince = 0;
@@ -565,10 +586,36 @@ export class Flow {
   };
 
   /**
+   * A race from MK8 Mode's menus (MK-119): the course's track (or its stand-in), the engine class,
+   * the player's racer and MK8's item set, 7 AI. It never counts for the leaderboard or the
+   * original game's track records (MK8 Time Trial records are their own ticket).
+   */
+  private readonly startMk8Race = (setup: Mk8RaceSetup): void => {
+    this.mk8Race = setup;
+    this.rooms.leave();
+    this.onlineSince = 0;
+    this.raceCount += 1;
+    this.screens.hide();
+    this.beforeLoad();
+    this.session.startRace({
+      seed: DEFAULT_SEED + this.raceCount,
+      engineClass: setup.engineClass,
+      playerKart: setup.playerKart,
+      trackId: setup.trackId,
+      itemSet: setup.itemSet,
+      ...(setup.raceLoadout ? { playerLoadout: setup.raceLoadout } : {}),
+    });
+    this.world.reset('chase', this.session.localKartId);
+    this.session.game.resume();
+    this.pauseButton.hidden = false;
+  };
+
+  /**
    * An online race from the lobby (MK-47): this device's placeholder of the race (its own kart
    * `local`), then the host or client steps it. Online races don't pause.
    */
   private readonly startOnlineRace = (launch: OnlineLaunch): void => {
+    this.mk8Race = undefined;
     this.screens.hide();
     this.beforeLoad();
     this.ranked = !this.scenarioPage || this.leaderboard.test;
@@ -840,7 +887,7 @@ export class Flow {
     this.hud.onEvents(events, state, me, performance.now());
     const finished = events.find((e) => e.type === 'finish' && e.kartId === me);
     if (finished) {
-      this.recordUpdate = recordFinish(this.store, state, me);
+      if (!this.mk8Race) this.recordUpdate = recordFinish(this.store, state, me);
       if (this.ranked) this.submitted = this.submitAndRank(state, me);
       this.resultsTimer = window.setTimeout(this.showResults, RESULTS_DELAY_MS);
     }

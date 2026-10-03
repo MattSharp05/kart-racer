@@ -5,6 +5,7 @@ import { trackLoad } from '../game/pending';
 import { showErrorBanner } from '../ui/errorBanner';
 import type { Router } from '../ui/router';
 import { Mk8AudioPlayer } from './audio/player';
+import type { Mk8RaceSetup } from './flow';
 import type { SoundId } from './audio/soundIds';
 import {
   mk8Login,
@@ -26,7 +27,9 @@ import { prepareMk8Items } from './render/items';
 import { styleGuide, type SpriteSource } from './ui/kit/styleGuide';
 import { Progress } from './ui/loading';
 import './ui/password';
-import { modeSelect } from './ui/screens/modeSelect';
+import { cupSelect } from './ui/screens/cupSelect';
+import { engineClass } from './ui/screens/engineClass';
+import { characterStandIn, modeSelect } from './ui/screens/modeSelect';
 import type { Mk8Context, Mk8Flow } from './ui/screens/session';
 import { titleScreen } from './ui/screens/title';
 import { sprite } from './ui/sprites';
@@ -41,6 +44,8 @@ export interface Mk8Host {
   exit(): void;
   /** The game's mute setting (M key / Settings); MK8 sounds follow it. */
   isMuted?: () => boolean;
+  /** Leaves the menus for a race (MK-119: the cup/course select's choice, its course loaded). */
+  startRace?: (setup: Mk8RaceSetup) => void;
 }
 
 declare global {
@@ -60,7 +65,9 @@ declare global {
  * `mk8-ui-title` / `mk8-ui-mode` scenarios, MK-116) the title or the mode select, with the pack's
  * sprites if it has one and stand-ins otherwise; `password` (the `mk8-password` scenario, MK-135)
  * asks for the site's pack password first. A `StageDemoId` (MK-101's scenarios) loads those
- * models and shows them on the 3D stage.
+ * models and shows them on the 3D stage. MK-119: `cc` (a Grand Prix's engine class), `cup`
+ * (a 150cc Grand Prix's cup select) and `course` (a 150cc VS Race's cup/course select), each over
+ * the screens that lead there.
  */
 export type Mk8Start =
   | 'load'
@@ -69,13 +76,34 @@ export type Mk8Start =
   | 'ui-kit'
   | 'title'
   | 'mode'
+  | 'cc'
+  | 'cup'
+  | 'course'
   | 'password'
   | StageDemoId;
+
+/** The screens over the MK8 title a scenario opens on, and the choices made on the way. */
+const DEEP_STARTS: Partial<
+  Record<Mk8Start, { flow: Mk8Flow; screens: ((ctx: Mk8Context) => Mk8ScreenFactory)[] }>
+> = {
+  mode: { flow: {}, screens: [modeSelect] },
+  cc: { flow: { mode: 'grand-prix' }, screens: [modeSelect, characterStandIn, engineClass] },
+  cup: {
+    flow: { mode: 'grand-prix', engineClass: 150 },
+    screens: [modeSelect, characterStandIn, engineClass, cupSelect],
+  },
+  course: {
+    flow: { mode: 'vs', engineClass: 150 },
+    screens: [modeSelect, characterStandIn, engineClass, cupSelect],
+  },
+};
 
 /** Where the `mk8-loading` scenario holds the bar. */
 const DEMO_PROGRESS = 0.5;
 const LOADING_LABEL = 'Loading MK8 Mode';
 const FONT_CSS = '/mk8/fonts/fonts.css';
+/** The course's share of the course loading bar; the item models are the rest. */
+const COURSE_SHARE = 0.8;
 /** The UI font's weights MK8 Mode uses. */
 const FONT_FACES = ["800 1em 'M PLUS Rounded 1c'", "900 1em 'M PLUS Rounded 1c'"];
 
@@ -112,9 +140,10 @@ export function start(host: Mk8Host, mode: Mk8Start = 'load'): Promise<void> {
     host.exit();
   };
   if (mode === 'ui-kit') return trackLoad(openUiKit(host, back));
-  if (mode === 'title' || mode === 'mode') {
+  const deep = DEEP_STARTS[mode];
+  if (mode === 'title' || deep) {
     return trackLoad(
-      openMenus(host, back, mode === 'mode' ? [modeSelect] : [], { optionalPack: true }),
+      openMenus(host, back, deep?.screens ?? [], { optionalPack: true, flow: deep?.flow ?? {} }),
     );
   }
   if (mode in STAGE_DEMOS) {
@@ -198,19 +227,25 @@ export async function prepareRace(): Promise<void> {
 /**
  * MK8 Mode's menus (MK-116): the title, and any screens over it (`then`, a scenario starting
  * deeper in). The pack is loaded by now, unless `optionalPack` (a scenario: no pack shows
- * stand-ins). Every opening starts a fresh flow.
+ * stand-ins). Every opening starts a fresh flow (a scenario's `flow`: the choices made on the
+ * way to its screen).
  */
 async function openMenus(
   host: Mk8Host,
   onExit: () => void,
   then: readonly ((ctx: Mk8Context) => Mk8ScreenFactory)[] = [],
-  { optionalPack = false } = {},
+  { optionalPack = false, flow: start = {} as Mk8Flow } = {},
 ): Promise<void> {
   const files = packLoader();
   if (optionalPack) await loadPackIfThere(files);
   await loadFontsIfThere();
-  const flow: Mk8Flow = {};
-  const ctx: Mk8Context = { sprites: packSprites(files), flow };
+  const flow: Mk8Flow = { ...start };
+  const ctx: Mk8Context = {
+    sprites: packSprites(files),
+    flow,
+    loadCourse: (course, onProgress) => loadCourse(files, course, onProgress),
+    startRace: (setup) => host.startRace?.(setup),
+  };
   const sounds = audioPlayer();
   if (window.__mk8) window.__mk8.flow = flow;
   host.screens.show('mk8Stack', {
@@ -219,6 +254,27 @@ async function openMenus(
     sounds,
     onExit,
   });
+}
+
+/**
+ * A course's pack files, then the race's item models (MK-119), on one bar. Without a pack (or a
+ * locked one), or a pack without this course yet, there is nothing to load: the race runs on the course's
+ * stand-in track with our item models.
+ */
+async function loadCourse(
+  files: Mk8Loader,
+  course: string,
+  onProgress: (fraction: number) => void,
+): Promise<void> {
+  try {
+    await files.loadCourse(course, (f) => onProgress(f * COURSE_SHARE));
+  } catch (e) {
+    // No pack here, or (MK-135) the site's pack still locked: nothing to load.
+    if (!(e instanceof PackNotInstalledError || e instanceof PackLockedError)) throw e;
+  }
+  onProgress(COURSE_SHARE);
+  await prepareRace();
+  onProgress(1);
 }
 
 async function loadPackIfThere(files: Mk8Loader): Promise<void> {

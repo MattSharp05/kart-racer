@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { sunnyRace } from '../../../scenarios/race';
 import { createSimState } from '../../../sim/state';
 import { step } from '../../../sim/step';
 import type { Loadout } from '../../../sim/types';
@@ -14,6 +15,8 @@ import {
   resolveLoadout,
   standardLoadout,
 } from '.';
+import { TEST_RAMP_ID } from '../courses/test-ramp';
+import { registerTestRamp } from '../courses/test-ramp/register';
 import { soloLapTimes } from './lapTimes';
 
 describe('MK8 kart parts (MK-102)', () => {
@@ -52,12 +55,22 @@ describe('MK8 kart parts (MK-102)', () => {
   });
 });
 
-/** Speed after `seconds` of full throttle from rest on Sunny Circuit's straight. */
-function speedAfter(loadout: Loadout | undefined, seconds: number): number {
+/**
+ * Speed after `seconds` of full throttle from rest on Sunny Circuit's straight, or (MK-99's
+ * surface-frame physics) on the synthetic MK8 test ramp's first straight.
+ */
+function speedAfter(loadout: Loadout | undefined, seconds: number, onMesh = false): number {
+  if (onMesh) registerTestRamp();
   let state = createSimState({
     seed: 1,
-    trackId: 'sunny-circuit',
-    karts: [{ kartType: 'maple', ...(loadout ? { loadout } : {}) }],
+    trackId: onMesh ? TEST_RAMP_ID : 'sunny-circuit',
+    karts: [
+      {
+        kartType: 'maple',
+        ...(onMesh ? { position: { x: 0, y: 0, z: 0 }, heading: -Math.PI / 2 } : {}),
+        ...(loadout ? { loadout } : {}),
+      },
+    ],
   });
   for (let i = 0; i < seconds * 60; i += 1)
     state = step(state, [{ throttle: 1, brake: 0, steer: 0, drift: false, item: false }]).state;
@@ -82,6 +95,18 @@ describe('loadouts in a race (MK-102)', () => {
     expect(speedAfter(light, 1)).toBeGreaterThan(speedAfter(heavy, 1));
     expect(speedAfter(heavy, 12)).toBeGreaterThan(speedAfter(light, 12));
     expect(speedAfter({ ...heavy, tires: 'standard-tires' }, 3)).not.toBe(speedAfter(heavy, 3));
+  });
+
+  it('loadouts drive mesh tracks too (MK-99 surface-frame physics)', () => {
+    expect(speedAfter(light, 1, true)).toBeGreaterThan(speedAfter(heavy, 1, true));
+    expect(speedAfter(heavy, 3, true)).not.toBe(speedAfter(light, 3, true));
+  });
+
+  it("the player's loadout rides on their race entry; the AI karts have none", () => {
+    const state = sunnyRace(3, { karts: 8, ai: true, playerLoadout: light });
+    expect(state.karts[0]!.loadout).toEqual(light);
+    expect(state.karts.slice(1).every((k) => k.loadout === undefined)).toBe(true);
+    expect(sunnyRace(3, { karts: 8, ai: true }).karts[0]!.loadout).toBeUndefined();
   });
 
   it('the loadout travels with the kart state and races are deterministic', () => {

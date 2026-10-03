@@ -3,7 +3,7 @@ import { getTrack, groundAt } from '../sim/track';
 import { tuning } from '../sim/tuning';
 import type { KartState, SimEvent, SimState } from '../sim/types';
 import type { ChaseCamera } from './camera';
-import type { KartRenderer } from './karts';
+import type { DrawnFrame, KartRenderer } from './karts';
 
 const MAX_PARTICLES = 320;
 const GRAVITY = 9;
@@ -54,6 +54,8 @@ export class Effects {
   private readonly particles: Particle[] = [];
   private readonly mesh: THREE.InstancedMesh;
   private readonly dummy = new THREE.Object3D();
+  /** A kart's drawn facing and up (scratch, MK-99). */
+  private readonly frame: DrawnFrame = { forward: new THREE.Vector3(), up: new THREE.Vector3() };
   private readonly memory = new Map<number, KartMemory>();
   private readonly speedLines = document.createElement('div');
   private lastTick = -1;
@@ -153,7 +155,28 @@ export class Effects {
     if ((tick + kart.id) % 2 !== 0) return;
     const at = this.drawnAt(kart);
     const back = { x: Math.sin(at.heading), z: Math.cos(at.heading) };
-    if (kart.boostTimer > 0 || kart.starTimer > 0) {
+    // On a wall or a ceiling (MK-99) the trail leaves behind the kart in its own frame.
+    if (
+      (kart.boostTimer > 0 || kart.starTimer > 0) &&
+      kart.up &&
+      this.karts.frame(kart.id, this.frame)
+    ) {
+      const colour = TRAIL_COLOURS[(tick + kart.id) % TRAIL_COLOURS.length] ?? WHITE;
+      const { forward: f, up: u } = this.frame;
+      this.spawn({
+        x: at.x - f.x * 1.3 + u.x * 0.45,
+        y: at.y - f.y * 1.3 + u.y * 0.45,
+        z: at.z - f.z * 1.3 + u.z * 0.45,
+        vx: -f.x * 2 + u.x * 0.6 + (hash(tick, kart.id, 1) - 0.5),
+        vy: -f.y * 2 + u.y * 0.6,
+        vz: -f.z * 2 + u.z * 0.6 + (hash(tick, kart.id, 2) - 0.5),
+        born: tick,
+        life: 22,
+        size: 0.22,
+        gravity: 0,
+        colour,
+      });
+    } else if (kart.boostTimer > 0 || kart.starTimer > 0) {
       const colour = TRAIL_COLOURS[(tick + kart.id) % TRAIL_COLOURS.length] ?? WHITE;
       this.spawn({
         x: at.x + back.x * 1.3,

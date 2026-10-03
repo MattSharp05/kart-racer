@@ -1,7 +1,17 @@
 import { cancelDrift, isDrifting } from './drift';
 import { isIntangible } from './items/effects';
 import { kartPhysics } from './kartStats';
-import { forwardFromHeading, type Vec3 } from './math';
+import {
+  add,
+  cross,
+  dot,
+  forwardFromHeading,
+  length,
+  normalize,
+  scale,
+  sub,
+  type Vec3,
+} from './math';
 import { tuning } from './tuning';
 import type { KartState, SimEvent } from './types';
 
@@ -107,6 +117,11 @@ export function resolveKartCollisions(
       if (!a || !b) continue;
       // A phased kart (MK-66) passes through other karts.
       if (isIntangible(a) || isIntangible(b)) continue;
+      // Mesh-track karts (MK-99) bump in their own plane: on a wall, a ceiling, anywhere.
+      if (a.up && b.up) {
+        bumpOnSurface(a, b, events);
+        continue;
+      }
       undoTunnelling(a, b, positionsBefore);
       const hit = contact(a, b);
       if (!hit) continue;
@@ -152,5 +167,62 @@ export function resolveKartCollisions(
         if (isDrifting(kart) && knock > tuning.bumpDriftCancel) cancelDrift(kart, events);
       }
     }
+  }
+}
+
+/** A mesh-track kart's two bump circle centres (along its own forward), MK-99. */
+function centres3(kart: KartState): [Vec3, Vec3] {
+  const f = kart.forward ?? forwardFromHeading(kart.heading);
+  const o = scale(f, tuning.bumpCircleOffset);
+  return [add(kart.position, o), sub(kart.position, o)];
+}
+
+/**
+ * Kart-vs-kart bump for mesh-track karts (MK-99, ADR 0011): the same circles, masses and impulse
+ * as `resolveKartCollisions`, but measured and pushed in the plane the two karts share (their
+ * averaged up), so karts on a wall or a ceiling push apart along it. Karts further apart than
+ * `tuning.mk8.bumpHeight` along that up (a floor and a ceiling) don't touch.
+ */
+function bumpOnSurface(a: KartState, b: KartState, events: SimEvent[]): void {
+  if (!a.up || !b.up) return;
+  // Opposite ups (a floor and a ceiling) share no plane: they never touch.
+  const up = normalize(add(a.up, b.up));
+  if (length(up) === 0) return;
+  const reach = tuning.kartRadius * 2;
+  let best: { n: Vec3; depth: number } | undefined;
+  for (const ca of centres3(a)) {
+    for (const cb of centres3(b)) {
+      const d = sub(cb, ca);
+      if (Math.abs(dot(d, up)) > tuning.mk8.bumpHeight) continue;
+      const flat = sub(d, scale(up, dot(d, up)));
+      const distance = length(flat);
+      const depth = reach - distance;
+      if (depth <= 0 || (best && depth <= best.depth)) continue;
+      // Exactly on top of each other: push out sideways (a's right).
+      const n =
+        distance > 1e-6
+          ? scale(flat, 1 / distance)
+          : normalize(cross(a.forward ?? forwardFromHeading(a.heading), up));
+      best = { n, depth };
+    }
+  }
+  if (!best || length(best.n) === 0) return;
+  const { n, depth } = best;
+  const ma = mass(a);
+  const mb = mass(b);
+  const share = depth / (ma + mb);
+  a.position = sub(a.position, scale(n, share * mb));
+  b.position = add(b.position, scale(n, share * ma));
+  const closing = dot(sub(a.velocity, b.velocity), n);
+  if (closing <= 0) return;
+  const impulse = ((1 + tuning.bumpBounce) * closing) / (1 / ma + 1 / mb);
+  a.velocity = sub(a.velocity, scale(n, impulse / ma));
+  b.velocity = add(b.velocity, scale(n, impulse / mb));
+  events.push({ type: 'bump', a: a.id, b: b.id, strength: closing });
+  for (const [kart, own] of [
+    [a, ma],
+    [b, mb],
+  ] as const) {
+    if (isDrifting(kart) && impulse / own > tuning.bumpDriftCancel) cancelDrift(kart, events);
   }
 }

@@ -1,5 +1,5 @@
 import type { KartId } from './data/karts';
-import { forwardFromHeading, scale, vec3 } from './math';
+import { forwardFromHeading, orthonormal, scale, vec3 } from './math';
 import { seedRng } from './rng';
 import type { EngineClass } from './tuning';
 import { getTrack, trackGeometry } from './track';
@@ -15,6 +15,11 @@ export interface KartSpawn {
   heading?: number;
   /** Initial forward speed, m/s. */
   speed?: number;
+  /**
+   * Mesh tracks (MK-99): the kart's up (unit), e.g. −Y to start on a ceiling. Its facing is then
+   * `heading`'s direction laid into that plane. Absent: +Y, set on the kart's first step.
+   */
+  up?: KartState['position'];
   /** MK8 Mode's kart parts (MK-102): physics from MK8's stat table. */
   loadout?: Loadout;
 }
@@ -97,6 +102,14 @@ export function createSimState({
         starTimer: 0,
         shrinkTimer: 0,
         effects: [],
+        ...(spawn.up
+          ? {
+              up: { ...spawn.up },
+              forward: orthonormal(forwardFromHeading(heading), spawn.up),
+              gravityDir: { x: -spawn.up.x, y: -spawn.up.y, z: -spawn.up.z },
+              antigrav: false,
+            }
+          : {}),
         ...(spawn.loadout ? { loadout: { ...spawn.loadout } } : {}),
       };
     }),

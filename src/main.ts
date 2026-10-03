@@ -13,18 +13,29 @@ import { localRoomBackend } from './net/roomBackendLocal';
 import { supabaseRoomBackend } from './net/roomBackendSupabase';
 import { launchLeaderboard } from './records/leaderboardMock';
 import { World } from './render/world';
+import { tracks } from './content/tracks';
 import { scenarios } from './scenarios';
+import { MK8_COURSE_SCENARIOS, MK8_STADIUM_DEV_ID, MK8_STADIUM_SCENARIO } from './scenarios/mk8';
 import { getTrack } from './sim/track';
 import { tuning } from './sim/tuning';
 import { NetDebugOverlay } from './ui/netDebug';
 import { restoreSteering } from './ui/settings/controlsSteering';
-import { PerfOverlay } from './ui/perfOverlay';
+import { PerfOverlay, poseLine } from './ui/perfOverlay';
 
 // Thin bootstrap (MK-35): read the URL, build the session, world and screen flow, start the loop.
 const canvas = document.querySelector<HTMLCanvasElement>('#game');
 if (!canvas) throw new Error('Missing #game canvas');
 
 const params = parseLaunchParams(window.location.search);
+// MK8 driving scenarios (MK-99): register the course they drive on (the test ramp, or Stadium from
+// the local pack) before the scenario is set up. Lazy and only for them, so nothing else loads it.
+if (params.scenario && MK8_COURSE_SCENARIOS.has(params.scenario)) {
+  const { prepareMk8Scenario } = await import('./mk8/scenarioCourses');
+  await prepareMk8Scenario(params.scenario, window.location.search, {
+    scenario: MK8_STADIUM_SCENARIO,
+    trackId: MK8_STADIUM_DEV_ID,
+  });
+}
 // `&remote=` (MK-74, QA): how this device's online races draw and predict other karts.
 if (params.remote) tuning.net.remoteKarts = params.remote;
 const launch = resolveLaunch(params);
@@ -81,7 +92,10 @@ installTestApi(
   (name, seed) => {
     const scenario = scenarios.get(name);
     if (!scenario) return false;
-    session.load(scenario.setup(seed ?? scenario.defaultSeed).state);
+    const { state } = scenario.setup(seed ?? scenario.defaultSeed);
+    // An MK8 course registers when the page boots into its scenario (MK-99), not in place.
+    if (!tracks.has(state.trackId)) return false;
+    session.load(state);
     world.reset(world.view, session.localKartId);
     return true;
   },
@@ -101,7 +115,8 @@ if (params.paused) game.pause();
 if (params.tune) {
   void import('./dev/tuningPanel').then(({ openTuningPanel }) => openTuningPanel());
 }
-if (params.perf) world.perf = new PerfOverlay();
+if (params.perf)
+  world.perf = new PerfOverlay(() => poseLine(game.state.karts[session.localKartId]));
 if (params.netdebug) {
   const overlay = new NetDebugOverlay(() => session.online?.debug() ?? null);
   const onUpdate = world.onUpdate;

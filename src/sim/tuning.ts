@@ -151,6 +151,80 @@ export const tuning = {
      */
     progressWindow: 40,
   },
+  // --- MK8 Mode (v3) ---
+  mk8: {
+    // MK8 Mode's items (MK-112).
+    /** Golden Mushroom: boost as often as you like for this long from its first use, s. */
+    goldenTime: 7.5,
+    /** Triple shells circle the kart this far from its centre, m… */
+    orbitRadius: 1.6,
+    /** …this fast, rad/s. */
+    orbitSpeed: 4,
+    /** Triple bananas trail behind the kart: the first this far behind its centre, m… */
+    trailFirst: 1.8,
+    /** …and each next one this much further, m. */
+    trailSpacing: 1.1,
+    /** A circling shell or trailing banana touches karts and items this close, m. */
+    escortRadius: 1,
+    // Surface-frame kart physics on mesh tracks (MK-99, ADR 0011; numbers from the MK-92 spike).
+    /** How fast `up` turns towards the ground's normal while grounded, 1/s (exponential). */
+    upTurnRate: 14,
+    /** …and back towards +Y in the air, 1/s. */
+    airUpTurnRate: 4,
+    /** Off anti-gravity ground, gravity keeps pulling along −up this long, s (short gaps). */
+    antigravAirHold: 0.35,
+    /** Plain ground steeper than this (from level) is a wall, radians (50°). */
+    maxSlope: (50 * Math.PI) / 180,
+    /** A grounded kart stays on plain ground that drops away by up to this per tick, m. */
+    groundSnap: 0.3,
+    /** …and on anti-gravity ground (holds it through convex bits), m. */
+    antigravSnap: 1.5,
+    /** The four wheel rays start this far ahead/behind and either side of the kart's centre, m. */
+    wheelForward: 1,
+    wheelRight: 0.7,
+    /**
+     * The ground rays start this far above the kart along up, m: half-way round a 90° corner a
+     * wheel ray from 1 m up would start under the floor it should find.
+     */
+    probeLift: 2,
+    /** The climb ray (finds a wall or ceiling ahead to drive onto) starts this high, m… */
+    climbLift: 0.4,
+    /** …and reaches this far past the kart's nose (plus a tick's travel), m. */
+    climbReach: 1,
+    /** Ground ahead turned more than this from the kart's up is a new surface to climb, radians. */
+    climbAngle: (20 * Math.PI) / 180,
+    /** Wall query sphere: radius, and how high above the road its centre sits, m. */
+    wallRadius: 0.9,
+    wallLift: 0.5,
+    /** Karts further apart than this along their up don't bump (a floor and a ceiling), m. */
+    bumpHeight: 1.5,
+    /** In the air longer than this, a kart has fallen off the course, s. */
+    fallSeconds: 3,
+    /**
+     * How a loadout's MK8 stats (0.75–5.75, `mk8/content/stats.ts`) become physics (MK-102), like
+     * `stats` does for our 1–5 racers: each point away from `neutral` changes a number by its share.
+     */
+    statMap: {
+      /** The MK8 stat that means "average": the middle of MK8's scale. */
+      neutral: 3.25,
+      /**
+       * Top speed ± this share per point: MK8's own ground-speed curve (+0.03 per level of ~7.66,
+       * 4 levels a point). With `stats.speedPerPoint` (0.006) the classes' top speeds were within
+       * 0.8 %; this keeps their lap times within 1.5 % (MK-102 measurements on the ticket).
+       */
+      speedPerPoint: 0.0157,
+      /** Time to 95 % of top speed − this share per point (faster). */
+      accelerationPerPoint: 0.1,
+      /** Turn rates ± this share per point. */
+      handlingPerPoint: 0.06,
+      /** Sideways grip (road and drift) ± this share per point of traction. */
+      gripPerPoint: 0.05,
+      /** Drift mini-turbo charge rate ± this share per point. */
+      miniTurboPerPoint: 0.05,
+      /** Bump weight (our 1–5 `weight`) per MK8 weight point: MK8's scale is about ours. */
+      weightPerPoint: 1,
+    },
+  },
   // --- Surfaces & hazards (MK-49) ---
   surfaces: {
     /** Ice: sideways grip (and drift grip) × this, so karts slide much further. */
@@ -254,45 +328,6 @@ export const tuning = {
   itemHitHeight: 2,
   /** After an effect (a shield) blocks a hit, the kart can't be hit for this long, s. */
   blockedHitInvulnerableSeconds: 0.5,
-  // --- MK8 Mode's items (MK-112) ---
-  mk8: {
-    /** Golden Mushroom: boost as often as you like for this long from its first use, s. */
-    goldenTime: 7.5,
-    /** Triple shells circle the kart this far from its centre, m… */
-    orbitRadius: 1.6,
-    /** …this fast, rad/s. */
-    orbitSpeed: 4,
-    /** Triple bananas trail behind the kart: the first this far behind its centre, m… */
-    trailFirst: 1.8,
-    /** …and each next one this much further, m. */
-    trailSpacing: 1.1,
-    /** A circling shell or trailing banana touches karts and items this close, m. */
-    escortRadius: 1,
-    /**
-     * How a loadout's MK8 stats (0.75–5.75, `mk8/content/stats.ts`) become physics (MK-102), like
-     * `stats` does for our 1–5 racers: each point away from `neutral` changes a number by its share.
-     */
-    statMap: {
-      /** The MK8 stat that means "average": the middle of MK8's scale. */
-      neutral: 3.25,
-      /**
-       * Top speed ± this share per point: MK8's own ground-speed curve (+0.03 per level of ~7.66,
-       * 4 levels a point). With `stats.speedPerPoint` (0.006) the classes' top speeds were within
-       * 0.8 %; this keeps their lap times within 1.5 % (MK-102 measurements on the ticket).
-       */
-      speedPerPoint: 0.0157,
-      /** Time to 95 % of top speed − this share per point (faster). */
-      accelerationPerPoint: 0.1,
-      /** Turn rates ± this share per point. */
-      handlingPerPoint: 0.06,
-      /** Sideways grip (road and drift) ± this share per point of traction. */
-      gripPerPoint: 0.05,
-      /** Drift mini-turbo charge rate ± this share per point. */
-      miniTurboPerPoint: 0.05,
-      /** Bump weight (our 1–5 `weight`) per MK8 weight point: MK8's scale is about ours. */
-      weightPerPoint: 1,
-    },
-  },
   // --- AI (MK-14) ---
   ai: {
     /** Look-ahead along the racing line = base + speed × this, m. */
