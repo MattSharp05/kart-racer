@@ -41,6 +41,14 @@ function useOne(owner: KartState | undefined, item: string): void {
   }
 }
 
+/**
+ * An escort destroyed from outside the entity update (MK-113: a Super Horn's shockwave): its owner
+ * loses that use, so it isn't put back next tick. The caller removes the entity.
+ */
+export function escortDestroyed(state: SimState, e: ItemEntity): void {
+  useOne(state.karts[e.ownerId], e.spec);
+}
+
 /** Removes entity `e` at the end of the tick; an escort also uses up one of its owner's uses. */
 function knockOut(e: Entity, ctx: EntityContext): void {
   ctx.remove(e.id);

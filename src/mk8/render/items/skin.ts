@@ -16,6 +16,9 @@ import type {
   SimState,
 } from '../../../sim/types';
 import { MK8_ITEM_BOX_MODEL, MK8_ITEM_SET, MK8_ITEMS } from '../../content/items';
+import { animateExplosion, explosionModel } from '../../content/items/looks';
+import { SPINY, SPINY_BLAST } from '../../content/items/spiny-shell/sim';
+import { TICK_RATE, tuning } from '../../../sim/tuning';
 import type { ItemModels } from './models';
 
 /** Sizes in the world (largest side, m) and placements. */
@@ -27,6 +30,7 @@ const SIZE = {
   held: 0.75,
   bolt: 3,
   blooper: 1.4,
+  spiny: 1.3,
 };
 /** The "?" inside an item box, m (the box is `SIZE.itemBox`). */
 const QUESTION_SIZE = 1;
@@ -68,6 +72,8 @@ export function skinParts(models: ItemModels): Set<SkinPart> {
   if (has('red')) parts.add('shell:red');
   if (has('boomerang')) parts.add('entity:boomerang');
   for (const [item, like] of ESCORTS) if (has(like)) parts.add(`entity:${item}`);
+  // MK-113: the Spiny Shell (its explosion is drawn by the skin too, without a pack model).
+  if (has(SPINY)) parts.add(`entity:${SPINY}`);
   return parts;
 }
 
@@ -151,6 +157,8 @@ export class Mk8ItemRenderer implements ItemRenderer {
   private readonly struck = new Map<number, number>();
   private readonly offset = new THREE.Vector3();
   private readonly questionMarks: ModelPool;
+  /** Spiny Shell explosions (MK-113): the pack has no model, so ours. */
+  private readonly blasts: ModelPool;
 
   constructor(
     private readonly scene: THREE.Scene,
@@ -159,6 +167,7 @@ export class Mk8ItemRenderer implements ItemRenderer {
     // One shared texture: the pool copies the first mark.
     const mark = questionMark();
     this.questionMarks = new ModelPool(scene, () => mark.clone());
+    this.blasts = new ModelPool(scene, explosionModel);
   }
 
   /** The pool of `model` copies `size` m big. */
@@ -184,6 +193,7 @@ export class Mk8ItemRenderer implements ItemRenderer {
     }
     for (const pool of this.pools.values()) pool.finish();
     this.questionMarks.finish();
+    this.blasts.finish();
   }
 
   private drawEntities(state: SimState, time: number): void {
@@ -194,6 +204,7 @@ export class Mk8ItemRenderer implements ItemRenderer {
       red: this.pool(MODEL_OF.get('red'), SIZE.shell),
     };
     const boomerang = this.pool(MODEL_OF.get('boomerang'), SIZE.boomerang);
+    const spiny = this.pool(MODEL_OF.get(SPINY), SIZE.spiny);
     for (const e of state.entities) {
       if (e.kind === 'itemBox') {
         // Hit boxes are gone until they respawn.
@@ -215,10 +226,12 @@ export class Mk8ItemRenderer implements ItemRenderer {
         placeBanana(banana?.next(), e);
       } else if (e.kind === 'shell') {
         placeShell(shells[e.colour]?.next(), e, time);
-      } else if (e.kind === 'item') {
+      } else if (e.kind === 'item' && entitySpecs.has(e.spec)) {
         const item = entitySpecs.get(e.spec).item;
         const like = ESCORTS.get(item);
         if (item === 'boomerang') placeBoomerang(boomerang?.next(), e);
+        else if (e.spec === SPINY) placeSpiny(spiny?.next(), e);
+        else if (e.spec === SPINY_BLAST) placeBlast(this.blasts.next(), e);
         else if (like === 'banana') placeEscortBanana(banana?.next(), e);
         else if (like) placeEscortShell(shells[like]?.next(), e, time);
       }
@@ -303,4 +316,19 @@ function placeEscortShell(
   if (!model) return;
   model.position.set(entity.position.x, entity.position.y + TRAIL_HEIGHT, entity.position.z);
   model.rotation.set(0, time * 12 + entity.id, 0);
+}
+
+/** A Spiny Shell (MK-113) where the sim has it, turned the way it flies, spinning slowly. */
+function placeSpiny(model: THREE.Object3D | undefined, entity: ItemEntity): void {
+  if (!model) return;
+  model.position.set(entity.position.x, entity.position.y + SIZE.spiny * 0.3, entity.position.z);
+  model.rotation.set(0, Math.atan2(-entity.direction.x, -entity.direction.z) + entity.age * 0.2, 0);
+}
+
+/** A Spiny Shell's explosion (MK-113), growing and fading with its age. */
+function placeBlast(model: THREE.Object3D | undefined, entity: ItemEntity): void {
+  if (!model) return;
+  model.position.set(entity.position.x, entity.position.y + 1, entity.position.z);
+  const life = Math.round(tuning.mk8.spinyBlastSeconds * TICK_RATE);
+  animateExplosion(model, entity.age, life, tuning.mk8.spinyRadius);
 }

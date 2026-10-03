@@ -27,3 +27,20 @@ for (const item of ['triple-red', 'triple-banana']) {
     await expect(page).toHaveScreenshot(`mk8-item-${item}.png`);
   });
 }
+
+// MK-113: the Spiny Shell diving on the leader (the player, holding a Super Horn), late in its
+// drop, with the HUD's incoming warning; the fixture pack's stand-in blue shell.
+test('mk8-item-spiny-dive (paused)', async ({ page }) => {
+  await servePack(page);
+  await loadScenario(page, 'mk8-item-horn-vs-spiny', { paused: true });
+  let state = await step(page, 1);
+  const diving = (s: typeof state) =>
+    s.entities.some((e) => e.kind === 'item' && e.spec === 'spiny-shell' && e.data[0] === 2);
+  for (let i = 0; i < 24 && !diving(state); i += 1) state = await step(page, 5);
+  expect(diving(state)).toBe(true);
+  // About 90 % of the way through its 1.4 s dive: dropping onto the kart.
+  await step(page, 72);
+  await frame(page);
+  await frame(page);
+  await expect(page).toHaveScreenshot('mk8-item-spiny-dive.png');
+});
