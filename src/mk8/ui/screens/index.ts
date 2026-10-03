@@ -5,10 +5,12 @@
 import { MK8_SCREEN_ORDER } from './order';
 import type { Mk8Flow, Mk8Screen } from './session';
 
-const found = import.meta.glob<Mk8Screen | undefined>(['./*.ts', '!./*.test.ts'], {
-  eager: true,
-  import: 'screen',
-});
+// Whole modules, not `import: 'screen'`: files without a screen (`session.ts`, `order.ts`) are fine.
+const modules = import.meta.glob<{ screen?: Mk8Screen }>(
+  ['./*.ts', '!./*.test.ts', '!./index.ts'],
+  { eager: true },
+);
+const found = Object.fromEntries(Object.entries(modules).map(([path, m]) => [path, m.screen]));
 
 /** Every screen, in flow order. Throws when `order.ts` and the screen files disagree. */
 export function flowScreens(
