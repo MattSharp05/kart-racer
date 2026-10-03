@@ -49,3 +49,88 @@ export function bananaModel(): THREE.Object3D {
   group.add(mesh);
   return group;
 }
+
+// MK-113: the Spiny Shell, its explosion and the Super Horn's shockwave, for races without a pack
+// (the explosion and shockwave are drawn this way with a pack too: the pack has no models for them).
+
+/** A stand-in Spiny Shell: a blue dome with white spikes and a pair of white wings. */
+export function spinyModel(): THREE.Object3D {
+  const group = new THREE.Group();
+  const blue = new THREE.MeshStandardMaterial({
+    color: '#2f6fe4',
+    roughness: 0.4,
+    flatShading: true,
+  });
+  const white = new THREE.MeshStandardMaterial({
+    color: '#ffffff',
+    roughness: 0.5,
+    flatShading: true,
+  });
+  group.add(
+    new THREE.Mesh(new THREE.SphereGeometry(0.6, 10, 6, 0, Math.PI * 2, 0, Math.PI / 2), blue),
+  );
+  for (let i = 0; i < 6; i += 1) {
+    const spike = new THREE.Mesh(new THREE.ConeGeometry(0.12, 0.35, 5), white);
+    const a = (i / 6) * Math.PI * 2;
+    spike.position.set(Math.cos(a) * 0.38, 0.42, Math.sin(a) * 0.38);
+    spike.lookAt(Math.cos(a) * 2, 1.6, Math.sin(a) * 2);
+    spike.rotateX(Math.PI / 2);
+    group.add(spike);
+  }
+  for (const side of [-1, 1]) {
+    const wing = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.05, 0.35), white);
+    wing.position.set(side * 0.8, 0.25, 0);
+    wing.rotation.z = side * 0.4;
+    group.add(wing);
+  }
+  return group;
+}
+
+/** The Spiny Shell's explosion: an orange fireball inside a blue shock ring, unit size. */
+export function explosionModel(): THREE.Object3D {
+  const group = new THREE.Group();
+  group.add(
+    new THREE.Mesh(
+      new THREE.IcosahedronGeometry(1, 1),
+      new THREE.MeshBasicMaterial({ color: '#ffb02e', transparent: true, opacity: 0.85 }),
+    ),
+  );
+  const ring = new THREE.Mesh(
+    new THREE.TorusGeometry(1, 0.08, 6, 24),
+    new THREE.MeshBasicMaterial({ color: '#5fa8ff', transparent: true, opacity: 0.9 }),
+  );
+  ring.rotation.x = Math.PI / 2;
+  group.add(ring);
+  return group;
+}
+
+/** The fireball's size at its biggest, as a share of the blast's reach (the chase camera stays out). */
+const FIREBALL_SHARE = 0.7;
+
+/** Grows the explosion over `age` ticks of `life` towards `radius` m, fading as it goes. */
+export function animateExplosion(model: THREE.Object3D, age: number, life: number, radius: number) {
+  const k = Math.min(1, age / Math.max(1, life));
+  model.scale.setScalar(radius * FIREBALL_SHARE * (0.4 + 0.6 * Math.sqrt(k)));
+  model.traverse((node) => {
+    if (node instanceof THREE.Mesh && node.material instanceof THREE.MeshBasicMaterial) {
+      node.material.opacity = 0.9 * (1 - k * k);
+    }
+  });
+}
+
+/** The Super Horn's shockwave: a flat ring, unit radius. */
+export function waveModel(): THREE.Object3D {
+  const ring = new THREE.Mesh(
+    new THREE.RingGeometry(0.85, 1, 32),
+    new THREE.MeshBasicMaterial({
+      color: '#ffe066',
+      transparent: true,
+      opacity: 0.8,
+      side: THREE.DoubleSide,
+    }),
+  );
+  ring.rotation.x = -Math.PI / 2;
+  const group = new THREE.Group();
+  group.add(ring);
+  return group;
+}

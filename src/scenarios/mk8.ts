@@ -197,6 +197,69 @@ export function mk8Golden(seed: number): SimState {
   return state;
 }
 
+/**
+ * The Spiny Shell (MK-113) on Sunny Circuit: the player last, holding one; a kart parked in its
+ * path 10 m ahead (the ground leg hits it); the leader parked 150 m on with two karts beside it
+ * (inside the explosion's reach) and one 12 m behind it (outside); three more between.
+ */
+export function mk8Spiny(seed: number): SimState {
+  const state = mk8ItemsRace(seed, [
+    spawn(-25, 0),
+    spawn(125, 0),
+    spawn(-15, 0),
+    spawn(125, -3.5),
+    spawn(122, 3),
+    spawn(113, 0),
+    spawn(40, -4),
+    spawn(60, 4),
+  ]);
+  state.positions = [1, 3, 4, 5, 7, 6, 2, 0];
+  hold(state, 0, 'spiny-shell', 1);
+  return state;
+}
+
+/**
+ * The Spiny Shell's flight data as `src/mk8/content/items/spiny-shell/sim.ts` lays it out (copied
+ * as plain numbers: this module is in the main bundle, which must not pull in MK8 code;
+ * `spinyHorn.test.ts` keeps them in step): phase (1 = flying), metres round the lap, metres right
+ * of the centreline, height, ticks in the phase and the dive's start.
+ */
+export const SPINY_FLYING = 1;
+
+/**
+ * Super Horn vs Spiny Shell (MK-113): the player leading on Sunny Circuit's straight, holding a
+ * Super Horn, and a Spiny Shell flying in 60 m behind (thrown by the last kart, parked 80 m back),
+ * past the item boxes.
+ * Press the item button while it's over the player (it hovers, then drops): it's destroyed and the
+ * player drives on. Too early (it's out of reach) or too late (it has exploded) and the player is
+ * blown up.
+ */
+export function mk8HornVsSpiny(seed: number): SimState {
+  // Past the item boxes, so they're behind the chase camera.
+  const state = mk8ItemsRace(seed, [spawn(25, 0), spawn(-55, 0)]);
+  state.positions = [0, 1];
+  hold(state, 0, 'super-horn', 1);
+  const t = fromBoxes(-35);
+  const at = sunny.pointAt(t, 0);
+  const forward = forwardFromHeading(sunny.headingAt(t));
+  const height = tuning.mk8.spinyAirHeight;
+  state.entities.push({
+    id: nextEntityId(state),
+    kind: 'item',
+    spec: 'spiny-shell',
+    position: { x: at.x, y: at.y + height, z: at.z },
+    direction: { x: forward.x, z: forward.z },
+    speed: tuning.topSpeed[state.engineClass] * tuning.mk8.spinySpeed,
+    age: 0,
+    ownerId: 1,
+    targetId: 0,
+    returning: 0,
+    bounces: 0,
+    data: [SPINY_FLYING, t * sunny.length, 0, height, 0, 0, 0, 0],
+  });
+  return state;
+}
+
 /** MK-102's loadout scenarios: a heavy and a light MK8 kart (the extremes of the stat table). */
 export const LOADOUTS = {
   heavy: { racer: 'mk8-bowser', body: 'b-dasher', tires: 'slick-tires', glider: 'paper-glider' },
@@ -360,6 +423,22 @@ export const mk8Scenarios: Scenario[] = [
     description: `Golden Mushroom (MK-112): every press boosts, as often as you like, for ${tuning.mk8.goldenTime} s from the first press; then the slot empties.`,
     defaultSeed: 1,
     setup: (seed) => ({ state: mk8Golden(seed) }),
+  },
+  {
+    name: 'mk8-item-spiny',
+    group: 'MK8 Mode',
+    description:
+      'Spiny Shell (MK-113): the player is last, holding one; press the item button. It skims the road for 1.5 s (the kart parked in its path spins out), flies along the course to the leader 150 m on, closes in over it, drops and explodes: the leader and the two karts beside it spin out and are thrown up; the kart 12 m behind is untouched.',
+    defaultSeed: 1,
+    setup: (seed) => ({ state: mk8Spiny(seed) }),
+  },
+  {
+    name: 'mk8-item-horn-vs-spiny',
+    group: 'MK8 Mode',
+    description:
+      'Super Horn vs Spiny Shell (MK-113): the player leads, holding a Super Horn, with a Spiny Shell flying in from 60 m behind. Press the item button while it hovers over the player or drops: the shockwave destroys it and the player drives on unhurt. Too early (out of reach) or too late (exploded) and the player is blown up.',
+    defaultSeed: 1,
+    setup: (seed) => ({ state: mk8HornVsSpiny(seed) }),
   },
   ...(['heavy', 'light'] as const).map((which): Scenario => ({
     name: `mk8-loadout-${which}`,

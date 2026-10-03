@@ -104,6 +104,11 @@ export interface EntitySpec {
   ownerImmuneTicks: number;
   /** Checked in order each tick after it moves; the first to return true removes it. */
   collide: readonly CollisionRule[];
+  /**
+   * Its `targetId` is a kart it's after although it doesn't use `homing` movement (MK-113: the
+   * Spiny Shell flies the route to the leader), so the HUD warns that kart (`homingOn`).
+   */
+  chases?: boolean;
   /** Every tick before moving: return true to keep it, false to remove it. */
   onTick?(entity: ItemEntity, ctx: EntityContext): boolean;
   /** A returning entity is back with its owner (it's removed after this). */
@@ -342,7 +347,8 @@ export function updateItemEntities(state: SimState, dt: number, events: SimEvent
 
 /**
  * The items chasing kart `kartId` right now (MK-67), for the HUD's incoming warning: red shells
- * and homing item entities with it as their target, one id per item, in the order found.
+ * and homing (or chasing, MK-113) item entities with it as their target, one id per item, in the
+ * order found.
  */
 export function homingOn(state: SimState, kartId: number): ItemId[] {
   const found: ItemId[] = [];
@@ -354,7 +360,7 @@ export function homingOn(state: SimState, kartId: number): ItemId[] {
     else {
       if (!entitySpecs.has(e.spec)) continue;
       const spec = entitySpecs.get(e.spec);
-      if (spec.movement.type !== 'homing') continue;
+      if (spec.movement.type !== 'homing' && !spec.chases) continue;
       item = spec.item;
     }
     if (!found.includes(item)) found.push(item);
