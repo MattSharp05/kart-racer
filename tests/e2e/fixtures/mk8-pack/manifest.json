@@ -2,6 +2,138 @@
   "version": 1,
   "files": [
     {
+      "path": "audio/items/banana-drop.m4a",
+      "bytes": 7535,
+      "sha256": "ceaa45bde8f7a8e0e2a8ac82bbe5faf2908a077cfa5efd2e7c584c0d78512e4d",
+      "group": "audio/items"
+    },
+    {
+      "path": "audio/items/banana-hit.m4a",
+      "bytes": 7535,
+      "sha256": "ceaa45bde8f7a8e0e2a8ac82bbe5faf2908a077cfa5efd2e7c584c0d78512e4d",
+      "group": "audio/items"
+    },
+    {
+      "path": "audio/items/blooper-ink.m4a",
+      "bytes": 7535,
+      "sha256": "ceaa45bde8f7a8e0e2a8ac82bbe5faf2908a077cfa5efd2e7c584c0d78512e4d",
+      "group": "audio/items"
+    },
+    {
+      "path": "audio/items/blue-shell-explode.m4a",
+      "bytes": 7535,
+      "sha256": "ceaa45bde8f7a8e0e2a8ac82bbe5faf2908a077cfa5efd2e7c584c0d78512e4d",
+      "group": "audio/items"
+    },
+    {
+      "path": "audio/items/blue-shell-fly.m4a",
+      "bytes": 7535,
+      "sha256": "ceaa45bde8f7a8e0e2a8ac82bbe5faf2908a077cfa5efd2e7c584c0d78512e4d",
+      "group": "audio/items"
+    },
+    {
+      "path": "audio/items/bob-omb-explode.m4a",
+      "bytes": 7535,
+      "sha256": "ceaa45bde8f7a8e0e2a8ac82bbe5faf2908a077cfa5efd2e7c584c0d78512e4d",
+      "group": "audio/items"
+    },
+    {
+      "path": "audio/items/boomerang-throw.m4a",
+      "bytes": 7535,
+      "sha256": "ceaa45bde8f7a8e0e2a8ac82bbe5faf2908a077cfa5efd2e7c584c0d78512e4d",
+      "group": "audio/items"
+    },
+    {
+      "path": "audio/items/bullet-bill-use.m4a",
+      "bytes": 7535,
+      "sha256": "ceaa45bde8f7a8e0e2a8ac82bbe5faf2908a077cfa5efd2e7c584c0d78512e4d",
+      "group": "audio/items"
+    },
+    {
+      "path": "audio/items/coin-get.m4a",
+      "bytes": 7535,
+      "sha256": "ceaa45bde8f7a8e0e2a8ac82bbe5faf2908a077cfa5efd2e7c584c0d78512e4d",
+      "group": "audio/items"
+    },
+    {
+      "path": "audio/items/fire-flower-shoot.m4a",
+      "bytes": 7535,
+      "sha256": "ceaa45bde8f7a8e0e2a8ac82bbe5faf2908a077cfa5efd2e7c584c0d78512e4d",
+      "group": "audio/items"
+    },
+    {
+      "path": "audio/items/golden-mushroom-use.m4a",
+      "bytes": 7535,
+      "sha256": "ceaa45bde8f7a8e0e2a8ac82bbe5faf2908a077cfa5efd2e7c584c0d78512e4d",
+      "group": "audio/items"
+    },
+    {
+      "path": "audio/items/item-box-break.m4a",
+      "bytes": 7535,
+      "sha256": "ceaa45bde8f7a8e0e2a8ac82bbe5faf2908a077cfa5efd2e7c584c0d78512e4d",
+      "group": "audio/items"
+    },
+    {
+      "path": "audio/items/lightning-strike.m4a",
+      "bytes": 7535,
+      "sha256": "ceaa45bde8f7a8e0e2a8ac82bbe5faf2908a077cfa5efd2e7c584c0d78512e4d",
+      "group": "audio/items"
+    },
+    {
+      "path": "audio/items/mushroom-use.m4a",
+      "bytes": 7535,
+      "sha256": "ceaa45bde8f7a8e0e2a8ac82bbe5faf2908a077cfa5efd2e7c584c0d78512e4d",
+      "group": "audio/items"
+    },
+    {
+      "path": "audio/items/piranha-plant-bite.m4a",
+      "bytes": 7535,
+      "sha256": "ceaa45bde8f7a8e0e2a8ac82bbe5faf2908a077cfa5efd2e7c584c0d78512e4d",
+      "group": "audio/items"
+    },
+    {
+      "path": "audio/items/red-shell-lock.m4a",
+      "bytes": 7535,
+      "sha256": "ceaa45bde8f7a8e0e2a8ac82bbe5faf2908a077cfa5efd2e7c584c0d78512e4d",
+      "group": "audio/items"
+    },
+    {
+      "path": "audio/items/shell-bounce.m4a",
+      "bytes": 7535,
+      "sha256": "ceaa45bde8f7a8e0e2a8ac82bbe5faf2908a077cfa5efd2e7c584c0d78512e4d",
+      "group": "audio/items"
+    },
+    {
+      "path": "audio/items/shell-hit.m4a",
+      "bytes": 7535,
+      "sha256": "ceaa45bde8f7a8e0e2a8ac82bbe5faf2908a077cfa5efd2e7c584c0d78512e4d",
+      "group": "audio/items"
+    },
+    {
+      "path": "audio/items/shell-throw.m4a",
+      "bytes": 7535,
+      "sha256": "ceaa45bde8f7a8e0e2a8ac82bbe5faf2908a077cfa5efd2e7c584c0d78512e4d",
+      "group": "audio/items"
+    },
+    {
+      "path": "audio/items/star-use.m4a",
+      "bytes": 7535,
+      "sha256": "ceaa45bde8f7a8e0e2a8ac82bbe5faf2908a077cfa5efd2e7c584c0d78512e4d",
+      "group": "audio/items"
+    },
+    {
+      "path": "audio/items/super-horn-blast.m4a",
+      "bytes": 7535,
+      "sha256": "ceaa45bde8f7a8e0e2a8ac82bbe5faf2908a077cfa5efd2e7c584c0d78512e4d",
+      "group": "audio/items"
+    },
+    {
+      "path": "audio/star/music.m4a",
+      "bytes": 7535,
+      "sha256": "ceaa45bde8f7a8e0e2a8ac82bbe5faf2908a077cfa5efd2e7c584c0d78512e4d",
+      "group": "audio/star"
+    },
+    {
       "path": "audio/ui/fixture-sine.m4a",
       "bytes": 7535,
       "sha256": "ceaa45bde8f7a8e0e2a8ac82bbe5faf2908a077cfa5efd2e7c584c0d78512e4d",

@@ -1,3 +1,4 @@
+import { onStraight } from '../../../../sim/ai/itemTactics';
 import { applyBoost } from '../../../../sim/drift';
 import { applyEffect, hasEffect } from '../../../../sim/items/effects';
 import { TICK_RATE, tuning } from '../../../../sim/tuning';
@@ -24,6 +25,11 @@ export default mk8ItemSim({
     kart.item.held = GOLDEN;
     kart.item.uses = 1;
   },
+  // AI (MK-129): the first boost on a straight; then boost after boost, each as the last runs out.
+  aiUse: (kart, _state, ctx) =>
+    hasEffect(kart, GOLDEN)
+      ? kart.boostTimer < tuning.mk8.aiGoldenChain
+      : onStraight(ctx) || ctx.giveUp,
   effects: [
     {
       id: GOLDEN,

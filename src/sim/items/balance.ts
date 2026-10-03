@@ -22,12 +22,16 @@ export function raceTrackIds(): string[] {
     .map((track) => track.id);
 }
 
-/** 8 AI racers (seeded karts, shuffled grid) with items on, in countdown. */
+/**
+ * 8 AI racers (seeded karts, shuffled grid) with items on, in countdown; `itemSet` hands out another
+ * set's items (MK-129: MK8's, `mk8`).
+ */
 export function allAiRace(
   seed: number,
   trackId: string,
   karts = 8,
   engineClass: EngineClass = 100,
+  itemSet?: string,
 ): SimState {
   const rng = raceSetupRng(seed);
   const slots = Array.from({ length: karts }, (_, i) => i);
@@ -41,7 +45,15 @@ export function allAiRace(
     controller: 'ai',
     gridSlot,
   }));
-  return createRace({ trackId, racers, engineClass, itemsOn: true, seed, rng });
+  return createRace({
+    trackId,
+    racers,
+    engineClass,
+    itemsOn: true,
+    seed,
+    rng,
+    ...(itemSet !== undefined ? { itemSet } : {}),
+  });
 }
 
 /** What one race did with items. */
@@ -52,6 +64,8 @@ export interface RaceItemStats {
   used: Record<ItemId, number>;
   /** Hits that landed, per item: spin-outs (`kartHit`), hornet stings and oil slips. */
   hits: Record<ItemId, number>;
+  /** Items the roulette handed out (MK-129), per item: how many at each place (index 0 = 1st). */
+  granted: Record<ItemId, number[]>;
   /** Times 1st place went to another kart after GO. */
   leadChanges: number;
   /** Seconds between the first and the last finisher (every kart finishes, or the race times out). */
@@ -81,6 +95,7 @@ export function raceItemStats(
   const itemIds = new Set(items.ids());
   const used: Record<ItemId, number> = {};
   const hits: Record<ItemId, number> = {};
+  const granted: Record<ItemId, number[]> = {};
   const finishTimes: number[] = [];
   let leadChanges = 0;
   let leader: number | undefined;
@@ -90,7 +105,11 @@ export function raceItemStats(
     s = result.state;
     for (const event of result.events) {
       if (event.type === 'itemUsed') used[event.item] = (used[event.item] ?? 0) + 1;
-      else if (event.type === 'finish') finishTimes.push(event.time);
+      else if (event.type === 'itemGranted') {
+        const places = (granted[event.item] ??= s.karts.map(() => 0));
+        const place = s.positions.indexOf(event.kartId);
+        places[place] = (places[place] ?? 0) + 1;
+      } else if (event.type === 'finish') finishTimes.push(event.time);
       const item = hitItem(event, itemIds);
       if (item !== undefined) hits[item] = (hits[item] ?? 0) + 1;
     }
@@ -105,6 +124,7 @@ export function raceItemStats(
     seed,
     used,
     hits,
+    granted,
     leadChanges,
     finishSpread: finishTimes.length > 1 ? Math.max(...finishTimes) - Math.min(...finishTimes) : 0,
     finishers: finishTimes.length,

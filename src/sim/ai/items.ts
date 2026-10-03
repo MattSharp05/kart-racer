@@ -1,21 +1,21 @@
 import { items } from '../../content/items';
-import { clamp, forwardFromHeading, wrapAngleDelta } from '../math';
-import { positionOf } from '../race';
+import { clamp, type Vec3 } from '../math';
 import { rngRange } from '../rng';
 import type { TrackGeometry } from '../splineTrack';
 import { tuning } from '../tuning';
 import type { AiState, InputFrame, KartState, SimState } from '../types';
 import { hazardDodgeOffset } from './hazards';
+import { bananaTactic, greenTactic, mushroomTactic, redTactic } from './itemTactics';
 import { lineOffsetAt } from './racingLine';
 
 /** Deterministic 0..1 from two ids (the same banana is always spotted — or missed — by the same AI). */
-function pairChance(a: number, b: number): number {
+export function pairChance(a: number, b: number): number {
   const x = Math.sin(a * 91.345 + b * 47.853 + 3.1) * 24634.6345;
   return x - Math.floor(x);
 }
 
 /** Signed metres along the lap from `fromS` to `toS`, in (−length/2, length/2]. */
-function aheadMetres(geometry: TrackGeometry, fromS: number, toS: number): number {
+function aheadMetres(geometry: AiLapGeometry, fromS: number, toS: number): number {
   let d = toS - fromS;
   if (d > geometry.length / 2) d -= geometry.length;
   if (d <= -geometry.length / 2) d += geometry.length;
@@ -112,10 +112,20 @@ export function aiSteerOffset(
   return 0;
 }
 
+/**
+ * The lap an AI's items are judged along (MK-129): a spline track's geometry, or a mesh track's
+ * route (`sim/route.ts`). Positions project to metres round the lap (`s`), its fraction (`t`) and
+ * metres right of the centreline (`lateral`).
+ */
+export interface AiLapGeometry {
+  readonly length: number;
+  project(position: Vec3): { s: number; t: number; lateral: number };
+}
+
 /** What an item's `aiUse` hook gets to decide with (MK-52). */
 export interface AiItemContext {
   ai: AiState;
-  geometry: TrackGeometry;
+  geometry: AiLapGeometry;
   /** Curvature of the racing line over the next `metres` (small = a straight). */
   straightAhead: (metres: number) => number;
   /** Signed metres along the lap from `fromS` to `toS` (positive = ahead). */
@@ -138,7 +148,7 @@ export function aiItemInput(
   kart: KartState,
   ai: AiState,
   state: SimState,
-  geometry: TrackGeometry,
+  geometry: AiLapGeometry,
   line: readonly number[],
   dt: number,
   straightAhead: (metres: number) => number,
@@ -182,65 +192,54 @@ function itemTactic(
   kart: KartState,
   ai: AiState,
   state: SimState,
-  geometry: TrackGeometry,
+  geometry: AiLapGeometry,
   straightAhead: (metres: number) => number,
   giveUp: boolean,
   forced: boolean,
   use: (extra?: Partial<InputFrame>) => Partial<InputFrame>,
 ): Partial<InputFrame> {
-  const cfg = tuning.ai;
+  const ctx: AiItemContext = {
+    ai,
+    geometry,
+    straightAhead,
+    aheadMetres: (fromS, toS) => aheadMetres(geometry, fromS, toS),
+    giveUp,
+  };
+  const decision = aiItemTactic(item, kart, state, ctx);
+  // The hook decides what giving up means for its item (MK-72): a Hornet Swarm from 1st has no one
+  // to chase, so it waits. Only a slot jammed for `itemForceUse` s is used regardless.
+  if (decision === false) return forced ? use() : {};
+  return use(decision === true ? {} : decision);
+}
+
+/**
+ * Whether the AI uses `item` now, and how (MK-129: exported, so an item that hands out others, like
+ * Crazy 8's ring, can ask for theirs): Mushroom on a straight, Banana when someone is close
+ * behind, Green when someone is lined up ahead, Red when anyone is ahead, Star/Lightning at once;
+ * items added later (ADR 0007) bring their own `aiUse`, and without one are used at once.
+ */
+export function aiItemTactic(
+  item: string,
+  kart: KartState,
+  state: SimState,
+  ctx: AiItemContext,
+): boolean | Partial<InputFrame> {
   switch (item) {
     case 'star':
     case 'lightning':
-      return use();
+      return true;
     case 'mushroom':
-      return straightAhead(cfg.straightLookAhead) < cfg.straightCurvature || giveUp ? use() : {};
-    case 'banana': {
-      const myS = geometry.project(kart.position).s;
-      const range = cfg.bananaDropRange;
-      const behind = state.karts.some((other) => {
-        if (other.id === kart.id) return false;
-        const dx = other.position.x - kart.position.x;
-        const dz = other.position.z - kart.position.z;
-        if (dx * dx + dz * dz > range * range) return false;
-        const d = -aheadMetres(geometry, myS, geometry.project(other.position).s);
-        return d > 0 && d < range;
-      });
+      return mushroomTactic(kart, state, ctx);
+    case 'banana':
       // Let go of the throttle for this tick so it's dropped behind, not thrown.
-      return behind || giveUp ? use({ throttle: 0 }) : {};
-    }
-    case 'green': {
-      const forward = forwardFromHeading(kart.heading);
-      const heading = Math.atan2(forward.x, forward.z);
-      const target = state.karts.some((other) => {
-        if (other.id === kart.id || other.respawnTimer > 0) return false;
-        const dx = other.position.x - kart.position.x;
-        const dz = other.position.z - kart.position.z;
-        const d = Math.hypot(dx, dz);
-        if (d > cfg.greenRange || d < 1) return false;
-        // Lined up: within ±10°, or within about a kart's width when it's close.
-        const cone = Math.max(cfg.greenAngle, Math.atan2(cfg.greenLateral, d));
-        return Math.abs(wrapAngleDelta(Math.atan2(dx, dz) - heading)) < cone;
-      });
-      return target || giveUp ? use() : {};
-    }
+      return bananaTactic(kart, state, ctx);
+    case 'green':
+      return greenTactic(kart, state, ctx);
     case 'red':
-      return positionOf(state, kart.id) > 1 || giveUp ? use() : {};
+      return redTactic(kart, state, ctx);
     default: {
-      // Items added later (ADR 0007) bring their own tactic; without one, use after the delay.
       const aiUse = items.get(item).aiUse;
-      if (!aiUse) return use();
-      const decision = aiUse(kart, state, {
-        ai,
-        geometry,
-        straightAhead,
-        aheadMetres: (fromS, toS) => aheadMetres(geometry, fromS, toS),
-        giveUp,
-      });
-      // The hook decides what giving up means for its item (MK-72): a Hornet Swarm from 1st has
-      // no one to chase, so it waits. Only a slot jammed for `itemForceUse` s is used regardless.
-      if (decision === false) return forced ? use() : {};
-      return use(decision === true ? {} : decision);
+      return aiUse ? aiUse(kart, state, ctx) : true;
     }
   }
 }
