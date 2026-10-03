@@ -76,9 +76,16 @@ describe('routeSurfaces (MK-105)', () => {
       b: { x: 41, y: 0, z: 6 },
       c: { x: 40, y: 1, z: 6 },
     };
-    const out = routeSurfaces(mesh([arch, rail]), route());
+    const road = flat(39, -1, 0, 3);
+    const out = routeSurfaces(mesh([arch, rail, road]), route());
     expect(surfaceOf(out, 0)).toBe('wall');
     expect(surfaceOf(out, 1)).toBe('wall');
+    expect(surfaceOf(out, 2)).toBe('road');
+  });
+
+  it('keeps a raised bit of the road itself (nothing beneath it) as road', () => {
+    const out = routeSurfaces(mesh([flat(40, 0, 2.2)]), route());
+    expect(surfaceOf(out, 0)).toBe('road');
   });
 
   it('leaves alone what is far from the route, well above or below it, or not road', () => {

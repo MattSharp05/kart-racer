@@ -286,13 +286,13 @@ async function loadCourse(
   onProgress: (fraction: number) => void,
 ): Promise<void> {
   const content = mk8Course(courseInfo(key).packId);
-  if (content) {
-    try {
-      await loadMk8Course(files, content, (f) => onProgress(f * COURSE_SHARE));
-    } catch (e) {
-      // No pack here, or (MK-135) the site's pack still locked: the stand-in.
-      if (!(e instanceof PackNotInstalledError || e instanceof PackLockedError)) throw e;
-    }
+  try {
+    // A course not drivable yet loads nothing from the pack, but its race waits for the manifest.
+    if (content) await loadMk8Course(files, content, (f) => onProgress(f * COURSE_SHARE));
+    else await files.loadManifest();
+  } catch (e) {
+    // No pack here, or (MK-135) the site's pack still locked: the stand-in.
+    if (!(e instanceof PackNotInstalledError || e instanceof PackLockedError)) throw e;
   }
   onProgress(COURSE_SHARE);
   await prepareRace();

@@ -263,7 +263,7 @@ test.describe('MK8 engine class and cup/course select (MK-119)', () => {
     await expect(courseCards(page).nth(0)).toContainText('Mario Kart Stadium');
     await page.keyboard.press('Enter');
     expect(await raceStarted(page)).toEqual({
-      // Mario Kart Stadium isn't drivable yet (MK-105): Sunny Circuit stands in.
+      // No pack here (CI): Sunny Circuit stands in for Mario Kart Stadium (MK-105 with a pack).
       trackId: 'sunny-circuit',
       engineClass: 200,
       itemSet: 'mk8',

@@ -5,8 +5,9 @@
 // road (a tunnel's arch) isn't ground to stand on, and rails beside it are walls. Applied when a course is
 // registered, so the course drives right with any build of its pack; on a pack built from the
 // course's `materials.ts` the rules find little to change. Pure: a new mesh, the input untouched.
-import { dot, sub } from './math';
+import { dot, scale, sub, type Vec3 } from './math';
 import { MESH_SURFACES, type CollisionMesh } from './meshCollision';
+import { raycastMesh, surfaceMask } from './meshTrack';
 import { routeGeometry, type RouteDef } from './route';
 import { tuning } from './tuning';
 
@@ -14,6 +15,20 @@ const ROAD = MESH_SURFACES.indexOf('road');
 const ANTIGRAV = MESH_SURFACES.indexOf('antigrav');
 const OFFROAD = MESH_SURFACES.indexOf('offroad');
 const WALL = MESH_SURFACES.indexOf('wall');
+
+const UNDER = surfaceMask('road', 'offroad', 'boost', 'antigrav', 'glide');
+
+/**
+ * Whether there's ground under `point` along −`up` within `height` (+ a margin): scenery over the
+ * road has the road beneath it; a raised bit of the road itself hasn't.
+ */
+function roadBeneath(collision: CollisionMesh, point: Vec3, up: Vec3, height: number): boolean {
+  const from = sub(point, scale(up, BENEATH_GAP));
+  const reach = height + tuning.meshTrack.routeSurfaces.overhead;
+  return raycastMesh(collision, from, scale(up, -1), reach, UNDER) !== null;
+}
+/** Start that far below the triangle, so its own surface isn't what the ray finds, m. */
+const BENEATH_GAP = 0.3;
 
 const inZone = (t: number, from: number, to: number) =>
   from <= to ? t >= from && t <= to : t >= from || t <= to;
@@ -45,7 +60,11 @@ export function routeSurfaces(collision: CollisionMesh, route: RouteDef): Collis
     const height = dot(offset, frame.up);
     if (Math.abs(height) > r.heightTolerance) continue;
     const beyond = Math.abs(dot(offset, frame.right)) - frame.width / 2;
-    if (height > r.overhead && beyond <= r.antigravMargin) {
+    if (
+      height > r.overhead &&
+      beyond <= r.antigravMargin &&
+      roadBeneath(collision, centre, frame.up, height)
+    ) {
       surfaces[t] = WALL;
       continue;
     }

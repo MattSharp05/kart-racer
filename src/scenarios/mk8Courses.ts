@@ -100,6 +100,8 @@ export function courseAntigrav(track: MeshTrackDef, seed: number, lead = 25): Si
 
 /** Seconds of the lap times behind on the final lap. */
 const FINAL_LAP_TIMES = [25.4, 24.8];
+/** The field crossed the line into the final lap this long ago, s. */
+const FINAL_LAP_SINCE = 1;
 /** Rows of the rolling start past the line on the final lap, m apart. */
 const ROW_SPACING = 7;
 
@@ -112,7 +114,7 @@ export function courseFinalLap(track: MeshTrackDef, seed: number): SimState {
   const geometry = routeGeometry(track.route);
   const elapsed = FINAL_LAP_TIMES.reduce((a, b) => a + b, 0);
   state.phase = 'racing';
-  state.race.goTick = -Math.round(elapsed / DT);
+  state.race.goTick = -Math.round((elapsed + FINAL_LAP_SINCE) / DT);
   state.race.countdownStartTick = state.race.goTick - COUNTDOWN_TICKS;
   // Kart 0 (you) takes the middle of the field; the rest fill in around.
   const order = [3, 0, 1, 2, 4, 5, 6, 7].map((slot, i) => ({ kart: state.karts[i], slot }));
@@ -126,7 +128,7 @@ export function courseFinalLap(track: MeshTrackDef, seed: number): SimState {
       lap: LAPS,
       nextCheckpoint: 1,
       lastT: metres / geometry.length,
-      lapStartTick: -Math.round(1 / DT),
+      lapStartTick: -Math.round(FINAL_LAP_SINCE / DT),
       lapTimes: [...FINAL_LAP_TIMES],
     };
   }
