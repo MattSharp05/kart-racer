@@ -134,6 +134,10 @@ export function cueFor(event: SimEvent, laps = 3): SoundCue | null {
     case 'coin':
       // MK-109: the coin sound comes with MK8 Mode's kart sounds.
       return null;
+    case 'waterEnter':
+    case 'waterExit':
+      // MK-107: the splash comes with MK8 Mode's kart sounds.
+      return null;
     case 'spinBoost':
       // MK-108: the mini-turbo's whoosh, from the kart that spun.
       return { id: 'miniTurbo', scope: 'near', kartId: event.kartId, pitch: 1 };
