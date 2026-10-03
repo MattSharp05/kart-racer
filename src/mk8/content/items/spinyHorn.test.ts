@@ -170,7 +170,9 @@ describe('Spiny Shell (MK-113)', () => {
       // Behind the start line on E, and the leader on C (the far straight).
       karts: [at(0.95), at(0.55)],
     });
-    // Mesh tracks have no race order yet: the leader is set by hand.
+    // The leader is on its next lap (mesh tracks rank karts by laps and progress since MK-105:
+    // at the same lap, kart 0 at t 0.95 would lead).
+    state.karts[1]!.race.lap += 1;
     state.positions = [1, 0];
     state.karts[0]!.item.held = SPINY;
     state.karts[0]!.item.uses = 1;
