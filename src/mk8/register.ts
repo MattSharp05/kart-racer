@@ -10,15 +10,19 @@ import {
   type ItemSetContent,
 } from '../content/items';
 import { racers, type RacerContent } from '../content/racers';
+import { racerViews, type RacerView } from '../content/racers/render';
 import { tracks, type TrackContent } from '../content/tracks';
 import type { Registry } from '../content/registry';
 import { mk8ItemSet, mk8ItemSims } from './content/items';
 import { MK8_RACERS } from './content/racers';
+import { MK8_RACER_STAND_INS } from './content/racers/standIn';
 
 export interface Mk8Content {
   tracks: readonly TrackContent[];
   racers: readonly RacerContent[];
   items: readonly ItemContent[];
+  /** How the racers' karts look in a race (MK-138: stand-ins until races draw the pack's models). */
+  racerViews?: readonly RacerView[];
   /** Item rules (MK-103): the `mk8` set (MK8's odds, two slots). */
   itemSets?: readonly ItemSetContent[];
 }
@@ -27,6 +31,7 @@ export interface Mk8Content {
 export const MK8_CONTENT: Mk8Content = {
   tracks: [],
   racers: MK8_RACERS,
+  racerViews: MK8_RACER_STAND_INS,
   items: mk8ItemSims(),
   itemSets: [mk8ItemSet],
 };
@@ -35,6 +40,7 @@ export const MK8_CONTENT: Mk8Content = {
 export function registerMk8Content(content: Mk8Content = MK8_CONTENT): void {
   addAll(tracks, content.tracks);
   addAll(racers, content.racers);
+  addAll(racerViews, content.racerViews ?? []);
   // Items with their effects and entities (MK-52).
   for (const item of content.items) if (!items.has(item.id)) registerItem(item);
   for (const set of content.itemSets ?? []) if (!itemSets.has(set.id)) registerItemSet(set);
