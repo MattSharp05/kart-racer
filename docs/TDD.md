@@ -216,19 +216,19 @@ Scope: [PRD v3](https://app.notion.com/p/3ed24983f3ca81eaafe9d34189a7f7c1) · UI
 - **Pipeline tests:** conversion is deterministic (same hash twice), and size budgets are checked per course and in total in CI (`pnpm mk8:check`; it doesn't re-download).
 - **E2E:** each screen via its scenario, keyboard and touch; a full GP with `step()` on desktop-chrome tagged `@full` (main only); visual baselines for each MK8 screen.
 - **Perf:** per course: draw calls < 300 and triangles < 400k on desktop, with a `quality=low` set for phones (≥ 30 fps on the 4×-throttled Pixel 7 soak); mesh queries < 0.3 ms per tick for 8 karts.
-- **CI:** CI never has the real pack (ADR 0009, local only). MK8 e2e runs against fixture content (a synthetic course, generated sprites and sounds) and the "pack not installed" state, only on PRs that touch `src/mk8/`, `tools/mk8/`, `sim/` or the flow. Real-course checks (perf, visuals) run locally with `pnpm dev` and are recorded on tickets.
+- **CI:** CI never has the real pack (ADR 0009: it's never committed; only Vercel's build fetches it, MK-135). MK8 e2e runs against fixture content (a synthetic course, generated sprites and sounds) and the "pack not installed" state, only on PRs that touch `src/mk8/`, `tools/mk8/`, `sim/` or the flow. Real-course checks (perf, visuals) run locally with `pnpm dev` and are recorded on tickets.
 
 ### Environments (v3 additions)
 
 - Raw MK8 files are fetched by Matthew on his machine into `.mk8-raw/` (agent downloads are blocked by auto mode). `pnpm mk8:build` writes `.mk8-out/`, which `pnpm dev` serves at `/mk8/`.
-- Vercel never serves Nintendo assets: production and previews show MK8 Mode's "pack not installed" screen.
+- **On the site, behind a password (MK-135, ADR 0009 amendment 2026-10-03):** when the Vercel env has `MK8_ASSETS_TOKEN` (read-only token for the private repo `MattSharp05/kart-racer-mk8-assets`) and `MK8_PASSWORD`, the Vercel build (`vercel.json` `buildCommand`: `pnpm build && node scripts/fetchMk8Pack.mjs`) sparse-clones that repo's `out/` and copies the manifest and its files into `dist/mk8/`. Routing Middleware (`middleware.ts`, logic in `api/_mk8Auth.ts`) runs on every `/mk8/*` request: without a valid signed session cookie it answers 401 with no body (404 when no password is set, so a pack can't leak); `public/mk8/fonts/` (the OFL font) stays public. `POST /api/mk8-login` checks the password in constant time (1 s delay on a miss, 10 misses per address per 10 min per instance → 429) and sets `mk8_session` (HMAC-SHA256 with `MK8_COOKIE_SECRET`, or a key derived from the password; HttpOnly, Secure, SameSite=Lax, 30 days). The loader turns a 401 into MK8 Mode's password box (`mk8-password` scenario), then loads again. With no token (CI, local builds) nothing changes: "pack not installed".
 
 ### v3 risks
 
 - **Anti-gravity physics** (ADR 0011): spike first, then a checkpoint where Matthew drives Mario Kart Stadium before the other courses.
 - **Course meshes without collision data:** material names may not separate road from decoration cleanly. The editor shows the classification, and per-course overrides fix it.
 - **Phone performance:** real MK8 courses are far heavier than ours. Measured in the pipeline ticket; the `-low` texture set, simplified meshes and draw-call merging are the levers, and the perf ticket decides on KTX2.
-- **Pack size:** about 90 MB locally (nothing committed or deployed); budgets still apply for load time and phone memory.
-- **Copyright:** avoided by never committing or deploying Nintendo assets (ADR 0009 amendment, 2026-10-02).
+- **Pack size:** about 55–90 MB (nothing committed; deployed only behind the password); budgets still apply for load time and phone memory.
+- **Copyright:** Nintendo assets are never committed or publicly served: locally, or on the site only behind a server-checked password (ADR 0009 amendments, 2026-10-02 and 2026-10-03).
 - **Asset access:** builders can't fetch real assets, so real-content checks wait for Matthew's local build; tickets use synthetic fixtures meanwhile.
 - **Racer models are static** (no rig found in the downloads so far): lean, bob and squash are procedural.
