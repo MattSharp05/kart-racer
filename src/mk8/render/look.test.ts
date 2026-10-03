@@ -1,7 +1,9 @@
 import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
-import stadium from '../content/courses/mario-kart-stadium';
+import { MK8_COURSES } from '../content/courses';
 import { materials as stadiumMaterials } from '../content/courses/mario-kart-stadium/materials';
+import { materials as canyonMaterials } from '../content/courses/sweet-sweet-canyon/materials';
+import { materials as waterParkMaterials } from '../content/courses/water-park/materials';
 import testRampLook from '../content/courses/test-ramp/look';
 import type { CourseLook } from '../content/courses/types';
 import { LOOK_RAMP_ID as SCENARIO_LOOK_RAMP } from '../../scenarios/mk8/look';
@@ -115,13 +117,20 @@ describe('MK8 course look (MK-125)', () => {
     expect(boosting(undefined)).toBe(false);
   });
 
-  it('Mario Kart Stadium: its glowing materials are the course’s', () => {
-    expect(stadium.look).toBeDefined();
-    for (const name of stadium.look?.glow?.materials ?? [])
-      expect(Object.keys(stadiumMaterials), name).toContain(name);
-    expect(stadium.look?.ambience.map((a) => a.sound)).toEqual([
-      'course/mario-kart-stadium/ambience',
-    ]);
+  it.each([
+    ['mario-kart-stadium', stadiumMaterials],
+    ['water-park', waterParkMaterials],
+    ['sweet-sweet-canyon', canyonMaterials],
+  ] as const)('%s: has a look whose glow and water materials are the course’s', (id, materials) => {
+    const course = MK8_COURSES.find((c) => c.packId === id);
+    const look = course?.look;
+    expect(look, id).toBeDefined();
+    const names = Object.keys(materials);
+    for (const name of [...(look?.glow?.materials ?? []), ...(look?.water?.materials ?? [])]) {
+      expect(names, name).toContain(name);
+      expect(course?.hiddenMaterials ?? [], name).not.toContain(name);
+    }
+    expect(look?.ambience.map((a) => a.sound)).toEqual([`course/${id}/ambience`]);
   });
 
   it('the look scenarios drive the look ramp (their copy of its id is the same)', () => {

@@ -24,7 +24,10 @@ motion blur, glowing materials, water materials and ambient loops. No other file
   course is left; a sound placed `at` a point fades out to nothing at `radius`. Every start and
   stop is logged in `window.__mk8Ambience` for e2e tests; `window.__mk8Look()` reports the look.
 
-Mario Kart Stadium's look needs the pack (`?scenario=mk8-stadium-race`, `&quality=low` to
-compare). Without it, the look ramp (`mk8-look-ramp`: the test ramp under its own id, with
+Mario Kart Stadium, Water Park and Sweet Sweet Canyon each have a `look.ts` (a clear afternoon;
+a bright day with lamps and pools; a warm sugary evening with a pink soda lake); they need the pack
+(`?scenario=mk8-stadium-race`, `mk8-waterpark-race`, `mk8-canyon-race`, `&quality=low` to
+compare). `look.test.ts` checks every glow and water material a look names is in its course's
+`materials.ts`. Without it, the look ramp (`mk8-look-ramp`: the test ramp under its own id, with
 `courses/test-ramp/look.ts`) carries a look for CI: `mk8-test-look-start`, `-water`, `-boost`
 (`tests/e2e/mk8Look.spec.ts`, `tests/visual/mk8Look.visual.spec.ts`).
