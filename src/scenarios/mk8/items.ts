@@ -11,6 +11,7 @@ import { createSimState, type KartSpawn } from '../../sim/state';
 import { tuning } from '../../sim/tuning';
 import { NEUTRAL_INPUT, type SimEvent, type SimState } from '../../sim/types';
 import type { Scenario } from '../registry';
+import { holdOurs, OUR_ITEMS } from './lib/ourItems';
 import { fromBoxes, spawn, sunny } from './lib/sunny';
 
 /** A race state on Sunny Circuit with MK8's items: the `mk8` set and two slots (MK-103). */
@@ -36,7 +37,9 @@ function use(state: SimState, kartId: number, item: string): void {
  * Every reskinned MK8 item at once (MK-103), on Sunny Circuit's main straight: the item boxes
  * ahead; a banana, green and red shell and boomerang the player just let go; the player holding a
  * banana (a star in slot 2); karts ahead holding a green and red shell, mushroom, star, lightning,
- * boomerang and Blooper; and the last kart just struck by lightning and inked.
+ * boomerang and Blooper; and the last kart just struck by lightning and inked. MK-115: our five
+ * unique items too, MK8-style: a row of karts further on holding each (the Bubble Shield, Magnet
+ * and Phase karts using theirs), and an Oil Slick and Hornet Swarm from the kart ahead.
  */
 export function mk8ItemsLineup(seed: number): SimState {
   const state = mk8ItemsRace(seed, [
@@ -48,9 +51,13 @@ export function mk8ItemsLineup(seed: number): SimState {
     spawn(-1, -3),
     spawn(-1, 3),
     spawn(6, 0),
+    ...OUR_ITEMS.map((_, i) => spawn(14, (i - 2) * 3)),
   ]);
-  state.positions = [7, 6, 5, 4, 3, 2, 1, 0];
+  state.positions = state.karts.map((_, i) => state.karts.length - 1 - i);
   for (const item of ['banana', 'green', 'red', 'boomerang']) use(state, 0, item);
+  use(state, 7, 'oil-slick');
+  use(state, 7, 'hornet-swarm');
+  holdOurs(state, 8);
   const held = ['banana', 'green', 'red', 'mushroom', 'star', 'lightning', 'boomerang'];
   held.forEach((item, id) => {
     const kart = state.karts[id];
@@ -213,7 +220,7 @@ const scenarios: Scenario[] = [
     name: 'mk8-items-lineup',
     group: 'MK8 Mode',
     description:
-      "Every reskinned MK8 item (MK-103): MK8 item boxes; a banana, green and red shell and boomerang on the road; karts holding each item; a lightning bolt and a Blooper on the last kart. Our items' looks without a local pack.",
+      "Every reskinned MK8 item (MK-103): MK8 item boxes; a banana, green and red shell and boomerang on the road; karts holding each item; a lightning bolt and a Blooper on the last kart. MK-115: our five items MK8-style (a row of karts holding them, Bubble Shield, Magnet and Phase in use, an Oil Slick and a Hornet Swarm). Our items' looks without a local pack.",
     defaultSeed: 1,
     setup: (seed) => ({ state: mk8ItemsLineup(seed) }),
   },

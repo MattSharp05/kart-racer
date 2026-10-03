@@ -1,0 +1,42 @@
+/* MK8 pause menu (MK-121): the frozen race dimmed behind the header band, the options as wide
+   slanted tiles in a column in the middle (MK8's pause list), the button bar below. Mockup px × --u. */
+
+.mk8-scr.mk8-scr-pause {
+  background: linear-gradient(90deg, #0b1230d9 0, #0b1230a6 55%, #0b123059 100%);
+}
+
+.mk8 .mk8-body.mk8-pause {
+  display: grid;
+  place-content: center;
+  padding-top: calc(16 * var(--u));
+}
+
+.mk8-pause-list {
+  display: grid;
+  gap: max(10px, calc(22 * var(--u)));
+  width: max(220px, calc(460 * var(--u)));
+}
+
+.mk8 .mk8-pause-opt {
+  display: flex;
+  align-items: center;
+  height: max(var(--tap), calc(86 * var(--u)));
+  padding: 0 calc(36 * var(--u));
+  border-radius: calc(14 * var(--u));
+  background: linear-gradient(180deg, #fff, #e9eef8);
+  box-shadow: 0 4px 0 var(--mk8-shadow);
+  transform: skewX(var(--mk8-slant));
+  text-align: left;
+}
+
+.mk8-pause-opt b {
+  display: block;
+  color: var(--mk8-navy);
+  font-size: max(18px, calc(36 * var(--u)));
+  font-weight: 900;
+  transform: skewX(calc(-1 * var(--mk8-slant)));
+}
+
+.mk8 .mk8-pause-opt.is-selected {
+  background: linear-gradient(180deg, #fff7c2, var(--mk8-yellow));
+}

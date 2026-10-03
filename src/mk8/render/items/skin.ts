@@ -23,6 +23,7 @@ import { FIRE } from '../../content/items/fire-flower/sim';
 import { fireFlowerModel } from '../../content/items/fire-flower/render';
 import { TICK_RATE, tuning } from '../../../sim/tuning';
 import type { ItemModels } from './models';
+import { OUR_LOOKS } from './ours';
 
 /** Sizes in the world (largest side, m) and placements. */
 const SIZE = {
@@ -147,6 +148,7 @@ export function mk8ItemSkin(models: ItemModels): ItemSkin {
   return {
     id: MK8_ITEM_SET,
     replaces: skinParts(models),
+    looks: OUR_LOOKS,
     renderer: class extends Mk8ItemRenderer {
       constructor(scene: THREE.Scene) {
         super(scene, models);
@@ -167,6 +169,8 @@ export class Mk8ItemRenderer implements ItemRenderer {
   private readonly blasts: ModelPool;
   /** The held Fire Flower (MK-114): the pack has no model, so ours. */
   private readonly fireFlowers: ModelPool;
+  /** Our five unique items held (MK-115): their MK8-style models, by item id. */
+  private readonly ours = new Map<string, ModelPool>();
 
   constructor(
     private readonly scene: THREE.Scene,
@@ -181,6 +185,22 @@ export class Mk8ItemRenderer implements ItemRenderer {
       flower.scale.setScalar(SIZE.held);
       return flower;
     });
+  }
+
+  /** The pool of held copies of our item `item` (MK-115), if it is one of ours. */
+  private ourPool(item: string): ModelPool | undefined {
+    const look = OUR_LOOKS.get(item);
+    if (!look) return undefined;
+    let pool = this.ours.get(item);
+    if (!pool) {
+      pool = new ModelPool(this.scene, () => {
+        const held = look.held();
+        held.scale.setScalar(SIZE.held);
+        return held;
+      });
+      this.ours.set(item, pool);
+    }
+    return pool;
   }
 
   /** The pool of `model` copies `size` m big. */
@@ -208,6 +228,7 @@ export class Mk8ItemRenderer implements ItemRenderer {
     this.questionMarks.finish();
     this.blasts.finish();
     this.fireFlowers.finish();
+    for (const pool of this.ours.values()) pool.finish();
   }
 
   private drawEntities(state: SimState, time: number): void {
@@ -270,7 +291,12 @@ export class Mk8ItemRenderer implements ItemRenderer {
       flower?.position.copy(at(0, HELD_HEIGHT - SIZE.held / 2, 0));
       flower?.rotation.set(0, model?.rotation.y ?? kart.heading, 0);
     }
-    if (held && MODEL_OF.has(held) && !ESCORTS.has(held) && kart.respawnTimer === 0) {
+    // Our unique items (MK-115): their own MK8-style models, turning over the driver.
+    const ours = held && kart.respawnTimer === 0 ? this.ourPool(held)?.next() : undefined;
+    if (ours) {
+      ours.position.copy(at(0, HELD_HEIGHT, 0));
+      ours.rotation.set(0, (model?.rotation.y ?? kart.heading) + time * 2, 0);
+    } else if (held && MODEL_OF.has(held) && !ESCORTS.has(held) && kart.respawnTimer === 0) {
       const trailing = TRAILING.has(held);
       const copy = this.pool(MODEL_OF.get(held), trailing ? SIZE.banana : SIZE.held)?.next();
       if (copy) {

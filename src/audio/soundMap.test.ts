@@ -38,6 +38,8 @@ const EXAMPLES = {
   // MK8 Mode only (MK-106): its own sounds play the glider.
   glideOpen: { type: 'glideOpen', kartId: 0 },
   glideClose: { type: 'glideClose', kartId: 0 },
+  // MK8 Mode only (MK-109): the coin sound comes with its kart sounds.
+  coin: { type: 'coin', kartId: 0 },
 } satisfies { [K in SimEvent['type']]: Extract<SimEvent, { type: K }> };
 
 /** Events that are deliberately silent (something else already makes the sound, or nothing to hear). */
@@ -49,6 +51,7 @@ const SILENT = new Set([
   'itemFx',
   'glideOpen',
   'glideClose',
+  'coin',
 ]);
 
 describe('event → sound mapping', () => {
