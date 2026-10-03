@@ -160,6 +160,8 @@ export const tuning = {
       heightTolerance: 3,
       /** …in an anti-gravity zone up to this far past the road's edge are anti-gravity, m… */
       antigravMargin: 1.5,
+      /** …if they face like the road at all (|cos| ≥ this; not a deck's end face, MK-122)… */
+      antigravFacing: 0.25,
       /** …and further than this past it, facing up like the road (|cos| ≥ this), offroad. */
       offroadMargin: 1,
       offroadFacing: 0.7,
@@ -167,6 +169,8 @@ export const tuning = {
       wallFacing: 0.5,
       /** Over the road and higher than this above it (up to `heightTolerance`): a wall, m. */
       overhead: 1.2,
+      /** With `waterIsRoad` (MK-122): triangles this close to a water volume's top are its surface, m. */
+      waterTopTolerance: 0.02,
     },
   },
   // --- MK8 Mode (v3): one module per feature in `tuning/mk8/` ---
