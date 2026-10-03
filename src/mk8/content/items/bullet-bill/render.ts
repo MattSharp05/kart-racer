@@ -64,10 +64,19 @@ export function bulletModel(): THREE.Object3D {
   return group;
 }
 
+/** The pack's Bullet Bill, its nose (its top, as the pack stands it) turned to the front (−Z). */
+function packModel(): THREE.Object3D {
+  const model = mk8EntityModel(BULLET, LENGTH);
+  // Rolled half a turn about its nose too, so its eyes are on top.
+  model.rotation.set(-Math.PI / 2, Math.PI, 0);
+  return model;
+}
+
 /** The pack's Bullet Bill when MK8's item models are loaded (its `mk8` skin is up), else ours. */
-function makeModel(): THREE.Object3D {
+function makeModel(pack: boolean): THREE.Object3D {
   const holder = new THREE.Group();
-  holder.add(itemSkins.has(MK8_ITEM_SET) ? mk8EntityModel(BULLET, LENGTH) : bulletModel());
+  holder.add(pack ? packModel() : bulletModel());
+  holder.userData.pack = pack;
   return holder;
 }
 
@@ -90,9 +99,12 @@ export class BulletBillRenderer implements ItemRenderer {
     for (const kart of state.karts) {
       if (!isBullet(kart)) continue;
       on.add(kart.id);
+      // The pack's model once it has loaded (it may load after the race starts).
+      const pack = itemSkins.has(MK8_ITEM_SET);
       let model = this.models.get(kart.id);
-      if (!model) {
-        model = makeModel();
+      if (model?.userData.pack !== pack) {
+        if (model) this.scene.remove(model);
+        model = makeModel(pack);
         this.models.set(kart.id, model);
         this.scene.add(model);
       }
