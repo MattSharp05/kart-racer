@@ -9,7 +9,6 @@ const look: CourseLook = {
   fog: { colour: 0xd6ecff, near: 260, far: 950 },
   sky: { top: 0x2a84e0, middle: 0x86c4f2, horizon: 0xe4f3ff },
   exposure: 1.1,
-  reflections: 0.35,
   bloom: { strength: 0.35, radius: 0.4, threshold: 0.9 },
   boostBlur: 0.8,
   glow: {

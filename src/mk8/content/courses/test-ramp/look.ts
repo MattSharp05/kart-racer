@@ -11,10 +11,17 @@ const look: CourseLook = {
   fog: { colour: 0xd8ecff, near: 150, far: 600 },
   sky: { top: 0x3d8fe0, middle: 0x9fd2f5, horizon: 0xeaf6ff },
   exposure: 1.1,
-  reflections: 0.25,
   bloom: { strength: 0.3, radius: 0.4, threshold: 0.9 },
   boostBlur: 0.8,
-  water: { materials: ['mesh-water'], colour: 0x3a8ee0, opacity: 0.6, flow: 0.6, scale: 4 },
+  water: {
+    materials: ['mesh-water'],
+    colour: 0x3a8ee0,
+    opacity: 0.6,
+    flow: 0.6,
+    scale: 4,
+    reflection: 0.6,
+    sky: 0xcfe9ff,
+  },
   ambience: [{ sound: 'course/mario-kart-stadium/ambience', volume: 0.5 }],
 };
 

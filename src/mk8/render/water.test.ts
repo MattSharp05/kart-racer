@@ -2,7 +2,15 @@ import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 import { applyWater, rippleSlopes, setWaterTime, waterClock } from './water';
 
-const WATER = { materials: ['water'], colour: 0x3080e0, opacity: 0.6, flow: 0.5, scale: 4 };
+const WATER = {
+  materials: ['water'],
+  colour: 0x3080e0,
+  opacity: 0.6,
+  flow: 0.5,
+  scale: 4,
+  reflection: 0.5,
+  sky: 0xcfe9ff,
+};
 
 describe('MK8 water (MK-125)', () => {
   it('ripple slopes are deterministic, centred and use the whole range', () => {

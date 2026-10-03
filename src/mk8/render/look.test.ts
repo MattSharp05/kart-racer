@@ -85,11 +85,13 @@ describe('MK8 course look (MK-125)', () => {
     expect(water.opacity).toBe(LOOK.water!.opacity);
   });
 
-  it('draws plainly at low quality: no tone mapping, reflections or post-processing', () => {
+  it('draws plainly at low quality: no tone mapping or post-processing', () => {
     const { renderer, scene, look } = setUp();
     expect(renderer.toneMapping).toBe(THREE.NoToneMapping);
     expect(renderer.toneMappingExposure).toBe(1);
     expect(scene.environment).toBeNull();
+    // Nothing for the post-processing is made at low quality, not even on a frame.
+    expect(look.render?.()).toBe(false);
     expect(look.render?.()).toBe(false);
   });
 

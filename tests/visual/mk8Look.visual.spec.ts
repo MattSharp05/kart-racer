@@ -2,7 +2,7 @@ import { expect, test, type Page } from '@playwright/test';
 
 // MK-125: an MK8 course's look at the start line, full and low quality, plus its water and boost
 // motion blur. On the look ramp, the synthetic test ramp (no pack in CI, ADR 0009); Mario Kart
-// Stadium's start line is checked locally with the pack. Bloom is slow in software GL: the frames
+// Stadium's start line is checked locally with the pack. Software GL is slow: the frames
 // take a while to settle.
 async function open(page: Page, scenario: string, extra = '') {
   await page.goto(`/?scenario=${scenario}&paused=1${extra}`);

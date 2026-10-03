@@ -1,9 +1,8 @@
 // An MK8 course's look (MK-125): its light, sky and fog from `content/courses/<id>/look.ts`, glowing
-// lamps, rippling water and, at full quality, MK8's glossy finish: reflections, bloom, boost motion blur
+// lamps, rippling water and, at full quality, MK8's glossy finish: bloom, boost motion blur
 // and ACES tone mapping (`post.ts`). Low quality (`&quality=low`, or adaptive quality on a slow
 // device) keeps the light, sky, water and ambience but draws plainly: no post-processing at all.
 import * as THREE from 'three';
-import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { skyGradient } from '../../render/scenery';
 import type { TrackLook, TrackLookContext, TrackLookFrame } from '../../render/trackLook';
 import { DT } from '../../sim/tuning';
@@ -17,8 +16,6 @@ import { applyWater, setWaterTime } from './water';
 const SUN_DISTANCE = 100;
 /** Boost blur eases in and out over this long, s. */
 const BOOST_EASE_SECONDS = 0.25;
-/** The reflections' blur (PMREM's sigma for the room). */
-const ROOM_BLUR = 0.04;
 
 /** What the look exposes to tests (`window.__mk8Look`). */
 export interface LookInfo {
@@ -36,20 +33,6 @@ declare global {
     /** The course look drawn now (MK-125), for e2e tests. */
     __mk8Look?: () => LookInfo;
   }
-}
-
-/** The glossy reflections' environment, made once per renderer. */
-const environments = new WeakMap<THREE.WebGLRenderer, THREE.Texture>();
-
-function environment(renderer: THREE.WebGLRenderer): THREE.Texture {
-  let texture = environments.get(renderer);
-  if (!texture) {
-    const pmrem = new THREE.PMREMGenerator(renderer);
-    texture = pmrem.fromScene(new RoomEnvironment(), ROOM_BLUR).texture;
-    pmrem.dispose();
-    environments.set(renderer, texture);
-  }
-  return texture;
 }
 
 /** Whether `kart` is boosting (mushroom, mini-turbo, boost panel, anti-gravity spin). */
@@ -86,22 +69,20 @@ export function createCourseLook(
     low = lowQuality;
     renderer.toneMapping = low ? THREE.NoToneMapping : THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = low ? 1 : look.exposure;
-    scene.environment = low || look.reflections <= 0 ? null : environment(renderer);
-    scene.environmentIntensity = look.reflections;
+    // Built on the first full-quality frame, not now: a page opening at low quality (it's told
+    // after the course is built) never compiles the post-processing shaders at all.
     if (low) {
       post?.dispose();
       post = undefined;
-    } else {
-      post ??= new CoursePost(renderer, scene, camera, look);
     }
   };
   setQuality(low);
 
   const info = (): LookInfo => ({
-    post: post !== undefined,
+    post: !low,
     toneMapping: renderer.toneMapping,
     exposure: renderer.toneMappingExposure,
-    boost: post?.boost ?? 0,
+    boost: low ? 0 : boost * look.boostBlur,
     water,
     fog: scene.fog !== null,
     ambience: ambience?.on ?? false,
@@ -118,11 +99,12 @@ export function createCourseLook(
       const target = boosting(state.karts[followId]) && !context.reducedMotion ? 1 : 0;
       const step = seconds / BOOST_EASE_SECONDS;
       boost = target > boost ? Math.min(target, boost + step) : Math.max(target, boost - step);
-      post?.setBoost(boost * look.boostBlur);
       ambience?.update(frame.paused, frame.camera.position);
     },
     render() {
-      if (!post) return false;
+      if (low) return false;
+      post ??= new CoursePost(renderer, scene, camera, look);
+      post.setBoost(boost * look.boostBlur);
       post.render();
       return true;
     },
@@ -133,8 +115,6 @@ export function createCourseLook(
       post = undefined;
       renderer.toneMapping = before.toneMapping;
       renderer.toneMappingExposure = before.exposure;
-      scene.environment = null;
-      scene.environmentIntensity = 1;
       for (const [sun, position] of sunPositions) sun.position.copy(position);
       if (typeof window !== 'undefined' && window.__mk8Look === info) delete window.__mk8Look;
     },

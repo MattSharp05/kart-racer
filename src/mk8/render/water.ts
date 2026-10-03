@@ -1,7 +1,8 @@
 // MK8 course water (MK-125): the course model's water materials (by name, the course's `look.ts`)
 // swapped for a glossy, see-through material whose ripples drift with the tick. The ripples are a
 // small generated slope texture sampled twice in world space (so they don't depend on the model's
-// UVs) and bend the surface normal: the sun's highlight and, at full quality, the reflections ripple.
+// UVs) and bend the surface normal: the sun's highlight ripples, and so does the sky the water
+// mirrors at a glancing angle (a Fresnel mix in the shader: no environment map to build).
 import * as THREE from 'three';
 import type { CourseLook } from '../content/courses/types';
 
@@ -88,10 +89,14 @@ export function waterMaterial(
     side: source.side,
   });
   const scale = { value: water.scale };
+  const sky = { value: new THREE.Color(water.sky) };
+  const reflection = { value: water.reflection };
   material.onBeforeCompile = (shader) => {
     shader.uniforms.uWaterTime = waterTime;
     shader.uniforms.uWaterScale = scale;
     shader.uniforms.uWaterRipples = { value: ripples() };
+    shader.uniforms.uWaterSky = sky;
+    shader.uniforms.uWaterReflection = reflection;
     shader.vertexShader = shader.vertexShader
       .replace('void main() {', 'varying vec2 vWaterXZ;\nvoid main() {')
       .replace(
@@ -106,6 +111,8 @@ export function waterMaterial(
           'uniform float uWaterTime;',
           'uniform float uWaterScale;',
           'uniform sampler2D uWaterRipples;',
+          'uniform vec3 uWaterSky;',
+          'uniform float uWaterReflection;',
           'void main() {',
         ].join('\n'),
       )
@@ -120,6 +127,16 @@ export function waterMaterial(
           `\tvec2 slope = ( a + b ) * ${RIPPLE_STRENGTH.toFixed(2)};`,
           '\tnormal = normalize( ( viewMatrix * vec4( normalize( vec3( - slope.x, 1.0, - slope.y ) ), 0.0 ) ).xyz );',
           '}',
+        ].join('\n'),
+      )
+      .replace(
+        '#include <opaque_fragment>',
+        [
+          '{',
+          '\tfloat facing = saturate( dot( normal, normalize( vViewPosition ) ) );',
+          '\toutgoingLight = mix( outgoingLight, uWaterSky, uWaterReflection * pow( 1.0 - facing, 3.0 ) );',
+          '}',
+          '#include <opaque_fragment>',
         ].join('\n'),
       );
   };

@@ -36,9 +36,8 @@ export interface CourseLook {
   sky:
     | { top: number; middle: number; horizon: number }
     | { materials: readonly string[]; colour: number };
-  /** Full quality: ACES tone mapping's exposure and the glossy reflections' strength (0: none). */
+  /** Full quality: ACES tone mapping's exposure. */
   exposure: number;
-  reflections: number;
   /** Full quality: bloom on what's brighter than `threshold` (0–1, after lighting). */
   bloom: { strength: number; radius: number; threshold: number };
   /** Full quality: how strongly the screen edges blur while the followed kart boosts (0–1). */
@@ -54,6 +53,9 @@ export interface CourseLook {
     flow: number;
     /** Ripple size, m. */
     scale: number;
+    /** How much it mirrors the sky (`sky`, 0xRRGGBB) at a glancing angle, 0–1. */
+    reflection: number;
+    sky: number;
   };
   /** Ambient loops (crowd, fountains): everywhere, or around `at` out to `radius`. */
   ambience: readonly CourseSound[];
