@@ -5,6 +5,7 @@ import type { EngineClass } from '../../../sim/tuning';
 import type { Loadout } from '../../../sim/types';
 import type { Mk8CourseKey, Mk8CupId } from '../../content/cups';
 import type { Mk8RaceSetup } from '../../flow';
+import type { KartPreviewFiles } from '../../render/kartPreview';
 import type { SpriteSource } from '../kit/styleGuide';
 
 /** MK8 Mode's game modes, in the mode select's order. */
@@ -56,6 +57,8 @@ export interface Mk8Context {
   /** Pack sprite URLs (undefined without a pack: screens draw stand-ins). */
   sprites: SpriteSource;
   flow: Mk8Flow;
+  /** Pack files on demand: the kart builder's 3D preview (MK-118). */
+  files: KartPreviewFiles;
   /** Loads a course's pack files and the race's item models (progress 0–1, MK-119). */
   loadCourse(course: Mk8CourseKey, onProgress: (fraction: number) => void): Promise<void>;
   /** Leaves the menus for the race. */
@@ -69,6 +72,6 @@ export interface Mk8Context {
    * (its model id) first: `onFirst` runs once its files are in. Rejects without a pack.
    */
   loadCharacters(first: string, onFirst?: () => void): Promise<void>;
-  /** Where MK8 Mode remembers picks (MK-117: the last racer). */
+  /** Where MK8 Mode remembers picks (MK-117: the last racer; MK-118: the last loadout). */
   store: KeyValueStore;
 }

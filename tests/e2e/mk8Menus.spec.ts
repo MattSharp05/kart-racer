@@ -1,5 +1,7 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import { getState, loadScenario } from './helpers';
+import { loadoutStats } from '../../src/mk8/content/stats';
+import type { Loadout } from '../../src/sim/types';
 import { servePack } from './mk8';
 
 // MK-116: MK8 Mode's title and mode select (`mk8-ui-title`, `mk8-ui-mode`). MK-119: the engine
@@ -7,7 +9,8 @@ import { servePack } from './mk8';
 // they start. No real pack here (ADR 0009): the logo, racers, shields, cups and courses are
 // stand-ins and the sounds synthesized, but the player is still asked for the same ids
 // (`window.__mk8.sounds`), and the choices are in `window.__mk8.flow`. MK-117: the character select
-// (`mk8-ui-char`), also on the synthetic fixture pack for its 3D portrait and voice lines.
+// (`mk8-ui-char`), also on the synthetic fixture pack for its 3D portrait and voice lines. MK-118:
+// the kart builder (`mk8-ui-kart`).
 
 const sounds = (page: Page) => page.evaluate(() => [...(window.__mk8?.sounds ?? [])]);
 const chosenMode = (page: Page) => page.evaluate(() => window.__mk8?.flow?.mode);
@@ -19,7 +22,6 @@ async function settled(page: Page, n: number) {
 
 const modeTiles = (page: Page) => page.locator('.mk8-scr-modes .mk8-tile');
 const charScreen = (page: Page) => page.locator('.mk8-scr-char');
-const kartNext = (page: Page) => page.locator('.mk8-scr-kart-next');
 
 /** Every box is at least 44 px (when `tap`) and inside the viewport. */
 async function expectFits(page: Page, selector: string, tap = true) {
@@ -378,7 +380,7 @@ test.describe('MK8 engine class and cup/course select (MK-119)', () => {
     await expect(shields(page).nth(2)).toHaveAttribute('aria-current', 'true');
   });
 
-  test('character select goes on to the kart builder stand-in, then the engine class (Online stops there)', async ({
+  test('character select goes on to the kart builder, then the engine class (Online stops there)', async ({
     page,
   }) => {
     await loadScenario(page, 'mk8-ui-mode');
@@ -388,7 +390,10 @@ test.describe('MK8 engine class and cup/course select (MK-119)', () => {
     await expect(charScreen(page)).toBeVisible();
     await page.keyboard.press('Enter');
     await settled(page, 4);
-    await expect(kartNext(page).locator('.mk8-body')).toHaveAttribute('data-racer', 'mk8-mario');
+    await expect(page.locator('.mk8-scr-kart .mk8-kb-who')).toHaveAttribute(
+      'data-racer',
+      'mk8-mario',
+    );
     await page.keyboard.press('Enter');
     await settled(page, 5);
     await expect(page.locator('.mk8-scr-cc .mk8-hdr')).toContainText('Grand Prix');
@@ -405,7 +410,7 @@ test.describe('MK8 engine class and cup/course select (MK-119)', () => {
     await settled(page, 3);
     await page.keyboard.press('Enter');
     await settled(page, 4);
-    await expect(kartNext(page).locator('.mk8-hint-a')).toHaveCount(0);
+    await expect(page.locator('.mk8-scr-kart .mk8-hint-a')).toHaveCount(0);
     await page.keyboard.press('Enter');
     await expect(page.locator('.mk8')).toHaveAttribute('data-depth', '4');
   });
@@ -423,6 +428,241 @@ test.describe('MK8 engine class and cup/course select (MK-119)', () => {
     await expectFits(page, '.mk8-scr-cup .mk8-cup-tile');
     await expectFits(page, '.mk8-scr-cup .mk8-course');
     await expectFits(page, '.mk8-scr-cup .mk8-hint');
+  });
+});
+
+// MK-118: the kart builder.
+const kartScreen = (page: Page) => page.locator('.mk8-scr-kart');
+const column = (page: Page, kind: string) =>
+  kartScreen(page).locator(`.mk8-kb-col[data-column="${kind}"]`);
+const SHOWN = ['speed', 'acceleration', 'weight', 'handling', 'traction'] as const;
+
+/** The loadout the builder shows (`data-loadout`: racer, body, tires, glider). */
+async function shownLoadout(page: Page): Promise<Loadout> {
+  const value = await kartScreen(page).locator('.mk8-kb').getAttribute('data-loadout');
+  const [racer = '', body = '', tires = '', glider = ''] = (value ?? '').split(' ');
+  return { racer, body, tires, glider };
+}
+
+/** Each bar's width as a share of its track, once the slide has finished. */
+async function expectBarsMatch(page: Page, loadout: Loadout) {
+  const stats = loadoutStats(loadout);
+  for (const stat of SHOWN) {
+    const row = kartScreen(page).locator(`.mk8-kb-stat[data-stat="${stat}"]`);
+    await expect(row).toHaveAttribute('data-value', String(stats[stat]));
+    await expect
+      .poll(() =>
+        row.evaluate((el) => {
+          const fill = el.querySelector('.mk8-kb-bar i')!.getBoundingClientRect();
+          const track = el.querySelector('.mk8-kb-bar')!.getBoundingClientRect();
+          return fill.width / track.width;
+        }),
+      )
+      .toBeCloseTo(stats[stat] / 5.75, 2);
+  }
+}
+
+test.describe('MK8 kart builder (MK-118)', () => {
+  test("keyboard: ←→ pick a column, ↑↓ turn its reel, the bars follow MK8's stats, OK saves the kart", async ({
+    page,
+  }) => {
+    await loadScenario(page, 'mk8-ui-kart');
+    await settled(page, 4);
+    await expect(kartScreen(page)).toBeVisible();
+    await expect(kartScreen(page).locator('.mk8-kb-who')).toHaveAttribute(
+      'data-racer',
+      'mk8-mario',
+    );
+    await expect(kartScreen(page).locator('.mk8-kb-who')).toContainText('Mario');
+    await expect(kartScreen(page).locator('.mk8-kb-col h3')).toHaveText([
+      'Body',
+      'Tires',
+      'Glider',
+    ]);
+    await expect(column(page, 'body')).toHaveAttribute('aria-current', 'true');
+    // Mario's default kart.
+    const start = await shownLoadout(page);
+    expect(start).toEqual({
+      racer: 'mk8-mario',
+      body: 'standard-kart',
+      tires: 'standard-tires',
+      glider: 'paper-glider',
+    });
+    await expectBarsMatch(page, start);
+    // Each reel shows the part before, the part and the part after (wrapping round).
+    await expect(column(page, 'body').locator('.mk8-kb-slot')).toHaveCount(3);
+    await expect(column(page, 'body').locator('.mk8-kb-slot[data-offset="-1"]')).toHaveAttribute(
+      'data-part',
+      'sports-coupe',
+    );
+    await expect(column(page, 'body').locator('.mk8-kb-name')).toHaveText('Standard Kart');
+
+    // ↓ on Body: the next body; the bars move to the new totals.
+    await page.keyboard.press('ArrowDown');
+    await expect(column(page, 'body')).toHaveAttribute('data-part', 'pipe-frame');
+    await expect(column(page, 'body').locator('.mk8-kb-name')).toHaveText('Pipe Frame');
+    await expectBarsMatch(page, await shownLoadout(page));
+    // → to Tires, ↑ wraps to the last tire set.
+    await page.keyboard.press('ArrowRight');
+    await expect(column(page, 'tires')).toHaveAttribute('aria-current', 'true');
+    await expect(column(page, 'body')).not.toHaveClass(/is-focused/);
+    await page.keyboard.press('ArrowUp');
+    await expect(column(page, 'tires')).toHaveAttribute('data-part', 'slick-tires');
+    // ← twice wraps to Glider.
+    await page.keyboard.press('ArrowLeft');
+    await page.keyboard.press('ArrowLeft');
+    await expect(column(page, 'glider')).toHaveAttribute('aria-current', 'true');
+    await page.keyboard.press('ArrowDown');
+    const built = await shownLoadout(page);
+    expect(built).toEqual({
+      racer: 'mk8-mario',
+      body: 'pipe-frame',
+      tires: 'slick-tires',
+      glider: 'cloud-glider',
+    });
+    await expectBarsMatch(page, built);
+
+    // OK: the kart is saved and passed on, then the engine class.
+    await page.keyboard.press('Enter');
+    await settled(page, 5);
+    await expect(page.locator('.mk8-scr-cc')).toBeVisible();
+    expect((await flow(page)).loadout).toEqual(built);
+    const saved = await page.evaluate(
+      () => JSON.parse(localStorage.getItem('kart-racer:prefs') ?? '{}').mk8Loadout,
+    );
+    expect(saved).toEqual(built);
+    expect((await sounds(page)).slice(-1)).toEqual(['ui/decide']);
+    expect(await sounds(page)).toContain('ui/cursor');
+
+    // Back: the builder again; opened afresh, it starts on the saved kart.
+    await page.keyboard.press('Escape');
+    await settled(page, 4);
+    expect(await shownLoadout(page)).toEqual(built);
+    await page.reload();
+    await page.waitForFunction(() => window.__game?.ready === true);
+    await page.evaluate(() => window.__game!.whenReady());
+    await settled(page, 4);
+    expect(await shownLoadout(page)).toEqual(built);
+  });
+
+  test('touch: tap the arrows, tap the part below, swipe a reel', async ({ page }, info) => {
+    const press = (locator: Locator) =>
+      info.project.use.hasTouch ? locator.tap() : locator.click();
+    await loadScenario(page, 'mk8-ui-kart');
+    await settled(page, 4);
+    // The arrows: Tires next, then back.
+    await press(column(page, 'tires').locator('.mk8-kb-down'));
+    await expect(column(page, 'tires')).toHaveAttribute('aria-current', 'true');
+    await expect(column(page, 'tires')).toHaveAttribute('data-part', 'monster-tires');
+    await press(column(page, 'tires').locator('.mk8-kb-up'));
+    await expect(column(page, 'tires')).toHaveAttribute('data-part', 'standard-tires');
+    // The part below the current one.
+    await press(column(page, 'body').locator('.mk8-kb-slot[data-offset="1"]'));
+    await expect(column(page, 'body')).toHaveAttribute('data-part', 'pipe-frame');
+    await expect(column(page, 'body')).toHaveAttribute('aria-current', 'true');
+    // A swipe up the Glider reel shows the next glider; a swipe down the one before (one part
+    // per 28 px of swipe).
+    const reel = column(page, 'glider').locator('.mk8-kb-reel');
+    const box = (await reel.boundingBox())!;
+    const x = box.x + box.width / 2;
+    const swipe = async (from: number, to: number) => {
+      await reel.dispatchEvent('pointerdown', {
+        clientX: x,
+        clientY: from,
+        pointerId: 1,
+        buttons: 1,
+      });
+      await reel.dispatchEvent('pointermove', {
+        clientX: x,
+        clientY: to,
+        pointerId: 1,
+        buttons: 1,
+      });
+      await reel.dispatchEvent('pointerup', { clientX: x, clientY: to, pointerId: 1 });
+    };
+    const middle = box.y + box.height / 2;
+    await swipe(middle + 30, middle - 30);
+    await expect(column(page, 'glider')).toHaveAttribute('data-part', 'cloud-glider');
+    await expect(column(page, 'glider')).toHaveAttribute('aria-current', 'true');
+    await swipe(middle - 30, middle + 30);
+    await expect(column(page, 'glider')).toHaveAttribute('data-part', 'paper-glider');
+    await expectBarsMatch(page, await shownLoadout(page));
+    // A: on to the engine class.
+    await press(kartScreen(page).locator('.mk8-hint-a'));
+    await settled(page, 5);
+    expect((await flow(page)).loadout).toEqual({
+      racer: 'mk8-mario',
+      body: 'pipe-frame',
+      tires: 'standard-tires',
+      glider: 'paper-glider',
+    });
+  });
+
+  test('Time Trial goes from the kart builder straight to course select', async ({ page }) => {
+    await loadScenario(page, 'mk8-ui-mode');
+    await settled(page, 2);
+    for (let i = 0; i < 2; i++) await page.keyboard.press('ArrowDown');
+    await page.keyboard.press('Enter');
+    await settled(page, 3);
+    await page.keyboard.press('Enter');
+    await settled(page, 4);
+    await page.keyboard.press('Enter');
+    await settled(page, 5);
+    await expect(page.locator('.mk8-scr-cup')).toBeVisible();
+    expect((await flow(page)).mode).toBe('time-trial');
+  });
+
+  test('kart builder tap targets are at least 44 px and fit the screen', async ({ page }) => {
+    await loadScenario(page, 'mk8-ui-kart');
+    await settled(page, 4);
+    await expectFits(page, '.mk8-kb-arrow');
+    await expectFits(page, '.mk8-kb-col', true);
+    await expectFits(page, '.mk8-kb-stats', false);
+    await expectFits(page, '.mk8-kb-stat', false);
+    await expectFits(page, '.mk8-kb-preview', false);
+    await expectFits(page, '.mk8-scr-kart .mk8-hint');
+  });
+
+  test('with a pack the preview shows the racer in the kart in 3D, glider open on its column', async ({
+    page,
+  }) => {
+    const { requested } = await servePack(page);
+    await loadScenario(page, 'mk8-ui-kart', { paused: true });
+    await settled(page, 4);
+    const preview = kartScreen(page).locator('.mk8-kb-preview');
+    await expect(preview).toHaveAttribute('data-status', 'ready');
+    await expect(preview.locator('canvas')).toBeVisible();
+    await expect(preview.locator('.mk8-kb-strip')).toBeHidden();
+    await expect(preview).toHaveAttribute(
+      'data-loadout',
+      'mk8-mario standard-kart standard-tires paper-glider',
+    );
+    expect(requested).toContain('models/racers/mario.glb');
+    await page.keyboard.press('ArrowRight');
+    await page.keyboard.press('ArrowDown');
+    await expect(preview).toHaveAttribute(
+      'data-loadout',
+      'mk8-mario standard-kart monster-tires paper-glider',
+    );
+    expect(requested).toContain('models/karts/tires/monster-tires.glb');
+  });
+
+  test('a builder under the engine class loads its preview only when Back shows it', async ({
+    page,
+  }) => {
+    const { requested } = await servePack(page);
+    await loadScenario(page, 'mk8-ui-cc', { paused: true });
+    await settled(page, 5);
+    await page.waitForTimeout(300);
+    // (Character select, under it too, loads the racers; only the builder needs a glider.)
+    expect(requested).not.toContain('models/karts/gliders/paper-glider.glb');
+    await page.keyboard.press('Escape');
+    await settled(page, 4);
+    await expect(kartScreen(page).locator('.mk8-kb-preview')).toHaveAttribute(
+      'data-status',
+      'ready',
+    );
+    expect(requested).toContain('models/karts/gliders/paper-glider.glb');
   });
 });
 
@@ -491,7 +731,7 @@ test.describe('MK8 character select (MK-117)', () => {
 
     await page.keyboard.press('Enter');
     await settled(page, 4);
-    await expect(page.locator('.mk8-scr-kart-next .mk8-body')).toHaveAttribute(
+    await expect(page.locator('.mk8-scr-kart .mk8-kb-who')).toHaveAttribute(
       'data-racer',
       'mk8-donkey-kong',
     );
@@ -518,7 +758,7 @@ test.describe('MK8 character select (MK-117)', () => {
     await press(tiles(page).nth(6));
     await settled(page, 4);
     expect((await flow(page)).loadout?.racer).toBe('mk8-koopa-troopa');
-    await press(page.locator('.mk8-scr-kart-next .mk8-hint-b'));
+    await press(page.locator('.mk8-scr-kart .mk8-hint-b'));
     await settled(page, 3);
     await press(page.locator('.mk8-scr-char .mk8-hint-b'));
     await settled(page, 2);
