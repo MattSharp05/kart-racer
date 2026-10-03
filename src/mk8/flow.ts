@@ -1,7 +1,7 @@
 // What MK8 Mode's menus hand the game when the player starts a race (MK-119): the course's track,
 // the engine class, the player's loadout and MK8's item set. MK8 courses and racers register
 // with their own tickets (MK-105, MK-101); until a course's track is registered the race runs on
-// its stand-in (one of our tracks), and until the racer is, on our default racer.
+// its stand-in (one of our tracks), and a racer that isn't registered drives as our default one.
 import { racers } from '../content/racers';
 import { tracks } from '../content/tracks';
 import type { KartId } from '../sim/data/karts';
@@ -12,7 +12,7 @@ import type { Mk8Flow, Mk8Loadout } from './ui/screens/session';
 
 /** The kart before character select and the kart builder pick one (MK8's defaults). */
 export const DEFAULT_LOADOUT: Mk8Loadout = {
-  racer: 'mario',
+  racer: 'mk8-mario',
   body: 'standard',
   tires: 'standard',
   glider: 'super',

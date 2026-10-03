@@ -9,6 +9,14 @@ import type { Mk8RaceSetup } from './flow';
 import type { SoundId } from './audio/soundIds';
 import { Mk8Loader, PackNotInstalledError, type LoaderOptions } from './loader';
 import { registerMk8Content } from './register';
+import {
+  STAGE_DEMOS,
+  buildDemo,
+  demoFiles,
+  type StageDemoId,
+  type StageHooks,
+} from './render/demos';
+import { Mk8Stage } from './render/stage';
 import { prepareMk8Items } from './render/items';
 import { styleGuide, type SpriteSource } from './ui/kit/styleGuide';
 import { Progress } from './ui/loading';
@@ -20,6 +28,7 @@ import { titleScreen } from './ui/screens/title';
 import { sprite } from './ui/sprites';
 import type { Mk8ScreenFactory } from './ui/stack';
 import './ui/stack';
+import './ui/stage';
 
 /** What MK8 Mode needs from the game: the screen router, and the way back to the title. */
 export interface Mk8Host {
@@ -35,10 +44,10 @@ export interface Mk8Host {
 declare global {
   interface Window {
     /**
-     * MK8 Mode's test hooks: every sound id the player was asked to play (MK-104), and what the
-     * menus have chosen so far (MK-116).
+     * MK8 Mode's test hooks: every sound id the player was asked to play (MK-104), what the menus
+     * have chosen so far (MK-116), and the model stage's demo (MK-101).
      */
-    __mk8?: { sounds: SoundId[]; flow?: Mk8Flow };
+    __mk8?: { sounds: SoundId[]; flow?: Mk8Flow; stage?: StageHooks };
   }
 }
 
@@ -47,12 +56,22 @@ declare global {
  * `mk8-loading` and `mk8-not-installed` scenarios show those screens without fetching anything;
  * `ui-kit` (the `mk8-ui-kit` scenario) shows the UI kit's style guide, and `title` / `mode` (the
  * `mk8-ui-title` / `mk8-ui-mode` scenarios, MK-116) the title or the mode select, with the pack's
- * sprites if it has one and stand-ins otherwise. MK-119: `cc` (a Grand Prix's engine class), `cup`
+ * sprites if it has one and stand-ins otherwise. A `StageDemoId` (MK-101's scenarios) loads those
+ * models and shows them on the 3D stage. MK-119: `cc` (a Grand Prix's engine class), `cup`
  * (a 150cc Grand Prix's cup select) and `course` (a 150cc VS Race's cup/course select), each over
  * the screens that lead there.
  */
 export type Mk8Start =
-  'load' | 'loading-demo' | 'not-installed' | 'ui-kit' | 'title' | 'mode' | 'cc' | 'cup' | 'course';
+  | 'load'
+  | 'loading-demo'
+  | 'not-installed'
+  | 'ui-kit'
+  | 'title'
+  | 'mode'
+  | 'cc'
+  | 'cup'
+  | 'course'
+  | StageDemoId;
 
 /** The screens over the MK8 title a scenario opens on, and the choices made on the way. */
 const DEEP_STARTS: Partial<
@@ -94,7 +113,7 @@ export function audioPlayer(): Mk8AudioPlayer {
   if (!player) {
     const files = packLoader();
     player = new Mk8AudioPlayer({ file: (path) => files.file(path), isMuted: () => muted() });
-    window.__mk8 = { sounds: player.played };
+    window.__mk8 = { ...window.__mk8, sounds: player.played };
   }
   return player;
 }
@@ -117,6 +136,22 @@ export function start(host: Mk8Host, mode: Mk8Start = 'load'): Promise<void> {
     return trackLoad(
       openMenus(host, back, deep?.screens ?? [], { optionalPack: true, flow: deep?.flow ?? {} }),
     );
+  }
+  if (mode in STAGE_DEMOS) {
+    const id = mode as StageDemoId;
+    const open = async (): Promise<void> => {
+      try {
+        await openStage(host, id, () => left, back);
+      } catch (e) {
+        if (left) return;
+        banner = showErrorBanner(
+          "Couldn't load the MK8 pack",
+          [e instanceof Error ? e.message : String(e)],
+          { label: 'Retry', onClick: () => void trackLoad(open()) },
+        );
+      }
+    };
+    return trackLoad(open());
   }
   if (mode === 'not-installed') {
     screens.show('mk8NotInstalled', { onBack: back });
@@ -232,6 +267,66 @@ async function openUiKit(host: Mk8Host, onExit: () => void): Promise<void> {
     first: styleGuide(packSprites(files)),
     sounds: audioPlayer(),
     onExit,
+  });
+}
+
+/** Whether the page was opened paused (`&paused=1`): the stage then holds still for tests. */
+const openedPaused = () => new URLSearchParams(location.search).get('paused') === '1';
+
+/**
+ * A model scenario (MK-101): loads its racer, kart and Lakitu models behind the loading bar, then
+ * shows them on the 3D stage. No pack → "not installed", as the menu button does; other failures
+ * (a file missing or unreadable) throw, for the caller's Retry banner.
+ */
+async function openStage(
+  host: Mk8Host,
+  id: StageDemoId,
+  hasLeft: () => boolean,
+  onBack: () => void,
+): Promise<void> {
+  const { screens } = host;
+  const progress = new Progress(0);
+  screens.show('mk8Loading', { label: LOADING_LABEL, progress, onBack });
+  const files = packLoader();
+  try {
+    await files.loadFiles(demoFiles(id), (fraction) => progress.set(fraction));
+  } catch (e) {
+    if (hasLeft()) return;
+    if (e instanceof PackNotInstalledError) {
+      screens.show('mk8NotInstalled', { onBack });
+      return;
+    }
+    throw e;
+  }
+  if (hasLeft()) return;
+  const stage = new Mk8Stage(openedPaused());
+  const overlay = document.createElement('div');
+  let built: Awaited<ReturnType<typeof buildDemo>>;
+  try {
+    built = await buildDemo(id, stage, (path) => files.file(path), overlay);
+  } catch (e) {
+    stage.dispose();
+    throw e;
+  }
+  if (hasLeft()) {
+    built.dispose();
+    stage.dispose();
+    return;
+  }
+  screens.show('mk8Stage', {
+    title: STAGE_DEMOS[id].title,
+    mount: (el) => {
+      el.append(stage.canvas, overlay);
+      stage.start(built.demo);
+      window.__mk8 = { sounds: [], ...window.__mk8, stage: built.hooks };
+      return () => {
+        if (window.__mk8?.stage === built.hooks) delete window.__mk8.stage;
+        built.dispose();
+        stage.dispose();
+        overlay.remove();
+      };
+    },
+    onBack,
   });
 }
 

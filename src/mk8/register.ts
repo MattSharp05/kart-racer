@@ -13,6 +13,7 @@ import { racers, type RacerContent } from '../content/racers';
 import { tracks, type TrackContent } from '../content/tracks';
 import type { Registry } from '../content/registry';
 import { mk8ItemSet, mk8ItemSims } from './content/items';
+import { MK8_RACERS } from './content/racers';
 
 export interface Mk8Content {
   tracks: readonly TrackContent[];
@@ -22,10 +23,10 @@ export interface Mk8Content {
   itemSets?: readonly ItemSetContent[];
 }
 
-/** Everything MK8 Mode adds. Courses and racers come with their tickets. */
+/** Everything MK8 Mode adds: racers (MK-101) and items (MK-103); courses come with their tickets. */
 export const MK8_CONTENT: Mk8Content = {
   tracks: [],
-  racers: [],
+  racers: MK8_RACERS,
   items: mk8ItemSims(),
   itemSets: [mk8ItemSet],
 };

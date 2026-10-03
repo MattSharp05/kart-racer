@@ -269,8 +269,8 @@ test.describe('MK8 engine class and cup/course select (MK-119)', () => {
       itemSet: 'mk8',
       secondSlot: true,
       karts: 8,
-      // The default loadout's racer (Mario) isn't registered yet (MK-101): our default racer.
-      player: 'maple',
+      // The default loadout's racer until character select and the kart builder exist.
+      player: 'mk8-mario',
       phase: 'countdown',
     });
     expect(await flow(page)).toMatchObject({
@@ -331,7 +331,7 @@ test.describe('MK8 engine class and cup/course select (MK-119)', () => {
       trackId: 'dune-canyon',
       engineClass: 150,
       itemSet: 'mk8',
-      player: 'maple',
+      player: 'mk8-mario',
     });
     expect(await flow(page)).toMatchObject({ mode: 'vs', cup: 'mushroom', course: 'canyon' });
     // The refused tap on the locked cup makes no sound.

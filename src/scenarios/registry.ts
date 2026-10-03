@@ -28,7 +28,13 @@ export type MenuScreen =
   | 'mk8UiMode'
   | 'mk8UiCc'
   | 'mk8UiCup'
-  | 'mk8UiCourse';
+  | 'mk8UiCourse'
+  // MK-101: MK8 racer models and Lakitu on a 3D stage.
+  | 'mk8RacersLineup'
+  | 'mk8RacerMotion'
+  | 'mk8LakituCountdown'
+  | 'mk8LakituLap'
+  | 'mk8LakituRespawn';
 
 export interface ScenarioSetup {
   state: SimState;

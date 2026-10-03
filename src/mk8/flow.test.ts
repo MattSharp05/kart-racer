@@ -8,10 +8,12 @@ import { DEFAULT_LOADOUT, raceSetup, STAND_IN_RACER } from './flow';
 describe('MK8 race setup from the menus (MK-119)', () => {
   afterEach(() => {
     tracks.unregister('mk8-stadium');
-    racers.unregister('mario');
+    racers.unregister('mk8-test-racer');
   });
 
   it('races a course on its stand-in track until the course is registered, with the defaults', () => {
+    // MK8 racers register when MK8 Mode opens (not in this test): our racer stands in for Mario.
+    expect(racers.has(DEFAULT_LOADOUT.racer)).toBe(false);
     expect(raceSetup({ mode: 'vs', course: 'canyon' })).toEqual({
       course: 'canyon',
       cup: 'mushroom',
@@ -25,17 +27,21 @@ describe('MK8 race setup from the menus (MK-119)', () => {
 
   it('uses the chosen engine class and loadout, and the real course and racer once registered', () => {
     tracks.register({ ...tracks.get('sunny-circuit'), id: 'mk8-stadium' });
-    racers.register({ ...racers.list()[0]!, id: 'mario' });
-    const loadout = { racer: 'mario', body: 'pipe', tires: 'slick', glider: 'cloud' };
+    racers.register({ ...racers.list()[0]!, id: 'mk8-test-racer' });
+    const loadout = { racer: 'mk8-test-racer', body: 'pipe', tires: 'slick', glider: 'cloud' };
     const setup = raceSetup({ course: 'stadium', cup: 'mushroom', engineClass: 200, loadout });
-    expect(setup).toMatchObject({ trackId: 'mk8-stadium', engineClass: 200, playerKart: 'mario' });
+    expect(setup).toMatchObject({
+      trackId: 'mk8-stadium',
+      engineClass: 200,
+      playerKart: 'mk8-test-racer',
+    });
     expect(setup.loadout).toEqual(loadout);
   });
 
   it('keeps an unregistered racer in the loadout but drives the stand-in', () => {
-    const loadout = { ...DEFAULT_LOADOUT, racer: 'bowser' };
+    const loadout = { ...DEFAULT_LOADOUT, racer: 'mk8-not-there' };
     const setup = raceSetup({ course: 'ruins', loadout });
-    expect(setup.loadout.racer).toBe('bowser');
+    expect(setup.loadout.racer).toBe('mk8-not-there');
     expect(setup.playerKart).toBe(STAND_IN_RACER);
   });
 

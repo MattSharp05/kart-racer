@@ -1,5 +1,5 @@
 import { SoundManager } from '../audio/soundManager';
-import { racers } from '../content/racers';
+import { gameRacers } from '../content/racers';
 import { tracks } from '../content/tracks';
 import type { World } from '../render/world';
 import { attractMode, sunnyLineup } from '../scenarios/menus';
@@ -167,7 +167,7 @@ export class Flow {
       () => this.showTitleScreen(),
       {
         tracks: menuTracks(),
-        racers: racers.list(),
+        racers: gameRacers(),
         onRace: this.startOnlineRace,
         onStartFailed: (message) => this.abortOnlineRace(message),
         onRoomEnded: () => this.leaveOnlineRace(),
@@ -313,6 +313,21 @@ export class Flow {
         break;
       case 'mk8UiKit':
         this.openMk8('ui-kit');
+        break;
+      case 'mk8RacersLineup':
+        this.openMk8('racers-lineup');
+        break;
+      case 'mk8RacerMotion':
+        this.openMk8('racer-motion');
+        break;
+      case 'mk8LakituCountdown':
+        this.openMk8('lakitu-countdown');
+        break;
+      case 'mk8LakituLap':
+        this.openMk8('lakitu-lap');
+        break;
+      case 'mk8LakituRespawn':
+        this.openMk8('lakitu-respawn');
         break;
       case 'mk8UiTitle':
         this.openMk8('title');

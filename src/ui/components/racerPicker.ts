@@ -1,4 +1,4 @@
-import { racers, type RacerContent } from '../../content/racers';
+import { gameRacers, type RacerContent } from '../../content/racers';
 import { RacerPreview } from '../../render/racerPreview';
 import type { KartId } from '../../sim/data/karts';
 import { racerCard, statBars } from './racerCard';
@@ -38,7 +38,7 @@ export interface RacerPicker {
  * (ADR 0007: new racers appear by registering, nothing here lists them).
  */
 export function createRacerPicker(options: RacerPickerOptions): RacerPicker {
-  const list: readonly RacerContent[] = racers.list();
+  const list: readonly RacerContent[] = gameRacers();
   const first = list[0];
   if (!first) throw new Error('No racers registered');
   let index = Math.max(
