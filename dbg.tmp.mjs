@@ -1,0 +1,26 @@
+import { chromium } from '@playwright/test';
+import { writeFileSync } from 'node:fs';
+const [,, out, yaw] = process.argv;
+const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+const page = await browser.newPage();
+await page.goto('http://localhost:5173/?scenario=mk8-items-lineup&paused=1');
+await page.waitForFunction(() => window.__game?.ready === true, null, { timeout: 60000 });
+await page.evaluate(() => window.__game.whenReady());
+const url = await page.evaluate(async (yaw) => {
+  const THREE = await import('/node_modules/.vite/deps/three.js');
+  const mk8 = await import('/src/mk8/index.ts');
+  const loader = mk8.packLoader();
+  const m = await import('/src/mk8/render/items/models.ts');
+  const ids = ['item-box','banana','green-shell','red-shell','mushroom','star','lightning','boomerang-flower','blooper'];
+  const models = await m.loadItemModels(loader, ids);
+  const scene = new THREE.Scene(); scene.background = new THREE.Color('#87ceeb');
+  scene.add(new THREE.HemisphereLight('#ffffff', '#445566', 2)); const d = new THREE.DirectionalLight('#ffffff', 2); d.position.set(3,5,4); scene.add(d);
+  const g = new THREE.Mesh(new THREE.PlaneGeometry(30, 10), new THREE.MeshStandardMaterial({ color: '#666' })); g.rotation.x = -Math.PI/2; g.position.y = -0.5; scene.add(g);
+  ids.forEach((id, i) => { const o = models.instance(id, 1); if (o) { o.position.set((i - 4) * 1.3, 0, 0); o.rotation.y = Number(yaw); scene.add(o); } });
+  const cam = new THREE.PerspectiveCamera(40, 3, 0.1, 100); cam.position.set(0, 2.5, 8); cam.lookAt(0, 0, 0);
+  const canvas = document.createElement('canvas'); canvas.width = 1500; canvas.height = 500;
+  const r = new THREE.WebGLRenderer({ canvas, preserveDrawingBuffer: true }); r.outputColorSpace = THREE.SRGBColorSpace; r.render(scene, cam);
+  return canvas.toDataURL('image/png');
+}, yaw);
+writeFileSync(out, Buffer.from(url.split(',')[1], 'base64'));
+await browser.close();

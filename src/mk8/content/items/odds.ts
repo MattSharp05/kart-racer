@@ -9,7 +9,10 @@
 // spread evenly (`sim/items/odds.ts` `rowIndex`). Our own five items are mixed in at low weights
 // (about 5 % of a row, `OURS`), in the same units: the roulette divides by each row's total.
 
-/** MK8's columns, by our item id (`MK8_ITEM_IDS`): MK8's chance × 2 in each distance row. */
+/**
+ * MK8's columns, by item id (ours where we have the item, else the id its item ticket will use):
+ * MK8's chance × 2 in each distance row.
+ */
 export const MK8_TABLE = {
   banana: [65, 20, 10, 0, 0, 0, 0, 0, 0],
   green: [50, 25, 20, 15, 0, 0, 0, 0, 0],

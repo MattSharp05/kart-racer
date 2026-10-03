@@ -6,7 +6,11 @@ import { Registry } from '../registry';
 
 /** Draws an item's world entities each frame (one per renderer class, shared between items). */
 export interface ItemRenderer {
-  sync(state: SimState, time: number): void;
+  /**
+   * `kartModel` (item skins, MK-103): a kart's drawn model, to hang held items on where the kart
+   * is drawn (interpolated) rather than where the sim has it.
+   */
+  sync(state: SimState, time: number, kartModel?: (id: number) => THREE.Object3D | undefined): void;
 }
 
 /**

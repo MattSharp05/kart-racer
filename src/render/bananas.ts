@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { bananaDrawPosition } from '../sim/items/banana';
 import type { BananaEntity, SimState } from '../sim/types';
+import { skinDraws } from './itemSkins';
 
 const MAX = 24;
 
@@ -22,7 +23,10 @@ export class BananaRenderer {
   }
 
   sync(state: SimState): void {
-    const bananas = state.entities.filter((e): e is BananaEntity => e.kind === 'banana');
+    // An item skin's bananas (MK-103: MK8's) replace these.
+    const bananas = skinDraws(state, 'banana')
+      ? []
+      : state.entities.filter((e): e is BananaEntity => e.kind === 'banana');
     this.mesh.count = Math.min(bananas.length, MAX);
     bananas.slice(0, MAX).forEach((banana, i) => {
       const p = bananaDrawPosition(banana);

@@ -6,6 +6,7 @@ import { showErrorBanner } from '../ui/errorBanner';
 import type { Router } from '../ui/router';
 import { Mk8Loader, PackNotInstalledError, type LoaderOptions } from './loader';
 import { registerMk8Content } from './register';
+import { prepareMk8Items } from './render/items';
 import { Progress } from './ui/loading';
 
 /** What MK8 Mode needs from the game: the screen router, and the way back to the title. */
@@ -73,6 +74,15 @@ export function start(host: Mk8Host, mode: Mk8Start = 'load'): Promise<void> {
     }
   };
   return trackLoad(load());
+}
+
+/**
+ * Gets a race with MK8 items ready (MK-103): registers MK8 content (the `mk8` item set) and loads
+ * the pack's item models; without a pack the race draws our items.
+ */
+export async function prepareRace(): Promise<void> {
+  registerMk8Content();
+  await prepareMk8Items(packLoader());
 }
 
 /** Loads the OFL UI font from `public/mk8/fonts/` (shipped with the game, not part of the pack). */

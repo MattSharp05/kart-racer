@@ -2,19 +2,18 @@
 // pure data (sim lint rules apply). Their looks are in `src/mk8/render/items/`.
 //
 // Adding an MK8 item (the item tickets after MK-103):
-//  1. its odds column in `./odds.ts` (most are there already, under the ids in `MK8_ITEM_IDS`);
+//  1. its odds column in `./odds.ts` (`MK8_TABLE` already names every MK8 item's id);
 //  2. new behaviour: `src/mk8/content/items/<id>/sim.ts` default-exporting `mk8ItemSim({...})` (an
 //     `ItemContent` without `odds`: it is never handed out in the original game);
 //  3. one line in `MK8_ITEMS` below: its id, that sim, its pack model and its HUD icon sprite;
 //  4. its look: a line in `src/mk8/render/items/index.ts` (an `ItemView` for a new item, drawn with
 //     its pack model by `mk8EntityModel`).
 import { ODDS_ROWS, type ItemContent, type ItemSetContent } from '../../../content/items';
+import { MK8_ITEM_SET } from './id';
 import { MK8_ODDS } from './odds';
 
+export { MK8_ITEM_SET } from './id';
 export { MK8_ODDS, MK8_TABLE, OURS } from './odds';
-
-/** The item set MK8 races use (`SimState.itemSet`). */
-export const MK8_ITEM_SET = 'mk8';
 
 /** MK8 Mode's item rules: MK8's odds with our five mixed in, and a second item slot. */
 export const mk8ItemSet: ItemSetContent = { id: MK8_ITEM_SET, odds: MK8_ODDS, slots: 2 };
