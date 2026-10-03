@@ -1,0 +1,59 @@
+/* MK8 VS Race settings (MK-131): three white rows, 720 wide and 96 tall, 18 apart, centred 90
+   from the stage top: the slanted name, then ◀ value ▶. */
+
+.mk8 .mk8-body.mk8-vs {
+  display: grid;
+  justify-items: center;
+  align-content: start;
+  padding-top: calc(70 * var(--u));
+  overflow: visible;
+}
+
+.mk8-vs-rows {
+  display: grid;
+  gap: calc(18 * var(--u));
+}
+
+.mk8 .mk8-vs-row {
+  display: grid;
+  grid-template-columns:
+    calc(200 * var(--u)) max(var(--tap), calc(64 * var(--u))) minmax(0, 1fr)
+    max(var(--tap), calc(64 * var(--u)));
+  align-items: center;
+  width: calc(720 * var(--u));
+  min-height: max(var(--tap), calc(96 * var(--u)));
+  padding: 0 calc(20 * var(--u));
+  box-sizing: border-box;
+  border-radius: calc(20 * var(--u));
+  background: #fff;
+  box-shadow: 0 6px 0 var(--mk8-shadow);
+  cursor: pointer;
+}
+
+.mk8-vs-label {
+  color: var(--mk8-navy);
+  font-size: max(16px, calc(30 * var(--u)));
+  font-weight: 900;
+}
+
+.mk8-vs-value {
+  color: var(--mk8-navy);
+  font-size: max(15px, calc(30 * var(--u)));
+  font-weight: 900;
+  text-align: center;
+}
+
+.mk8-vs-arrow {
+  height: max(var(--tap), calc(64 * var(--u)));
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--mk8-blue);
+  font: inherit;
+  font-size: max(16px, calc(30 * var(--u)));
+  cursor: pointer;
+}
+
+.mk8-vs-row:not(.is-selected) .mk8-vs-arrow {
+  opacity: 0.35;
+}

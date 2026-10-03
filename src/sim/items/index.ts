@@ -46,7 +46,10 @@ function slotKept(kart: KartState, state: SimState): boolean {
   return items.list().some((item) => item.keepsSlot?.(kart, state) ?? false);
 }
 
-/** The roulette's pick for `kart`: by its race position, from the race's item set's odds. */
+/**
+ * The roulette's pick for `kart`: by its race position, from the race's item set's odds (only its
+ * `itemPool` when it has one, MK-131).
+ */
 function rollItem(state: SimState, kart: KartState): ItemId | null {
   const position = positionOf(state, kart.id);
   const racers = state.karts.length;
@@ -54,7 +57,15 @@ function rollItem(state: SimState, kart: KartState): ItemId | null {
     state.itemSet === undefined
       ? oddsRow(position, racers)
       : itemSetOddsRow(state.itemSet, position, racers);
-  return pickItem(odds, rngFloat(state), availableItems(state.itemSet));
+  const available = availableItems(state.itemSet);
+  const pool = state.itemPool;
+  if (!pool) return pickItem(odds, rngFloat(state), available);
+  const allowed = available.filter((item) => pool.includes(item));
+  // A pool whose items this place never gets (bananas for last place): any of them, evenly.
+  if (!allowed.some((item) => (odds[item] ?? 0) > 0)) {
+    return allowed[Math.floor(rngFloat(state) * allowed.length)] ?? null;
+  }
+  return pickItem(odds, rngFloat(state), allowed);
 }
 
 /** Each item's per-tick `update`, in item order, once per distinct function. */

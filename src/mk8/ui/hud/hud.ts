@@ -8,7 +8,8 @@ import { racerViews } from '../../../content/racers/render';
 import { homingOn } from '../../../sim/items/entities';
 import { positionOf } from '../../../sim/race';
 import type { ItemId, KartState, SimEvent, SimState } from '../../../sim/types';
-import { ordinal } from '../../../ui/hud/format';
+import { formatTime, ordinal } from '../../../ui/hud/format';
+import { raceClock } from '../../modes/timeTrial';
 import type { SoundId } from '../../audio/soundIds';
 import { lakituPose, LAKITU } from '../../render/lakitu';
 import type { SpriteSource } from '../kit/styleGuide';
@@ -147,6 +148,8 @@ export class Mk8Hud {
   private readonly coinCount = document.createElement('span');
   private readonly lap = div('mk8-hud-lap');
   private readonly position = div('mk8-hud-position');
+  /** A Time Trial's clock and lap splits (MK-131), under the minimap. */
+  private readonly timer = div('mk8-hud-timer');
   private readonly countdown = div('mk8-hud-countdown');
   private readonly lakitu = div('mk8-hud-lakitu');
   private readonly light = div('mk8-hud-light', this.lakitu);
@@ -182,6 +185,7 @@ export class Mk8Hud {
       this.coins,
       this.lap,
       this.position,
+      this.timer,
       this.lakitu,
       this.countdown,
     );
@@ -240,6 +244,7 @@ export class Mk8Hud {
       this.set(this.lap, `${lap}<small>/${state.race.laps}</small>`);
     }
     this.updatePosition(state, kart, tick);
+    this.updateTimer(state, kart);
     this.updateMap(state, kart.id);
     this.updateIncoming(state, kart.id);
     this.updateLakitu(state, kart);
@@ -267,9 +272,26 @@ export class Mk8Hud {
     );
   }
 
+  /** A Time Trial's race time (frozen at the finish) over each finished lap's split. */
+  private updateTimer(state: SimState, kart: KartState): void {
+    this.timer.hidden = !state.timeTrial;
+    if (!state.timeTrial) return;
+    const splits = kart.race.lapTimes
+      .map((t, i) => `<li><small>${i + 1}</small>${formatTime(t)}</li>`)
+      .join('');
+    this.set(
+      this.timer,
+      `<b class="mk8-hud-clock">${formatTime(raceClock(state, kart.id))}</b><ol>${splits}</ol>`,
+    );
+  }
+
   private updatePosition(state: SimState, kart: KartState, tick: number): void {
     const position = positionOf(state, kart.id);
-    this.position.hidden = position < 1 || (state.phase === 'free' && state.karts.length < 2);
+    // Alone against the clock (a Time Trial, or free drive) there's no place to show.
+    this.position.hidden =
+      position < 1 ||
+      state.timeTrial === true ||
+      (state.phase === 'free' && state.karts.length < 2);
     if (this.lastPosition > 0 && position !== this.lastPosition) {
       this.positionTick = tick;
       if (position < this.lastPosition && state.phase === 'racing') this.play('race/rank-up');

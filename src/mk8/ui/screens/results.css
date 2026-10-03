@@ -168,3 +168,48 @@
     transition: none;
   }
 }
+
+/* MK-131: a Time Trial's "New record!" over its row and the lap splits and records under it. */
+.mk8-res-main {
+  display: grid;
+  align-self: start;
+  gap: calc(14 * var(--u));
+}
+
+.mk8-res-banner {
+  justify-self: start;
+  padding: calc(4 * var(--u)) calc(18 * var(--u));
+  border-radius: calc(10 * var(--u));
+  background: linear-gradient(180deg, #ffe766, #ffb300);
+  box-shadow: 0 4px 0 #b26e00;
+  color: var(--mk8-red);
+  font-size: max(16px, calc(30 * var(--u)));
+  font-weight: 900;
+  transform: skewX(var(--mk8-slant));
+  animation: mk8-res-record 0.8s ease-in-out infinite alternate;
+}
+
+@keyframes mk8-res-record {
+  to {
+    transform: skewX(var(--mk8-slant)) scale(1.06);
+  }
+}
+
+.mk8-res-notes {
+  display: grid;
+  gap: calc(4 * var(--u));
+  margin: 0;
+  padding: calc(10 * var(--u)) calc(16 * var(--u));
+  border-radius: calc(12 * var(--u));
+  background: #0b1230aa;
+  color: #fff;
+  font-size: max(12px, calc(20 * var(--u)));
+  font-weight: 800;
+  list-style: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mk8-res-banner {
+    animation: none;
+  }
+}
