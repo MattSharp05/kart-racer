@@ -22,6 +22,7 @@ import { trackTheme } from './theme';
 import type { TrackLook } from './trackLook';
 import { createTrackView, overviewCamera, type TrackViewUpdate } from './trackView';
 import { trackViews } from '../content/tracks/render';
+import { UnderwaterView } from './underwater';
 
 /** Longest real frame we feed the sim, so a backgrounded tab doesn't cause a huge catch-up. */
 const MAX_FRAME_SECONDS = 0.25;
@@ -96,6 +97,8 @@ export class World {
   private readonly itemBoxes: ItemBoxRenderer;
   /** Coins (MK-109), on tracks that have them. */
   private readonly coins: CoinRenderer;
+  /** Underwater look (MK-107), on tracks with water. */
+  private readonly underwater: UnderwaterView;
   /** The other people's names over their karts (online, MK-55). */
   private readonly nameTags: NameTags;
   /** The track drawn now (MK-78: rebuilt when a race on another track loads). */
@@ -136,6 +139,7 @@ export class World {
     this.effects = new Effects(this.scene, this.karts, this.chaseCamera);
     this.itemBoxes = new ItemBoxRenderer(this.scene);
     this.coins = new CoinRenderer(this.scene);
+    this.underwater = new UnderwaterView(this.scene);
     this.nameTags = new NameTags(this.scene);
     this.addItemRenderers();
     this.aiDebug = options.aiDebug ? new AiDebugView(this.scene) : undefined;
@@ -266,6 +270,8 @@ export class World {
       this.options.playerColour ?? (() => DEFAULT_TAG_COLOUR),
       view === 'chase',
     );
+    const route = this.track.def.kind === 'mesh' ? this.track.def.route : undefined;
+    this.underwater.sync(state, route, simTime, (id) => this.karts.body(id), this.camera);
     this.onUpdate(frameSeconds);
     const look = this.track.look;
     look?.update?.({ state, ticks, followId, camera: this.camera, paused: game.paused });
@@ -345,6 +351,8 @@ export class World {
         distance: this.chaseCamera.distance(),
       },
       gliders: this.game.state.karts.map((_, i) => this.karts.gliderOpenness(i)),
+      underwater: this.underwater.cameraUnder,
+      propellers: this.underwater.propellersShown(),
     };
   }
 

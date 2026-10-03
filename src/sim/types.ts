@@ -180,6 +180,8 @@ export interface KartState {
   glide?: GlideState;
   /** Coins held, 0–`tuning.mk8.coins.max` (MK-109, `sim/coins.ts`): only on tracks with coins. */
   coins?: number;
+  /** Inside a route water volume (MK-107, `sim/underwater.ts`): only on tracks with water. */
+  inWater?: boolean;
 }
 
 /** A gliding kart's flight (MK-106). Plain data, mesh tracks only. */
@@ -379,6 +381,9 @@ export type SimEvent =
   | { type: 'spinBoost'; kartId: number }
   /** A coin picked up (MK-109), also at the most coins (then it adds nothing). */
   | { type: 'coin'; kartId: number }
+  /** A kart crossed into or out of a water volume (MK-107): splash, sounds. */
+  | { type: 'waterEnter'; kartId: number }
+  | { type: 'waterExit'; kartId: number }
   /**
    * An item's own moment (MK-52): a shield popping, ink splatting… `fx` names it; the item's view
    * maps it to a sound and, for `kartId`'s player, a screen overlay.
