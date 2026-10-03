@@ -145,6 +145,16 @@ export interface KartState {
   ai?: AiState;
   /** Timed item effects on this kart (MK-52): shields, magnet pulls, ink… Oldest first. */
   effects: KartEffect[];
+  // Surface frame (MK-99, ADR 0011): only karts on mesh tracks have these. Everywhere else up is
+  // +Y and gravity world −Y, and the fields are absent (old states and snapshots are unchanged).
+  /** Unit up: the ground's normal (eased) while grounded, easing back to +Y in the air. */
+  up?: Vec3;
+  /** Unit facing, perpendicular to `up`. `heading` follows it (its world yaw) for readers. */
+  forward?: Vec3;
+  /** Unit direction gravity pulls: −`up` in anti-gravity, world −Y otherwise. */
+  gravityDir?: Vec3;
+  /** Anti-gravity mode: set on `antigrav` ground, kept on offroad and walls, cleared on plain road. */
+  antigrav?: boolean;
 }
 
 /**

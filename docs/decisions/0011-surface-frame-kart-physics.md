@@ -22,3 +22,34 @@ Kart physics today is yaw-only: `heading` around world +Y, gravity along −Y, a
 - The biggest risk in v3, so it's proved first by a spike on Mario Kart Stadium's anti-gravity section, then a checkpoint where Matthew drives it.
 - Camera, kart model, drift sparks, item physics (shells following walls) and AI steering all read `up`. Shells use the same ground query.
 - The original game is unaffected beyond the refactor (regression hash test).
+
+## Amendment (MK-99, 2026-10-03): as built
+
+The MK-92 spike showed a heading-in-the-plane state flips upside down (`src/mk8/spike/NOTES.md`,
+question 4), so the build follows its proposal:
+
+- **Mesh-track karts store `forward` and `up`** (unit vectors) with `gravityDir` and a latched
+  `antigrav` flag, all optional on `KartState`: spline and arena karts never get them and keep
+  today's step untouched (`step.ts` dispatches mesh tracks to `sim/surfaceKart.ts`). `heading` is
+  kept in step as `forward`'s world yaw, for readers that only need a direction (HUD, minimap,
+  AI later). Existing tracks are bit-identical by construction; `sim/regression.test.ts` holds
+  every v1/v2 track's 30 s state hash to its value before the change. Old snapshots and the
+  online protocol are unchanged (the fields are absent off mesh tracks).
+- **Ground:** four wheel rays along −up from `tuning.mk8.probeLift` (2 m, so a wheel ray half-way
+  round a sharp 90° corner still starts above the floor) plus a **climb ray** along the direction
+  of travel. Ground ahead turned more than `climbAngle` from the kart's plane joins the plane fit
+  if it can be climbed (anti-gravity ground, or any ground while in anti-gravity, or plain ground
+  under `maxSlope`), which rounds concave corners like the test ramp's floor → wall → ceiling.
+  Plain ground steeper than `maxSlope` ahead is a **wall** (pushed back, speed into it removed),
+  not a slope the kart slides off. Speed is kept round concave transitions.
+- **Anti-gravity is a mode**, as the spike proposed: set by `antigrav` ground under any wheel or
+  ahead, cleared when every hit is plain road, boost or glide ground. Gravity is −up in the mode
+  (and `antigravAirHold` s into the air), world −Y otherwise. In the air the ground is looked for
+  along gravity, and `up` eases back to +Y (rolling about the nose if upside down).
+- **Kart bumps** on mesh tracks are measured and pushed in the plane the two karts share (their
+  averaged up); karts further apart than `bumpHeight` along it (floor and ceiling) don't touch.
+- **Respawn** on mesh tracks: the route's respawn point (or the last safe lap fraction) with the
+  route's up there; falls are air time over `fallSeconds`, a kill floor below, or dropping under
+  the mesh.
+- **Camera:** its up eases towards the kart's (4/s, at most 25° a frame) and it is pulled in front
+  of any course surface between it and the kart.

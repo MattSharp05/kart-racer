@@ -78,3 +78,49 @@ export function countDown(timer: number, dt: number): number {
   const next = timer - dt;
   return next <= 1e-9 ? 0 : next;
 }
+
+// --- Surface frames (MK-99, ADR 0011): mesh-track karts carry `forward` and `up` vectors ---
+
+export const WORLD_UP: Readonly<Vec3> = Object.freeze({ x: 0, y: 1, z: 0 });
+
+/** Angle between two unit vectors, radians. */
+export function angleBetween(a: Vec3, b: Vec3): number {
+  return Math.acos(clamp(dot(a, b), -1, 1));
+}
+
+/** Rotates `v` about the unit `axis` by `angle` radians (right-handed, Rodrigues). */
+export function rotateAbout(v: Vec3, axis: Vec3, angle: number): Vec3 {
+  const c = Math.cos(angle);
+  const s = Math.sin(angle);
+  const k = cross(axis, v);
+  const d = dot(axis, v) * (1 - c);
+  return {
+    x: v.x * c + k.x * s + axis.x * d,
+    y: v.y * c + k.y * s + axis.y * d,
+    z: v.z * c + k.z * s + axis.z * d,
+  };
+}
+
+/** `v` with its part along unit `n` removed, normalised (the zero vector stays zero). */
+export function orthonormal(v: Vec3, n: Vec3): Vec3 {
+  return normalize(sub(v, scale(n, dot(v, n))));
+}
+
+/**
+ * Turns unit `from` towards unit `to` by `fraction` of the angle between them, along the great
+ * circle. Exactly opposite vectors have no such circle: they turn about `pivot` (unit, ⟂ `from`).
+ */
+export function turnTowards(from: Vec3, to: Vec3, fraction: number, pivot: Vec3): Vec3 {
+  const angle = angleBetween(from, to);
+  if (angle < 1e-9) return { ...to };
+  const axis = cross(from, to);
+  const len = length(axis);
+  const turnAxis = len < 1e-9 ? pivot : scale(axis, 1 / len);
+  return normalize(rotateAbout(from, turnAxis, angle * fraction));
+}
+
+/** World yaw of a direction (heading convention: 0 faces −Z, positive turns left), or `fallback` if vertical. */
+export function headingOf(direction: Vec3, fallback: number): number {
+  if (direction.x * direction.x + direction.z * direction.z < 1e-12) return fallback;
+  return Math.atan2(-direction.x, -direction.z);
+}

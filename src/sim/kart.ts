@@ -39,7 +39,7 @@ function approach(value: number, target: number, maxDelta: number): number {
 }
 
 /** Exponential approach rate that reaches 95% of the target in `timeTo95` seconds. */
-function accelRate(timeTo95 = tuning.timeTo95): number {
+export function accelRate(timeTo95 = tuning.timeTo95): number {
   return Math.log(20) / timeTo95;
 }
 
@@ -93,7 +93,21 @@ export interface KartEnv {
 
 const DEFAULT_ENV: KartEnv = { tick: 0, grip: 1 };
 
-/** Advances one kart by one tick. Mutates and returns `kart` (called on a cloned state). */
+/** A kart's top speed right now: its stats × star, lightning, effects and AI rubber-banding. */
+export function kartTopSpeed(kart: KartState, engineClass: EngineClass): number {
+  return (
+    kartPhysics(kart.kartType, engineClass).topSpeed *
+    effectsSpeedFactor(kart) *
+    (kart.starTimer > 0 ? tuning.starSpeed : 1) *
+    (kart.shrinkTimer > 0 ? tuning.shrinkSpeed : 1) *
+    (kart.ai?.speedScale ?? 1)
+  );
+}
+
+/**
+ * Advances one kart by one tick on an arena or spline track. Mutates and returns `kart` (called on
+ * a cloned state). Mesh tracks use the surface-frame step (`surfaceKart.ts`, MK-99).
+ */
 export function updateKart(
   kart: KartState,
   input: InputFrame,
@@ -242,7 +256,7 @@ function crossedRampLip(track: TrackDef, before: Vec3, after: Vec3): boolean {
 }
 
 /** Airtime bookkeeping: launches, landings, and the ramp trick boost. */
-function updateAirState(
+export function updateAirState(
   kart: KartState,
   wasGrounded: boolean,
   vy: number,
@@ -266,14 +280,14 @@ function updateAirState(
 }
 
 /** Drift tapped in the air shortly after a ramp launch = trick (boost on landing). */
-function tryTrick(kart: KartState, events: SimEvent[]): void {
+export function tryTrick(kart: KartState, events: SimEvent[]): void {
   if (kart.trick !== 'ready' || kart.airTime > tuning.trickWindow) return;
   kart.trick = 'done';
   events.push({ type: 'trick', kartId: kart.id });
 }
 
 /** Boost pads refresh the boost while you're on them; the event fires once per pad. */
-function hitBoostPad(kart: KartState, events: SimEvent[]): void {
+export function hitBoostPad(kart: KartState, events: SimEvent[]): void {
   if (kart.boostTimer < tuning.boostPadSeconds - 0.05)
     events.push({ type: 'boostPad', kartId: kart.id });
   kart.boostTimer = Math.max(kart.boostTimer, tuning.boostPadSeconds);

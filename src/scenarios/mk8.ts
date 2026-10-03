@@ -1,16 +1,75 @@
 import { items } from '../content/items';
 import { INK_TICKS } from '../content/items/ink-cloud/sim';
+import { tracks } from '../content/tracks';
 import { sunnyCircuit } from '../content/tracks/sunny-circuit/sim';
 import { MK8_ITEM_SET } from '../mk8/content/items/id';
 import { giveItem } from '../sim/items';
 import { nextEntityId } from '../sim/items/banana';
-import { forwardFromHeading } from '../sim/math';
+import { forwardFromHeading, headingOf } from '../sim/math';
+import { routeGeometry } from '../sim/route';
 import { createSimState, type KartSpawn } from '../sim/state';
 import { trackGeometry } from '../sim/track';
 import { tuning } from '../sim/tuning';
 import { NEUTRAL_INPUT, type SimEvent, type SimState } from '../sim/types';
 import { attractMode } from './menus';
-import type { Scenario } from './registry';
+import type { Scenario, ScenarioSetup } from './registry';
+
+/** The anti-gravity checkpoint on the real course (MK-99): local pack only. */
+export const MK8_STADIUM_SCENARIO = 'mk8-stadium-antigrav';
+/** Mario Kart Stadium's collision as a dev course (`src/mk8/scenarioCourses.ts` registers it). */
+export const MK8_STADIUM_DEV_ID = 'mk8-dev-stadium';
+/** Scenarios that drive an MK8 course: `main.ts` registers it before they're set up (MK-99). */
+export const MK8_COURSE_SCENARIOS: ReadonlySet<string> = new Set([
+  'mk8-test-antigrav',
+  'mk8-test-ceiling',
+  MK8_STADIUM_SCENARIO,
+]);
+
+/**
+ * The MK8 test ramp (`src/mk8/content/courses/test-ramp/layout.ts`), copied as plain numbers: this
+ * module is in the main bundle, which must not pull in MK8 code (`mk8.test.ts` keeps them equal).
+ * `main.ts` registers the course before an `mk8-*` scenario is set up.
+ */
+export const TEST_RAMP = {
+  id: 'mk8-test-ramp',
+  roadHalfWidth: 7,
+  tunnel: { from: 30, height: 8 },
+} as const;
+const { tunnel, roadHalfWidth } = TEST_RAMP;
+
+/** One kart (150cc, free drive) on the test ramp. */
+function onTestRamp(
+  seed: number,
+  at: { x: number; y: number; z: number },
+  heading: number,
+  upsideDown = false,
+): SimState {
+  return createSimState({
+    seed,
+    trackId: TEST_RAMP.id,
+    engineClass: 150,
+    itemsOn: false,
+    karts: [{ position: at, heading, ...(upsideDown ? { up: { x: 0, y: -1, z: 0 } } : {}) }],
+  });
+}
+
+/** One kart on Stadium's dev course at its start, or "pack not installed" when it isn't loaded. */
+function onStadium(seed: number): ScenarioSetup {
+  if (!tracks.has(MK8_STADIUM_DEV_ID))
+    return { state: attractMode(seed), screen: 'mk8NotInstalled' };
+  const def = tracks.get(MK8_STADIUM_DEV_ID).def;
+  if (def.kind !== 'mesh') throw new Error(`${MK8_STADIUM_DEV_ID} isn't a mesh track`);
+  const frame = routeGeometry(def.route).frameAt(0);
+  return {
+    state: createSimState({
+      seed,
+      trackId: MK8_STADIUM_DEV_ID,
+      engineClass: 150,
+      itemsOn: false,
+      karts: [{ position: frame.position, heading: headingOf(frame.tangent, 0), up: frame.up }],
+    }),
+  };
+}
 
 const sunny = trackGeometry(sunnyCircuit);
 /** Sunny Circuit's first row of item boxes, on the main straight. */
@@ -181,6 +240,40 @@ export const mk8Scenarios: Scenario[] = [
       'MK8 Mode as the title button opens it: loads the pack (progress bar), then the placeholder screen; "not installed" without a local pack.',
     defaultSeed: 1,
     setup: (seed) => ({ state: attractMode(seed), screen: 'mk8' }),
+  },
+  // Anti-gravity (MK-99) on the synthetic test ramp: no pack needed.
+  {
+    name: 'mk8-test-antigrav',
+    group: 'MK8 Mode',
+    description:
+      'Anti-gravity on the MK8 test ramp, 150cc: the kart at the foot of the tunnel’s 90° anti-gravity wall (on your right, cyan). Drive up it, onto the ceiling and back down. Any kart with &kart=.',
+    defaultSeed: 1,
+    // On the tunnel floor 4 m in, 4 m from the wall, angled 45° towards it.
+    setup: (seed) => ({
+      state: onTestRamp(
+        seed,
+        { x: tunnel.from + 4, y: 0, z: roadHalfWidth - 4 },
+        (-3 * Math.PI) / 4,
+      ),
+    }),
+  },
+  {
+    name: 'mk8-test-ceiling',
+    group: 'MK8 Mode',
+    description:
+      'Upside down on the test ramp tunnel’s anti-gravity ceiling, facing along the tunnel (use &paused=1 to look first). Drive along it and down the wall.',
+    defaultSeed: 1,
+    setup: (seed) => ({
+      state: onTestRamp(seed, { x: tunnel.from + 10, y: tunnel.height, z: 0 }, -Math.PI / 2, true),
+    }),
+  },
+  {
+    name: MK8_STADIUM_SCENARIO,
+    group: 'MK8 Mode',
+    description:
+      'Mario Kart Stadium’s real collision mesh (local pack, `pnpm dev` only; "not installed" elsewhere). &at=x,y,z&yaw=deg picks the start; &antigrav=road makes all road anti-gravity (automatic while no material is mapped to it).',
+    defaultSeed: 1,
+    setup: onStadium,
   },
   {
     name: 'mk8-items-lineup',
