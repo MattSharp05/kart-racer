@@ -6,6 +6,7 @@ import { browserStore, type KeyValueStore } from '../game/storage/store';
 import { showErrorBanner } from '../ui/errorBanner';
 import type { Router } from '../ui/router';
 import { Mk8AudioPlayer } from './audio/player';
+import { courseInfo } from './content/cups';
 import type { Mk8RaceSetup } from './flow';
 import type { SoundId } from './audio/soundIds';
 import { parseVoiceIndex, voiceClips, VOICES_PATH, type VoiceSoundId } from './audio/voices';
@@ -34,7 +35,7 @@ import './ui/password';
 import { cupSelect } from './ui/screens/cupSelect';
 import { engineClass } from './ui/screens/engineClass';
 import { characterSelect, type PreviewHooks } from './ui/screens/characterSelect';
-import { kartStandIn } from './ui/screens/kartStandIn';
+import { kartBuilder } from './ui/screens/kartBuilder';
 import { modeSelect } from './ui/screens/modeSelect';
 import type { Mk8Context, Mk8Flow } from './ui/screens/session';
 import { titleScreen } from './ui/screens/title';
@@ -81,7 +82,8 @@ declare global {
  * asks for the site's pack password first. A `StageDemoId` (MK-101's scenarios) loads those
  * models and shows them on the 3D stage. MK-119: `cc` (a Grand Prix's engine class), `cup`
  * (a 150cc Grand Prix's cup select) and `course` (a 150cc VS Race's cup/course select), each over
- * the screens that lead there. MK-117: `char`, a Grand Prix's character select.
+ * the screens that lead there. MK-117: `char`, a Grand Prix's character select. MK-118: `kart`,
+ * a Grand Prix's kart builder.
  */
 export type Mk8Start =
   | 'load'
@@ -94,6 +96,7 @@ export type Mk8Start =
   | 'cc'
   | 'cup'
   | 'course'
+  | 'kart'
   | 'password'
   | StageDemoId;
 
@@ -103,17 +106,18 @@ const DEEP_STARTS: Partial<
 > = {
   mode: { flow: {}, screens: [modeSelect] },
   char: { flow: { mode: 'grand-prix' }, screens: [modeSelect, characterSelect] },
+  kart: { flow: { mode: 'grand-prix' }, screens: [modeSelect, characterSelect, kartBuilder] },
   cc: {
     flow: { mode: 'grand-prix' },
-    screens: [modeSelect, characterSelect, kartStandIn, engineClass],
+    screens: [modeSelect, characterSelect, kartBuilder, engineClass],
   },
   cup: {
     flow: { mode: 'grand-prix', engineClass: 150 },
-    screens: [modeSelect, characterSelect, kartStandIn, engineClass, cupSelect],
+    screens: [modeSelect, characterSelect, kartBuilder, engineClass, cupSelect],
   },
   course: {
     flow: { mode: 'vs', engineClass: 150 },
-    screens: [modeSelect, characterSelect, kartStandIn, engineClass, cupSelect],
+    screens: [modeSelect, characterSelect, kartBuilder, engineClass, cupSelect],
   },
 };
 
@@ -262,7 +266,8 @@ async function openMenus(
   const ctx: Mk8Context = {
     sprites: packSprites(files),
     flow,
-    loadCourse: (course, onProgress) => loadCourse(files, course, onProgress),
+    files: { load: (paths) => files.loadFiles(paths), file: (path) => files.file(path) },
+    loadCourse: (course, onProgress) => loadCourse(files, courseInfo(course).pack, onProgress),
     startRace: (setup) => host.startRace?.(setup),
     packFile: (path) => files.file(path),
     frozen: openedPaused(),
