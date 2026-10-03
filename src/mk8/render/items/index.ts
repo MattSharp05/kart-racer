@@ -10,6 +10,8 @@ import { itemViews, registerItemView, type ItemView } from '../../../content/ite
 import { itemSkins } from '../../../render/itemSkins';
 import { MK8_ITEM_BOX_MODEL, MK8_ITEM_SET, MK8_ITEMS } from '../../content/items';
 import goldenMushroom from '../../content/items/golden-mushroom/render';
+import spinyShell from '../../content/items/spiny-shell/render';
+import superHorn from '../../content/items/super-horn/render';
 import tripleBanana from '../../content/items/triple-banana/render';
 import tripleGreen from '../../content/items/triple-green/render';
 import tripleMushroom from '../../content/items/triple-mushroom/render';
@@ -28,6 +30,8 @@ export const MK8_ITEM_VIEWS: readonly ItemView[] = [
   tripleBanana,
   tripleMushroom,
   goldenMushroom,
+  spinyShell,
+  superHorn,
 ];
 
 /** Every pack model MK8 items use. */
