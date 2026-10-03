@@ -37,7 +37,7 @@ import { raycastMesh, surfaceMask, wallContact } from '../../../../sim/meshTrack
 import { routeGeometry } from '../../../../sim/route';
 import { TICK_RATE, tuning } from '../../../../sim/tuning';
 import type { KartEffect, KartState, SimEvent, SimState } from '../../../../sim/types';
-import { positionOf } from '../../../../sim/race';
+import { positionOf, raceProgress } from '../../../../sim/race';
 import { mk8ItemSim } from '../sim';
 
 /** The item, and the effect that turns its user into the bullet. */
@@ -228,9 +228,16 @@ export default mk8ItemSim({
   onUse: (kart, state, events) => {
     applyEffect(kart, BULLET, Math.round(tuning.mk8.bulletTime * TICK_RATE), state, events);
   },
-  // AI (MK-129): fired from the back of the field (a catch-up item), or on giving up.
-  aiUse: (kart, state, { giveUp }) =>
-    positionOf(state, kart.id) > state.karts.length * tuning.mk8.aiBulletFrom || giveUp,
+  // AI (MK-129): fired when far behind the leader (a catch-up item), or on giving up from the back
+  // half of the field (in front, it waits: `itemForceUse` still fires it in the end).
+  aiUse: (kart, state, { geometry, giveUp }) => {
+    const leader = state.karts[state.positions[0] ?? -1];
+    if (!leader || leader.id === kart.id) return false;
+    const progress = (k: KartState) => raceProgress(k, Math.max(0, k.race.lastT));
+    const behind = (progress(leader) - progress(kart)) * geometry.length;
+    if (behind >= tuning.mk8.aiBulletGap) return true;
+    return giveUp && positionOf(state, kart.id) > state.karts.length * tuning.mk8.aiBulletFrom;
+  },
   effects: [
     {
       id: BULLET,

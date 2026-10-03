@@ -1,7 +1,7 @@
 import { aiInput, maxCurvatureAhead } from './ai/driver';
 import { aiItemInput, aiSteerOffset } from './ai/items';
 import { meshAiInput, meshAutopilotInput } from './ai/meshDriver';
-import { meshAiItemInput } from './ai/meshItems';
+import { meshAiItemInput, meshAiSteerOffset } from './ai/meshItems';
 import { rubberBandScale } from './ai/rubberBand';
 import { autopilotInput } from './autopilot';
 import { applyBoost } from './drift';
@@ -90,6 +90,8 @@ export function beforeMovement(
       // (MK-129) as on spline tracks, judged along the route. It still backs out of trouble after
       // the people finish (the AI finish in their own time).
       const racing = state.phase === 'racing' || state.phase === 'finished';
+      kart.ai.steerOffset =
+        state.phase === 'racing' ? meshAiSteerOffset(kart, kart.ai, state, track) : 0;
       const drive = meshAiInput(kart, kart.ai, track, state.engineClass, racing);
       resolved[kart.id] =
         state.phase === 'racing'

@@ -17,7 +17,11 @@ export const mk8ItemAiTuning = {
   aiFireRange: 35,
   /** Golden Mushroom: once it's going, boost again when less than this much boost is left, s. */
   aiGoldenChain: 0.15,
-  /** Bullet Bill: fired from this share of the field back (0.5 = the back half), or on giving up. */
+  /**
+   * Bullet Bill: fired this far behind the leader, m (MK8 hands it out by distance too), or on
+   * giving up from this share of the field back (0.5 = the back half).
+   */
+  aiBulletGap: 60,
   aiBulletFrom: 0.5,
   /** Piranha Plant: brought out when a kart is within this many times its reach ahead. */
   aiPiranhaReaches: 4,

@@ -9,7 +9,7 @@ import { bananaTactic, greenTactic, mushroomTactic, redTactic } from './itemTact
 import { lineOffsetAt } from './racingLine';
 
 /** Deterministic 0..1 from two ids (the same banana is always spotted — or missed — by the same AI). */
-function pairChance(a: number, b: number): number {
+export function pairChance(a: number, b: number): number {
   const x = Math.sin(a * 91.345 + b * 47.853 + 3.1) * 24634.6345;
   return x - Math.floor(x);
 }
