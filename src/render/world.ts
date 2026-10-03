@@ -224,6 +224,8 @@ export class World {
       const speedRatio = Math.abs(kart.speed) / tuning.topSpeed[state.engineClass];
       // Paused: the camera holds still (shake and FOV kick freeze too).
       const seconds = game.paused ? 0 : frameSeconds;
+      // Gliding (MK-106): pull back as the glider opens, in again as it folds.
+      this.chaseCamera.pullBack = this.karts.gliderOpenness(followId);
       // Mesh tracks (MK-99): follow the kart's own up, onto walls and ceilings.
       if (kart.up && this.karts.frame(followId, this.followedFrame))
         this.chaseCamera.followSurface(
@@ -300,7 +302,9 @@ export class World {
         trackInView: this.trackInView(),
         height: this.camera.position.y,
         up: (({ x, y, z }) => ({ x, y, z }))(this.chaseCamera.upVector(new THREE.Vector3())),
+        distance: this.chaseCamera.distance(),
       },
+      gliders: this.game.state.karts.map((_, i) => this.karts.gliderOpenness(i)),
     };
   }
 
