@@ -17,7 +17,7 @@ function turn(cx: number, cz: number, startAngle: number): RoutePoint[] {
   return out;
 }
 
-const { glide, gap, water, straightFrom, straightTo, bumper } = LAYOUT;
+const { glide, gap, water, straightFrom, straightTo, bumper, wallBumper } = LAYOUT;
 
 export const testRampRoute: RouteDef = {
   points: [
@@ -69,6 +69,12 @@ export const testRampRoute: RouteDef = {
       kind: 'boostBumper',
       position: { x: bumper.x, y: 0.5, z: bumper.lateral },
       radius: bumper.radius,
+    },
+    // On the anti-gravity wall (z = road half width), standing half a metre off it.
+    {
+      kind: 'boostBumper',
+      position: { x: wallBumper.x, y: wallBumper.height, z: LAYOUT.roadHalfWidth - 0.5 },
+      radius: wallBumper.radius,
     },
   ],
 };

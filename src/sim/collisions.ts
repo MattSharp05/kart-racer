@@ -1,6 +1,7 @@
 import { cancelDrift, isDrifting } from './drift';
 import { isIntangible } from './items/effects';
 import { kartPhysics } from './kartStats';
+import { grantSpinBoost } from './spinBoost';
 import {
   add,
   cross,
@@ -219,6 +220,11 @@ function bumpOnSurface(a: KartState, b: KartState, events: SimEvent[]): void {
   a.velocity = sub(a.velocity, scale(n, impulse / ma));
   b.velocity = add(b.velocity, scale(n, impulse / mb));
   events.push({ type: 'bump', a: a.id, b: b.id, strength: closing });
+  // Both in anti-gravity (MK-108): a spin boost each.
+  if (a.antigrav && b.antigrav) {
+    grantSpinBoost(a, events);
+    grantSpinBoost(b, events);
+  }
   for (const [kart, own] of [
     [a, ma],
     [b, mb],

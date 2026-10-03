@@ -2,8 +2,8 @@
 // (no Nintendo asset). One loop, driven clockwise seen from above:
 //
 //   A  straight along +X (z = 0) from the start line: a dash panel, a tunnel whose right side is a
-//      90° anti-gravity wall and whose roof is an anti-gravity ceiling, a glide ramp, then a gap
-//      over a void floor
+//      90° anti-gravity wall (with a boost bumper on it) and whose roof is an anti-gravity
+//      ceiling, a glide ramp, then a gap over a void floor (a boost bumper beside the road after)
 //   B  flat 180° turn            C  straight back along −X (z = 2R) through a water basin
 //   D  flat 180° turn            E  the last 40 m along +X back to the start line
 //
@@ -35,6 +35,8 @@ export const LAYOUT = {
   water: { from: 60, to: 100, depth: 3, slope: 10 },
   /** A boost bumper beside the road on A. */
   bumper: { x: 140, lateral: -5, radius: 1 },
+  /** A boost bumper on the tunnel's anti-gravity wall (MK-108): its centre `height` m up. */
+  wallBumper: { x: 70, height: 4, radius: 1 },
 } as const;
 
 const R = LAYOUT.turnRadius;
