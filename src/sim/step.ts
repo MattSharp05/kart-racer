@@ -1,4 +1,5 @@
 import { cloneJson } from './clone';
+import { updateCoins } from './coins';
 import { resolveKartCollisions } from './collisions';
 import { hazardGrip, hazardPush, trackHazards, updateHazards } from './hazards';
 import { updateKart } from './kart';
@@ -92,6 +93,8 @@ export function step(
   updateItems(next, resolved, dt, events, only);
   if (invulnerable)
     next.karts.forEach((kart, i) => (kart.invulnerableTimer = invulnerable[i] ?? 0));
+  // Coins (MK-109): this tick's hits and falls cost coins, then karts pick up the ones they touch.
+  updateCoins(next, events, dt, only);
   updateRace(next, track, events, dt, only);
   afterRace(next, events);
 

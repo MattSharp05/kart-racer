@@ -34,3 +34,12 @@ To add a screen (e.g. a rules screen between the engine class and the cups):
 
 `index.test.ts` fails if `order.ts` and the screen files disagree, or a scenario uses a start no
 screen declares.
+
+## Race screens (MK-121)
+
+`pause.ts` and `results.ts` are not in the menu flow (no `screen` export, not in `order.ts`): they
+show over an MK8 race, each in its own MK8 stack, through `src/mk8/raceScreens.ts`, which
+`src/game/flow.ts` loads when an MK8 race (from the menus, or a scenario with MK8's items) pauses or
+finishes. The rows, points and choices are pure in `src/mk8/results.ts`. Scenarios:
+`mk8-ui-pause`, `mk8-ui-results` and `mk8-ui-standings` (`src/scenarios/mk8/raceScreens.ts`, on the
+test ramp; their `mk8Start` names the MK8 mode the results are for).

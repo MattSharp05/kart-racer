@@ -49,6 +49,7 @@ import { hasSeenHowToPlay, markHowToPlaySeen } from './storage/settings';
 import type { KeyValueStore } from './storage/store';
 import type { Mk8Start } from '../mk8';
 import type { Mk8RaceSetup } from '../mk8/flow';
+import { MK8_ITEM_SET } from '../mk8/content/items/id';
 import { showErrorBanner } from '../ui/errorBanner';
 import { trackLoad } from './pending';
 
@@ -128,6 +129,8 @@ export class Flow {
   private mk8Opening = false;
   /** The MK8 race running (MK-119), so Restart and Again race it again; unset outside MK8 Mode. */
   private mk8Race: Mk8RaceSetup | undefined;
+  /** A race scenario's `mk8Start`: its MK8 mode (MK-121, the results' Grand Prix standings). */
+  private mk8RaceStart: Mk8Start | undefined;
 
   constructor(
     private readonly session: RaceSession,
@@ -314,6 +317,7 @@ export class Flow {
       default:
         // A race from a scenario link counts against a test leaderboard only (`?lb=mock`).
         this.ranked = this.leaderboard.test;
+        this.mk8RaceStart = launch.mk8Start;
         if (launch.state.itemSet !== undefined) this.prepareMk8Race();
         if (launch.state.phase === 'finished') {
           this.resultsTimer = window.setTimeout(this.showResults, LAUNCH_RESULTS_DELAY_MS);
@@ -692,6 +696,7 @@ export class Flow {
     if (this.screens.current !== 'none' || game.state.phase === 'finished') return;
     const online = this.session.online !== null;
     if (!online) game.pause();
+    if (!online && this.isMk8Race()) return this.showMk8Pause();
     this.screens.show('paused', {
       onResume: this.resumeRace,
       ...(online ? { note: ONLINE_PAUSE_NOTE } : { onRestart: this.startRace }),
@@ -700,6 +705,54 @@ export class Flow {
       onSettings: this.showSettings,
       sound: this.soundControl,
     });
+  };
+
+  /** An MK8 race (MK-121): from MK8 Mode's menus, or a scenario's race with MK8's items. */
+  private isMk8Race(): boolean {
+    return this.mk8Race !== undefined || this.session.game.state.itemSet === MK8_ITEM_SET;
+  }
+
+  /** MK8 Mode's pause menu (MK-121): Continue, Restart, Quit to MK8 Mode's menus. */
+  private showMk8Pause(): void {
+    this.pauseButton.hidden = true;
+    const { state } = this.session.game;
+    const resume = () => {
+      this.resumeRace();
+      // After this key's dispatch: the Esc that closed the menu mustn't reopen it (keydown below).
+      window.setTimeout(() => (this.pauseButton.hidden = false));
+    };
+    void trackLoad(import('../mk8/raceScreens')).then((mk8) =>
+      mk8.showPause(this.screens, state, this.mk8Race, {
+        onContinue: resume,
+        onRestart: this.startRace,
+        onQuit: this.quitToMk8,
+      }),
+    );
+  }
+
+  /** MK8 Mode's results (MK-121): Next / Retry / Quit by mode, standings in a Grand Prix. */
+  private showMk8Results(): void {
+    this.pauseButton.hidden = true;
+    const { state } = this.session.game;
+    void trackLoad(import('../mk8/raceScreens')).then((mk8) =>
+      mk8.showResults(
+        this.screens,
+        state,
+        this.session.localKartId,
+        this.mk8Race,
+        this.mk8RaceStart,
+        {
+          onNext: this.startMk8Race,
+          onRetry: this.startRace,
+          onQuit: this.quitToMk8,
+        },
+      ),
+    );
+  }
+
+  private readonly quitToMk8 = (): void => {
+    this.mk8Race = undefined;
+    this.openMk8('title');
   };
 
   private readonly resumeRace = (): void => {
@@ -742,6 +795,7 @@ export class Flow {
 
   private readonly showResults = (): void => {
     if (this.session.online) return this.showOnlineResults();
+    if (this.isMk8Race()) return this.showMk8Results();
     const rows = resultLines(this.session.game.state, this.session.localKartId);
     this.pauseButton.hidden = true;
     this.screens.show('results', {

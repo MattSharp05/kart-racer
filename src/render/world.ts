@@ -11,6 +11,7 @@ import { AiDebugView } from './aiDebug';
 import { ChaseCamera, LineupCamera, type CameraClip } from './camera';
 import { Effects } from './effects';
 import { HazardRenderer } from './hazards';
+import { CoinRenderer } from './coins';
 import { ItemBoxRenderer } from './itemBoxes';
 import { skinOf } from './itemSkins';
 import { KartRenderer, type DrawnFrame, type KartPoseFilter } from './karts';
@@ -91,6 +92,8 @@ export class World {
     up: new THREE.Vector3(),
   };
   private readonly itemBoxes: ItemBoxRenderer;
+  /** Coins (MK-109), on tracks that have them. */
+  private readonly coins: CoinRenderer;
   /** The other people's names over their karts (online, MK-55). */
   private readonly nameTags: NameTags;
   /** The track drawn now (MK-78: rebuilt when a race on another track loads). */
@@ -130,6 +133,7 @@ export class World {
     this.chaseCamera.reducedMotion = options.reducedMotion;
     this.effects = new Effects(this.scene, this.karts, this.chaseCamera);
     this.itemBoxes = new ItemBoxRenderer(this.scene);
+    this.coins = new CoinRenderer(this.scene);
     this.nameTags = new NameTags(this.scene);
     this.addItemRenderers();
     this.aiDebug = options.aiDebug ? new AiDebugView(this.scene) : undefined;
@@ -212,6 +216,7 @@ export class World {
     this.lastSimTime = simTime;
     this.karts.sync(game.previousState, state, game.alpha, this.options.playerInputs(), filter);
     this.itemBoxes.sync(state, state.tick / 60);
+    this.coins.sync(state, state.tick / 60);
     const ticks = game.previousState.tick + (state.tick - game.previousState.tick) * game.alpha;
     this.track.hazards.sync(ticks, this.camera.position);
     this.track.update?.(ticks, this.camera.position);

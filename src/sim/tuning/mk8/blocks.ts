@@ -1,5 +1,6 @@
 // The list of MK8 tunable blocks (`./index.ts` merges them into `tuning.mk8`): one line per block.
 export { mk8BobombFireTuning } from './bobombFire';
+export { mk8CoinTuning } from './coins';
 export { mk8GlideTuning } from './glide';
 export { mk8ItemTuning } from './items';
 export { mk8SpinBoostTuning } from './spinBoost';

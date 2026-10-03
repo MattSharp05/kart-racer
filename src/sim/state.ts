@@ -1,3 +1,4 @@
+import { addCoins } from './coins';
 import type { KartId } from './data/karts';
 import { forwardFromHeading, orthonormal, scale, vec3 } from './math';
 import { routeGeometry } from './route';
@@ -53,7 +54,8 @@ export function createSimState({
   itemSet,
   itemSlots = 1,
 }: InitialStateOptions): SimState {
-  return {
+  // Coins (MK-109) on tracks whose route has coin lines.
+  return addCoins({
     tick: 0,
     rngState: seedRng(seed),
     phase,
@@ -122,7 +124,7 @@ export function createSimState({
       goTick: phase === 'countdown' ? Math.round(tuning.countdownSeconds / DT) : 0,
     },
     ...(itemSet !== undefined ? { itemSet } : {}),
-  };
+  });
 }
 
 /** One active item box per lateral slot on each of the track's item-box rows. */

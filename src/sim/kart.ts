@@ -96,7 +96,9 @@ const DEFAULT_ENV: KartEnv = { tick: 0, grip: 1 };
 /** A kart's top speed right now: its stats × star, lightning, effects and AI rubber-banding. */
 export function kartTopSpeed(kart: KartState, engineClass: EngineClass): number {
   return (
-    kartPhysics(kart.kartType, engineClass, kart.loadout).topSpeed *
+    // Coins (MK-109) add to the kart's own top speed; on tracks without coins `coins` is absent.
+    (kartPhysics(kart.kartType, engineClass, kart.loadout).topSpeed +
+      (kart.coins ?? 0) * tuning.mk8.coins.speed) *
     effectsSpeedFactor(kart) *
     (kart.starTimer > 0 ? tuning.starSpeed : 1) *
     (kart.shrinkTimer > 0 ? tuning.shrinkSpeed : 1) *
