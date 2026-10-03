@@ -1,29 +1,32 @@
 import { items } from '../content/items';
 import { INK_TICKS } from '../content/items/ink-cloud/sim';
-import { tracks } from '../content/tracks';
 import { sunnyCircuit } from '../content/tracks/sunny-circuit/sim';
 import { MK8_ITEM_SET } from '../mk8/content/items/id';
 import { giveItem } from '../sim/items';
 import { nextEntityId } from '../sim/items/banana';
-import { forwardFromHeading, headingOf } from '../sim/math';
-import { routeGeometry } from '../sim/route';
+import { forwardFromHeading } from '../sim/math';
 import { createSimState, type KartSpawn } from '../sim/state';
 import { trackGeometry } from '../sim/track';
 import { tuning } from '../sim/tuning';
 import { NEUTRAL_INPUT, type SimEvent, type SimState } from '../sim/types';
 import { attractMode } from './menus';
-import type { Scenario, ScenarioSetup } from './registry';
+import { courseAntigrav, courseFinalLap, courseFromGrid, courseRace, onCourse } from './mk8Courses';
+import type { Scenario } from './registry';
 
-/** The anti-gravity checkpoint on the real course (MK-99): local pack only. */
-export const MK8_STADIUM_SCENARIO = 'mk8-stadium-antigrav';
-/** Mario Kart Stadium's collision as a dev course (`src/mk8/scenarioCourses.ts` registers it). */
-export const MK8_STADIUM_DEV_ID = 'mk8-dev-stadium';
+/** Mario Kart Stadium's track id (`src/mk8/content/courses/mario-kart-stadium`, MK-105). */
+export const MK8_STADIUM_ID = 'mk8-stadium';
 /** Scenarios that drive an MK8 course: `main.ts` registers it before they're set up (MK-99). */
 export const MK8_COURSE_SCENARIOS: ReadonlySet<string> = new Set([
   'mk8-test-antigrav',
   'mk8-test-ceiling',
-  MK8_STADIUM_SCENARIO,
+  'mk8-test-race',
+  'mk8-stadium-free',
+  'mk8-stadium-race',
+  'mk8-stadium-antigrav',
+  'mk8-stadium-final-lap',
 ]);
+
+export { mk8CourseLoad } from './mk8Courses';
 
 /**
  * The MK8 test ramp (`src/mk8/content/courses/test-ramp/layout.ts`), copied as plain numbers: this
@@ -51,24 +54,6 @@ function onTestRamp(
     itemsOn: false,
     karts: [{ position: at, heading, ...(upsideDown ? { up: { x: 0, y: -1, z: 0 } } : {}) }],
   });
-}
-
-/** One kart on Stadium's dev course at its start, or "pack not installed" when it isn't loaded. */
-function onStadium(seed: number): ScenarioSetup {
-  if (!tracks.has(MK8_STADIUM_DEV_ID))
-    return { state: attractMode(seed), screen: 'mk8NotInstalled' };
-  const def = tracks.get(MK8_STADIUM_DEV_ID).def;
-  if (def.kind !== 'mesh') throw new Error(`${MK8_STADIUM_DEV_ID} isn't a mesh track`);
-  const frame = routeGeometry(def.route).frameAt(0);
-  return {
-    state: createSimState({
-      seed,
-      trackId: MK8_STADIUM_DEV_ID,
-      engineClass: 150,
-      itemsOn: false,
-      karts: [{ position: frame.position, heading: headingOf(frame.tangent, 0), up: frame.up }],
-    }),
-  };
 }
 
 const sunny = trackGeometry(sunnyCircuit);
@@ -268,12 +253,46 @@ export const mk8Scenarios: Scenario[] = [
     }),
   },
   {
-    name: MK8_STADIUM_SCENARIO,
+    name: 'mk8-test-race',
     group: 'MK8 Mode',
     description:
-      'Mario Kart Stadium’s real collision mesh (local pack, `pnpm dev` only; "not installed" elsewhere). &at=x,y,z&yaw=deg picks the start; &antigrav=road makes all road anti-gravity (automatic while no material is mapped to it).',
+      'A 3-lap 150cc race on the synthetic MK8 test ramp (MK-105, no pack needed): you + 7 AI, MK8 items, from the countdown. Mesh-track racing without Nintendo assets (CI drives it).',
     defaultSeed: 1,
-    setup: onStadium,
+    setup: onCourse(TEST_RAMP.id, courseRace),
+  },
+  // Mario Kart Stadium (MK-105): the pack's course with our route. Locally under `pnpm dev` with
+  // `$MK8_OUT`; on the site behind the MK8 password; "not installed" anywhere else.
+  {
+    name: 'mk8-stadium-race',
+    group: 'MK8 Mode',
+    description:
+      'Mario Kart Stadium (MK-105): a 3-lap 150cc race from the countdown, you + 7 AI with MK8 items. Needs the MK8 pack (local `pnpm dev` or the site’s password); &quality=low draws the low-texture model.',
+    defaultSeed: 1,
+    setup: onCourse(MK8_STADIUM_ID, courseRace),
+  },
+  {
+    name: 'mk8-stadium-free',
+    group: 'MK8 Mode',
+    description:
+      'Mario Kart Stadium free drive from pole position: one kart, no race, item boxes out. &editorRoute=1 drives the track editor’s unsaved route (its Test drive button).',
+    defaultSeed: 1,
+    setup: onCourse(MK8_STADIUM_ID, courseFromGrid),
+  },
+  {
+    name: 'mk8-stadium-antigrav',
+    group: 'MK8 Mode',
+    description:
+      'Mario Kart Stadium’s anti-gravity section: rolling at 20 m/s 25 m before the gravity panel on the bridge, then the banked climb, the U on the stadium wall and the glide board down to the dirt.',
+    defaultSeed: 1,
+    setup: onCourse(MK8_STADIUM_ID, (track, seed) => courseAntigrav(track, seed)),
+  },
+  {
+    name: 'mk8-stadium-final-lap',
+    group: 'MK8 Mode',
+    description:
+      'Mario Kart Stadium, final lap: the field rolling just past the line on lap 3/3 (laps of 25.4 s and 24.8 s behind), you mid-pack. Cross the line once more to finish.',
+    defaultSeed: 1,
+    setup: onCourse(MK8_STADIUM_ID, courseFinalLap),
   },
   {
     name: 'mk8-items-lineup',

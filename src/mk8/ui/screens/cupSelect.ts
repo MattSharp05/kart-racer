@@ -280,7 +280,8 @@ export function courseLoading(ctx: Mk8Context): Mk8ScreenFactory {
       () => {
         if (cancelled) return;
         show(1);
-        ctx.startRace(setup);
+        // Again: the course's own track is registered now if its pack files loaded (MK-105).
+        ctx.startRace(raceSetup(ctx.flow));
       },
       (e: unknown) => {
         if (cancelled) return;

@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs';
+import { pathToFileURL } from 'node:url';
 import type { Page, Route } from '@playwright/test';
 import { gateMk8, handleMk8Login, resetLoginFailures } from '../../api/mk8-login';
 
@@ -22,6 +23,11 @@ export interface PackOptions {
    * (`api/`), so a pack file is served only with the cookie that login set.
    */
   password?: string;
+  /**
+   * Serve this pack folder instead of the fixture (MK-105: a real `$MK8_OUT` for local-only specs;
+   * CI never has one).
+   */
+  dir?: string;
 }
 
 /** A Playwright-routed request as a Fetch `Request` the `api/` handlers take, cookies included. */
@@ -114,7 +120,7 @@ export async function servePack(page: Page, options: PackOptions = {}) {
     if (options.hold?.includes(path)) await released;
     let body: Buffer;
     try {
-      body = readFileSync(new URL(path, PACK));
+      body = readFileSync(new URL(path, options.dir ? pathToFileURL(`${options.dir}/`) : PACK));
     } catch {
       return route.fulfill({ status: 404, body: 'Not found' });
     }

@@ -6,9 +6,12 @@ import type { RouteDef } from '../sim/route';
 
 export const editorRouteKey = (courseId: string): string => `mk8-track-editor:route:${courseId}`;
 
+/** Scenario names of courses whose short key isn't their pack id (MK-105: `mk8-stadium-*`). */
+const SCENARIO_KEYS: Record<string, string> = { 'mario-kart-stadium': 'stadium' };
+
 /** The free-drive scenario link for a course, using the editor's unsaved route. */
 export const testDriveUrl = (courseId: string): string =>
-  `/?scenario=mk8-${courseId}-free&editorRoute=1`;
+  `/?scenario=mk8-${SCENARIO_KEYS[courseId] ?? courseId}-free&editorRoute=1`;
 
 const LISTS = [
   'points',

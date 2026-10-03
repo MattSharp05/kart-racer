@@ -1,12 +1,14 @@
 // MK8 Mode's cups and courses (MK-119): what the cup/course select shows. The Mushroom Cup is
 // playable; the Flower, Star and Special Cups are shown locked ("Later"). Each course names the
 // track it will be registered as (MK-105 registers `mk8-stadium`, the other courses follow) and,
-// until then, one of our tracks to race on in its place.
+// until then (or without a pack), one of our tracks to race on in its place.
 
 /** A course of a cup: its sprites (`p_<key>` preview, `m_<key>` map) and its pack group. */
 export interface Mk8Course {
-  /** Sprite key and pack course id (`course/<key>`). */
+  /** Sprite key (`p_<key>`, `m_<key>`). */
   key: 'stadium' | 'waterpark' | 'canyon' | 'ruins';
+  /** The pack's course id (`models/courses/<packId>/`, `src/mk8/content/courses/<packId>/`). */
+  packId: string;
   name: string;
   /** The course's track id once it is registered. */
   trackId: string;
@@ -29,6 +31,7 @@ export interface Mk8Cup {
 export const MUSHROOM_COURSES: readonly Mk8Course[] = [
   {
     key: 'stadium',
+    packId: 'mario-kart-stadium',
     name: 'Mario Kart Stadium',
     trackId: 'mk8-stadium',
     standIn: 'sunny-circuit',
@@ -36,6 +39,7 @@ export const MUSHROOM_COURSES: readonly Mk8Course[] = [
   },
   {
     key: 'waterpark',
+    packId: 'water-park',
     name: 'Water Park',
     trackId: 'mk8-waterpark',
     standIn: 'neon-harbour',
@@ -43,6 +47,7 @@ export const MUSHROOM_COURSES: readonly Mk8Course[] = [
   },
   {
     key: 'canyon',
+    packId: 'sweet-sweet-canyon',
     name: 'Sweet Sweet Canyon',
     trackId: 'mk8-canyon',
     standIn: 'dune-canyon',
@@ -50,6 +55,7 @@ export const MUSHROOM_COURSES: readonly Mk8Course[] = [
   },
   {
     key: 'ruins',
+    packId: 'thwomp-ruins',
     name: 'Thwomp Ruins',
     trackId: 'mk8-ruins',
     standIn: 'canopy-rush',

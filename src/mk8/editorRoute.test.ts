@@ -43,5 +43,6 @@ describe('editor route handoff', () => {
 
   it('links the course free-drive scenario', () => {
     expect(testDriveUrl('test-ramp')).toBe('/?scenario=mk8-test-ramp-free&editorRoute=1');
+    expect(testDriveUrl('mario-kart-stadium')).toBe('/?scenario=mk8-stadium-free&editorRoute=1');
   });
 });

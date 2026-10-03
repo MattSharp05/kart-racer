@@ -14,6 +14,8 @@ const stadium: Mk8CourseContent = {
   trackId: 'mk8-stadium',
   name: 'Mario Kart Stadium',
   route,
+  // The baked shadow layer lost its texture in the conversion: it would draw as grey patches.
+  hiddenMaterials: ['fc_StaticShadow'],
 };
 
 export default stadium;

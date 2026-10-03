@@ -8,4 +8,6 @@ export interface Mk8CourseContent {
   trackId: string;
   name: string;
   route: RouteDef;
+  /** Materials of the course model left out of the drawing (layers the pipeline can't draw). */
+  hiddenMaterials?: readonly string[];
 }

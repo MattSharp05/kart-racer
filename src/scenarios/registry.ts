@@ -37,7 +37,9 @@ export type MenuScreen =
   | 'mk8LakituLap'
   | 'mk8LakituRespawn'
   // MK-135: the site's pack password box.
-  | 'mk8Password';
+  | 'mk8Password'
+  // MK-105: an MK8 course scenario on the site before logging in: the password, then the scenario.
+  | 'mk8CoursePassword';
 
 export interface ScenarioSetup {
   state: SimState;

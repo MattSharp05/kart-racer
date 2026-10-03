@@ -34,6 +34,7 @@
     "mk8:build": "node tools/mk8/build.ts",
     "mk8:check": "node tools/mk8/check.ts",
     "mk8:dae-info": "node tools/mk8/daeInfo.ts",
+    "mk8:course-check": "vitest run -c vitest.lab.config.ts scripts/mk8CourseCheck.lab.ts --silent=false --reporter=verbose",
     "mk8:spike-report": "vitest run -c vitest.lab.config.ts scripts/antigravSpike.lab.ts --silent=false"
   },
   "dependencies": {
