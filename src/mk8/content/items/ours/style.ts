@@ -80,3 +80,13 @@ export function unitSize(model: THREE.Object3D): THREE.Object3D {
   outer.add(inner);
   return outer;
 }
+
+/**
+ * `model` in a group of its own: the entity renderer places the model it is given on the item or
+ * kart, so a height set on `model` itself (lifting it off the kart's origin) would be lost.
+ */
+export function lifted(model: THREE.Object3D): THREE.Object3D {
+  const outer = new THREE.Group();
+  outer.add(model);
+  return outer;
+}

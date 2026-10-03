@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { gloss, glow, sparkle, unitSize, type Mk8OurLook } from '../ours/style';
+import { gloss, glow, lifted, sparkle, unitSize, type Mk8OurLook } from '../ours/style';
 
 /** The bubble's radius and how high its centre sits above the kart's origin, m (ours'). */
 const BUBBLE_RADIUS = 1.9;
@@ -50,9 +50,7 @@ export function bubbleModel(radius: number): THREE.Object3D {
 function shieldModel(): THREE.Object3D {
   const bubble = bubbleModel(BUBBLE_RADIUS);
   bubble.position.y = BUBBLE_Y;
-  const group = new THREE.Group();
-  group.add(bubble);
-  return group;
+  return lifted(bubble);
 }
 
 /** How the Bubble Shield looks in MK8 races (its behaviour is ours: `content/items/bubble-shield`). */

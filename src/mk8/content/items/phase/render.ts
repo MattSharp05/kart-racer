@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { gloss, glow, sparkle, unitSize, type Mk8OurLook } from '../ours/style';
+import { gloss, glow, lifted, sparkle, unitSize, type Mk8OurLook } from '../ours/style';
 
 /**
  * A little ghost MK8-style (MK-115), facing −Z: a glossy, half see-through violet body with a
@@ -62,7 +62,7 @@ function hazeModel(): THREE.Object3D {
     star.position.set(x, y, z);
     group.add(star);
   }
-  return group;
+  return lifted(group);
 }
 
 /** How Phase looks in MK8 races (its behaviour is ours: `content/items/phase`). */

@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { gloss, glow, unitSize, type Mk8OurLook } from '../ours/style';
+import { gloss, glow, lifted, unitSize, type Mk8OurLook } from '../ours/style';
 
 /** Field-line loops round the kart, how big each is (m) and how high their poles sit (ours'). */
 const LOOPS = 6;
@@ -54,7 +54,7 @@ function fieldModel(): THREE.Object3D {
   horseshoe.scale.setScalar(HORSESHOE_SIZE);
   horseshoe.position.y = HORSESHOE_Y;
   group.add(horseshoe);
-  return group;
+  return lifted(group);
 }
 
 /** How the Magnet looks in MK8 races (its behaviour is ours: `content/items/magnet`). */

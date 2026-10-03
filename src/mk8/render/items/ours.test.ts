@@ -26,6 +26,23 @@ function materials(object: THREE.Object3D): THREE.Material[] {
   return found;
 }
 
+/** Kart `kartId` uses `item` now. */
+function use(state: SimState, kartId: number, item: string): void {
+  items.get(item).onUse(state.karts[kartId]!, state, [], NEUTRAL_INPUT);
+}
+
+/** A race with the oil slick down and kart 0 shielded, on `itemSet`. */
+function race(itemSet?: string) {
+  const state = createSimState({
+    seed: 1,
+    karts: [{}, { position: { x: 0, y: 0, z: -10 } }],
+    ...(itemSet ? { itemSet, itemSlots: 2 } : {}),
+  });
+  use(state, 1, 'oil-slick');
+  use(state, 0, 'bubble-shield');
+  return state;
+}
+
 describe('our five items’ MK8-style looks (MK-115)', () => {
   it('has one look per item of ours, listed once', () => {
     expect(MK8_OUR_LOOKS.map((look) => look.id).sort()).toEqual([...OUR_IDS].sort());
@@ -39,6 +56,16 @@ describe('our five items’ MK8-style looks (MK-115)', () => {
       it('replaces each model our view draws (entities, kart effects), and only those', () => {
         expect(look.entityModel !== undefined).toBe(view.entityModel !== undefined);
         expect(look.effectModel !== undefined).toBe(view.effectModel !== undefined);
+      });
+
+      it('keeps its models’ own lift inside them (the renderer moves the model it gets onto the item)', () => {
+        const entity = race(MK8_ITEM_SET).entities.find((e) => e.kind === 'item');
+        const effect = { kind: look.id, ticksLeft: 1, by: 0, data: [] };
+        const models = [
+          entity && look.entityModel?.({ ...entity, spec: look.id }),
+          look.effectModel?.(effect),
+        ];
+        for (const model of models) if (model) expect(model.position.toArray()).toEqual([0, 0, 0]);
       });
 
       it('holds a unit-size model, glossy and clear-coated (MK8’s finish)', () => {
@@ -57,24 +84,7 @@ describe('our five items’ MK8-style looks (MK-115)', () => {
   }
 });
 
-/** Kart `kartId` uses `item` now. */
-function use(state: SimState, kartId: number, item: string): void {
-  items.get(item).onUse(state.karts[kartId]!, state, [], NEUTRAL_INPUT);
-}
-
 describe('the mk8 skin draws our items with their MK8 looks (MK-115)', () => {
-  /** A race with the oil slick down and kart 0 shielded, on `itemSet`. */
-  function race(itemSet?: string) {
-    const state = createSimState({
-      seed: 1,
-      karts: [{}, { position: { x: 0, y: 0, z: -10 } }],
-      ...(itemSet ? { itemSet, itemSlots: 2 } : {}),
-    });
-    use(state, 1, 'oil-slick');
-    use(state, 0, 'bubble-shield');
-    return state;
-  }
-
   /** The materials drawn by an `ItemEntityRenderer` for `state`. */
   function drawn(state: SimState): THREE.Material[] {
     const scene = new THREE.Scene();
@@ -91,6 +101,25 @@ describe('the mk8 skin draws our items with their MK8 looks (MK-115)', () => {
         list.filter((m) => m instanceof THREE.MeshPhysicalMaterial).length;
       expect(glossy(drawn(race(MK8_ITEM_SET)))).toBeGreaterThan(0);
       expect(glossy(drawn(race()))).toBe(0);
+    } finally {
+      itemSkins.unregister(MK8_ITEM_SET);
+    }
+  });
+
+  it('redraws models made before the skin registered (its pack loads after the race starts)', () => {
+    const state = race(MK8_ITEM_SET);
+    const scene = new THREE.Scene();
+    const renderer = new ItemEntityRenderer(scene);
+    const glossy = () =>
+      materials(scene).filter((m) => m instanceof THREE.MeshPhysicalMaterial).length;
+    renderer.sync(state, 0);
+    expect(glossy()).toBe(0);
+    itemSkins.register(mk8ItemSkin(new ItemModels(new Map())));
+    try {
+      renderer.sync(state, 0);
+      expect(glossy()).toBeGreaterThan(0);
+      // One puddle and one bubble, not the old ones as well.
+      expect(scene.children).toHaveLength(2);
     } finally {
       itemSkins.unregister(MK8_ITEM_SET);
     }

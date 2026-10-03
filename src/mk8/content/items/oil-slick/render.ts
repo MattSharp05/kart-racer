@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { SLICK_RADIUS } from '../../../../content/items/oil-slick/sim';
-import { gloss, glow, sparkle, unitSize, type Mk8OurLook } from '../ours/style';
+import { gloss, glow, lifted, sparkle, unitSize, type Mk8OurLook } from '../ours/style';
 
 /** The entity renderer lifts models 0.4 m; the puddle sits just above the road. */
 const GROUND_OFFSET = -0.38;
@@ -61,7 +61,7 @@ export function puddleModel(): THREE.Object3D {
   const shine = sparkle(0.5);
   shine.position.set(-0.5, 0.25, -0.4);
   group.add(shine);
-  return group;
+  return lifted(group);
 }
 
 /** The held Oil Slick: a glossy black drop with a rainbow sheen, point up. */
