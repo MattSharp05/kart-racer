@@ -17,6 +17,8 @@ export interface RoutePoint {
   up?: Vec3;
   /** Road width here, m. */
   width: number;
+  /** AI racing line here: offset from the centreline, m (positive = right). Default 0. */
+  racingLine?: number;
 }
 
 /** A row of coins along the route (coins arrive with the coins ticket). */
@@ -36,7 +38,9 @@ export type RouteZone =
   /** A water volume (axis-aligned box, world space): karts inside are underwater. */
   | { kind: 'water'; min: Vec3; max: Vec3 }
   /** A boost bumper (anti-gravity spin boost on contact). */
-  | { kind: 'boostBumper'; position: Vec3; radius: number };
+  | { kind: 'boostBumper'; position: Vec3; radius: number }
+  /** An anti-gravity section between `from` and `to` (lap fractions). */
+  | { kind: 'antigrav'; from: number; to: number };
 
 export interface RouteDef {
   /** Closed centreline in driving order; the start/finish line is at the first point. */

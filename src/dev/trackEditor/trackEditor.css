@@ -1,0 +1,218 @@
+/* MK8 track editor (MK-100): desktop only. */
+html,
+body {
+  margin: 0;
+  height: 100%;
+  background: #12161f;
+  color: #e6e9ef;
+  font:
+    13px/1.4 system-ui,
+    sans-serif;
+}
+
+#app {
+  height: 100%;
+}
+
+a {
+  color: #8cc8ff;
+}
+
+button,
+select,
+input {
+  font: inherit;
+}
+
+button {
+  margin: 2px 0;
+  padding: 4px 8px;
+  border: 1px solid #3a4458;
+  border-radius: 4px;
+  background: #222a38;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+button:hover {
+  background: #2c3647;
+}
+
+button.active {
+  background: #3d5afe;
+  border-color: #3d5afe;
+}
+
+h2 {
+  margin: 12px 0 4px;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #9aa4b8;
+}
+
+.editor {
+  display: grid;
+  grid-template:
+    'head head head' auto
+    'tools view panel' 1fr
+    'status status status' auto / 200px 1fr 320px;
+  height: 100%;
+}
+
+.editor header {
+  grid-area: head;
+  padding: 6px 12px;
+  border-bottom: 1px solid #2a3242;
+}
+
+.tools {
+  grid-area: tools;
+  display: flex;
+  flex-direction: column;
+  padding: 0 10px 10px;
+  overflow-y: auto;
+  border-right: 1px solid #2a3242;
+}
+
+.viewport {
+  grid-area: view;
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.viewport canvas {
+  display: block;
+}
+
+.panel {
+  grid-area: panel;
+  padding: 0 10px 10px;
+  overflow-y: auto;
+  border-left: 1px solid #2a3242;
+}
+
+.panel section {
+  border-bottom: 1px solid #2a3242;
+  padding-bottom: 8px;
+}
+
+.panel button {
+  display: block;
+  width: 100%;
+}
+
+.status {
+  grid-area: status;
+  display: flex;
+  gap: 16px;
+  padding: 4px 12px;
+  border-top: 1px solid #2a3242;
+  min-height: 20px;
+}
+
+.status .hover {
+  margin-left: auto;
+  color: #9aa4b8;
+}
+
+.hint {
+  color: #9aa4b8;
+  font-size: 12px;
+}
+
+.toggle {
+  display: block;
+  margin: 2px 0;
+}
+
+.legend {
+  list-style: none;
+  padding: 0;
+  margin: 8px 0;
+  columns: 2;
+}
+
+.legend i {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  margin-right: 4px;
+  border-radius: 2px;
+}
+
+.field {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+  margin: 2px 6px 2px 0;
+}
+
+.field span {
+  color: #9aa4b8;
+}
+
+.field input {
+  width: 72px;
+  background: #0d1017;
+  color: inherit;
+  border: 1px solid #3a4458;
+  border-radius: 3px;
+}
+
+.items {
+  padding-left: 22px;
+}
+
+.items li {
+  margin: 4px 0;
+}
+
+.items .remove {
+  display: inline;
+  width: auto;
+  padding: 0 6px;
+}
+
+.issues {
+  list-style: none;
+  padding: 0;
+}
+
+.issues button {
+  border-color: #b84a4a;
+  background: #3a1f24;
+}
+
+.materials li {
+  display: flex;
+  justify-content: space-between;
+  gap: 6px;
+  margin: 2px 0;
+}
+
+.materials li span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.materials li.overridden span {
+  color: #ffd400;
+}
+
+.picker {
+  max-width: 640px;
+  margin: 40px auto;
+}
+
+.error {
+  color: #ff8a80;
+}
+
+.items b {
+  display: block;
+}

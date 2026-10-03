@@ -1,0 +1,97 @@
+/* The UI kit style guide's layout (MK-104), in the mockup's positions. */
+
+.mk8-kit {
+  display: grid;
+  grid-template-columns: calc(620 * var(--u)) calc(440 * var(--u));
+  justify-content: space-between;
+  align-items: start;
+  padding-top: calc(48 * var(--u));
+  padding-left: max(calc(120 * var(--u)), env(safe-area-inset-left));
+  padding-right: max(calc(90 * var(--u)), env(safe-area-inset-right));
+}
+
+.mk8-kit-modes {
+  display: grid;
+  gap: max(10px, calc(22 * var(--u)));
+}
+
+.mk8-kit-side {
+  display: grid;
+  gap: calc(22 * var(--u));
+  padding: calc(26 * var(--u)) calc(28 * var(--u));
+}
+
+.mk8-kit-h {
+  color: var(--mk8-blue);
+  font-size: max(18px, calc(40 * var(--u)));
+  font-weight: 900;
+}
+
+.mk8-kit-b {
+  margin-top: calc(6 * var(--u));
+  color: #5a6584;
+  font-size: max(11px, calc(17 * var(--u)));
+}
+
+.mk8-kit-swatches {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: calc(14 * var(--u)) calc(10 * var(--u));
+}
+
+.mk8-kit-token {
+  display: grid;
+  justify-items: center;
+  gap: calc(6 * var(--u));
+  color: var(--mk8-navy);
+  font-size: max(9px, calc(14 * var(--u)));
+}
+
+.mk8-kit-swatch {
+  width: 100%;
+  height: calc(52 * var(--u));
+  border-radius: calc(12 * var(--u));
+  box-shadow: inset 0 0 0 2px #0001;
+}
+
+.mk8-kit-chars {
+  display: grid;
+  grid-template-columns: calc(520 * var(--u)) auto;
+  justify-content: space-between;
+  align-items: start;
+}
+
+.mk8-kit-portrait {
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  gap: calc(18 * var(--u));
+  width: 100%;
+  height: calc(480 * var(--u));
+  background: radial-gradient(circle at 50% 40%, #fff, #d9e4f7);
+}
+
+.mk8-kit-big {
+  display: grid;
+  place-items: center;
+}
+
+.mk8-kit-big .mk8-art {
+  width: calc(300 * var(--u));
+  height: calc(300 * var(--u));
+  font-size: calc(140 * var(--u));
+  filter: drop-shadow(0 12px 14px #0a2a6a44);
+}
+
+.mk8-kit-grid {
+  display: grid;
+  grid-template-columns: repeat(4, auto);
+  gap: max(8px, calc(14 * var(--u)));
+}
+
+.mk8-kit-ready {
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  gap: calc(24 * var(--u));
+}
