@@ -87,11 +87,17 @@ function use(state: SimState, kartId: number, item: string): void {
   items.get(item).onUse(kart, state, events, NEUTRAL_INPUT);
 }
 
+/** Our five unique items in the lineup (MK-115), and those its karts show in use. */
+const OURS_IN_LINEUP = ['oil-slick', 'hornet-swarm', 'bubble-shield', 'magnet', 'phase'];
+const USED_IN_LINEUP: ReadonlySet<string> = new Set(['bubble-shield', 'magnet', 'phase']);
+
 /**
  * Every reskinned MK8 item at once (MK-103), on Sunny Circuit's main straight: the item boxes
  * ahead; a banana, green and red shell and boomerang the player just let go; the player holding a
  * banana (a star in slot 2); karts ahead holding a green and red shell, mushroom, star, lightning,
- * boomerang and Blooper; and the last kart just struck by lightning and inked.
+ * boomerang and Blooper; and the last kart just struck by lightning and inked. MK-115: our five
+ * unique items too, MK8-style: a row of karts further on holding each (the Bubble Shield, Magnet
+ * and Phase karts using theirs), and an Oil Slick and Hornet Swarm from the kart ahead.
  */
 export function mk8ItemsLineup(seed: number): SimState {
   const state = mk8ItemsRace(seed, [
@@ -103,9 +109,14 @@ export function mk8ItemsLineup(seed: number): SimState {
     spawn(-1, -3),
     spawn(-1, 3),
     spawn(6, 0),
+    ...OURS_IN_LINEUP.map((_, i) => spawn(14, (i - 2) * 3)),
   ]);
-  state.positions = [7, 6, 5, 4, 3, 2, 1, 0];
+  state.positions = state.karts.map((_, i) => state.karts.length - 1 - i);
   for (const item of ['banana', 'green', 'red', 'boomerang']) use(state, 0, item);
+  // MK-115: our items (the oil 3 m behind the kart ahead, its hornets setting off).
+  use(state, 7, 'oil-slick');
+  use(state, 7, 'hornet-swarm');
+  holdOurs(state, 8);
   const held = ['banana', 'green', 'red', 'mushroom', 'star', 'lightning', 'boomerang'];
   held.forEach((item, id) => {
     const kart = state.karts[id];
@@ -118,6 +129,34 @@ export function mk8ItemsLineup(seed: number): SimState {
     struck.shrinkTimer = 4;
     struck.effects.push({ kind: 'ink-cloud', ticksLeft: INK_TICKS, by: 0, data: [0, 0] });
   }
+  return state;
+}
+
+/** Karts `first`… hold our five items (MK-115); the Bubble Shield, Magnet and Phase karts use theirs. */
+function holdOurs(state: SimState, first: number): void {
+  OURS_IN_LINEUP.forEach((item, i) => {
+    const kart = state.karts[first + i];
+    if (kart) giveItem(kart, item);
+    if (USED_IN_LINEUP.has(item)) use(state, first + i, item);
+  });
+}
+
+/**
+ * Our five unique items MK8-style, close up (MK-115), on Sunny Circuit's main straight short of
+ * the item boxes: a row of five karts 10 m ahead of the player holding the Oil Slick, Hornet
+ * Swarm, Bubble Shield, Magnet and Phase (the last three in use), an Oil Slick dropped by the
+ * first and a Hornet Swarm setting off from the second.
+ */
+export function mk8OursLineup(seed: number): SimState {
+  const row = -42;
+  const state = mk8ItemsRace(seed, [
+    spawn(row - 10, 0),
+    ...OURS_IN_LINEUP.map((_, i) => spawn(row, (i - 2) * 3.2)),
+  ]);
+  state.positions = state.karts.map((_, i) => state.karts.length - 1 - i);
+  use(state, 1, 'oil-slick');
+  use(state, 2, 'hornet-swarm');
+  holdOurs(state, 1);
   return state;
 }
 
@@ -406,9 +445,17 @@ export const mk8Scenarios: Scenario[] = [
     name: 'mk8-items-lineup',
     group: 'MK8 Mode',
     description:
-      "Every reskinned MK8 item (MK-103): MK8 item boxes; a banana, green and red shell and boomerang on the road; karts holding each item; a lightning bolt and a Blooper on the last kart. Our items' looks without a local pack.",
+      "Every reskinned MK8 item (MK-103): MK8 item boxes; a banana, green and red shell and boomerang on the road; karts holding each item; a lightning bolt and a Blooper on the last kart. MK-115: our five items MK8-style (a row of karts holding them, Bubble Shield, Magnet and Phase in use, an Oil Slick and a Hornet Swarm). Our items' looks without a local pack.",
     defaultSeed: 1,
     setup: (seed) => ({ state: mk8ItemsLineup(seed) }),
+  },
+  {
+    name: 'mk8-items-ours',
+    group: 'MK8 Mode',
+    description:
+      'Our five unique items MK8-style (MK-115), close up: five karts 10 m ahead holding an Oil Slick, Hornet Swarm, Bubble Shield, Magnet and Phase over their drivers (the last three in use: a starry bubble, a field with a red horseshoe, a violet haze); an Oil Slick puddle and three hornets. Drawn MK8-style with the MK8 pack (our original looks without one).',
+    defaultSeed: 1,
+    setup: (seed) => ({ state: mk8OursLineup(seed) }),
   },
   {
     name: 'mk8-two-slots',

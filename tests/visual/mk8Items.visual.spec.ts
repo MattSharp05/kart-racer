@@ -5,7 +5,7 @@ import { servePack } from '../e2e/mk8';
 const frame = (page: import('@playwright/test').Page) =>
   page.evaluate(() => new Promise((resolve) => requestAnimationFrame(resolve)));
 
-// MK-103: every reskinned MK8 item drawn with its pack model. CI has only the synthetic fixture
+// MK-103: every reskinned MK8 item drawn with its pack model (MK-115: and our five, further on). CI has only the synthetic fixture
 // pack (ADR 0009), so the baseline shows its stand-in shapes; the real models are checked locally.
 test('mk8-items-lineup (paused)', async ({ page }) => {
   await servePack(page);
@@ -13,6 +13,16 @@ test('mk8-items-lineup (paused)', async ({ page }) => {
   await frame(page);
   await frame(page);
   await expect(page).toHaveScreenshot('mk8-items-lineup.png');
+});
+
+// MK-115: our five unique items MK8-style, close up: held over five karts (the Bubble Shield,
+// Magnet and Phase in use), an Oil Slick and a Hornet Swarm. Ours, so the same with the real pack.
+test('mk8-items-ours (paused)', async ({ page }) => {
+  await servePack(page);
+  await loadScenario(page, 'mk8-items-ours', { paused: true });
+  await frame(page);
+  await frame(page);
+  await expect(page).toHaveScreenshot('mk8-items-ours.png');
 });
 
 // MK-112: triple shells circling the player and triple bananas trailing it (one tick in, once the

@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { entitySpecs, itemEffects } from '../content/items/registries';
 import { itemViews } from '../content/items/views';
 import type { ItemEntity, KartEffect, SimState } from '../sim/types';
-import { skinDraws } from './itemSkins';
+import { lookOf, skinDraws, type ItemLook } from './itemSkins';
 
 /** The default look of an entity whose item has no `entityModel`: a small bright ball. */
 function defaultModel(): THREE.Object3D {
@@ -47,14 +47,14 @@ export class ItemEntityRenderer {
       seen.add(e.id);
       let model = this.entities.get(e.id);
       if (!model) {
-        model = this.entityModel(e);
+        model = this.entityModel(e, state);
         this.entities.set(e.id, model);
         this.scene.add(model);
       }
       model.position.set(e.position.x, e.position.y + 0.4, e.position.z);
       // Heading 0 faces −Z (see CLAUDE.md units).
       model.rotation.y = Math.atan2(-e.direction.x, -e.direction.z) + (e.speed ? 0 : time);
-      this.animate(model, e);
+      this.animate(model, e, state);
     }
     for (const [id, model] of this.entities) {
       if (seen.has(id)) continue;
@@ -69,7 +69,7 @@ export class ItemEntityRenderer {
         const key = `${kart.id}:${effect.kind}`;
         let model = this.effects.get(key);
         if (!model) {
-          const made = this.effectModel(effect);
+          const made = this.effectModel(effect, state);
           if (!made) continue;
           model = made;
           this.effects.set(key, model);
@@ -87,20 +87,23 @@ export class ItemEntityRenderer {
     }
   }
 
-  private entityModel(entity: ItemEntity): THREE.Object3D {
-    const item = entitySpecs.get(entity.spec).item;
-    const view = itemViews.has(item) ? itemViews.get(item) : undefined;
-    return view?.entityModel?.(entity) ?? defaultModel();
+  private entityModel(entity: ItemEntity, state: SimState): THREE.Object3D {
+    return (
+      this.looks(entitySpecs.get(entity.spec).item, state)?.entityModel?.(entity) ?? defaultModel()
+    );
   }
 
   /** The item view's per-frame touch to an entity's model (a boomerang's spin, MK-69). */
-  private animate(model: THREE.Object3D, entity: ItemEntity): void {
-    const item = entitySpecs.get(entity.spec).item;
-    if (itemViews.has(item)) itemViews.get(item).animateEntity?.(model, entity);
+  private animate(model: THREE.Object3D, entity: ItemEntity, state: SimState): void {
+    this.looks(entitySpecs.get(entity.spec).item, state)?.animateEntity?.(model, entity);
   }
 
-  private effectModel(effect: KartEffect): THREE.Object3D | undefined {
-    const item = itemEffects.get(effect.kind).item;
-    return itemViews.has(item) ? itemViews.get(item).effectModel?.(effect) : undefined;
+  private effectModel(effect: KartEffect, state: SimState): THREE.Object3D | undefined {
+    return this.looks(itemEffects.get(effect.kind).item, state)?.effectModel?.(effect);
+  }
+
+  /** The item's look in this race: its skin's (MK-115), else its view's. */
+  private looks(item: string, state: SimState): ItemLook | undefined {
+    return lookOf(state, item) ?? (itemViews.has(item) ? itemViews.get(item) : undefined);
   }
 }

@@ -39,9 +39,15 @@ export interface Mk8Item {
    * pack has none (a placeholder is drawn).
    */
   model: string | null;
-  /** Its HUD icon (`ITEM_SPRITES` in `src/mk8/ui/sprites.ts`). */
+  /**
+   * Its HUD icon: a pack sprite (`ITEM_SPRITES` in `src/mk8/ui/sprites.ts`), or for our own items
+   * (MK-115) its shipped file under `/mk8/` (`ourIcon`).
+   */
   icon: string;
 }
+
+/** Our unique items' MK8-style icons (MK-115): `public/mk8/ui/items/<id>.webp`, path under `/mk8/`. */
+export const ourIcon = (id: string): string => `ui/items/${id}.webp`;
 
 /** MK8 Mode's items so far: our items with MK8 looks, and MK8's own. One line per item. */
 export const MK8_ITEMS: readonly Mk8Item[] = [
@@ -68,6 +74,12 @@ export const MK8_ITEMS: readonly Mk8Item[] = [
   // MK-114: the Bob-omb, and the Fire Flower (no pack model: the skin draws ours).
   { id: 'bob-omb', sim: bobomb, model: 'bob-omb', icon: 'i_bobomb' },
   { id: 'fire-flower', sim: fireFlower, model: null, icon: 'i_fireflower' },
+  // MK-115: our five unique items (our sims, MK8-style looks of our own, `render/items/index.ts`).
+  { id: 'oil-slick', model: null, icon: ourIcon('oil-slick') },
+  { id: 'hornet-swarm', model: null, icon: ourIcon('hornet-swarm') },
+  { id: 'bubble-shield', model: null, icon: ourIcon('bubble-shield') },
+  { id: 'magnet', model: null, icon: ourIcon('magnet') },
+  { id: 'phase', model: null, icon: ourIcon('phase') },
 ];
 
 /** The item box's pack model. */
