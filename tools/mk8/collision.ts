@@ -142,7 +142,8 @@ export async function buildCollision(
   SURFACES.forEach((surface, code) => {
     const group = groups.get(surface);
     if (!group) return;
-    positions.push(...group.positions);
+    // A loop, not push(...): a real course has more values than the call stack allows.
+    for (const v of group.positions) positions.push(v);
     for (let t = 0; t < group.positions.length / 9; t++) surfaceCodes.push(code);
   });
   const pos = new Float32Array(positions);
