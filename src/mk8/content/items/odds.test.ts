@@ -5,7 +5,16 @@ import { itemSetOddsRow, oddsTable, pickItem, rowIndex } from '../../../sim/item
 import { rngFloat, seedRng } from '../../../sim/rng';
 import { ITEM_SPRITES } from '../../ui/sprites';
 import { registerMk8Content } from '../../register';
-import { MK8_ITEM_SET, MK8_ITEMS, MK8_ODDS, MK8_TABLE, mk8ItemSet, mk8ItemSim, OURS } from '.';
+import {
+  MK8_ITEM_SET,
+  MK8_ITEMS,
+  MK8_ODDS,
+  MK8_TABLE,
+  mk8ItemSet,
+  mk8ItemSim,
+  OURS,
+  ourIcon,
+} from '.';
 
 const ROWS = 9;
 const ROLLS = 10_000;
@@ -94,10 +103,11 @@ describe('MK8 odds (MK-103)', () => {
 });
 
 describe('MK8 items (MK-103)', () => {
-  it('every MK8 item is in the odds table and has an icon sprite', () => {
+  it('every MK8 item is in the odds table and has an icon sprite (ours: our icon file, MK-115)', () => {
     for (const item of MK8_ITEMS) {
       expect(MK8_ODDS[item.id], item.id).toBeDefined();
-      expect(ITEM_SPRITES as readonly string[]).toContain(item.icon);
+      if (item.id in OURS) expect(item.icon).toBe(ourIcon(item.id));
+      else expect(ITEM_SPRITES as readonly string[]).toContain(item.icon);
     }
   });
 
