@@ -87,7 +87,7 @@ test.describe('Mario Kart Stadium on the real pack (MK-105, local only)', () => 
     for (const [depth, screen] of [
       [2, '.mk8-scr-modes'],
       [3, '.mk8-scr-char'],
-      [4, '.mk8-scr-kart-next'],
+      [4, '.mk8-scr-kart'],
       [5, '.mk8-scr-cc'],
       [6, '.mk8-scr-cup'],
     ] as const) {
