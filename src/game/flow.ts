@@ -311,6 +311,12 @@ export class Flow {
       case 'mk8UiKit':
         this.openMk8('ui-kit');
         break;
+      case 'mk8UiTitle':
+        this.openMk8('title');
+        break;
+      case 'mk8UiMode':
+        this.openMk8('mode');
+        break;
       case 'leaderboard':
         // Over the title, so Back lands there (MK-56).
         game.setAutopilot(launch.localKartId, true);

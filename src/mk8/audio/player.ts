@@ -12,6 +12,8 @@ export type MenuSoundId = (typeof MENU_SOUNDS)[number];
 /** What MK8 screens need to make a sound. */
 export interface SoundPlayer {
   play(id: SoundId): void;
+  /** Starts audio inside a user gesture (MK8's "press start"), where the player can. */
+  unlock?(): void;
 }
 
 /** Loudness of sampled sounds and of the stand-ins. */

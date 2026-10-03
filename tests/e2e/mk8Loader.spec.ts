@@ -36,7 +36,7 @@ async function expectFits(page: Page, selectors: string[]) {
 }
 
 test.describe('MK8 Mode loader', () => {
-  test('nothing of MK8 Mode loads until it is chosen; then progress, the placeholder, and Back', async ({
+  test('nothing of MK8 Mode loads until it is chosen; then progress, the MK8 title, and Back', async ({
     page,
   }) => {
     const mk8 = watchMk8Requests(page);
@@ -58,7 +58,7 @@ test.describe('MK8 Mode loader', () => {
       .toBeGreaterThan(0);
     expect(Number(await bar.getAttribute('aria-valuenow'))).toBeLessThan(100);
     pack.release();
-    await expect(page.locator('.menu-mk8Placeholder')).toBeVisible();
+    await expect(page.locator('.mk8-scr-title')).toBeVisible();
     expect(pack.requested.sort()).toEqual([
       'audio/ui/fixture-sine.m4a',
       'manifest.json',
@@ -66,7 +66,7 @@ test.describe('MK8 Mode loader', () => {
       'ui/fixture-red.webp',
     ]);
 
-    await page.locator('.mk8-back').click();
+    await page.locator('.mk8-title-back').click();
     await expect(page.locator('.menu-title')).toBeVisible();
     await expect(page.locator('.menus button.mk8-mode')).toBeVisible();
   });
@@ -82,7 +82,7 @@ test.describe('MK8 Mode loader', () => {
     await expect(page.locator('.menu-mk8Loading')).toBeVisible();
     await banner.getByRole('button', { name: 'Retry' }).click();
     await page.evaluate(() => window.__game!.whenReady());
-    await expect(page.locator('.menu-mk8Placeholder')).toBeVisible();
+    await expect(page.locator('.mk8-scr-title')).toBeVisible();
     await expect(page.getByRole('alert')).toHaveCount(0);
     expect(pack.requested.filter((p) => p === 'ui/fixture-red.webp')).toHaveLength(2);
     expect(pack.requested.filter((p) => p === 'ui/fixture-blue.webp')).toHaveLength(1);
@@ -109,7 +109,7 @@ test.describe('MK8 Mode loader', () => {
     await expectFits(page, ['.menus button.mk8-mode', '.menus button.primary']);
     await page.keyboard.press('Enter');
     await page.evaluate(() => window.__game!.whenReady());
-    await expect(page.locator('.menu-mk8Placeholder')).toBeVisible();
+    await expect(page.locator('.mk8-scr-title')).toBeVisible();
   });
 
   test('mk8-loading: the bar held at 50 %, fitting the screen', async ({ page }) => {

@@ -1,0 +1,58 @@
+/* MK8 mode select (MK-116), in the mockup's positions: tiles 620 wide from x 120, the 400×400
+   art panel at the right. */
+
+.mk8-modes {
+  display: grid;
+  grid-template-columns: calc(620 * var(--u)) calc(400 * var(--u));
+  justify-content: space-between;
+  align-items: start;
+  padding-top: calc(64 * var(--u));
+  padding-left: max(calc(120 * var(--u)), env(safe-area-inset-left));
+  padding-right: max(calc(90 * var(--u)), env(safe-area-inset-right));
+}
+
+.mk8-modes-list {
+  display: grid;
+  gap: max(8px, calc(22 * var(--u)));
+}
+
+.mk8-modes-side {
+  display: grid;
+  place-items: center;
+  width: calc(400 * var(--u));
+  height: calc(400 * var(--u));
+  margin-top: calc(10 * var(--u));
+  overflow: hidden;
+}
+
+.mk8-modes-art {
+  width: calc(320 * var(--u));
+  height: calc(320 * var(--u));
+  animation: mk8-modes-pop 0.3s cubic-bezier(0.2, 1.6, 0.4, 1);
+}
+
+.mk8-modes-art.mk8-art-stand-in {
+  font-size: calc(160 * var(--u));
+}
+
+@keyframes mk8-modes-pop {
+  from {
+    transform: scale(0.7);
+  }
+}
+
+.mk8-modes-next {
+  display: grid;
+  place-items: center;
+}
+
+.mk8-modes-note {
+  padding: calc(28 * var(--u)) calc(40 * var(--u));
+  font-size: max(16px, calc(28 * var(--u)));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mk8-modes-art {
+    animation: none;
+  }
+}
