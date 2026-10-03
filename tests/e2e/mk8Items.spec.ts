@@ -148,6 +148,51 @@ test.describe('MK8 items', () => {
     expect(errors).toEqual([]);
   });
 
+  test('bob-omb (MK-114): thrown ahead, it explodes after its fuse and hits the karts beside it', async ({
+    page,
+  }) => {
+    const errors = pageErrors(page);
+    const pack = await servePack(page);
+    await loadScenario(page, 'mk8-item-bobomb', { paused: true });
+    await expect(page.locator('.hud-item')).toHaveAttribute('data-item', 'bob-omb');
+    await setInput(page, 0, { item: true });
+    await step(page, 1);
+    await setInput(page, 0, { item: false });
+    let state = await step(page, 60);
+    expect(state.entities.some((e) => e.kind === 'item' && e.spec === 'bob-omb')).toBe(true);
+    // Its 3 s fuse runs out: the karts 4 m either side spin out, the one 12 m beyond doesn't.
+    state = await step(page, 125);
+    expect(state.entities.some((e) => e.kind === 'item' && e.spec === 'bob-omb')).toBe(false);
+    expect(state.karts[1]!.spinTimer).toBeGreaterThan(0);
+    expect(state.karts[2]!.spinTimer).toBeGreaterThan(0);
+    expect(state.karts[3]!.spinTimer).toBe(0);
+    expect(pack.requested).toContain('models/items/bob-omb.glb');
+    expect(errors).toEqual([]);
+  });
+
+  test('fire flower (MK-114): each press shoots a fireball; one spins out the kart ahead', async ({
+    page,
+  }) => {
+    const errors = pageErrors(page);
+    await servePack(page);
+    await loadScenario(page, 'mk8-item-fire-flower', { paused: true });
+    await expect(page.locator('.hud-item')).toHaveAttribute('data-item', 'fire-flower');
+    for (let press = 0; press < 2; press += 1) {
+      await setInput(page, 0, { item: true });
+      await step(page, 1);
+      await setInput(page, 0, { item: false });
+      await step(page, 10);
+    }
+    let state = await getState(page);
+    expect(state.karts[0]!.item.held).toBe('fire-flower');
+    state = await step(page, 60);
+    expect(state.karts[1]!.spinTimer).toBeGreaterThan(0);
+    // Its time runs out: the slot empties.
+    await step(page, 360);
+    await expect(page.locator('.hud-item')).toHaveAttribute('data-item', '');
+    expect(errors).toEqual([]);
+  });
+
   test('without a pack, MK8 races still run, with our items', async ({ page }) => {
     const errors = pageErrors(page);
     await loadScenario(page, 'mk8-two-slots');

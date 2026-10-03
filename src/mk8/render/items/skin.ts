@@ -18,6 +18,9 @@ import type {
 import { MK8_ITEM_BOX_MODEL, MK8_ITEM_SET, MK8_ITEMS } from '../../content/items';
 import { animateExplosion, explosionModel } from '../../content/items/looks';
 import { SPINY, SPINY_BLAST } from '../../content/items/spiny-shell/sim';
+import { BOBOMB, BOBOMB_BLAST } from '../../content/items/bob-omb/sim';
+import { FIRE } from '../../content/items/fire-flower/sim';
+import { fireFlowerModel } from '../../content/items/fire-flower/render';
 import { TICK_RATE, tuning } from '../../../sim/tuning';
 import type { ItemModels } from './models';
 
@@ -31,6 +34,7 @@ const SIZE = {
   bolt: 3,
   blooper: 1.4,
   spiny: 1.3,
+  bobomb: 1.1,
 };
 /** The "?" inside an item box, m (the box is `SIZE.itemBox`). */
 const QUESTION_SIZE = 1;
@@ -74,6 +78,8 @@ export function skinParts(models: ItemModels): Set<SkinPart> {
   for (const [item, like] of ESCORTS) if (has(like)) parts.add(`entity:${item}`);
   // MK-113: the Spiny Shell (its explosion is drawn by the skin too, without a pack model).
   if (has(SPINY)) parts.add(`entity:${SPINY}`);
+  // MK-114: the Bob-omb (and its blast).
+  if (has(BOBOMB)) parts.add(`entity:${BOBOMB}`);
   return parts;
 }
 
@@ -159,6 +165,8 @@ export class Mk8ItemRenderer implements ItemRenderer {
   private readonly questionMarks: ModelPool;
   /** Spiny Shell explosions (MK-113): the pack has no model, so ours. */
   private readonly blasts: ModelPool;
+  /** The held Fire Flower (MK-114): the pack has no model, so ours. */
+  private readonly fireFlowers: ModelPool;
 
   constructor(
     private readonly scene: THREE.Scene,
@@ -168,6 +176,11 @@ export class Mk8ItemRenderer implements ItemRenderer {
     const mark = questionMark();
     this.questionMarks = new ModelPool(scene, () => mark.clone());
     this.blasts = new ModelPool(scene, explosionModel);
+    this.fireFlowers = new ModelPool(scene, () => {
+      const flower = fireFlowerModel();
+      flower.scale.setScalar(SIZE.held);
+      return flower;
+    });
   }
 
   /** The pool of `model` copies `size` m big. */
@@ -194,6 +207,7 @@ export class Mk8ItemRenderer implements ItemRenderer {
     for (const pool of this.pools.values()) pool.finish();
     this.questionMarks.finish();
     this.blasts.finish();
+    this.fireFlowers.finish();
   }
 
   private drawEntities(state: SimState, time: number): void {
@@ -205,6 +219,7 @@ export class Mk8ItemRenderer implements ItemRenderer {
     };
     const boomerang = this.pool(MODEL_OF.get('boomerang'), SIZE.boomerang);
     const spiny = this.pool(MODEL_OF.get(SPINY), SIZE.spiny);
+    const bobomb = this.pool(MODEL_OF.get(BOBOMB), SIZE.bobomb);
     for (const e of state.entities) {
       if (e.kind === 'itemBox') {
         // Hit boxes are gone until they respawn.
@@ -231,7 +246,9 @@ export class Mk8ItemRenderer implements ItemRenderer {
         const like = ESCORTS.get(item);
         if (item === 'boomerang') placeBoomerang(boomerang?.next(), e);
         else if (e.spec === SPINY) placeSpiny(spiny?.next(), e);
-        else if (e.spec === SPINY_BLAST) placeBlast(this.blasts.next(), e);
+        else if (e.spec === SPINY_BLAST) placeBlast(this.blasts.next(), e, SPINY_BLAST_LOOK);
+        else if (e.spec === BOBOMB) placeBobomb(bobomb?.next(), e);
+        else if (e.spec === BOBOMB_BLAST) placeBlast(this.blasts.next(), e, BOBOMB_BLAST_LOOK);
         else if (like === 'banana') placeEscortBanana(banana?.next(), e);
         else if (like) placeEscortShell(shells[like]?.next(), e, time);
       }
@@ -248,6 +265,11 @@ export class Mk8ItemRenderer implements ItemRenderer {
       return this.offset.set(kart.position.x + x, kart.position.y + y, kart.position.z + z);
     };
     const held = kart.item.roulette === 0 ? kart.item.held : null;
+    if (held === FIRE && kart.respawnTimer === 0) {
+      const flower = this.fireFlowers.next();
+      flower?.position.copy(at(0, HELD_HEIGHT - SIZE.held / 2, 0));
+      flower?.rotation.set(0, model?.rotation.y ?? kart.heading, 0);
+    }
     if (held && MODEL_OF.has(held) && !ESCORTS.has(held) && kart.respawnTimer === 0) {
       const trailing = TRAILING.has(held);
       const copy = this.pool(MODEL_OF.get(held), trailing ? SIZE.banana : SIZE.held)?.next();
@@ -325,10 +347,31 @@ function placeSpiny(model: THREE.Object3D | undefined, entity: ItemEntity): void
   model.rotation.set(0, Math.atan2(-entity.direction.x, -entity.direction.z) + entity.age * 0.2, 0);
 }
 
-/** A Spiny Shell's explosion (MK-113), growing and fading with its age. */
-function placeBlast(model: THREE.Object3D | undefined, entity: ItemEntity): void {
+/** A blast's look: how long it's up, s, and how far it reaches, m. */
+interface BlastLook {
+  seconds: () => number;
+  radius: () => number;
+}
+const SPINY_BLAST_LOOK: BlastLook = {
+  seconds: () => tuning.mk8.spinyBlastSeconds,
+  radius: () => tuning.mk8.spinyRadius,
+};
+const BOBOMB_BLAST_LOOK: BlastLook = {
+  seconds: () => tuning.mk8.bobombBlastSeconds,
+  radius: () => tuning.mk8.bobombRadius,
+};
+
+/** A Spiny Shell's (MK-113) or Bob-omb's (MK-114) explosion, growing and fading with its age. */
+function placeBlast(model: THREE.Object3D | undefined, entity: ItemEntity, look: BlastLook): void {
   if (!model) return;
   model.position.set(entity.position.x, entity.position.y + 1, entity.position.z);
-  const life = Math.round(tuning.mk8.spinyBlastSeconds * TICK_RATE);
-  animateExplosion(model, entity.age, life, tuning.mk8.spinyRadius);
+  const life = Math.round(look.seconds() * TICK_RATE);
+  animateExplosion(model, entity.age, life, look.radius());
+}
+
+/** A Bob-omb (MK-114) where the sim has it (on its arc, or sitting), facing the way it was thrown. */
+function placeBobomb(model: THREE.Object3D | undefined, entity: ItemEntity): void {
+  if (!model) return;
+  model.position.set(entity.position.x, entity.position.y + SIZE.bobomb * 0.5, entity.position.z);
+  model.rotation.set(0, Math.atan2(-entity.direction.x, -entity.direction.z), 0);
 }

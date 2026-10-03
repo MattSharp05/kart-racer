@@ -9,6 +9,8 @@
 //  4. its look: a line in `src/mk8/render/items/index.ts` (an `ItemView` for a new item, drawn with
 //     its pack model by `mk8EntityModel`).
 import type { ItemContent, ItemSetContent } from '../../../content/items';
+import bobomb from './bob-omb/sim';
+import fireFlower from './fire-flower/sim';
 import goldenMushroom from './golden-mushroom/sim';
 import { MK8_ITEM_SET } from './id';
 import { MK8_ODDS } from './odds';
@@ -63,6 +65,9 @@ export const MK8_ITEMS: readonly Mk8Item[] = [
   // MK-113: the Spiny Shell and its counter, the Super Horn.
   { id: 'spiny-shell', sim: spinyShell, model: 'blue-shell', icon: 'i_spiny' },
   { id: 'super-horn', sim: superHorn, model: 'super-horn', icon: 'i_horn' },
+  // MK-114: the Bob-omb, and the Fire Flower (no pack model: the skin draws ours).
+  { id: 'bob-omb', sim: bobomb, model: 'bob-omb', icon: 'i_bobomb' },
+  { id: 'fire-flower', sim: fireFlower, model: null, icon: 'i_fireflower' },
 ];
 
 /** The item box's pack model. */
