@@ -82,4 +82,55 @@ describe('Mk8AudioPlayer', () => {
     expect(player.played).toEqual(['ui/cursor']);
     expect(log.oscillators).toBe(0);
   });
+
+  it("plays a racer's voice clips in turn (MK-117), and stays silent without them", async () => {
+    const { ctx, log } = fakeContext();
+    const index = { mario: { select: ['audio/voice/mario/a.m4a', 'audio/voice/mario/b.m4a'] } };
+    const files: Record<string, ArrayBuffer> = {
+      'audio/voices.json': new TextEncoder().encode(JSON.stringify(index)).buffer as ArrayBuffer,
+      'audio/voice/mario/a.m4a': new ArrayBuffer(4),
+      'audio/voice/mario/b.m4a': new ArrayBuffer(6),
+    };
+    const decoded: number[] = [];
+    const player = new Mk8AudioPlayer({
+      createContext: () =>
+        ({
+          ...ctx,
+          decodeAudioData: (bytes: ArrayBuffer) => {
+            decoded.push(bytes.byteLength);
+            return ctx.decodeAudioData(bytes);
+          },
+        }) as unknown as AudioContext,
+      file: (path) => files[path],
+    });
+    player.voice('mario', 'select'); // before the first gesture: recorded only
+    player.unlock();
+    player.voice('mario', 'select');
+    player.voice('mario', 'select');
+    player.voice('mario', 'select');
+    // No clip for Luigi, nor for Mario's boost: silent, and no synthesized stand-in.
+    player.voice('luigi', 'select');
+    player.voice('mario', 'boost');
+    await flush();
+    expect(player.played).toEqual([
+      'voice/mario/select',
+      'voice/mario/select',
+      'voice/mario/select',
+      'voice/mario/select',
+      'voice/luigi/select',
+      'voice/mario/boost',
+    ]);
+    expect(decoded).toEqual([4, 6]); // a, then b; the third play reuses a's buffer
+    expect(log.sources).toBe(4); // blip + three plays
+    expect(log.oscillators).toBe(0);
+  });
+
+  it('stays silent for voices when the pack has no voice index', () => {
+    const { ctx, log } = fakeContext();
+    const player = new Mk8AudioPlayer({ createContext: () => ctx });
+    player.unlock();
+    player.voice('mario', 'select');
+    expect(log.sources).toBe(1);
+    expect(log.oscillators).toBe(0);
+  });
 });

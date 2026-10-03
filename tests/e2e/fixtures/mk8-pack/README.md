@@ -14,3 +14,7 @@ MK-136: `makeModels.ts`'s Standard Kart parts and Peach copy the real pack's qui
 `src/mk8/render/racerModel.ts` handles (skinned, quantized meshes; the tire model as the set of four
 tires, each with an overlay layer on the same geometry; physical materials; a white glow on the
 tires; fully transparent paint), so `racerModel.test.ts` and the racer e2e cover them in CI.
+
+MK-117 added `audio/voices.json` and one voice clip for Mario's select line
+(`audio/voice/mario/fixture-select.m4a`, the same synthesized sine), in the layout
+`pnpm mk8:build` writes for racer voices, so the character select loads its voice lines in CI.

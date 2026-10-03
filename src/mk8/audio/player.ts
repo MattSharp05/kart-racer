@@ -4,6 +4,14 @@
 // Like the game's SoundManager, audio starts on the first tap or key press (iOS needs a gesture).
 import { listenForAudioGestures } from '../../audio/soundManager';
 import { soundPath, type SoundId } from './soundIds';
+import type { VoiceEvent } from './voiceEvents';
+import {
+  parseVoiceIndex,
+  voiceSoundId,
+  VOICES_PATH,
+  type VoiceIndex,
+  type VoiceSoundId,
+} from './voices';
 
 /** The menu sounds the UI kit plays. */
 export const MENU_SOUNDS = ['ui/cursor', 'ui/decide', 'ui/back', 'ui/name-appear'] as const;
@@ -12,6 +20,11 @@ export type MenuSoundId = (typeof MENU_SOUNDS)[number];
 /** What MK8 screens need to make a sound. */
 export interface SoundPlayer {
   play(id: SoundId): void;
+  /**
+   * A racer's voice line (MK-117), by the pipeline's voice id (`mario`, `shy-guy`). Silent when
+   * the pack hasn't got the clip: there is no stand-in for a voice.
+   */
+  voice?(racer: string, event: VoiceEvent): void;
   /** Starts audio inside a user gesture (MK8's "press start"), where the player can. */
   unlock?(): void;
 }
@@ -57,11 +70,15 @@ export interface PlayerOptions {
 }
 
 export class Mk8AudioPlayer implements SoundPlayer {
-  /** Every sound asked for, in order (the e2e tests read it via `window.__mk8`). */
-  readonly played: SoundId[] = [];
+  /** Every sound and voice line asked for, in order (the e2e tests read it via `window.__mk8`). */
+  readonly played: (SoundId | VoiceSoundId)[] = [];
   private ctx: AudioContext | undefined;
   private out: GainNode | undefined;
-  private readonly buffers = new Map<SoundId, Promise<AudioBuffer | undefined>>();
+  /** Decoded sounds by pack path. */
+  private readonly buffers = new Map<string, Promise<AudioBuffer | undefined>>();
+  private voices: VoiceIndex | undefined;
+  /** How many times each racer's event has played: its clips take turns. */
+  private readonly voiceTurns = new Map<string, number>();
   private readonly file: (path: string) => ArrayBuffer | undefined;
   private readonly isMuted: () => boolean;
   private readonly createContext: (() => AudioContext) | undefined;
@@ -99,7 +116,7 @@ export class Mk8AudioPlayer implements SoundPlayer {
       blip.start();
       void ctx.resume();
       this.ctx = ctx;
-      for (const id of MENU_SOUNDS) void this.buffer(id);
+      for (const id of MENU_SOUNDS) void this.buffer(soundPath(id));
     } catch {
       this.ctx = undefined; // no audio on this device; the menus still work
     }
@@ -109,11 +126,38 @@ export class Mk8AudioPlayer implements SoundPlayer {
     this.played.push(id);
     const ctx = this.ctx;
     if (!ctx || this.isMuted()) return;
-    if (!this.file(soundPath(id))) {
+    const path = soundPath(id);
+    if (!this.file(path)) {
       this.synth(ctx, id);
       return;
     }
-    void this.buffer(id).then((buffer) => {
+    this.sample(ctx, path);
+  }
+
+  voice(racer: string, event: VoiceEvent): void {
+    this.played.push(voiceSoundId(racer, event));
+    const ctx = this.ctx;
+    if (!ctx || this.isMuted()) return;
+    const clips = this.voiceIndex()?.[racer]?.[event] ?? [];
+    if (clips.length === 0) return;
+    const key = `${racer}/${event}`;
+    const turn = this.voiceTurns.get(key) ?? 0;
+    this.voiceTurns.set(key, turn + 1);
+    const path = clips[turn % clips.length];
+    if (path && this.file(path)) this.sample(ctx, path);
+  }
+
+  /** The pack's voice index, once it is loaded (parsed once). */
+  private voiceIndex(): VoiceIndex | undefined {
+    if (!this.voices) {
+      const bytes = this.file(VOICES_PATH);
+      if (bytes) this.voices = parseVoiceIndex(bytes);
+    }
+    return this.voices;
+  }
+
+  private sample(ctx: AudioContext, path: string): void {
+    void this.buffer(path).then((buffer) => {
       if (!buffer || !this.out) return;
       const source = ctx.createBufferSource();
       const gain = ctx.createGain();
@@ -124,16 +168,16 @@ export class Mk8AudioPlayer implements SoundPlayer {
     });
   }
 
-  /** The decoded sound, once per id; undefined when the pack hasn't got it or it won't decode. */
-  private buffer(id: SoundId): Promise<AudioBuffer | undefined> {
-    let decoded = this.buffers.get(id);
+  /** The decoded file, once per path; undefined when the pack hasn't got it or it won't decode. */
+  private buffer(path: string): Promise<AudioBuffer | undefined> {
+    let decoded = this.buffers.get(path);
     if (!decoded) {
-      const bytes = this.file(soundPath(id));
+      const bytes = this.file(path);
       const ctx = this.ctx;
       if (!bytes || !ctx) return Promise.resolve(undefined);
       // decodeAudioData takes the buffer over; the loader keeps its own copy.
       decoded = ctx.decodeAudioData(bytes.slice(0)).catch(() => undefined);
-      this.buffers.set(id, decoded);
+      this.buffers.set(path, decoded);
     }
     return decoded;
   }
