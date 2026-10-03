@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { loadScenario, step } from '../e2e/helpers';
+import { loadScenario, setInput, step } from '../e2e/helpers';
 import { servePack } from '../e2e/mk8';
 
 const frame = (page: import('@playwright/test').Page) =>
@@ -43,4 +43,19 @@ test('mk8-item-spiny-dive (paused)', async ({ page }) => {
   await frame(page);
   await frame(page);
   await expect(page).toHaveScreenshot('mk8-item-spiny-dive.png');
+});
+
+// MK-114: a Bob-omb's blast going off 20 m ahead of the player, between the two karts it throws
+// up (a few ticks after its 3 s fuse); the fixture pack's stand-in Bob-omb is gone by then.
+test('mk8-item-bobomb-explosion (paused)', async ({ page }) => {
+  await servePack(page);
+  await loadScenario(page, 'mk8-item-bobomb', { paused: true });
+  await setInput(page, 0, { item: true });
+  await step(page, 1);
+  await setInput(page, 0, { item: false });
+  const state = await step(page, 184);
+  expect(state.entities.some((e) => e.kind === 'item' && e.spec === 'bob-omb-blast')).toBe(true);
+  await frame(page);
+  await frame(page);
+  await expect(page).toHaveScreenshot('mk8-item-bobomb-explosion.png');
 });

@@ -58,6 +58,8 @@ const MK8_SCENARIO_NAMES = [
   'mk8-item-golden',
   'mk8-item-spiny',
   'mk8-item-horn-vs-spiny',
+  'mk8-item-bobomb',
+  'mk8-item-fire-flower',
   'mk8-loadout-heavy',
   'mk8-loadout-light',
   'mk8-ui-kit',

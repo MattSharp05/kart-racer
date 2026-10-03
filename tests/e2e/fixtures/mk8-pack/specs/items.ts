@@ -48,6 +48,8 @@ const SHAPES: Record<string, () => Shape> = {
     geometry: new THREE.ConeGeometry(0.8, 1.6, 10),
     colour: [0.95, 0.75, 0.1],
   }),
+  // MK-114 (the fire flower has no pack model).
+  'bob-omb': () => ({ geometry: new THREE.SphereGeometry(1, 12, 8), colour: [0.1, 0.1, 0.12] }),
 };
 
 /** One shape as a GLB, turned so its top is along −Z (as the pack's DAE conversions are). */
