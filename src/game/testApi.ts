@@ -60,7 +60,11 @@ export interface RenderInfo {
     height?: number;
     /** The camera's up (unit, world), MK-99: it follows karts onto walls and ceilings. */
     up?: { x: number; y: number; z: number };
+    /** How far behind the followed kart the chase camera sits, m (MK-106: further gliding). */
+    distance?: number;
   };
+  /** Each kart's glider, by kart id: 0 folded away (hidden) … 1 open (MK-106). */
+  gliders?: number[];
 }
 
 declare global {

@@ -92,6 +92,15 @@ describe('mesh AI driver (MK-105)', () => {
     expect(fast.throttle).toBe(0);
   });
 
+  it('on a glider, holds the throttle (a dive) instead of braking for the turn ahead (MK-106)', () => {
+    const kart = kartAt(tOnA(150), 27);
+    kart.grounded = false;
+    kart.glide = { time: 0.5, pitch: 0 };
+    const input = meshAiInput(kart, ai(), track(), 150, true);
+    expect(input.throttle).toBe(1);
+    expect(input.brake).toBe(0);
+  });
+
   it('backs out when stuck, and asks to be put back when that doesn’t free it', () => {
     const kart = kartAt(tOnA(20));
     const driver = ai();

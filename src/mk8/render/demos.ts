@@ -119,8 +119,11 @@ export interface StageHooks {
   karts(): KartInfo[];
   /** Draw calls of each empty kart, rendered alone. */
   kartDrawCalls(): number[];
-  /** Opens or folds every empty kart's glider (gliders are folded on the stage). */
-  openGliders(open: boolean): void;
+  /**
+   * Opens or folds every empty kart's glider (gliders are folded on the stage); a number unfolds
+   * them part-way, 0–1 (MK-106).
+   */
+  openGliders(open: boolean | number): void;
 }
 
 type FileSource = (path: string) => ArrayBuffer | undefined;
@@ -203,7 +206,8 @@ export async function buildDemo(
       })),
     kartDrawCalls: () => karts.map((kart) => stage.drawCallsOf(kart.object)),
     openGliders: (open) => {
-      for (const kart of karts) kart.setGliderOpen(open);
+      for (const kart of karts)
+        kart.setGliderOpenness(typeof open === 'number' ? open : open ? 1 : 0);
       stage.render();
     },
   };

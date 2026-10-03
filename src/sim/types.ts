@@ -174,6 +174,16 @@ export interface KartState {
    * the racer's stats (`kartType` still picks the model). Set at the start of a race, never changed.
    */
   loadout?: Loadout;
+  /** Gliding (MK-106, `sim/glide.ts`): set when the kart leaves a glide ramp, gone once it lands. */
+  glide?: GlideState;
+}
+
+/** A gliding kart's flight (MK-106). Plain data, mesh tracks only. */
+export interface GlideState {
+  /** Seconds since the glider opened (the view unfolds it over `tuning.mk8.glide.openSeconds`). */
+  time: number;
+  /** Eased pitch input: +1 diving (nose down), −1 floating (nose up), 0 level. */
+  pitch: number;
 }
 
 /**
@@ -340,6 +350,9 @@ export type SimEvent =
   | { type: 'launch'; kartId: number }
   | { type: 'trick'; kartId: number }
   | { type: 'land'; kartId: number; airTime: number }
+  /** The glider opened off a glide ramp, or folded (landing, a wall, a respawn), MK-106. */
+  | { type: 'glideOpen'; kartId: number }
+  | { type: 'glideClose'; kartId: number }
   /**
    * An item's own moment (MK-52): a shield popping, ink splatting… `fx` names it; the item's view
    * maps it to a sound and, for `kartId`'s player, a screen overlay.

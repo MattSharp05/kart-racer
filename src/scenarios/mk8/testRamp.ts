@@ -1,4 +1,4 @@
-// Anti-gravity (MK-99) and mesh-track racing (MK-105) on the synthetic MK8 test ramp: no pack needed.
+// Anti-gravity (MK-99), mesh-track racing (MK-105) and gliding (MK-106) on the synthetic MK8 test ramp: no pack needed.
 import { createSimState } from '../../sim/state';
 import type { SimState } from '../../sim/types';
 import type { Scenario } from '../registry';
@@ -13,8 +13,11 @@ export const TEST_RAMP = {
   id: 'mk8-test-ramp',
   roadHalfWidth: 7,
   tunnel: { from: 30, height: 8 },
+  glide: { from: 90 },
 } as const;
-const { tunnel, roadHalfWidth } = TEST_RAMP;
+const { tunnel, roadHalfWidth, glide } = TEST_RAMP;
+/** `mk8-test-glide` starts this far before the glide ramp: enough run-up for top speed, m. */
+const GLIDE_RUN_UP = 60;
 
 /** One kart (150cc, free drive) on the test ramp. */
 function onTestRamp(
@@ -68,6 +71,18 @@ const scenarios: Scenario[] = [
     defaultSeed: 1,
     mk8Course: TEST_RAMP.id,
     setup: onCourse(TEST_RAMP.id, courseRace),
+  },
+  // Gliders (MK-106) on the test ramp: no pack needed.
+  {
+    name: 'mk8-test-glide',
+    group: 'MK8 Mode',
+    description:
+      'Gliding on the MK8 test ramp, 150cc: the kart 60 m before the glide ramp (purple), the gap and its void beyond it. Hold accelerate: off the ramp the glider opens; steer in the air, hold accelerate to dive (sooner, faster) or brake to float (longer). Tap drift off the lip for a trick boost.',
+    defaultSeed: 1,
+    mk8Course: TEST_RAMP.id,
+    setup: (seed) => ({
+      state: onTestRamp(seed, { x: glide.from - GLIDE_RUN_UP, y: 0, z: 0 }, -Math.PI / 2),
+    }),
   },
 ];
 export default scenarios;

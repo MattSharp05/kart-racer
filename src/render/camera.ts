@@ -5,6 +5,9 @@ const DISTANCE = 6.5;
 const HEIGHT = 2.6;
 const LOOK_AHEAD = 4;
 const LOOK_HEIGHT = 1;
+/** Gliding (MK-106): with the glider fully open the camera sits this much further back and up, m. */
+const GLIDE_DISTANCE = 3;
+const GLIDE_HEIGHT = 1.2;
 /** Higher = the camera catches up faster (1/s). */
 const FOLLOW_RATE = 6;
 const HEADING_RATE = 5;
@@ -47,6 +50,8 @@ export class ChaseCamera {
   /** Current extra FOV from a boost, degrees (decays). */
   fovKick = 0;
   reducedMotion = false;
+  /** How far the camera pulls back for a glide: 0 = normal … 1 = glider open (MK-106). */
+  pullBack = 0;
   private shakeTime = 0;
   private readonly target = new THREE.Vector3();
   private readonly desired = new THREE.Vector3();
@@ -151,7 +156,10 @@ export class ChaseCamera {
     if (!up) return;
     const f = this.surfaceForward;
     this.target.copy(kart.position);
-    this.desired.copy(this.target).addScaledVector(f, -DISTANCE).addScaledVector(up, HEIGHT);
+    this.desired
+      .copy(this.target)
+      .addScaledVector(f, -this.distance())
+      .addScaledVector(up, this.height());
     this.camera.position.lerp(this.desired, blend);
     if (clip) {
       // Never behind a wall, the floor or the ceiling: pull in to just in front of it.
@@ -188,6 +196,15 @@ export class ChaseCamera {
     }
   }
 
+  /** How far behind the kart the camera sits, m (further while gliding). */
+  distance(): number {
+    return DISTANCE + GLIDE_DISTANCE * this.pullBack;
+  }
+
+  private height(): number {
+    return HEIGHT + GLIDE_HEIGHT * this.pullBack;
+  }
+
   /** Adds camera shake (`amount` 0..1 = gentle..hard). Ignored with reduced motion. */
   addShake(amount: number): void {
     if (this.reducedMotion) return;
@@ -204,10 +221,11 @@ export class ChaseCamera {
     const fx = -Math.sin(heading);
     const fz = -Math.cos(heading);
     this.target.copy(kart.position);
+    const distance = this.distance();
     this.desired.set(
-      this.target.x - fx * DISTANCE,
-      this.target.y + HEIGHT,
-      this.target.z - fz * DISTANCE,
+      this.target.x - fx * distance,
+      this.target.y + this.height(),
+      this.target.z - fz * distance,
     );
     this.camera.position.lerp(this.desired, blend);
     this.lookAt.set(
