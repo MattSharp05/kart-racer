@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import type { Manifest } from '../../tools/mk8/manifest.ts';
-import { Mk8Loader, PackLoadError, PackNotInstalledError } from './loader';
+import {
+  mk8Login,
+  Mk8Loader,
+  PackLoadError,
+  PackLockedError,
+  PackNotInstalledError,
+} from './loader';
 
 const MANIFEST: Manifest = {
   version: 1,
@@ -182,5 +188,37 @@ describe('MK8 pack loader (MK-97)', () => {
       'ui/8.webp',
       'ui/9.webp',
     ]);
+  });
+
+  it('a 401 on the manifest means the pack is locked (MK-135)', async () => {
+    const loader = new Mk8Loader({ fetch: server({ status: { 'manifest.json': 401 } }).fetch });
+    await expect(loader.loadUi()).rejects.toBeInstanceOf(PackLockedError);
+    // After logging in, the same loader loads.
+    await loader.loadUi();
+    expect(loader.hasGroups(['ui'])).toBe(true);
+  });
+
+  it('a 401 on a file mid-load is locked too, not a load error (MK-135)', async () => {
+    const { fetch } = server({ status: { 'ui/i_banana.webp': 401 } });
+    const loader = new Mk8Loader({ fetch });
+    await expect(loader.loadUi()).rejects.toBeInstanceOf(PackLockedError);
+  });
+});
+
+describe('mk8Login (MK-135)', () => {
+  it('posts the password as JSON and maps the answers', async () => {
+    const calls: [string, RequestInit | undefined][] = [];
+    const answer = (status: number) => async (input: RequestInfo | URL, init?: RequestInit) => {
+      calls.push([String(input), init]);
+      return new Response(null, { status });
+    };
+    expect(await mk8Login('pw', answer(204))).toBe('ok');
+    expect(await mk8Login('pw', answer(401))).toBe('wrong');
+    expect(await mk8Login('pw', answer(429))).toBe('limited');
+    expect(await mk8Login('pw', answer(503))).toBe('unavailable');
+    const [url, init] = calls[0]!;
+    expect(url).toBe('/api/mk8-login');
+    expect(init?.method).toBe('POST');
+    expect(JSON.parse(String(init?.body))).toEqual({ password: 'pw' });
   });
 });

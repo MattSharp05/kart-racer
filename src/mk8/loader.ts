@@ -1,6 +1,7 @@
 // MK8 pack loader (MK-97, ADR 0009): fetches `/mk8/manifest.json`, then the files of the groups a
-// screen needs, reporting progress by bytes. The pack is local only (`pnpm mk8:build` writes
-// `.mk8-out/`, which `pnpm dev` serves at `/mk8/`); anywhere else the manifest is missing and
+// screen needs, reporting progress by bytes. Locally `pnpm mk8:build` writes `.mk8-out/`, which
+// `pnpm dev` serves at `/mk8/`; on the site (MK-135) the pack sits behind a server-checked
+// password, so a 401 means "log in first" (`PackLockedError`, then `mk8Login`). No pack at all →
 // MK8 Mode says how to build it. Loaded files stay in memory, so a Retry fetches only what failed.
 import type { Manifest, ManifestEntry } from '../../tools/mk8/manifest.ts';
 
@@ -20,6 +21,37 @@ export class PackNotInstalledError extends Error {
     super('MK8 pack not installed');
     this.name = 'PackNotInstalledError';
   }
+}
+
+/** The site's pack is behind the password (HTTP 401): log in, then load again (MK-135). */
+export class PackLockedError extends Error {
+  constructor() {
+    super('MK8 pack locked');
+    this.name = 'PackLockedError';
+  }
+}
+
+/** Where the site's login endpoint is (`api/mk8-login.ts`). */
+export const LOGIN_PATH = '/api/mk8-login';
+
+/** How a login went: in, wrong password, too many tries, or no password set on this server. */
+export type LoginResult = 'ok' | 'wrong' | 'limited' | 'unavailable';
+
+/** Trades the password for the pack's session cookie (HttpOnly: the page never sees it). */
+export async function mk8Login(
+  password: string,
+  fetchImpl: typeof fetch = (input, init) => fetch(input, init),
+): Promise<LoginResult> {
+  const response = await fetchImpl(LOGIN_PATH, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ password }),
+    credentials: 'same-origin',
+  });
+  if (response.ok) return 'ok';
+  if (response.status === 401) return 'wrong';
+  if (response.status === 429) return 'limited';
+  return 'unavailable';
 }
 
 /** A pack file couldn't be fetched (network, server error, wrong size). */
@@ -78,6 +110,7 @@ export class Mk8Loader {
       throw new PackLoadError(MANIFEST_PATH, e instanceof Error ? e.message : String(e));
     }
     if (response.status === 404) throw new PackNotInstalledError();
+    if (response.status === 401) throw new PackLockedError();
     if (!response.ok) throw new PackLoadError(MANIFEST_PATH, `HTTP ${response.status}`);
     let json: unknown;
     try {
@@ -205,6 +238,8 @@ export class Mk8Loader {
     let received = 0;
     try {
       const response = await this.fetch(this.base + entry.path);
+      // The session ran out mid-load: log in again, then Retry.
+      if (response.status === 401) throw new PackLockedError();
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const chunks: Uint8Array[] = [];
       const reader = response.body?.getReader();
@@ -231,6 +266,7 @@ export class Mk8Loader {
     } catch (e) {
       // Take back this file's share, so a Retry's bar doesn't run past the end.
       report(-received);
+      if (e instanceof PackLockedError) throw e;
       throw new PackLoadError(entry.path, e instanceof Error ? e.message : String(e));
     }
   }

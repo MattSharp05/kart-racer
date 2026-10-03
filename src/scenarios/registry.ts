@@ -17,8 +17,9 @@ export type MenuScreen =
   | 'leaderboard'
   // MK8 Mode (MK-97): the title with its button picked, its loading bar held at 50 %, its "pack
   // not installed" screen, and MK8 Mode opened as the button does (loading the pack). MK-104:
-  // the UI kit's style guide. MK-116: the MK8 title and the mode select. MK-119: the engine
-  // class, and the cup/course select of a Grand Prix and of a VS Race.
+  // the UI kit's style guide. MK-116: the MK8 title and the mode select. MK-135: the site's pack
+  // password box. MK-119: the engine class, and the cup/course select of a Grand Prix and of a
+  // VS Race.
   | 'mk8Entry'
   | 'mk8Loading'
   | 'mk8NotInstalled'
@@ -34,7 +35,9 @@ export type MenuScreen =
   | 'mk8RacerMotion'
   | 'mk8LakituCountdown'
   | 'mk8LakituLap'
-  | 'mk8LakituRespawn';
+  | 'mk8LakituRespawn'
+  // MK-135: the site's pack password box.
+  | 'mk8Password';
 
 export interface ScenarioSetup {
   state: SimState;
