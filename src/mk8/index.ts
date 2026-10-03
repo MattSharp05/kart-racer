@@ -36,6 +36,7 @@ import { Progress } from './ui/loading';
 import './ui/password';
 import type { PreviewHooks } from './ui/screens/characterSelect';
 import { Mk8ScreenFlow } from './ui/screens';
+import { installMk8Hud, type HudHooks } from './ui/hud';
 import type { Mk8Context, Mk8Flow, Mk8Screen } from './ui/screens/session';
 import { sprite } from './ui/sprites';
 import './ui/stack';
@@ -66,6 +67,8 @@ declare global {
       flow?: Mk8Flow;
       stage?: StageHooks;
       preview?: PreviewHooks;
+      /** The race HUD (MK-127). */
+      hud?: HudHooks;
     };
   }
 }
@@ -96,6 +99,18 @@ export type Mk8ScreenStart = string & Record<never, never>;
 
 /** The menus' screens in flow order (`ui/screens/order.ts`). */
 const screenFlow = new Mk8ScreenFlow();
+
+// MK8 races draw MK8's HUD (MK-127) with the pack's sprites where it has them.
+installMk8Hud({
+  loadSprites: async () => {
+    const files = packLoader();
+    await loadPackIfThere(files);
+    await loadFontsIfThere();
+    return packSprites(files);
+  },
+  play: (id) => audioPlayer().play(id),
+  expose: (hud) => (window.__mk8 = { sounds: [], ...window.__mk8, hud }),
+});
 
 /** Where the `mk8-loading` scenario holds the bar. */
 const DEMO_PROGRESS = 0.5;

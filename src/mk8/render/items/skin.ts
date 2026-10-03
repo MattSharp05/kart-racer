@@ -11,6 +11,7 @@ import { bananaDrawPosition } from '../../../sim/items/banana';
 import type {
   BananaEntity,
   ItemEntity,
+  KartEffect,
   KartState,
   ShellEntity,
   SimState,
@@ -20,6 +21,17 @@ import { animateExplosion, explosionModel } from '../../content/items/looks';
 import { SPINY, SPINY_BLAST } from '../../content/items/spiny-shell/sim';
 import { BOBOMB, BOBOMB_BLAST } from '../../content/items/bob-omb/sim';
 import { FIRE } from '../../content/items/fire-flower/sim';
+import { getEffect } from '../../../sim/items/effects';
+import { escortPose } from '../../content/items/escort';
+import { PIRANHA } from '../../content/items/piranha-plant/sim';
+import {
+  PIRANHA_AHEAD,
+  PIRANHA_HEIGHT,
+  piranhaLunge,
+  piranhaModel,
+} from '../../content/items/piranha-plant/render';
+import { CRAZY8, crazy8Ring } from '../../content/items/crazy-8/sim';
+import { crazy8Halo, crazy8Model } from '../../content/items/crazy-8/render';
 import { fireFlowerModel } from '../../content/items/fire-flower/render';
 import { TICK_RATE, tuning } from '../../../sim/tuning';
 import type { ItemModels } from './models';
@@ -36,6 +48,8 @@ const SIZE = {
   blooper: 1.4,
   spiny: 1.3,
   bobomb: 1.1,
+  piranha: 1.3,
+  ring: 0.7,
 };
 /** The "?" inside an item box, m (the box is `SIZE.itemBox`). */
 const QUESTION_SIZE = 1;
@@ -51,6 +65,8 @@ const HELD_HEIGHT = 1.9;
 const BOLT_SECONDS = 0.6;
 /** The Blooper shows over an inked kart for the ink's first this-many ticks. */
 const BLOOPER_TICKS = 75;
+/** A lunging Piranha Plant leans this far towards what it bites, radians per metre out. */
+const PIRANHA_LEAN = 0.35;
 /** Items held behind the kart, MK8 style (the rest float over the driver). */
 const TRAILING = new Set(['banana', 'green', 'red']);
 /**
@@ -169,6 +185,10 @@ export class Mk8ItemRenderer implements ItemRenderer {
   private readonly blasts: ModelPool;
   /** The held Fire Flower (MK-114): the pack has no model, so ours. */
   private readonly fireFlowers: ModelPool;
+  /** MK-126: the Piranha Plant when the pack has none, the held Crazy 8 and its ring's glow. */
+  private readonly piranhas: ModelPool;
+  private readonly crazy8s: ModelPool;
+  private readonly halos: ModelPool;
   /** Our five unique items held (MK-115): their MK8-style models, by item id. */
   private readonly ours = new Map<string, ModelPool>();
 
@@ -185,6 +205,17 @@ export class Mk8ItemRenderer implements ItemRenderer {
       flower.scale.setScalar(SIZE.held);
       return flower;
     });
+    this.piranhas = new ModelPool(scene, () => {
+      const plant = piranhaModel();
+      plant.scale.setScalar(SIZE.piranha);
+      return plant;
+    });
+    this.crazy8s = new ModelPool(scene, () => {
+      const eight = crazy8Model();
+      eight.scale.setScalar(SIZE.held);
+      return eight;
+    });
+    this.halos = new ModelPool(scene, crazy8Halo);
   }
 
   /** The pool of held copies of our item `item` (MK-115), if it is one of ours. */
@@ -222,13 +253,68 @@ export class Mk8ItemRenderer implements ItemRenderer {
   ): void {
     if (state.itemSet === MK8_ITEM_SET) {
       this.drawEntities(state, time);
-      for (const kart of state.karts) this.drawKart(kart, time, kartModel(kart.id));
+      for (const kart of state.karts) this.drawKart(kart, time, kartModel(kart.id), state.tick);
     }
     for (const pool of this.pools.values()) pool.finish();
     this.questionMarks.finish();
     this.blasts.finish();
     this.fireFlowers.finish();
+    this.piranhas.finish();
+    this.crazy8s.finish();
+    this.halos.finish();
     for (const pool of this.ours.values()) pool.finish();
+  }
+
+  /**
+   * A Piranha Plant out in front (MK-126): the pack's potted plant (ours without one), lunging
+   * along its last lunge's direction for a moment after each bite.
+   */
+  private drawPiranha(
+    kart: KartState,
+    effect: KartEffect,
+    at: (x: number, y: number, z: number) => THREE.Vector3,
+  ): void {
+    const plant = (this.pool(MODEL_OF.get(PIRANHA), SIZE.piranha) ?? this.piranhas).next();
+    if (!plant) return;
+    // In front is −Z in the kart's frame.
+    plant.position.copy(at(0, PIRANHA_HEIGHT, -PIRANHA_AHEAD));
+    const lunge = piranhaLunge(effect);
+    plant.position.x += lunge.x * lunge.out;
+    plant.position.z += lunge.z * lunge.out;
+    // The sim's heading (the kart model's Euler y isn't its yaw once it faces backwards).
+    const yaw = lunge.out > 0 ? Math.atan2(-lunge.x, -lunge.z) : kart.heading;
+    // Turned first, then leaning forward (its top towards −Z) as it lunges.
+    plant.rotation.order = 'YXZ';
+    plant.rotation.set(-lunge.out * PIRANHA_LEAN, yaw, 0);
+  }
+
+  /**
+   * Crazy 8 (MK-126): its glowing "8" over the driver until the first press, then the items left
+   * on its ring circling the kart (as triple shells do) inside a faint glowing ring.
+   */
+  private drawCrazy8(
+    kart: KartState,
+    time: number,
+    tick: number,
+    at: (x: number, y: number, z: number) => THREE.Vector3,
+  ): void {
+    const ring = crazy8Ring(kart);
+    if (ring.length === 0) {
+      const eight = this.crazy8s.next();
+      eight?.position.copy(at(0, HELD_HEIGHT - SIZE.held / 2, 0));
+      eight?.rotation.set(0, time * 2, 0);
+      return;
+    }
+    const halo = this.halos.next();
+    halo?.position.set(kart.position.x, kart.position.y + TRAIL_HEIGHT, kart.position.z);
+    halo?.scale.setScalar(tuning.mk8.orbitRadius);
+    ring.forEach((item, k) => {
+      const copy = this.pool(MODEL_OF.get(item), SIZE.ring)?.next();
+      if (!copy) return;
+      const pose = escortPose('orbit', kart, k, ring.length, tick);
+      copy.position.set(pose.x, kart.position.y + TRAIL_HEIGHT, pose.z);
+      copy.rotation.set(0, time * 3 + k, 0);
+    });
   }
 
   private drawEntities(state: SimState, time: number): void {
@@ -277,7 +363,12 @@ export class Mk8ItemRenderer implements ItemRenderer {
   }
 
   /** A kart's held item, and any lightning bolt or Blooper on it. */
-  private drawKart(kart: KartState, time: number, model: THREE.Object3D | undefined): void {
+  private drawKart(
+    kart: KartState,
+    time: number,
+    model: THREE.Object3D | undefined,
+    tick: number,
+  ): void {
     const at = (x: number, y: number, z: number): THREE.Vector3 => {
       this.offset.set(x, y, z);
       // This frame's pose: the kart was just placed, and its matrix is only updated when drawn.
@@ -291,12 +382,21 @@ export class Mk8ItemRenderer implements ItemRenderer {
       flower?.position.copy(at(0, HELD_HEIGHT - SIZE.held / 2, 0));
       flower?.rotation.set(0, model?.rotation.y ?? kart.heading, 0);
     }
+    const plant = getEffect(kart, PIRANHA);
+    if (plant && kart.respawnTimer === 0) this.drawPiranha(kart, plant, at);
+    if (held === CRAZY8 && kart.respawnTimer === 0) this.drawCrazy8(kart, time, tick, at);
     // Our unique items (MK-115): their own MK8-style models, turning over the driver.
     const ours = held && kart.respawnTimer === 0 ? this.ourPool(held)?.next() : undefined;
     if (ours) {
       ours.position.copy(at(0, HELD_HEIGHT, 0));
       ours.rotation.set(0, (model?.rotation.y ?? kart.heading) + time * 2, 0);
-    } else if (held && MODEL_OF.has(held) && !ESCORTS.has(held) && kart.respawnTimer === 0) {
+    } else if (
+      held &&
+      MODEL_OF.has(held) &&
+      !ESCORTS.has(held) &&
+      !(held === PIRANHA && plant) &&
+      kart.respawnTimer === 0
+    ) {
       const trailing = TRAILING.has(held);
       const copy = this.pool(MODEL_OF.get(held), trailing ? SIZE.banana : SIZE.held)?.next();
       if (copy) {

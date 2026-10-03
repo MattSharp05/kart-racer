@@ -13,6 +13,9 @@ import { servePack } from './mk8';
 // the kart builder (`mk8-ui-kart`).
 
 const sounds = (page: Page) => page.evaluate(() => [...(window.__mk8?.sounds ?? [])]);
+/** The menus' sounds only: once a race starts, its HUD plays race sounds too (MK-127). */
+const menuSounds = async (page: Page) =>
+  (await sounds(page)).filter((id) => !id.startsWith('race/'));
 const chosenMode = (page: Page) => page.evaluate(() => window.__mk8?.flow?.mode);
 
 async function settled(page: Page, n: number) {
@@ -307,7 +310,7 @@ test.describe('MK8 engine class and cup/course select (MK-119)', () => {
       cup: 'mushroom',
       course: 'stadium',
     });
-    expect(await sounds(page)).toEqual([
+    expect(await menuSounds(page)).toEqual([
       'ui/cursor',
       'ui/decide',
       'ui/course-roulette',
@@ -364,7 +367,7 @@ test.describe('MK8 engine class and cup/course select (MK-119)', () => {
     });
     expect(await flow(page)).toMatchObject({ mode: 'vs', cup: 'mushroom', course: 'canyon' });
     // The refused tap on the locked cup makes no sound.
-    expect(await sounds(page)).toEqual([
+    expect(await menuSounds(page)).toEqual([
       'ui/course-roulette',
       'ui/course-roulette',
       'ui/decide',
