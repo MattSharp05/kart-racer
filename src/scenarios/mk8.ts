@@ -256,4 +256,39 @@ export const mk8Scenarios: Scenario[] = [
     defaultSeed: 1,
     setup: (seed) => ({ state: attractMode(seed), screen: 'mk8UiMode' }),
   },
+  ...(
+    [
+      [
+        'mk8-racers-lineup',
+        'mk8RacersLineup',
+        'MK8\'s 12 racers in a row in the Standard Kart, names underneath (MK-101). Needs a local pack; "not installed" without one.',
+      ],
+      [
+        'mk8-racer-motion',
+        'mk8RacerMotion',
+        'Mario in the Standard Kart running a loop of moves: leaning into turns, a jump and landing (squash, bob), a hit spin, a ramp trick and looking back at a shell (MK-101). Needs a local pack.',
+      ],
+      [
+        'mk8-lakitu-countdown',
+        'mk8LakituCountdown',
+        'Lakitu flies in with the start light: a red lamp each second, green, then he leaves; looping (MK-101). Needs a local pack.',
+      ],
+      [
+        'mk8-lakitu-lap',
+        'mk8LakituLap',
+        'Lakitu shows the lap sign, "2" then "FINAL LAP", looping (MK-101). Needs a local pack.',
+      ],
+      [
+        'mk8-lakitu-respawn',
+        'mk8LakituRespawn',
+        'Lakitu fishes a kart out: comes down, lifts it on his line, drops it; looping (MK-101). Needs a local pack.',
+      ],
+    ] as const
+  ).map(([name, screen, description]): Scenario => ({
+    name,
+    group: 'MK8 Mode',
+    description,
+    defaultSeed: 1,
+    setup: (seed) => ({ state: attractMode(seed), screen }),
+  })),
 ];

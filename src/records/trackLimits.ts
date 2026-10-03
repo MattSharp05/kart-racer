@@ -1,4 +1,4 @@
-import { racers } from '../content/racers';
+import { gameRacers } from '../content/racers';
 import { tracks } from '../content/tracks';
 import { routeInfos } from '../sim/routes';
 import { trackGeometry } from '../sim/track';
@@ -36,7 +36,7 @@ export interface TrackLimit {
 
 /** Top speed of the fastest racer in the fastest class, boosting, m/s. */
 export function fastestSpeed(): number {
-  const bestStat = Math.max(...racers.list().map((racer) => racer.stats.speed));
+  const bestStat = Math.max(...gameRacers().map((racer) => racer.stats.speed));
   const statFactor = 1 + (bestStat - STAT_MIDDLE) * tuning.stats.speedPerPoint;
   return (
     tuning.topSpeed[FASTEST_CLASS] * statFactor * Math.max(tuning.boostSpeed, tuning.starSpeed)

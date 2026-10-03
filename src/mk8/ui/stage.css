@@ -1,0 +1,46 @@
+/* MK8 Mode's model stage (MK-101): the 3D view fills the body; labels sit over it. */
+.mk8-stage-screen .mk8-body {
+  padding: 0;
+  overflow: hidden;
+}
+
+.mk8-stage {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.mk8-stage-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.mk8-stage-label {
+  position: absolute;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #14204ad9;
+  color: #fff;
+  font-size: clamp(10px, 1.6vw, 15px);
+  white-space: nowrap;
+  transform: translate(-50%, 6px) skewX(-8deg);
+  pointer-events: none;
+}
+
+.mk8-stage-caption {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  margin: 0;
+  padding: 6px 18px;
+  border-radius: 999px;
+  background: #14204ad9;
+  color: #fff;
+  font-size: clamp(14px, 2.4vw, 22px);
+  transform: translateX(-50%) skewX(-8deg);
+  white-space: nowrap;
+  pointer-events: none;
+}
