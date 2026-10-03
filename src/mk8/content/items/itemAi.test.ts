@@ -24,7 +24,7 @@ beforeAll(() => {
 function run(
   state: SimState,
   ticks: number,
-  each?: (s: SimState, events: readonly SimEvent[]) => boolean | void,
+  each?: (s: SimState, events: readonly SimEvent[]) => unknown,
 ) {
   const events: SimEvent[] = [];
   let s = state;
@@ -35,7 +35,7 @@ function run(
     );
     s = result.state;
     events.push(...result.events);
-    if (each?.(s, result.events)) break;
+    if (each?.(s, result.events) === true) break;
   }
   return { state: s, events };
 }

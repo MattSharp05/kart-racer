@@ -8,7 +8,10 @@ import {
   mk8Crazy8,
   mk8Piranha,
 } from '../../../scenarios/mk8/piranhaCrazy8';
+import { sunnyCircuit } from '../../../content/tracks/sunny-circuit/sim';
+import { lapGap } from '../../../sim/items/routeFollow';
 import { forwardFromHeading } from '../../../sim/math';
+import { trackGeometry } from '../../../sim/track';
 import { step } from '../../../sim/step';
 import { TICK_RATE, tuning } from '../../../sim/tuning';
 import { NEUTRAL_INPUT, type InputFrame, type SimEvent, type SimState } from '../../../sim/types';
@@ -103,9 +106,22 @@ describe('Piranha Plant (MK-126)', () => {
   it('AI drivers bring it out once, not again while it is out', () => {
     const { state } = press(piranhaVsKart(30));
     const aiUse = items.get(PIRANHA).aiUse!;
-    const ctx = {} as Parameters<typeof aiUse>[2];
-    expect(aiUse(mk8Piranha(1).karts[0]!, state, ctx)).toBe(true);
+    // MK-129: with a kart close ahead (the scenario's, 22 m on), or on giving up.
+    const geometry = trackGeometry(sunnyCircuit);
+    const ctx: Parameters<typeof aiUse>[2] = {
+      ai: { lineOffset: 0, skill: 1, aggression: 0, stuckTime: 0, recoverTime: 0 },
+      geometry,
+      straightAhead: () => 0,
+      aheadMetres: (from, to) => lapGap(from, to, geometry.length),
+      giveUp: false,
+    };
+    const fresh = mk8Piranha(1);
+    expect(aiUse(fresh.karts[0]!, fresh, ctx)).toBe(true);
     expect(aiUse(state.karts[0]!, state, ctx)).toBe(false);
+    const alone = mk8Piranha(1);
+    alone.karts = alone.karts.slice(0, 1);
+    expect(aiUse(alone.karts[0]!, alone, ctx)).toBe(false);
+    expect(aiUse(alone.karts[0]!, alone, { ...ctx, giveUp: true })).toBe(true);
   });
 
   it('leaves karts out of reach or behind alone', () => {
