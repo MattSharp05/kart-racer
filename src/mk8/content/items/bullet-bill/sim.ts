@@ -20,7 +20,19 @@ import {
   type LapFrame,
 } from '../../../../sim/items/routeFollow';
 import { kartTopSpeed } from '../../../../sim/kart';
-import { add, clamp, dot, headingOf, length, scale, sub, type Vec3 } from '../../../../sim/math';
+import {
+  add,
+  clamp,
+  cross,
+  dot,
+  forwardFromHeading,
+  headingOf,
+  length,
+  normalize,
+  scale,
+  sub,
+  type Vec3,
+} from '../../../../sim/math';
 import { raycastMesh, surfaceMask, wallContact } from '../../../../sim/meshTrack';
 import { routeGeometry } from '../../../../sim/route';
 import { TICK_RATE, tuning } from '../../../../sim/tuning';
@@ -123,14 +135,8 @@ function place(
   }
 }
 
-/** One tick of the bullet: on along the lap, onto the AI line, and through any kart it touches. */
-function ride(
-  kart: KartState,
-  effect: KartEffect,
-  state: SimState,
-  dt: number,
-  events: SimEvent[],
-): void {
+/** One tick of the bullet's ride: on along the lap and onto the AI line, on the road. */
+function ride(kart: KartState, effect: KartEffect, state: SimState, dt: number): void {
   const track = lapTrack(state);
   if (!track) return;
   const speed = bulletSpeed(state);
@@ -154,15 +160,29 @@ function ride(
     else if (ground && ground.surface !== 'offroad') kart.antigrav = false;
     kart.gravityDir = kart.antigrav ? scale(frame.up, -1) : { x: 0, y: -1, z: 0 };
   }
+}
 
+/**
+ * The bullet spins out every kart it touches, knocking it aside. An effect tick, so it runs with the
+ * other item hits after karts move (a client predicting only its own kart can't hit anyone there).
+ */
+function knockAside(kart: KartState, state: SimState, events: SimEvent[]): void {
+  const right = rightOfKart(kart);
   for (const other of state.karts) {
     if (other.id === kart.id || other.respawnTimer > 0 || isIntangible(other)) continue;
     if (length(sub(other.position, kart.position)) > tuning.mk8.bulletRadius) continue;
     if (tryHit(other, kart.id, BULLET, events, { from: kart.position }) !== 'hit') continue;
     // Knocked aside, away from the bullet's line.
-    const side = dot(sub(other.position, kart.position), frame.right) < 0 ? -1 : 1;
-    other.velocity = add(other.velocity, scale(frame.right, side * tuning.mk8.bulletKnock));
+    const side = dot(sub(other.position, kart.position), right) < 0 ? -1 : 1;
+    other.velocity = add(other.velocity, scale(right, side * tuning.mk8.bulletKnock));
   }
+}
+
+/** The kart's right: across its facing in its own plane (+Y up off mesh tracks). */
+function rightOfKart(kart: KartState): Vec3 {
+  const forward = kart.forward ?? forwardFromHeading(kart.heading);
+  const up = kart.up ?? { x: 0, y: 1, z: 0 };
+  return normalize(cross(forward, up));
 }
 
 /**
@@ -224,6 +244,7 @@ export default mk8ItemSim({
         endGlide(kart, events);
       },
       drive: ride,
+      onTick: (kart, _effect, state, _dt, events) => knockAside(kart, state, events),
       // Nothing hurts a bullet, and it doesn't bump karts: it goes through them, spinning them
       // out and knocking them aside (`ride`), rather than shoving them along in front of it.
       onHit: () => true,

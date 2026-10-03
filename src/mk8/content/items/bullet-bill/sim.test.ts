@@ -181,6 +181,19 @@ describe('Bullet Bill (MK-120)', () => {
     expect(hitsBy(ridden.events)).toContain(3);
   });
 
+  it('hits nobody in a client’s kart-only prediction step (the host decides hits)', () => {
+    let state = mk8BulletRide(1);
+    const events: SimEvent[] = [];
+    for (let i = 0; i < ticks(1); i += 1) {
+      const result = step(state, [NEUTRAL_INPUT], undefined, { only: 0 });
+      state = result.state;
+      events.push(...result.events);
+    }
+    // It rode past kart 3 (x 50) without hitting it.
+    expect(state.karts[0]!.position.x).toBeGreaterThan(55);
+    expect(hitsBy(events)).toEqual([]);
+  });
+
   it('keeps its place on the lap in the effect data (snapshots carry it)', () => {
     const fired = fire(mk8Bullet(1));
     const effect = run(fired.state, 30).state.karts[0]!.effects.find((e) => e.kind === BULLET)!;
