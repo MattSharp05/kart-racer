@@ -77,7 +77,7 @@ export function step(
     });
   }
   // Hazards (MK-49) push, spin or squash karts that touch them; their poses depend only on the tick.
-  if (hazards.length) updateHazards(next, hazards, events, only);
+  if (hazards.length) updateHazards(next, hazards, events, only, track.kind === 'mesh');
   // Karts being carried by the pickup drone don't collide. Simulating one kart, the others are
   // guesses: bumps with them are the host's to decide (MK-74), and arrive with its snapshots.
   if (only === undefined)

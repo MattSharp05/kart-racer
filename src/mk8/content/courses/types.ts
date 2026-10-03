@@ -1,4 +1,5 @@
 // An MK8 course's content (MK-105): what we author for it. Its model and collision are the pack's.
+import type { HazardDef } from '../../../sim/hazards/types';
 import type { RouteDef } from '../../../sim/route';
 import type { RouteSurfaceOptions } from '../../../sim/routeSurfaces';
 import type { SoundId } from '../../audio/soundIds';
@@ -14,6 +15,8 @@ export interface Mk8CourseContent {
   hiddenMaterials?: readonly string[];
   /** How the route corrects the pack's guessed surfaces beyond the defaults (MK-122). */
   surfaceRules?: RouteSurfaceOptions;
+  /** The course's hazards (MK-124: Thwomp Ruins' Thwomps), as on our own tracks (`sim/hazards`). */
+  hazards?: HazardDef[];
   /** Its light, sky, post-processing, water and ambience (MK-125); the plain look when absent. */
   look?: CourseLook;
 }

@@ -5,6 +5,7 @@
 // visited in index order and triangles in ascending order, ties go to the lower triangle.
 import type { Vec3 } from './math';
 import { MESH_SURFACES, type CollisionMesh, type MeshSurface } from './meshCollision';
+import type { HazardDef } from './hazards/types';
 import type { RouteDef } from './route';
 import { tuning } from './tuning';
 
@@ -22,6 +23,8 @@ export interface MeshTrackDef {
   kind: 'mesh';
   collision: CollisionMesh;
   route: RouteDef;
+  /** Hazards on the course (MK-124: Thwomp Ruins' Thwomps); poses a pure function of tick. */
+  hazards?: HazardDef[];
 }
 
 /** Bit mask of surfaces, for the `mask` argument of the queries. */
