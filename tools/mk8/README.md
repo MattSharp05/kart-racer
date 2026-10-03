@@ -13,8 +13,10 @@ Both are relative to the repo root unless absolute. Needs Node ≥ 22.18 (runs t
 
 ## Models (MK-93)
 
-1. For each entry in `sources.json`, extract its files into `$MK8_RAW/models/<id>/` (the OBJ with its
-   MTL and textures beside it; set `"obj"` on the entry if the folder has more than one OBJ).
+1. For each entry in `sources.json`, extract its files into `$MK8_RAW/models/<id>/` (the OBJ or DAE
+   with its textures beside it). A single `.dae` is used before a single `.obj` (COLLADA keeps the
+   skeleton; converted with `assimpjs`); set `"file"` on the entry when the folder has more than one.
+   The private `kart-racer-mk8-assets` repo's `unpack.py` does this for every source.
 2. `pnpm mk8:build` (`-- --only mario,water-park` for some; `-- --strict` fails if any are missing).
    Each model becomes `<id>.glb` + `<id>-low.glb` (WebP textures ≤ 1024 / 512 px, meshopt
    compression); courses become `models/courses/<id>/course.glb`, `course-low.glb` and

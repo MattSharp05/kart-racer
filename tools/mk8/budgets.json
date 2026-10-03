@@ -1,6 +1,6 @@
 {
-  "measured": false,
-  "note": "Targets from the tickets (ADR 0009: course 15 MB, all 90 MB; MK-95: ui 3 MB), not yet measured: set the real numbers once the raw files are provided. Bytes; group budgets match a manifest group exactly or by a trailing '*'.",
+  "measured": true,
+  "note": "Measured 2026-10-02 on the real Mushroom Cup pack (MK-93): courses 9.4\u201314.4 MB each (Stadium 14.40 MB, mostly its 7.55 MB collision.bin), all models 54.9 MB, ui 0.42 MB. The ticket targets (course 15 MB, all 90 MB, ui 3 MB, audio 15 MB) all hold, so they stay. Bytes; group budgets match a manifest group exactly or by a trailing '*'.",
   "totalBytes": 94371840,
   "groups": {
     "course/*": 15728640,
