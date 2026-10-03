@@ -13,6 +13,7 @@ for (const name of [
   'mk8-entry',
   'mk8-loading',
   'mk8-not-installed',
+  'mk8-ui-kit',
 ]) {
   test(`${name} (paused)`, async ({ page }) => {
     await loadScenario(page, name, { paused: true });

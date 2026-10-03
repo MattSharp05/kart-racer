@@ -53,6 +53,7 @@ const FIXED = {
   'ui/cursor': { pack: 'mk8dx-menu', file: 'cursor.wav' },
   'ui/decide': { pack: 'mk8dx-menu', file: 'decide.wav' },
   'ui/back': { pack: 'mk8dx-menu', file: 'back.wav' },
+  'ui/name-appear': { pack: 'mk8dx-menu', file: 'name-appear.wav' },
   'ui/course-roulette': { pack: 'mk8dx-menu', file: 'course-roulette.wav' },
 
   'race/countdown': { pack: 'mk8dx-race', file: 'countdown-321.wav' },

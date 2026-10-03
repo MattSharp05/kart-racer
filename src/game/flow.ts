@@ -308,6 +308,9 @@ export class Flow {
       case 'mk8':
         this.openMk8('load');
         break;
+      case 'mk8UiKit':
+        this.openMk8('ui-kit');
+        break;
       case 'leaderboard':
         // Over the title, so Back lands there (MK-56).
         game.setAutopilot(launch.localKartId, true);
@@ -375,7 +378,10 @@ export class Flow {
     const open = import('../mk8')
       .then((mk8) => {
         this.mk8Opening = false;
-        return mk8.start({ screens: this.screens, exit: this.showTitle }, mode);
+        return mk8.start(
+          { screens: this.screens, exit: this.showTitle, isMuted: () => this.sound.isMuted },
+          mode,
+        );
       })
       .catch((e: unknown) => {
         this.mk8Opening = false;
