@@ -1,5 +1,13 @@
 import { itemEffects } from '../../content/items/registries';
-import type { HitKind, KartEffect, KartState, SimEvent, SimState } from '../types';
+import {
+  NEUTRAL_INPUT,
+  type HitKind,
+  type InputFrame,
+  type KartEffect,
+  type KartState,
+  type SimEvent,
+  type SimState,
+} from '../types';
 
 /** A hit about to land on a kart (`hitKart`), as effects see it. */
 export interface IncomingHit {
@@ -60,6 +68,18 @@ export interface EffectContent {
    * in its own `data`, drawn from the seeded RNG. Players' karts ignore it.
    */
   aiDriving?(kart: KartState, effect: KartEffect): AiDriving;
+  /**
+   * While it lasts it moves the kart itself, in place of its physics and its driver (Bullet Bill,
+   * MK-120): `step` calls it instead of the kart step, and the kart's input that tick is ignored
+   * (its item button too, so nothing can be used meanwhile).
+   */
+  drive?(
+    kart: KartState,
+    effect: KartEffect,
+    state: SimState,
+    dt: number,
+    events: SimEvent[],
+  ): void;
   /** When it runs out or is ended with `endEffect`. */
   onExpire?(kart: KartState, effect: KartEffect, state: SimState, events: SimEvent[]): void;
 }
@@ -173,4 +193,28 @@ export function effectsAiDriving(kart: KartState): Required<AiDriving> {
     driving.lookAhead *= change.lookAhead ?? 1;
   }
   return driving;
+}
+
+/**
+ * Lets one of the kart's effects with a `drive` move it this tick (`step`, MK-120). When one does,
+ * the kart's input is replaced by a neutral one, and its item button counts as held, so neither a
+ * press now nor one held through the effect uses an item. True when an effect drove it.
+ */
+export function driveByEffect(
+  kart: KartState,
+  state: SimState,
+  dt: number,
+  events: SimEvent[],
+  inputs: InputFrame[],
+): boolean {
+  for (const effect of kart.effects) {
+    if (effect.ticksLeft <= 0) continue;
+    const drive = itemEffects.get(effect.kind).drive;
+    if (!drive) continue;
+    drive(kart, effect, state, dt, events);
+    inputs[kart.id] = { ...NEUTRAL_INPUT, item: inputs[kart.id]?.item ?? false };
+    kart.item.buttonHeld = true;
+    return true;
+  }
+  return false;
 }

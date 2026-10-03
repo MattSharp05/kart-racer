@@ -96,7 +96,10 @@ export class World {
   /** The track drawn now (MK-78: rebuilt when a race on another track loads). */
   private track!: DrawnTrack;
   /** Bananas, shells… one renderer per item renderer class (`src/content/items/<id>/render.ts`). */
-  private readonly itemRenderers: ItemRenderer[];
+  private readonly itemRenderers = new Map<
+    new (scene: THREE.Scene) => ItemRenderer,
+    ItemRenderer
+  >();
   /** Item skins' renderers (MK-103: MK8 races), made the first time a race with the skin shows. */
   private readonly skinRenderers = new Map<string, ItemRenderer>();
   private readonly aiDebug: AiDebugView | undefined;
@@ -128,7 +131,7 @@ export class World {
     this.effects = new Effects(this.scene, this.karts, this.chaseCamera);
     this.itemBoxes = new ItemBoxRenderer(this.scene);
     this.nameTags = new NameTags(this.scene);
-    this.itemRenderers = itemRendererClasses().map((Renderer) => new Renderer(this.scene));
+    this.addItemRenderers();
     this.aiDebug = options.aiDebug ? new AiDebugView(this.scene) : undefined;
     window.addEventListener('resize', () => this.markChanged());
 
@@ -212,7 +215,12 @@ export class World {
     const ticks = game.previousState.tick + (state.tick - game.previousState.tick) * game.alpha;
     this.track.hazards.sync(ticks, this.camera.position);
     this.track.update?.(ticks, this.camera.position);
-    for (const renderer of this.itemRenderers) renderer.sync(state, state.tick / 60);
+    // Item renderers may draw on a kart where it's drawn (MK-120: Bullet Bill).
+    this.addItemRenderers();
+    const kartModel = (id: number) => this.karts.kart(id);
+    for (const renderer of this.itemRenderers.values()) {
+      renderer.sync(state, state.tick / 60, kartModel);
+    }
     this.syncSkins(state);
     this.aiDebug?.sync(state);
     const followed = this.karts.kart(followId);
@@ -250,6 +258,14 @@ export class World {
     );
     this.onUpdate(frameSeconds);
     if (draw) this.renderer.render(this.scene, this.camera);
+  }
+
+  /** Makes a renderer for each item renderer class not made yet (MK8 items register later). */
+  private addItemRenderers(): void {
+    for (const Renderer of itemRendererClasses()) {
+      if (!this.itemRenderers.has(Renderer))
+        this.itemRenderers.set(Renderer, new Renderer(this.scene));
+    }
   }
 
   /** Draws the race's item skin (MK-103); skins made earlier hide themselves in other races. */

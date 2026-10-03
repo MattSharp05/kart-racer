@@ -5,6 +5,7 @@ import { updateKart } from './kart';
 import { updateRace } from './race';
 import { afterRace, beforeMovement } from './raceFlow';
 import { updateItems } from './items';
+import { driveByEffect } from './items/effects';
 import { isRespawning, updateRespawns } from './respawn';
 import { updateMeshKart } from './surfaceKart';
 import { getTrack } from './track';
@@ -58,6 +59,8 @@ export function step(
       coast(kart, dt);
       continue;
     }
+    // An effect may drive the kart itself (MK-120: Bullet Bill), ignoring its input.
+    if (driveByEffect(kart, next, dt, events, resolved)) continue;
     const input = kart.spinTimer > 0 ? NEUTRAL_INPUT : (resolved[kart.id] ?? NEUTRAL_INPUT);
     // Mesh tracks (MK-99, ADR 0011): surface-frame physics, so karts can drive walls and ceilings.
     if (track.kind === 'mesh') {
