@@ -37,6 +37,7 @@ import { raycastMesh, surfaceMask, wallContact } from '../../../../sim/meshTrack
 import { routeGeometry } from '../../../../sim/route';
 import { TICK_RATE, tuning } from '../../../../sim/tuning';
 import type { KartEffect, KartState, SimEvent, SimState } from '../../../../sim/types';
+import { positionOf } from '../../../../sim/race';
 import { mk8ItemSim } from '../sim';
 
 /** The item, and the effect that turns its user into the bullet. */
@@ -227,6 +228,9 @@ export default mk8ItemSim({
   onUse: (kart, state, events) => {
     applyEffect(kart, BULLET, Math.round(tuning.mk8.bulletTime * TICK_RATE), state, events);
   },
+  // AI (MK-129): fired from the back of the field (a catch-up item), or on giving up.
+  aiUse: (kart, state, { giveUp }) =>
+    positionOf(state, kart.id) > state.karts.length * tuning.mk8.aiBulletFrom || giveUp,
   effects: [
     {
       id: BULLET,

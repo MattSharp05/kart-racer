@@ -92,7 +92,9 @@ export function beforeMovement(
       const racing = state.phase === 'racing' || state.phase === 'finished';
       const drive = meshAiInput(kart, kart.ai, track, state.engineClass, racing);
       resolved[kart.id] =
-        state.phase === 'racing' ? { ...drive, ...meshAiItemInput(kart, kart.ai, state, track) } : drive;
+        state.phase === 'racing'
+          ? { ...drive, ...meshAiItemInput(kart, kart.ai, state, track) }
+          : drive;
     }
   }
   return { inputs: resolved, frozen: false };

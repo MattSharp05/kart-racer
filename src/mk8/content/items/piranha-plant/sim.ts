@@ -1,3 +1,4 @@
+import { kartsAlongLap } from '../../../../sim/ai/itemTactics';
 import { applyBoost } from '../../../../sim/drift';
 import { applyEffect, getEffect, isIntangible } from '../../../../sim/items/effects';
 import { canBeHit, tryHit } from '../../../../sim/items/hit';
@@ -148,8 +149,13 @@ export default mk8ItemSim({
     kart.item.held = PIRANHA;
     kart.item.uses = 1;
   },
-  // AI drivers bring it out once; pressing again while it's out does nothing.
-  aiUse: (kart) => !getEffect(kart, PIRANHA),
+  // AI drivers bring it out once (pressing again while it's out does nothing), with a kart close
+  // ahead to lunge at (MK-129), or on giving up.
+  aiUse: (kart, state, ctx) =>
+    !getEffect(kart, PIRANHA) &&
+    (ctx.giveUp ||
+      kartsAlongLap(kart, state, ctx, tuning.mk8.piranhaReach * tuning.mk8.aiPiranhaReaches, 1) >
+        0),
   effects: [
     {
       id: PIRANHA,

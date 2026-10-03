@@ -5,6 +5,7 @@ import { isIntangible } from '../../../../sim/items/effects';
 import { tryHit } from '../../../../sim/items/hit';
 import { TICK_RATE, tuning } from '../../../../sim/tuning';
 import type { Entity, ItemEntity, KartState, SimEvent, SimState } from '../../../../sim/types';
+import type { AiItemContext } from '../../../../sim/ai/items';
 import { escortDestroyed, isEscort } from '../escort';
 import { mk8ItemSim } from '../sim';
 import { SPINY, SPINY_BLAST } from '../spiny-shell/sim';
@@ -87,6 +88,32 @@ const waveSpec: EntitySpec = {
 };
 
 /**
+ * AI (MK-129): blown the moment a Spiny Shell is within reach (overhead or diving: destroyed, the
+ * user unhurt), and saved while one is on its way to this kart; otherwise blown into a crowd (at
+ * least `aiHornCrowd` karts or items within its reach), or on giving up.
+ */
+export function hornAiUse(kart: KartState, state: SimState, { giveUp }: AiItemContext): boolean {
+  const r = tuning.mk8.hornRadius;
+  const spinies = state.entities.filter(
+    (e): e is ItemEntity => e.kind === 'item' && e.spec === SPINY,
+  );
+  if (spinies.some((e) => distance(e.position, kart.position) <= r * tuning.mk8.aiHornSpinyShare)) {
+    return true;
+  }
+  if (spinies.some((e) => e.targetId === kart.id)) return false;
+  const karts = state.karts.filter(
+    (other) =>
+      other.id !== kart.id &&
+      other.respawnTimer <= 0 &&
+      distance(other.position, kart.position) <= r,
+  ).length;
+  const things = state.entities.filter(
+    (e) => e.kind === 'item' && breakable(e, kart) && distance(e.position, kart.position) <= r,
+  ).length;
+  return karts + things >= tuning.mk8.aiHornCrowd || giveUp;
+}
+
+/**
  * Super Horn (MK-113): a shockwave round the user. Karts within `tuning.mk8.hornRadius` spin out
  * and items that close are destroyed, a Spiny Shell among them: timed while it's within reach
  * (overhead, or diving on the user), it never explodes and the user is unhurt. Its look is in
@@ -97,5 +124,6 @@ export default mk8ItemSim({
   name: 'Super Horn',
   order: 370,
   onUse: (kart, state, events) => hornBlast(kart, state, events),
+  aiUse: hornAiUse,
   entities: [waveSpec],
 });

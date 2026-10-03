@@ -1,3 +1,4 @@
+import { bananaTactic } from '../../../../sim/ai/itemTactics';
 import { useBanana } from '../../../../sim/items/banana';
 import { escorts } from '../escort';
 import { mk8ItemSim } from '../sim';
@@ -14,5 +15,8 @@ export default mk8ItemSim({
   order: 330,
   uses: TRIPLE_USES,
   onUse: (kart, state, _events, input) => useBanana(kart, state, input),
+  // AI (MK-129): held trailing behind (each stops a hit) until a kart comes up close behind, then
+  // one is dropped in its way.
+  aiUse: bananaTactic,
   ...escorts('triple-banana', 'trail'),
 });
