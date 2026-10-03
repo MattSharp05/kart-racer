@@ -20,7 +20,9 @@ describe('MK8 course scenarios (MK-99, MK-105)', () => {
     const onRamp = ['mk8-ui-pause', 'mk8-ui-results', 'mk8-ui-standings'];
     const onCourse = mk8Scenarios
       .filter(
-        (s) => /^mk8-(stadium-|test-|item-bullet|hud-|gp-)/.test(s.name) || onRamp.includes(s.name),
+        (s) =>
+          /^mk8-(stadium-|waterpark-|gp-|test-|item-bullet|hud-)/.test(s.name) ||
+          onRamp.includes(s.name),
       )
       .map((s) => s.name);
     const withCourse = mk8Scenarios.filter((s) => s.mk8Course !== undefined).map((s) => s.name);

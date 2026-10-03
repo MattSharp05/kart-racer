@@ -10,7 +10,7 @@ A cup's races one after another for points, then the podium.
   The grid is the reverse of the standings (you start last in race 1).
 - Courses are data-driven: `gpCourses(cup)` keeps the cup's courses that have drivable content
   (`src/mk8/content/courses/`), so courses not merged yet are skipped and a cup runs from its first
-  course on (today only Mario Kart Stadium: a one-race cup). The cup select tags the skipped ones
+  course on (Mario Kart Stadium and, since MK-122, Water Park). The cup select tags the skipped ones
   "Not installed" in a Grand Prix.
 - `trophies.ts`: the best trophy per cup and engine class, in its own storage key
   (`kart-racer:mk8-trophies`); the cup select shows it as a badge on the cup.

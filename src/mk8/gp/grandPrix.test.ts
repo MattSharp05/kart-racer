@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { racers } from '../../content/racers';
 import { tracks } from '../../content/tracks';
 import { createRace } from '../../sim/race/createRace';
+import { MK8_COURSES } from '../content/courses';
 import { MUSHROOM_COURSES } from '../content/cups';
 import { defaultLoadout } from '../content/parts';
 import { MK8_RACERS } from '../content/racers';
@@ -58,8 +59,11 @@ describe('Grand Prix field (MK-130)', () => {
       'canyon',
       'ruins',
     ]);
-    // Today only Mario Kart Stadium is drivable (MK-105): a one-race cup.
-    expect(gpCourses('mushroom')).toEqual(['stadium']);
+    // By default, the courses with content (MK-105's Stadium first, the rest as they land).
+    const drivable = new Set(MK8_COURSES.map((c) => c.packId));
+    const expected = MUSHROOM_COURSES.filter((c) => drivable.has(c.pack)).map((c) => c.key);
+    expect(gpCourses('mushroom')).toEqual(expected);
+    expect(expected[0]).toBe('stadium');
     // None drivable: every course, on its stand-in.
     expect(gpCourses('mushroom', () => false)).toEqual(ALL);
   });
@@ -135,7 +139,7 @@ describe('Grand Prix race setup (MK-130)', () => {
     registerMk8Content();
     const setup = raceSetup({ mode: 'grand-prix', cup: 'mushroom', engineClass: 100 });
     expect(setup.course).toBe('stadium');
-    expect(setup.gp?.courses).toEqual(['stadium']);
+    expect(setup.gp?.courses).toEqual(gpCourses('mushroom'));
     expect(setup.field).toHaveLength(GP_FIELD);
     expect(setup.field?.[0]).toMatchObject({ controller: 'local', gridSlot: 7 });
     for (const [i, slot] of (setup.field ?? []).entries()) {
