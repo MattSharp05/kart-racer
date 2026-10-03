@@ -215,6 +215,27 @@ describe('gliding off the test ramp (MK-106)', () => {
   });
 });
 
+describe('hopping off the glide ramp (MK-106)', () => {
+  it('a hop just before the lip still opens the glider and clears the gap', () => {
+    let s = runUp();
+    const events: SimEvent[] = [];
+    let hopped = false;
+    for (let i = 0; i < 400; i += 1) {
+      const k = kart0(s);
+      const drift = !hopped && k.grounded && k.position.x > L.glide.to - 2;
+      if (drift) hopped = true;
+      const r = step(s, [{ ...NEUTRAL_INPUT, throttle: 1, drift }]);
+      s = r.state;
+      events.push(...r.events);
+      if (hopped && kart0(s).grounded && kart0(s).position.x > L.gap.from) break;
+    }
+    expect(count(events, 'hop')).toBe(1);
+    expect(count(events, 'glideOpen')).toBe(1);
+    expect(count(events, 'respawn')).toBe(0);
+    expect(kart0(s).position.x).toBeGreaterThan(L.gap.to);
+  });
+});
+
 describe('without a glide ramp (MK-106 regression)', () => {
   it('a ramp jump falls with normal gravity and never opens a glider', () => {
     const f = fly(runUp(PLAIN_ID), () => ({ throttle: 1 }));
@@ -263,6 +284,30 @@ describe('ending a glide (MK-106)', () => {
     const next = step(s, [{ ...NEUTRAL_INPUT, throttle: 1 }]).state;
     if (!kart0(next).grounded)
       expect(kart0(next).velocity.y - vy).toBeCloseTo(-tuning.gravity * DT, 6);
+  });
+
+  it('a wall ending a long glide times the fall from the wall, not the launch', () => {
+    const state = createSimState({
+      seed: 1,
+      trackId: TEST_RAMP_ID,
+      engineClass: 150,
+      itemsOn: false,
+      karts: [{ position: { x: 135, y: 1, z: 9.5 }, heading: ALONG_A }],
+    });
+    const k = kart0(state);
+    k.grounded = false;
+    k.airTime = tuning.mk8.fallSeconds + 0.5;
+    k.glide = { time: k.airTime, pitch: 0 };
+    k.velocity = { x: 20, y: 0, z: 12 };
+    let s = state;
+    const events: SimEvent[] = [];
+    for (let i = 0; i < 20; i += 1) {
+      const r = step(s, [{ ...NEUTRAL_INPUT, throttle: 1 }]);
+      s = r.state;
+      events.push(...r.events);
+    }
+    expect(count(events, 'glideClose')).toBe(1);
+    expect(count(events, 'respawn')).toBe(0);
   });
 
   it('a long glide is not a fall until `glide.fallSeconds`', () => {

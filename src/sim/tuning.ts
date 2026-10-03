@@ -235,6 +235,13 @@ export const tuning = {
       upTurnRate: 6,
       /** A glide this long without landing counts as falling off the course, s. */
       fallSeconds: 8,
+      /**
+       * A kart hopping off a glide ramp's lip glides too: in the air for less than this (a hop
+       * lasts about a third of a second), with no ground within `lipReach` m under its centre and
+       * glide ramp under its rear axle, s.
+       */
+      hopGrace: 0.6,
+      lipReach: 2,
     },
     /**
      * How a loadout's MK8 stats (0.75–5.75, `mk8/content/stats.ts`) become physics (MK-102), like
