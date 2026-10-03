@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { tracks } from '../../../../content/tracks';
-import { createSimState, type KartSpawn } from '../../../../sim/state';
+import { BULLET_ITEM, mk8Bullet, mk8BulletRide } from '../../../../scenarios/mk8/bulletBill';
 import { step } from '../../../../sim/step';
 import { getTrack } from '../../../../sim/track';
 import { groundAt, type MeshTrackDef } from '../../../../sim/meshTrack';
@@ -16,7 +16,6 @@ import { registerMk8Content } from '../../../register';
 import { testRampTrack } from '../../courses/test-ramp';
 import { TEST_RAMP_LAYOUT } from '../../courses/test-ramp';
 import { registerTestRamp } from '../../courses/test-ramp/register';
-import { MK8_ITEM_SET } from '../id';
 import { BULLET, BulletData, isBullet } from './sim';
 
 /** A copy of the test ramp whose route climbs the tunnel's anti-gravity wall and comes back down. */
@@ -46,45 +45,7 @@ beforeAll(() => {
   tracks.register({ id: WALL_ID, name: 'Wall ramp', order: 1001, def, testOnly: true });
 });
 
-/** Heading along +X (straights A and E). */
-const EAST = -Math.PI / 2;
 const ticks = (seconds: number) => Math.round(seconds * TICK_RATE);
-
-/** A kart parked on straight A/E at `x`, `lateral` m right of the centreline (+Z there). */
-const parked = (x: number, lateral = 0): KartSpawn => ({
-  position: { x, y: 0, z: lateral },
-  heading: EAST,
-});
-
-/**
- * An 8-kart race on the test ramp (150cc, MK8 items): the player last, at x = −30 on E, holding a
- * Bullet Bill; four karts parked in its path along the centreline (x −10, 10, 50 in the tunnel,
- * 130 past the gap), one beside it out of reach and two far ahead round turn B.
- */
-function bulletRace(trackId = 'mk8-test-ramp'): SimState {
-  const state = createSimState({
-    seed: 1,
-    trackId,
-    engineClass: 150,
-    phase: 'racing',
-    itemSet: MK8_ITEM_SET,
-    itemSlots: 2,
-    karts: [
-      parked(-30, 3),
-      parked(-10),
-      parked(10),
-      parked(50),
-      parked(130),
-      parked(20, -6),
-      { position: { x: 160, y: 0, z: 80 }, heading: Math.PI / 2 },
-      { position: { x: 120, y: 0, z: 80 }, heading: Math.PI / 2 },
-    ],
-  });
-  const player = state.karts[0]!;
-  player.item.held = BULLET;
-  player.item.uses = 1;
-  return state;
-}
 
 /** Steps `n` ticks, the player with `input`, everyone else idle; collects events. */
 function run(state: SimState, n: number, input: Partial<InputFrame> = {}) {
@@ -112,8 +73,12 @@ const hitsBy = (events: SimEvent[]) =>
   events.flatMap((e) => (e.type === 'kartHit' && e.kind === BULLET ? [e.kartId] : []));
 
 describe('Bullet Bill (MK-120)', () => {
+  it('keeps the scenarios’ copy of its id in step', () => {
+    expect(BULLET_ITEM).toBe(BULLET);
+  });
+
   it('rides the route from last place, hitting the karts in its path', () => {
-    const fired = fire(bulletRace());
+    const fired = fire(mk8Bullet(1));
     expect(isBullet(fired.state.karts[0]!)).toBe(true);
     // Steering and braking are ignored: it rides on regardless.
     const ridden = run(fired.state, ticks(tuning.mk8.bulletTime), { steer: 1, brake: 1 });
@@ -128,7 +93,7 @@ describe('Bullet Bill (MK-120)', () => {
   });
 
   it("can't be hit, and blocks using the second item meanwhile", () => {
-    const fired = fire(bulletRace());
+    const fired = fire(mk8Bullet(1));
     const s = fired.state;
     s.karts[0]!.item.held = 'mushroom';
     s.karts[0]!.item.uses = 1;
@@ -144,7 +109,7 @@ describe('Bullet Bill (MK-120)', () => {
   });
 
   it('follows the anti-gravity wall without falling off', () => {
-    let { state } = fire(bulletRace(WALL_ID));
+    let { state } = fire(mk8Bullet(1, WALL_ID));
     let onWall = 0;
     let lowest = Infinity;
     for (let i = 0; i < ticks(3); i += 1) {
@@ -171,7 +136,7 @@ describe('Bullet Bill (MK-120)', () => {
 
   it('flies over the gap, and ending there leaves the kart on the road beyond it', () => {
     const { gap } = TEST_RAMP_LAYOUT;
-    let { state } = fire(bulletRace());
+    let { state } = fire(mk8Bullet(1));
     while (state.karts[0]!.position.x < (gap.from + gap.to) / 2) state = run(state, 1).state;
     const over = state.karts[0]!;
     expect(over.respawnTimer).toBe(0);
@@ -197,7 +162,7 @@ describe('Bullet Bill (MK-120)', () => {
   });
 
   it('ends on the road where it is when that is safe, with control back', () => {
-    const fired = fire(bulletRace());
+    const fired = fire(mk8Bullet(1));
     const ridden = run(fired.state, ticks(tuning.mk8.bulletTime) + 1);
     const kart = ridden.state.karts[0]!;
     expect(isBullet(kart)).toBe(false);
@@ -207,8 +172,17 @@ describe('Bullet Bill (MK-120)', () => {
     expect(braked.state.karts[0]!.speed).toBeLessThan(kart.speed / 2);
   });
 
+  it('rides on from the mid-ride scenario', () => {
+    const start = mk8BulletRide(1);
+    const ridden = run(start, ticks(1));
+    const kart = ridden.state.karts[0]!;
+    expect(isBullet(kart)).toBe(true);
+    expect(kart.position.x).toBeGreaterThan(start.karts[0]!.position.x + 40);
+    expect(hitsBy(ridden.events)).toContain(3);
+  });
+
   it('keeps its place on the lap in the effect data (snapshots carry it)', () => {
-    const fired = fire(bulletRace());
+    const fired = fire(mk8Bullet(1));
     const effect = run(fired.state, 30).state.karts[0]!.effects.find((e) => e.kind === BULLET)!;
     expect(effect.data[BulletData.s]).toBeGreaterThan(0);
     expect(effect.data).toHaveLength(2);

@@ -10,6 +10,7 @@ import { itemViews, registerItemView, type ItemView } from '../../../content/ite
 import { itemSkins } from '../../../render/itemSkins';
 import { MK8_ITEM_BOX_MODEL, MK8_ITEM_SET, MK8_ITEMS } from '../../content/items';
 import bobomb from '../../content/items/bob-omb/render';
+import bulletBill from '../../content/items/bullet-bill/render';
 import fireFlower from '../../content/items/fire-flower/render';
 import goldenMushroom from '../../content/items/golden-mushroom/render';
 import spinyShell from '../../content/items/spiny-shell/render';
@@ -36,6 +37,7 @@ export const MK8_ITEM_VIEWS: readonly ItemView[] = [
   superHorn,
   bobomb,
   fireFlower,
+  bulletBill,
 ];
 
 /** Every pack model MK8 items use. */

@@ -212,7 +212,9 @@ export class World {
     const ticks = game.previousState.tick + (state.tick - game.previousState.tick) * game.alpha;
     this.track.hazards.sync(ticks, this.camera.position);
     this.track.update?.(ticks, this.camera.position);
-    for (const renderer of this.itemRenderers) renderer.sync(state, state.tick / 60);
+    // Item renderers may draw on a kart where it's drawn (MK-120: Bullet Bill).
+    const kartModel = (id: number) => this.karts.kart(id);
+    for (const renderer of this.itemRenderers) renderer.sync(state, state.tick / 60, kartModel);
     this.syncSkins(state);
     this.aiDebug?.sync(state);
     const followed = this.karts.kart(followId);
