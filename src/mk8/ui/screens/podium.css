@@ -1,0 +1,106 @@
+/* MK8 Grand Prix podium (MK-130), after the mockup's screen 10: the 3D podium fills the body over
+   the award background; your place and trophy in a yellow banner at the top left; the top 3's
+   slanted nameplates under their steps (2nd, 1st, 3rd). Mockup px × --u. */
+
+.mk8-scr.mk8-scr-podium {
+  background: var(--mk8-podium-bg, linear-gradient(180deg, #3d6fe0, #1d3a95)) center / cover;
+}
+
+.mk8 .mk8-body.mk8-podium {
+  position: relative;
+  min-height: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+.mk8-podium-stage,
+.mk8-podium-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.mk8-podium-canvas {
+  display: block;
+}
+
+.mk8-podium-names {
+  position: absolute;
+  right: 0;
+  bottom: calc(14 * var(--u));
+  left: 0;
+  display: grid;
+  grid-template-columns: repeat(3, calc(300 * var(--u)));
+  justify-content: center;
+  gap: calc(40 * var(--u));
+  pointer-events: none;
+}
+
+.mk8-podium-name {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  column-gap: calc(12 * var(--u));
+  padding: calc(6 * var(--u)) calc(18 * var(--u));
+  border-radius: calc(12 * var(--u));
+  background: linear-gradient(180deg, #fff, #e5eaf4);
+  box-shadow: 0 3px 0 var(--mk8-shadow);
+  color: var(--mk8-navy);
+  transform: skewX(var(--mk8-slant));
+}
+
+.mk8-podium-name:empty {
+  visibility: hidden;
+}
+
+.mk8-podium-name.is-you {
+  background: linear-gradient(180deg, #fff7c2, var(--mk8-yellow));
+}
+
+.mk8-podium-name b {
+  grid-row: span 2;
+  color: var(--mk8-blue);
+  font-size: max(16px, calc(34 * var(--u)));
+  font-weight: 900;
+}
+
+.mk8-podium-name span {
+  overflow: hidden;
+  font-size: max(13px, calc(26 * var(--u)));
+  font-weight: 900;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mk8-podium-name small {
+  font-size: max(11px, calc(18 * var(--u)));
+  font-weight: 800;
+}
+
+.mk8-podium-rank {
+  position: absolute;
+  top: calc(18 * var(--u));
+  left: calc(40 * var(--u));
+  display: flex;
+  align-items: baseline;
+  gap: calc(16 * var(--u));
+  padding: calc(8 * var(--u)) calc(28 * var(--u));
+  border-radius: calc(14 * var(--u));
+  background: linear-gradient(180deg, #fff7c2, var(--mk8-yellow));
+  box-shadow: 0 4px 0 var(--mk8-yellow-deep);
+  color: var(--mk8-navy);
+  transform: skewX(var(--mk8-slant));
+  pointer-events: none;
+}
+
+.mk8-podium-rank b {
+  color: var(--mk8-red);
+  font-size: max(24px, calc(56 * var(--u)));
+  font-weight: 900;
+}
+
+.mk8-podium-rank span {
+  font-size: max(14px, calc(28 * var(--u)));
+  font-weight: 900;
+}

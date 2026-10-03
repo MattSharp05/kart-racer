@@ -564,6 +564,7 @@ export class Flow {
       trackId: setup.trackId,
       itemSet: setup.itemSet,
       ...(setup.raceLoadout ? { playerLoadout: setup.raceLoadout } : {}),
+      ...(setup.field ? { racers: setup.field } : {}),
     });
     this.world.reset('chase', this.session.localKartId);
     this.session.game.resume();
@@ -726,6 +727,7 @@ export class Flow {
         onContinue: resume,
         onRestart: this.startRace,
         onQuit: this.quitToMk8,
+        mode: this.mk8RaceStart,
       }),
     );
   }
@@ -745,6 +747,7 @@ export class Flow {
           onNext: this.startMk8Race,
           onRetry: this.startRace,
           onQuit: this.quitToMk8,
+          store: this.store,
         },
       ),
     );
