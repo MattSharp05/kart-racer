@@ -182,12 +182,6 @@
       "group": "items"
     },
     {
-      "path": "models/items/coin.glb",
-      "bytes": 5292,
-      "sha256": "ba46944047b01da33fa26cd3d41dcd17540813467327437125b86983ab9fa18a",
-      "group": "items"
-    },
-    {
       "path": "models/items/golden-mushroom.glb",
       "bytes": 12748,
       "sha256": "723108643e333b7f823c4fccd14e44087ffcb8cfd2d596672aa2fd0669d89bc8",
@@ -215,12 +209,6 @@
       "path": "models/items/mushroom.glb",
       "bytes": 12744,
       "sha256": "35d9cc165987ea6c30cfe99f5c3e2d10a29e2bbe1c29758cd7a70c974362241b",
-      "group": "items"
-    },
-    {
-      "path": "models/items/piranha-plant.glb",
-      "bytes": 3600,
-      "sha256": "f221e185a54e4ee5e818e8046be1afd8974ba1554623848bf4366b5e21e123ee",
       "group": "items"
     },
     {

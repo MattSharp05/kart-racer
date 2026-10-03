@@ -7,12 +7,13 @@ import { decodeCollision, type CollisionMesh, type MeshTrackDef } from '../../..
 import type { RouteDef } from '../../../sim/route';
 import { routeSurfaces } from '../../../sim/routeSurfaces';
 import marioKartStadium from './mario-kart-stadium';
+import waterPark from './water-park';
 import type { Mk8CourseContent } from './types';
 
 export type { Mk8CourseContent } from './types';
 
 /** Every drivable MK8 course, in cup order. */
-export const MK8_COURSES: readonly Mk8CourseContent[] = [marioKartStadium];
+export const MK8_COURSES: readonly Mk8CourseContent[] = [marioKartStadium, waterPark];
 
 /** Registry order of MK8 courses (after our tracks; they're offered only by MK8 Mode's menus). */
 const ORDER = 900;
@@ -32,7 +33,8 @@ export function courseTrack(
   collision: CollisionMesh,
   route: RouteDef = course.route,
 ): MeshTrackDef {
-  return { id: course.trackId, kind: 'mesh', collision: routeSurfaces(collision, route), route };
+  const collisionByRoute = routeSurfaces(collision, route, course.surfaceRules);
+  return { id: course.trackId, kind: 'mesh', collision: collisionByRoute, route };
 }
 
 /**

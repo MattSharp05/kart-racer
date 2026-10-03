@@ -58,7 +58,7 @@ const scenarios: Scenario[] = [
     name: 'mk8-race-all-items',
     group: 'MK8 Mode',
     description:
-      'Watch 8 AI race on the MK8 test ramp (MK-129, no pack needed), each starting with two MK8 items handed out in rotation (seed 1: the first 16 of the 26, seed 2: the rest and round again). The camera follows the 5th kart. Listen for each item’s MK8 sound (the pack’s with one, our synth without).',
+      'Watch 8 AI race on the MK8 test ramp (MK-129, no pack needed), each starting with two MK8 items handed out in rotation (seed 1: the first 16 in roulette order, seed 2: the next 16, round and round). The camera follows the 5th kart. Listen for each item’s MK8 sound (the pack’s with one, our synth without).',
     defaultSeed: 1,
     mk8Course: TEST_RAMP.id,
     setup: (seed) => {

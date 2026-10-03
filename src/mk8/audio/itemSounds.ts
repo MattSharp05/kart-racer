@@ -55,6 +55,7 @@ export const ITEM_SOUNDS: Readonly<Record<string, ItemSounds>> = {
   'bob-omb': { use: 'items/shell-throw', hit: null, fx: { explode: 'items/bob-omb-explode' } },
   'fire-flower': { use: 'items/fire-flower-shoot', hit: 'items/shell-hit' },
   'bullet-bill': { use: 'items/bullet-bill-use', hit: 'items/shell-hit' },
+  // MK-126's items (in MK8's odds table; their sims come back with MK-126).
   coin: { use: 'items/coin-get', hit: null },
   'piranha-plant': {
     use: SYNTH,

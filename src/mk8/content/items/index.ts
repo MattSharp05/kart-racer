@@ -11,13 +11,10 @@
 import type { ItemContent, ItemSetContent } from '../../../content/items';
 import bobomb from './bob-omb/sim';
 import bulletBill from './bullet-bill/sim';
-import coin from './coin/sim';
-import crazy8 from './crazy-8/sim';
 import fireFlower from './fire-flower/sim';
 import goldenMushroom from './golden-mushroom/sim';
 import { MK8_ITEM_SET } from './id';
 import { MK8_ODDS } from './odds';
-import piranhaPlant from './piranha-plant/sim';
 import spinyShell from './spiny-shell/sim';
 import superHorn from './super-horn/sim';
 import tripleBanana from './triple-banana/sim';
@@ -86,11 +83,6 @@ export const MK8_ITEMS: readonly Mk8Item[] = [
   { id: 'bubble-shield', model: null, icon: ourIcon('bubble-shield') },
   { id: 'magnet', model: null, icon: ourIcon('magnet') },
   { id: 'phase', model: null, icon: ourIcon('phase') },
-  // MK-126: the Piranha Plant, the coin item and Crazy 8 (no pack model: a glowing "8", its ring
-  // drawn with the other items' models).
-  { id: 'piranha-plant', sim: piranhaPlant, model: 'piranha-plant', icon: 'i_piranha' },
-  { id: 'coin', sim: coin, model: 'coin', icon: 'i_coin' },
-  { id: 'crazy-8', sim: crazy8, model: null, icon: 'i_crazy8' },
 ];
 
 /** The item box's pack model. */

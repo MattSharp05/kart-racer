@@ -23,9 +23,4 @@ export const mk8ItemAiTuning = {
    */
   aiBulletGap: 60,
   aiBulletFrom: 0.5,
-  /**
-   * Piranha Plant: brought out when a kart is within this many times its reach ahead (it lasts
-   * `piranhaTime` s: time to catch up).
-   */
-  aiPiranhaReaches: 6,
 };

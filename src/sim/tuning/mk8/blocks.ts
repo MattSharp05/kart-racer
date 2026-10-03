@@ -9,5 +9,4 @@ export { mk8StatMapTuning } from './statMap';
 export { mk8SurfaceKartTuning } from './surfaceKart';
 export { mk8BulletBillTuning } from './bulletBill';
 export { mk8UnderwaterTuning } from './underwater';
-export { mk8PiranhaCrazy8Tuning } from './piranhaCrazy8';
 export { mk8ItemAiTuning } from './itemAi';
