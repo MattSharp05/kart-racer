@@ -8,6 +8,18 @@
       "group": "audio/ui"
     },
     {
+      "path": "audio/voice/mario/fixture-select.m4a",
+      "bytes": 7535,
+      "sha256": "ceaa45bde8f7a8e0e2a8ac82bbe5faf2908a077cfa5efd2e7c584c0d78512e4d",
+      "group": "audio/voice/mario"
+    },
+    {
+      "path": "audio/voices.json",
+      "bytes": 76,
+      "sha256": "102e59eade7f00c7f6facaef74e2ebe6d46d13fdd606f332dccf46a9ad9c018a",
+      "group": "audio/voice"
+    },
+    {
       "path": "models/items/banana.glb",
       "bytes": 11124,
       "sha256": "e5820e3566da60ff5cf2322485dfeb58a80de66f408da4c2023cbaa1aeba8c12",

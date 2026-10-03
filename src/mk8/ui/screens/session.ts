@@ -1,5 +1,6 @@
 // What MK8 Mode's menus have chosen so far (MK-116): the screens write it as the player goes and
 // later screens (character select, cups, the race) read it. Tests read it via `window.__mk8.flow`.
+import type { KeyValueStore } from '../../../game/storage/store';
 import type { EngineClass } from '../../../sim/tuning';
 import type { Mk8CourseKey, Mk8CupId } from '../../content/cups';
 import type { Mk8RaceSetup } from '../../flow';
@@ -32,8 +33,8 @@ export function modeInfo(id: Mk8GameMode): (typeof MK8_MODES)[number] {
 }
 
 /**
- * The player's kart (TDD v3 → Loadout): racer, body, tires and glider. Character select and the
- * kart builder fill it in; until they exist it is the default one.
+ * The player's kart (TDD v3 → Loadout): racer, body, tires and glider. Character select (MK-117)
+ * and the kart builder fill it in; until then it is the default one.
  */
 export interface Mk8Loadout {
   racer: string;
@@ -62,4 +63,15 @@ export interface Mk8Context {
   loadCourse(course: Mk8CourseKey, onProgress: (fraction: number) => void): Promise<void>;
   /** Leaves the menus for the race. */
   startRace(setup: Mk8RaceSetup): void;
+  /** A loaded pack file's bytes (MK-117: the 3D portrait's models); undefined when not loaded. */
+  packFile(path: string): ArrayBuffer | undefined;
+  /** Whether 3D stages hold still (tests, `&paused=1`): only their `step` moves them. */
+  frozen: boolean;
+  /**
+   * Loads the character select's racer models and select voice lines (MK-117), racer `first`
+   * (its model id) first: `onFirst` runs once its files are in. Rejects without a pack.
+   */
+  loadCharacters(first: string, onFirst?: () => void): Promise<void>;
+  /** Where MK8 Mode remembers picks (MK-117: the last racer). */
+  store: KeyValueStore;
 }

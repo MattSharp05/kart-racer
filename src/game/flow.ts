@@ -335,6 +335,9 @@ export class Flow {
       case 'mk8UiMode':
         this.openMk8('mode');
         break;
+      case 'mk8UiChar':
+        this.openMk8('char');
+        break;
       case 'mk8UiCc':
         this.openMk8('cc');
         break;
@@ -422,6 +425,7 @@ export class Flow {
             exit: this.showTitle,
             isMuted: () => this.sound.isMuted,
             startRace: this.startMk8Race,
+            store: this.store,
           },
           mode,
         );
