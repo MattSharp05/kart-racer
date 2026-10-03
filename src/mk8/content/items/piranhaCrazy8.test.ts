@@ -93,6 +93,21 @@ describe('Piranha Plant (MK-126)', () => {
     );
   });
 
+  it("doesn't lunge while its kart is spun out", () => {
+    const state = piranhaVsKart(3);
+    state.karts[0]!.spinTimer = 1;
+    const { events } = press(state);
+    expect(events.some((e) => e.type === 'kartHit' || e.type === 'boost')).toBe(false);
+  });
+
+  it('AI drivers bring it out once, not again while it is out', () => {
+    const { state } = press(piranhaVsKart(30));
+    const aiUse = items.get(PIRANHA).aiUse!;
+    const ctx = {} as Parameters<typeof aiUse>[2];
+    expect(aiUse(mk8Piranha(1).karts[0]!, state, ctx)).toBe(true);
+    expect(aiUse(state.karts[0]!, state, ctx)).toBe(false);
+  });
+
   it('leaves karts out of reach or behind alone', () => {
     for (const ahead of [tuning.mk8.piranhaReach + 2, -3]) {
       const { state, events } = press(piranhaVsKart(ahead));

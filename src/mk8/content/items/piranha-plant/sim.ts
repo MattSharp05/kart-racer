@@ -110,7 +110,8 @@ function piranhaTick(
   d[PIRANHA_DATA.since] = (d[PIRANHA_DATA.since] ?? NEVER) + 1;
   const cooldown = Math.max(0, (d[PIRANHA_DATA.cooldown] ?? 0) - 1);
   d[PIRANHA_DATA.cooldown] = cooldown;
-  if (cooldown > 0 || kart.respawnTimer > 0) return;
+  // Not while respawning or spun out (a hit shouldn't be shrugged off with a boost).
+  if (cooldown > 0 || kart.respawnTimer > 0 || kart.spinTimer > 0) return;
   const target = nearestTarget(kart, state);
   if (!target) return;
   bite(kart, target, state, events);
@@ -147,6 +148,8 @@ export default mk8ItemSim({
     kart.item.held = PIRANHA;
     kart.item.uses = 1;
   },
+  // AI drivers bring it out once; pressing again while it's out does nothing.
+  aiUse: (kart) => !getEffect(kart, PIRANHA),
   effects: [
     {
       id: PIRANHA,
