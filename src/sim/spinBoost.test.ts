@@ -1,6 +1,7 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { TEST_RAMP_ID, TEST_RAMP_LAYOUT as L } from '../mk8/content/courses/test-ramp';
 import { registerTestRamp } from '../mk8/content/courses/test-ramp/register';
+import { spinBoostScenarios } from '../scenarios/mk8SpinBoost';
 import { resolveKartCollisions } from './collisions';
 import type { Vec3 } from './math';
 import type { RouteZone } from './route';
@@ -205,5 +206,15 @@ describe('boost bumpers (MK-108)', () => {
     hitBumpers(above, [bumper], v(0, 1, 0), v(1, 0, 0), events);
     expect(above.velocity.x).toBe(10);
     expect(events).toEqual([]);
+  });
+});
+
+describe('spin boost scenarios (MK-108)', () => {
+  it.each(['mk8-test-spinboost', 'mk8-test-bumper'])('%s gives the player a spin boost', (name) => {
+    const scenario = spinBoostScenarios.find((s) => s.name === name);
+    const setup = scenario?.setup(1);
+    if (!setup || !('state' in setup) || !setup.state) throw new Error(`no ${name}`);
+    const { events } = run(setup.state, 90);
+    expect(spins(events, 0)).toBeGreaterThanOrEqual(1);
   });
 });

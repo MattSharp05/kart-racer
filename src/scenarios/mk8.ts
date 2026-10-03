@@ -10,6 +10,7 @@ import { trackGeometry } from '../sim/track';
 import { tuning } from '../sim/tuning';
 import { NEUTRAL_INPUT, type Loadout, type SimEvent, type SimState } from '../sim/types';
 import { attractMode } from './menus';
+import { spinBoostScenarios } from './mk8SpinBoost';
 import { courseAntigrav, courseFinalLap, courseFromGrid, courseRace, onCourse } from './mk8Courses';
 import type { Scenario } from './registry';
 
@@ -24,6 +25,7 @@ export const MK8_COURSE_SCENARIOS: ReadonlySet<string> = new Set([
   'mk8-stadium-race',
   'mk8-stadium-antigrav',
   'mk8-stadium-final-lap',
+  ...spinBoostScenarios.map((s) => s.name),
 ]);
 
 export { mk8CourseLoad } from './mk8Courses';
@@ -494,4 +496,6 @@ export const mk8Scenarios: Scenario[] = [
     defaultSeed: 1,
     setup: (seed) => ({ state: attractMode(seed), screen }),
   })),
+  // Spin boost on the test ramp (MK-108).
+  ...spinBoostScenarios,
 ];

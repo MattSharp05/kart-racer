@@ -9,6 +9,7 @@ import {
   type KartModelFactory,
 } from './kartModels';
 import type { KartState } from '../sim/types';
+import { syncAntigravLook } from './antigravLook';
 import { createHeadlights } from './headlights';
 import { itemEffects } from '../content/items/registries';
 import { itemViews } from '../content/items/views';
@@ -183,6 +184,8 @@ export class KartRenderer {
       const steer = inputs[i]?.steer ?? 0;
       for (const pivot of model.frontWheels) pivot.rotation.y = -steer * MAX_WHEEL_TURN;
       this.syncEffects(model, kart, current.tick);
+      // Mesh tracks (MK-108): hover wheels and glow in anti-gravity, the spin-boost spin.
+      if (kart.up) syncAntigravLook(model, kart, current.tick);
     });
     this.wheelTick = current.tick;
   }
