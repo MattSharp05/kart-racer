@@ -18,6 +18,12 @@ import type { Scenario, ScenarioSetup } from './registry';
 export const MK8_STADIUM_SCENARIO = 'mk8-stadium-antigrav';
 /** Mario Kart Stadium's collision as a dev course (`src/mk8/scenarioCourses.ts` registers it). */
 export const MK8_STADIUM_DEV_ID = 'mk8-dev-stadium';
+/** Scenarios that drive an MK8 course: `main.ts` registers it before they're set up (MK-99). */
+export const MK8_COURSE_SCENARIOS: ReadonlySet<string> = new Set([
+  'mk8-test-antigrav',
+  'mk8-test-ceiling',
+  MK8_STADIUM_SCENARIO,
+]);
 
 /**
  * The MK8 test ramp (`src/mk8/content/courses/test-ramp/layout.ts`), copied as plain numbers: this
