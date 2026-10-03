@@ -193,6 +193,34 @@ test.describe('MK8 items', () => {
     expect(errors).toEqual([]);
   });
 
+  test('our five items (MK-115): held, in use and on the road in an MK8 race; their icons are served', async ({
+    page,
+  }) => {
+    const errors = pageErrors(page);
+    await servePack(page);
+    await loadScenario(page, 'mk8-items-ours', { paused: true });
+    const state = await getState(page);
+    const ours = ['oil-slick', 'hornet-swarm', 'bubble-shield', 'magnet', 'phase'];
+    expect(state.itemSet).toBe('mk8');
+    expect(state.karts.slice(1).map((k) => k.item.held)).toEqual(ours);
+    for (const [i, effect] of [
+      [3, 'bubble-shield'],
+      [4, 'magnet'],
+      [5, 'phase'],
+    ] as const) {
+      expect(state.karts[i]!.effects.map((e) => e.kind)).toContain(effect);
+    }
+    const specs = state.entities.flatMap((e) => (e.kind === 'item' ? [e.spec] : []));
+    expect(specs).toContain('oil-slick');
+    expect(specs.filter((s) => s === 'hornet-swarm')).toHaveLength(3);
+    for (const id of ours) {
+      const icon = await page.request.get(`/mk8/ui/items/${id}.webp`);
+      expect(icon.status(), id).toBe(200);
+      expect(icon.headers()['content-type']).toContain('image/webp');
+    }
+    expect(errors).toEqual([]);
+  });
+
   test('without a pack, MK8 races still run, with our items', async ({ page }) => {
     const errors = pageErrors(page);
     await loadScenario(page, 'mk8-two-slots');

@@ -4,7 +4,8 @@
 import { itemViews } from '../../../content/items/render';
 import { itemIcon } from '../../../ui/hud/icons';
 import { MK8_ITEMS } from '../../content/items';
-import type { CHARACTER_SPRITES, ITEM_SPRITES } from '../sprites';
+import type { SpriteSource } from '../kit/styleGuide';
+import { MK8_ASSET_BASE, type CHARACTER_SPRITES, type ITEM_SPRITES } from '../sprites';
 
 type ItemSprite = (typeof ITEM_SPRITES)[number];
 type CharacterSprite = (typeof CHARACTER_SPRITES)[number];
@@ -27,6 +28,16 @@ export function itemSpriteFor(item: string, uses: number): string | undefined {
   const id = itemSprite(item);
   if (id === undefined || uses >= 3 || !id.endsWith('3')) return id;
   return id.slice(0, -1);
+}
+
+/**
+ * The URL of `item`'s icon with `uses` left: a pack sprite through `sprites` (undefined without the
+ * pack), or one of our items' shipped icons (MK-115: a path under `/mk8/`).
+ */
+export function itemIconUrl(item: string, uses: number, sprites: SpriteSource): string | undefined {
+  const id = itemSpriteFor(item, uses);
+  if (id === undefined) return undefined;
+  return id.includes('/') ? `${MK8_ASSET_BASE}${id}` : sprites(id);
 }
 
 /** Whether the slot shows a count badge: a multi-use item that its sprite doesn't already show. */

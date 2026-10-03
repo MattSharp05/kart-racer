@@ -8,7 +8,7 @@ import { step } from '../../../sim/step';
 import { DT } from '../../../sim/tuning';
 import { NEUTRAL_INPUT, type SimEvent, type SimState } from '../../../sim/types';
 import { countdownSince, countdownText, GO_SECONDS, hudSounds, lakituCue } from './cues';
-import { itemSpriteFor, showsCount, headSprite, REEL_ITEMS } from './icons';
+import { itemIconUrl, itemSpriteFor, showsCount, headSprite, REEL_ITEMS } from './icons';
 import { isMk8Race } from './index';
 
 beforeAll(() => {
@@ -134,7 +134,14 @@ describe('HUD icons (MK-127)', () => {
     expect(showsCount('triple-green', 2)).toBe(true);
     expect(itemSpriteFor('banana', 1)).toBe('i_banana');
     expect(showsCount('banana', 1)).toBe(false);
-    expect(itemSpriteFor('magnet', 1)).toBeUndefined();
+    expect(itemSpriteFor('hornet-swarm', 1)).toBe('ui/items/hornet-swarm.webp');
+  });
+
+  it('takes pack sprites from the pack and our items’ shipped icons from /mk8/ (MK-115)', () => {
+    const sprites = (id: string) => (id === 'i_red' ? 'blob:red' : undefined);
+    expect(itemIconUrl('red', 1, sprites)).toBe('blob:red');
+    expect(itemIconUrl('banana', 1, sprites)).toBeUndefined();
+    expect(itemIconUrl('magnet', 1, sprites)).toBe('/mk8/ui/items/magnet.webp');
   });
 
   it('has a head for every MK8 racer and reels only MK8 items', () => {

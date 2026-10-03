@@ -17,7 +17,7 @@ import {
   COIN_SPRITE,
   hasItemSvg,
   headSprite,
-  itemSpriteFor,
+  itemIconUrl,
   itemSvg,
   REEL_ITEMS,
   showsCount,
@@ -112,8 +112,7 @@ function setIcon(
     cell.replaceChildren();
     return true;
   }
-  const id = itemSpriteFor(item, uses);
-  const url = id === undefined ? undefined : sprites(id);
+  const url = itemIconUrl(item, uses, sprites);
   if (url) {
     const img = document.createElement('img');
     img.alt = '';

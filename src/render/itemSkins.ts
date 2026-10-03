@@ -1,5 +1,5 @@
 import type * as THREE from 'three';
-import type { ItemRenderer } from '../content/items/views';
+import type { ItemRenderer, ItemView } from '../content/items/views';
 import { Registry } from '../content/registry';
 import type { ItemId, SimState } from '../sim/types';
 
@@ -21,7 +21,15 @@ export interface ItemSkin {
   replaces: ReadonlySet<SkinPart>;
   /** Made once per world; synced every frame, it draws nothing in races of another item set. */
   renderer: new (scene: THREE.Scene) => ItemRenderer;
+  /**
+   * Items whose entities and kart effects keep the original renderer but take another look in
+   * this set's races (MK-115: our five unique items, MK8-style), by item id.
+   */
+  looks?: ReadonlyMap<ItemId, ItemLook>;
 }
+
+/** An item's look in a skin's races: its view's model factories, used instead of the view's. */
+export type ItemLook = Pick<ItemView, 'entityModel' | 'animateEntity' | 'effectModel'>;
 
 export const itemSkins = new Registry<ItemSkin>('item skin');
 
@@ -30,6 +38,11 @@ export function skinOf(state: SimState): ItemSkin | undefined {
   return state.itemSet !== undefined && itemSkins.has(state.itemSet)
     ? itemSkins.get(state.itemSet)
     : undefined;
+}
+
+/** `item`'s look in `state`'s races, if its skin gives it one. */
+export function lookOf(state: SimState, item: ItemId): ItemLook | undefined {
+  return skinOf(state)?.looks?.get(item);
 }
 
 /** Whether `state`'s skin draws `part` (so the original renderer leaves it out). */
