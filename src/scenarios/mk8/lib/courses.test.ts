@@ -1,11 +1,11 @@
 // MK8 course scenarios (MK-105), built on the synthetic test ramp (the real course needs the pack).
 import { beforeAll, describe, expect, it } from 'vitest';
-import { testRampTrack } from '../mk8/content/courses/test-ramp';
-import { registerTestRamp } from '../mk8/content/courses/test-ramp/register';
-import { registerMk8Content } from '../mk8/register';
-import { routeGeometry } from '../sim/route';
-import { DT } from '../sim/tuning';
-import { courseAntigrav, courseFinalLap, courseFromGrid, courseRace } from './mk8Courses';
+import { testRampTrack } from '../../../mk8/content/courses/test-ramp';
+import { registerTestRamp } from '../../../mk8/content/courses/test-ramp/register';
+import { registerMk8Content } from '../../../mk8/register';
+import { routeGeometry } from '../../../sim/route';
+import { DT } from '../../../sim/tuning';
+import { courseAntigrav, courseFinalLap, courseFromGrid, courseRace } from './courses';
 
 beforeAll(() => {
   registerTestRamp();
