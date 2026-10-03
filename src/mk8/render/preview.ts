@@ -1,211 +1,228 @@
-// The kart builder's 3D preview (MK-118): the player's racer in the kart their parts make, turning
-// slowly on a small stage of its own. Pack files load as parts change (the latest pick wins); with
-// no pack (CI, previews, production without the password) the builder keeps its sprite strip.
+// The character select's 3D portrait (MK-117): the highlighted racer in the Standard Kart, turning
+// slowly on a transparent canvas over the panel's gradient. Each racer's model is built once from
+// the pack files and kept, so moving back to a racer swaps it in at once; `warm` builds and
+// compiles the rest in the background so the first visit is quick too. Without WebGL, or before
+// a racer's files are loaded, `show` resolves false and the screen keeps its 2D portrait.
 import * as THREE from 'three';
-import { mk8RacerView } from '../content/racers/render';
-import type { Loadout } from '../../sim/types';
-// racerModel before kartAssembly: they import each other, and racerModel's top level needs
-// kartAssembly's path helpers evaluated first.
-import { Mk8RacerModel, disposeTree, parseGlb, racerModelPath } from './racerModel';
-import { kartFiles } from './kartAssembly';
+import { MAX_PIXEL_RATIO } from '../../render/scene';
+import type { Mk8RacerView } from '../content/racers/view';
 import { REST_MOTION } from './motion';
-import { Mk8Stage } from './stage';
+import {
+  KART_BODY_PATH,
+  KART_TIRE_PATH,
+  Mk8RacerModel,
+  parseGlb,
+  racerModelPath,
+} from './racerModel';
 
-/** Pack files on demand: what the preview loads its models through. */
-export interface PreviewFiles {
-  load(paths: readonly string[]): Promise<void>;
-  file(path: string): ArrayBuffer | undefined;
+/** The pack files one racer's portrait needs. */
+export function previewFiles(view: Pick<Mk8RacerView, 'model'>): string[] {
+  return [racerModelPath(view), KART_BODY_PATH, KART_TIRE_PATH];
 }
 
-/**
- * `idle` before the first loadout, `loading` while its files load, `ready` when its kart is shown,
- * `unavailable` when the pack (or one of its files) can't be had.
- */
-export type PreviewStatus = 'idle' | 'loading' | 'ready' | 'unavailable';
-
-/** One turn of the turntable, seconds. */
-const TURN_SECONDS = 8;
 const TICKS_PER_SECOND = 60;
-/** Seen from the front left, a little above: the kart's nose and side. */
-const START_YAW = Math.PI * 0.8;
-const CAMERA = new THREE.Vector3(0, 1.7, -4.4);
-const TARGET = new THREE.Vector3(0, 0.75, 0);
-/** With the glider open the camera steps back to fit it. */
-const GLIDER_PULL_BACK = 1.35;
-const BACKGROUND = 0x0e1736;
+const TICK_MS = 1000 / TICKS_PER_SECOND;
+const MAX_CATCH_UP = 6;
+/** Turntable speed, radians per second (a turn in ~10 s), and its first angle (front-left). */
+const TURN_SPEED = 0.6;
+const START_ANGLE = -0.6;
+const CAMERA_FOV = 30;
+const CAMERA_AT = new THREE.Vector3(0, 1.5, -5.4);
+const CAMERA_TARGET = new THREE.Vector3(0, 0.62, 0);
+/** The soft shadow disc under the kart: radius (m) and darkness. */
+const SHADOW_RADIUS = 1.15;
+const SHADOW_OPACITY = 0.18;
 
-/** The turntable's heading at `tick`. */
-const yawAt = (tick: number) =>
-  START_YAW + (tick / (TURN_SECONDS * TICKS_PER_SECOND)) * Math.PI * 2;
+type FileSource = (path: string) => ArrayBuffer | undefined;
 
-/** The racer model's files for `loadout`: racer, body, tires and glider. */
-export function previewFiles(loadout: Loadout): string[] {
-  return [racerModelPath(mk8RacerView(loadout.racer)), ...kartFiles(loadout)];
+export interface PreviewOptions {
+  file: FileSource;
+  /** Hold still (tests, `&paused=1`): only `step` turns it. */
+  frozen: boolean;
 }
 
-export class KartPreview {
-  /** The preview's box: the stage's canvas goes in once a kart is ready. */
-  readonly el = document.createElement('div');
-  private stage: Mk8Stage | undefined;
-  private model: Mk8RacerModel | undefined;
-  private shown: Loadout | undefined;
-  private gliderOpen = false;
-  /** Bumped by every `show`: a slower earlier load never replaces a later pick. */
-  private generation = 0;
+export class RacerPreview {
+  readonly canvas = document.createElement('canvas');
+  /** Ticks the turntable has turned. */
+  tick = 0;
+  private readonly renderer: THREE.WebGLRenderer | undefined;
+  private readonly scene = new THREE.Scene();
+  private readonly camera = new THREE.PerspectiveCamera(CAMERA_FOV, 1, 0.1, 50);
+  private readonly turntable = new THREE.Group();
+  private readonly shadow: THREE.Mesh;
+  private readonly models = new Map<string, Promise<Mk8RacerModel | undefined>>();
+  private readonly file: FileSource;
+  private readonly frozen: boolean;
+  private wanted: string | undefined;
+  private drawn: Mk8RacerModel | undefined;
+  private frame = 0;
+  private last = 0;
+  private carry = 0;
   private disposed = false;
 
-  /** @param frozen Hold the turntable still (tests, `&paused=1`). */
-  constructor(
-    private readonly files: PreviewFiles,
-    private readonly frozen: boolean,
-  ) {
-    this.el.className = 'mk8-kb-preview';
-    this.mark('idle');
-  }
-
-  get status(): PreviewStatus {
-    return (this.el.dataset.status as PreviewStatus | undefined) ?? 'idle';
-  }
-
-  /** Shows `loadout`'s racer and kart once its files are loaded. */
-  async show(loadout: Loadout): Promise<void> {
-    const generation = ++this.generation;
-    const wanted = { ...loadout };
-    if (this.status !== 'ready') this.mark('loading');
-    let paths: string[];
+  constructor(options: PreviewOptions) {
+    this.file = options.file;
+    this.frozen = options.frozen;
+    this.canvas.className = 'mk8-preview-canvas';
+    this.canvas.setAttribute('aria-hidden', 'true');
+    let renderer: THREE.WebGLRenderer | undefined;
     try {
-      paths = previewFiles(wanted);
-      await this.files.load(paths);
+      renderer = new THREE.WebGLRenderer({ canvas: this.canvas, antialias: true, alpha: true });
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, MAX_PIXEL_RATIO));
+      renderer.outputColorSpace = THREE.SRGBColorSpace;
+      renderer.setClearColor(0x000000, 0);
     } catch {
-      if (this.current(generation)) this.fail();
-      return;
+      renderer = undefined; // no WebGL: the screen keeps its 2D portrait
     }
-    if (!this.current(generation)) return;
-    let model: Mk8RacerModel;
-    try {
-      model = await this.build(wanted, paths);
-    } catch {
-      if (this.current(generation)) this.fail();
-      return;
+    this.renderer = renderer;
+    this.scene.add(new THREE.HemisphereLight(0xffffff, 0x8899bb, 1.8));
+    const sun = new THREE.DirectionalLight(0xffffff, 1.6);
+    sun.position.set(-4, 8, -6);
+    this.scene.add(sun);
+    this.shadow = new THREE.Mesh(
+      new THREE.CircleGeometry(SHADOW_RADIUS, 32),
+      new THREE.MeshBasicMaterial({
+        color: 0x0a2a6a,
+        transparent: true,
+        opacity: SHADOW_OPACITY,
+        depthWrite: false,
+      }),
+    );
+    this.shadow.rotation.x = -Math.PI / 2;
+    this.shadow.scale.y = 0.62;
+    this.shadow.visible = false;
+    this.scene.add(this.shadow, this.turntable);
+    this.camera.position.copy(CAMERA_AT);
+    this.camera.lookAt(CAMERA_TARGET);
+    this.turntable.rotation.y = START_ANGLE;
+  }
+
+  /** Whether this device can draw the portrait at all. */
+  get available(): boolean {
+    return this.renderer !== undefined;
+  }
+
+  /** The racer on the turntable now (undefined until one is drawn). */
+  get shown(): string | undefined {
+    return this.drawn?.view.id;
+  }
+
+  /**
+   * Puts racer `view` on the turntable. Resolves true once it is drawn, false when it can't be
+   * (no WebGL, its files aren't loaded, or another racer was asked for meanwhile).
+   */
+  async show(view: Mk8RacerView): Promise<boolean> {
+    this.wanted = view.id;
+    const model = await this.model(view);
+    if (!model || this.disposed || this.wanted !== view.id) return false;
+    if (this.drawn !== model) {
+      if (this.drawn) this.drawn.object.visible = false;
+      model.object.visible = true;
+      this.drawn = model;
+      this.shadow.visible = true;
     }
-    if (!this.current(generation)) {
-      disposeTree(model.object);
-      return;
+    this.render();
+    this.run();
+    return true;
+  }
+
+  /** Builds (and compiles) the portraits of `views` one after another, in the background. */
+  async warm(views: readonly Mk8RacerView[]): Promise<void> {
+    for (const view of views) {
+      if (this.disposed) return;
+      await this.model(view);
     }
-    this.swap(model, wanted);
   }
 
-  /** Opens the glider (the Glider column has the focus) or folds it away. */
-  setGliderOpen(open: boolean): void {
-    this.gliderOpen = open;
-    this.model?.kart.setGliderOpen(open);
-    this.frame();
-    this.stage?.render();
+  /** Turns the turntable `ticks` ticks and draws. */
+  step(ticks: number): void {
+    this.tick += ticks;
+    this.render();
   }
 
-  /** The loadout on show (tests read it from `data-loadout` too). */
-  get loadout(): Loadout | undefined {
-    return this.shown;
-  }
-
-  /** Stops the turntable while the builder is out of sight (a screen over it). */
-  pause(): void {
-    this.stage?.pause();
-  }
-
-  resume(): void {
-    this.stage?.resume();
+  render(): void {
+    const renderer = this.renderer;
+    if (!renderer || this.disposed) return;
+    const width = this.canvas.clientWidth || 1;
+    const height = this.canvas.clientHeight || 1;
+    const ratio = renderer.getPixelRatio();
+    if (
+      this.canvas.width !== Math.floor(width * ratio) ||
+      this.canvas.height !== Math.floor(height * ratio)
+    ) {
+      renderer.setSize(width, height, false);
+      this.camera.aspect = width / height;
+      this.camera.updateProjectionMatrix();
+    }
+    this.turntable.rotation.y = START_ANGLE + (this.tick * TURN_SPEED) / TICKS_PER_SECOND;
+    renderer.render(this.scene, this.camera);
   }
 
   dispose(): void {
     this.disposed = true;
-    this.model?.dispose();
-    this.model = undefined;
-    this.stage?.dispose();
-    this.stage = undefined;
-    this.el.remove();
+    cancelAnimationFrame(this.frame);
+    for (const model of this.models.values()) void model.then((m) => m?.dispose());
+    this.models.clear();
+    this.shadow.geometry.dispose();
+    (this.shadow.material as THREE.Material).dispose();
+    this.renderer?.dispose();
+    this.canvas.remove();
   }
 
-  /** The pick can't be shown: no old kart stays up in its place (the strip shows instead). */
-  private fail(): void {
-    this.model?.dispose();
-    this.model = undefined;
-    this.shown = undefined;
-    delete this.el.dataset.loadout;
-    this.stage?.render();
-    this.mark('unavailable');
+  /** Racer `view`'s model, built once; undefined without WebGL or before its files are loaded. */
+  private model(view: Mk8RacerView): Promise<Mk8RacerModel | undefined> {
+    const built = this.models.get(view.id);
+    if (built) return built;
+    const renderer = this.renderer;
+    if (this.disposed) return Promise.resolve(undefined);
+    const [racer, body, tire] = previewFiles(view).map((path) => this.file(path));
+    if (!renderer || !racer || !body || !tire) return Promise.resolve(undefined);
+    const promise = Promise.all([parseGlb(racer), parseGlb(body), parseGlb(tire)])
+      .then(([racerScene, bodyScene, tireScene]) => {
+        const model = new Mk8RacerModel(view, {
+          racer: racerScene,
+          body: bodyScene,
+          tire: tireScene,
+        });
+        if (this.disposed) {
+          model.dispose();
+          return undefined;
+        }
+        model.pose(REST_MOTION);
+        this.turntable.add(model.object);
+        // Compile its shaders now, so its first frame on show doesn't stall.
+        renderer.compile(this.scene, this.camera);
+        model.object.visible = false;
+        return model;
+      })
+      .catch(() => undefined);
+    this.models.set(view.id, promise);
+    return promise;
   }
 
-  private current(generation: number): boolean {
-    return !this.disposed && generation === this.generation;
+  /** Turns again after its screen was hidden (the loop stops while the canvas isn't shown). */
+  resume(): void {
+    if (this.drawn) this.run();
   }
 
-  private async build(loadout: Loadout, paths: string[]): Promise<Mk8RacerModel> {
-    const [racerPath = '', bodyPath = '', tirePath = '', gliderPath = ''] = paths;
-    const glb = (path: string) => {
-      const bytes = this.files.file(path);
-      if (!bytes) throw new Error(`${path} isn't loaded`);
-      return parseGlb(bytes);
-    };
-    const [racer, body, tire, glider] = await Promise.all(
-      [racerPath, bodyPath, tirePath, gliderPath].map(glb),
-    );
-    if (!racer || !body || !tire || !glider) throw new Error('MK8 preview: a model is missing');
-    const model = new Mk8RacerModel(
-      mk8RacerView(loadout.racer),
-      { racer, body, tire, glider },
-      loadout,
-    );
-    model.pose(REST_MOTION);
-    return model;
+  /** Keeps the turntable turning on real time (unless frozen). */
+  private run(): void {
+    if (this.frozen || this.frame !== 0 || this.disposed) return;
+    this.last = performance.now();
+    this.frame = requestAnimationFrame(this.loop);
   }
 
-  private swap(model: Mk8RacerModel, loadout: Loadout): void {
-    const stage = this.ensureStage();
-    this.model?.dispose();
-    this.model = model;
-    this.shown = loadout;
-    model.kart.setGliderOpen(this.gliderOpen);
-    model.object.rotation.y = yawAt(stage.tick);
-    stage.scene.add(model.object);
-    this.el.dataset.loadout = [loadout.racer, loadout.body, loadout.tires, loadout.glider].join(
-      ' ',
-    );
-    this.mark('ready');
-    this.frame();
-    stage.render();
-  }
-
-  /** The stage, made on the first kart (no WebGL context until there is something to show). */
-  private ensureStage(): Mk8Stage {
-    if (this.stage) return this.stage;
-    const stage = new Mk8Stage(this.frozen);
-    stage.canvas.classList.add('mk8-kb-canvas');
-    stage.scene.background = new THREE.Color(BACKGROUND);
-    const ground = stage.scene.getObjectByName('ground');
-    if (ground) ground.visible = false;
-    const camera = new THREE.PerspectiveCamera(32, 1, 0.1, 50);
-    stage.camera = camera;
-    this.el.append(stage.canvas);
-    stage.start({
-      update: (tick) => {
-        if (this.model) this.model.object.rotation.y = yawAt(tick);
-      },
-    });
-    this.stage = stage;
-    return stage;
-  }
-
-  /** Points the camera at the kart, further back with the glider open. */
-  private frame(): void {
-    const camera = this.stage?.camera;
-    if (!(camera instanceof THREE.PerspectiveCamera)) return;
-    const back = this.gliderOpen && this.model?.kart.hasGlider ? GLIDER_PULL_BACK : 1;
-    camera.position.copy(CAMERA).multiplyScalar(back);
-    camera.lookAt(TARGET.x, TARGET.y * back, TARGET.z);
-  }
-
-  private mark(status: PreviewStatus): void {
-    this.el.dataset.status = status;
-  }
+  private readonly loop = (now: number) => {
+    // A screen over this one hides it: stop until `resume`.
+    if (this.canvas.offsetParent === null) {
+      this.frame = 0;
+      return;
+    }
+    this.carry += Math.min(now - this.last, MAX_CATCH_UP * TICK_MS);
+    this.last = now;
+    const ticks = Math.floor(this.carry / TICK_MS);
+    this.carry -= ticks * TICK_MS;
+    if (ticks > 0) this.step(ticks);
+    this.frame = requestAnimationFrame(this.loop);
+  };
 }

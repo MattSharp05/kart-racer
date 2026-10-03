@@ -3,7 +3,8 @@
 // MK8's stat table (`content/stats.ts`, MK-102) that slide as parts change, and a 3D preview of the
 // racer in the kart. ←→ pick a column (the focused one has the yellow frame), ↑↓ turn its reel;
 // on touch the arrows, a tap on the part above or below, or a swipe along the reel. OK saves the
-// loadout (prefs) and goes on to the engine class, or straight to course select in Time Trial.
+// loadout (prefs) and goes on to the engine class, or straight to course select in Time Trial
+// (Online stops here until its rooms exist).
 import {
   MK8_BODIES,
   MK8_GLIDERS,
@@ -14,7 +15,7 @@ import {
 import { MK8_RACERS } from '../../content/racers';
 import { loadoutStats, type Mk8Stat } from '../../content/stats';
 import { savedLoadout, saveLoadout, savedRacer } from '../../loadoutPrefs';
-import { KartPreview } from '../../render/preview';
+import { KartPreview } from '../../render/kartPreview';
 import type { Loadout } from '../../../sim/types';
 import { art, menuScreen, panel } from '../kit';
 import { menuAction } from '../kit/nav';
@@ -129,7 +130,10 @@ export function kartBuilder(ctx: Mk8Context): Mk8ScreenFactory {
     /** Whether the builder is on show (the 3D preview loads and turns only then). */
     let onShow = false;
 
+    // Online stops here until its rooms come with their own ticket (as the stand-ins did).
+    const goesOn = ctx.flow.mode !== 'online';
     const confirm = () => {
+      if (!goesOn) return;
       const chosen = current();
       stack.sounds.play('ui/decide');
       saveLoadout(ctx.store, chosen);
@@ -143,7 +147,7 @@ export function kartBuilder(ctx: Mk8Context): Mk8ScreenFactory {
       title: 'Customize',
       sub: '↑↓ change part · ←→ switch column',
       hints: [
-        { button: 'a', label: 'OK', onPress: confirm },
+        ...(goesOn ? [{ button: 'a' as const, label: 'OK', onPress: confirm }] : []),
         { button: 'b', label: 'Back', onPress: () => stack.back() },
       ],
     });

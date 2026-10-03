@@ -16,6 +16,7 @@ for (const name of [
   'mk8-ui-kit',
   'mk8-ui-title',
   'mk8-ui-mode',
+  'mk8-ui-char',
   'mk8-ui-kart',
   'mk8-ui-cc',
   'mk8-ui-cup',

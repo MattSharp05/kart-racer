@@ -5,7 +5,7 @@ import type { EngineClass } from '../../../sim/tuning';
 import type { Loadout } from '../../../sim/types';
 import type { Mk8CourseKey, Mk8CupId } from '../../content/cups';
 import type { Mk8RaceSetup } from '../../flow';
-import type { PreviewFiles } from '../../render/preview';
+import type { KartPreviewFiles } from '../../render/kartPreview';
 import type { SpriteSource } from '../kit/styleGuide';
 
 /** MK8 Mode's game modes, in the mode select's order. */
@@ -57,14 +57,21 @@ export interface Mk8Context {
   /** Pack sprite URLs (undefined without a pack: screens draw stand-ins). */
   sprites: SpriteSource;
   flow: Mk8Flow;
-  /** The game's prefs store: the kart builder's last loadout (MK-118). */
-  store: KeyValueStore;
   /** Pack files on demand: the kart builder's 3D preview (MK-118). */
-  files: PreviewFiles;
-  /** Hold 3D previews still (`&paused=1`: tests and paused QA links). */
-  frozen: boolean;
+  files: KartPreviewFiles;
   /** Loads a course's pack files and the race's item models (progress 0–1, MK-119). */
   loadCourse(course: Mk8CourseKey, onProgress: (fraction: number) => void): Promise<void>;
   /** Leaves the menus for the race. */
   startRace(setup: Mk8RaceSetup): void;
+  /** A loaded pack file's bytes (MK-117: the 3D portrait's models); undefined when not loaded. */
+  packFile(path: string): ArrayBuffer | undefined;
+  /** Whether 3D stages hold still (tests, `&paused=1`): only their `step` moves them. */
+  frozen: boolean;
+  /**
+   * Loads the character select's racer models and select voice lines (MK-117), racer `first`
+   * (its model id) first: `onFirst` runs once its files are in. Rejects without a pack.
+   */
+  loadCharacters(first: string, onFirst?: () => void): Promise<void>;
+  /** Where MK8 Mode remembers picks (MK-117: the last racer; MK-118: the last loadout). */
+  store: KeyValueStore;
 }

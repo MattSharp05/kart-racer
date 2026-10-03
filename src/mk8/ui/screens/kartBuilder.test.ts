@@ -3,7 +3,7 @@ import { MemoryStore } from '../../../game/storage/store';
 import { MK8_BODIES, MK8_GLIDERS, MK8_TIRES, defaultLoadout } from '../../content/parts';
 import { BODY_POINTS, GLIDER_POINTS, TIRE_POINTS } from '../../content/stats';
 import { saveLoadout } from '../../loadoutPrefs';
-import { previewFiles } from '../../render/preview';
+import { kartPreviewFiles } from '../../render/kartPreview';
 import {
   FIRST_RACER,
   KART_COLUMNS,
@@ -68,7 +68,7 @@ describe('MK8 kart builder (MK-118)', () => {
   });
 
   it("previews from the racer's model and the kart's parts", () => {
-    expect(previewFiles(defaultLoadout('mk8-mario'))).toEqual([
+    expect(kartPreviewFiles(defaultLoadout('mk8-mario'))).toEqual([
       'models/racers/mario.glb',
       'models/karts/bodies/standard-kart.glb',
       'models/karts/tires/standard-tires.glb',

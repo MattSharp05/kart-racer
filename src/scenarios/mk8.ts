@@ -396,6 +396,14 @@ export const mk8Scenarios: Scenario[] = [
     setup: (seed) => ({ state: attractMode(seed), screen: 'mk8UiMode' }),
   },
   {
+    name: 'mk8-ui-char',
+    group: 'MK8 Mode',
+    description:
+      "MK8 character select for a Grand Prix (MK-117): the 12 racers in a 4×3 grid (P1 badge on the selected one), the selected racer in the Standard Kart turning slowly on the left with the name plate and weight class. Arrows (4 across) or taps move it with the name-appear sound and the racer's voice line (silent until the pack's voice clips exist); OK goes on to the kart builder and is remembered next time; Back returns to the mode select. 3D racers and the real icons with a local pack; stand-in initials otherwise.",
+    defaultSeed: 1,
+    setup: (seed) => ({ state: attractMode(seed), screen: 'mk8UiChar' }),
+  },
+  {
     name: 'mk8-ui-kart',
     group: 'MK8 Mode',
     description:
@@ -407,7 +415,7 @@ export const mk8Scenarios: Scenario[] = [
     name: 'mk8-ui-cc',
     group: 'MK8 Mode',
     description:
-      'MK8 engine class (MK-119): the 50/100/150/200cc shields (200cc NEW) for a Grand Prix, 150cc selected. OK goes on to the cup select; Back walks back through the kart builder, character select (a stand-in for now) and the mode select. The real shields with a local pack, stand-ins otherwise.',
+      'MK8 engine class (MK-119): the 50/100/150/200cc shields (200cc NEW) for a Grand Prix, 150cc selected. OK goes on to the cup select; Back walks back through the kart builder, character select and the mode select. The real shields with a local pack, stand-ins otherwise.',
     defaultSeed: 1,
     setup: (seed) => ({ state: attractMode(seed), screen: 'mk8UiCc' }),
   },

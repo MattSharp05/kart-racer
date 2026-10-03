@@ -6,9 +6,11 @@ import { servePack } from './mk8';
 
 // MK-116: MK8 Mode's title and mode select (`mk8-ui-title`, `mk8-ui-mode`). MK-119: the engine
 // class and the cup/course select (`mk8-ui-cc`, `mk8-ui-cup`, `mk8-ui-course`), up to the race
-// they start. MK-118: the kart builder (`mk8-ui-kart`). No real pack here (ADR 0009): the logo, racers, shields, cups and courses are
+// they start. No real pack here (ADR 0009): the logo, racers, shields, cups and courses are
 // stand-ins and the sounds synthesized, but the player is still asked for the same ids
-// (`window.__mk8.sounds`), and the choices are in `window.__mk8.flow`.
+// (`window.__mk8.sounds`), and the choices are in `window.__mk8.flow`. MK-117: the character select
+// (`mk8-ui-char`), also on the synthetic fixture pack for its 3D portrait and voice lines. MK-118:
+// the kart builder (`mk8-ui-kart`).
 
 const sounds = (page: Page) => page.evaluate(() => [...(window.__mk8?.sounds ?? [])]);
 const chosenMode = (page: Page) => page.evaluate(() => window.__mk8?.flow?.mode);
@@ -19,7 +21,7 @@ async function settled(page: Page, n: number) {
 }
 
 const modeTiles = (page: Page) => page.locator('.mk8-scr-modes .mk8-tile');
-const next = (page: Page) => page.locator('.mk8-scr-character-next');
+const charScreen = (page: Page) => page.locator('.mk8-scr-char');
 
 /** Every box is at least 44 px (when `tap`) and inside the viewport. */
 async function expectFits(page: Page, selector: string, tap = true) {
@@ -53,8 +55,17 @@ test.describe('MK8 title and mode select', () => {
     await expect(title.locator('.mk8-title-logo-stand-in')).toBeVisible();
     await expect(title.locator('.mk8-title-press')).toContainText('to start');
 
+    // The wipe runs 0.55 s: record that it started rather than poll for it (a busy runner can
+    // miss it).
+    await page.evaluate(() => {
+      const wipe = document.querySelector('.mk8-wipe');
+      if (!wipe) return;
+      new MutationObserver(() => {
+        if (wipe.classList.contains('go')) wipe.setAttribute('data-wiped', 'true');
+      }).observe(wipe, { attributes: true, attributeFilter: ['class'] });
+    });
     await page.keyboard.press('Enter');
-    await expect(page.locator('.mk8-wipe')).toHaveClass(/go/);
+    await expect(page.locator('.mk8-wipe')).toHaveAttribute('data-wiped', 'true');
     await settled(page, 2);
     await expect(page.locator('.mk8-scr-modes')).toBeVisible();
     await expect(modeTiles(page)).toHaveText([/Grand Prix/, /VS Race/, /Time Trial/, /Online/]);
@@ -68,9 +79,7 @@ test.describe('MK8 title and mode select', () => {
 
     await page.keyboard.press('Enter');
     await settled(page, 3);
-    await expect(next(page)).toBeVisible();
-    await expect(next(page).locator('.mk8-body')).toHaveAttribute('data-mode', 'time-trial');
-    await expect(next(page).locator('.mk8-hdr')).toContainText('Time Trial');
+    await expect(charScreen(page)).toBeVisible();
     expect(await chosenMode(page)).toBe('time-trial');
 
     await page.keyboard.press('Escape');
@@ -111,16 +120,16 @@ test.describe('MK8 title and mode select', () => {
     await press(modeTiles(page).nth(1));
     await settled(page, 3);
     expect(await chosenMode(page)).toBe('vs');
-    await expect(next(page).locator('.mk8-body')).toHaveAttribute('data-mode', 'vs');
+    await expect(charScreen(page)).toBeVisible();
 
-    await press(next(page).locator('.mk8-hint-b'));
+    await press(charScreen(page).locator('.mk8-hint-b'));
     await settled(page, 2);
     // The A hint confirms the selected tile.
     await press(modeTiles(page).nth(3));
     await press(page.locator('.mk8-scr-modes .mk8-hint-a'));
     await settled(page, 3);
     expect(await chosenMode(page)).toBe('online');
-    await press(next(page).locator('.mk8-hint-b'));
+    await press(charScreen(page).locator('.mk8-hint-b'));
     await settled(page, 2);
     await press(page.locator('.mk8-scr-modes .mk8-hint-b'));
     await settled(page, 1);
@@ -371,16 +380,20 @@ test.describe('MK8 engine class and cup/course select (MK-119)', () => {
     await expect(shields(page).nth(2)).toHaveAttribute('aria-current', 'true');
   });
 
-  test('the stand-in character select goes on to the kart builder, then the engine class (Online stops there)', async ({
+  test('character select goes on to the kart builder, then the engine class (Online stops there)', async ({
     page,
   }) => {
     await loadScenario(page, 'mk8-ui-mode');
     await settled(page, 2);
     await page.keyboard.press('Enter');
     await settled(page, 3);
+    await expect(charScreen(page)).toBeVisible();
     await page.keyboard.press('Enter');
     await settled(page, 4);
-    await expect(page.locator('.mk8-scr-kart')).toBeVisible();
+    await expect(page.locator('.mk8-scr-kart .mk8-kb-who')).toHaveAttribute(
+      'data-racer',
+      'mk8-mario',
+    );
     await page.keyboard.press('Enter');
     await settled(page, 5);
     await expect(page.locator('.mk8-scr-cc .mk8-hdr')).toContainText('Grand Prix');
@@ -395,9 +408,11 @@ test.describe('MK8 engine class and cup/course select (MK-119)', () => {
     await page.keyboard.press('ArrowDown');
     await page.keyboard.press('Enter');
     await settled(page, 3);
-    await expect(next(page).locator('.mk8-hint-a')).toHaveCount(0);
     await page.keyboard.press('Enter');
-    await expect(page.locator('.mk8')).toHaveAttribute('data-depth', '3');
+    await settled(page, 4);
+    await expect(page.locator('.mk8-scr-kart .mk8-hint-a')).toHaveCount(0);
+    await page.keyboard.press('Enter');
+    await expect(page.locator('.mk8')).toHaveAttribute('data-depth', '4');
   });
 
   test('engine class and cup/course tap targets are at least 44 px and fit the screen', async ({
@@ -639,13 +654,176 @@ test.describe('MK8 kart builder (MK-118)', () => {
     await loadScenario(page, 'mk8-ui-cc', { paused: true });
     await settled(page, 5);
     await page.waitForTimeout(300);
-    expect(requested).not.toContain('models/racers/mario.glb');
+    // (Character select, under it too, loads the racers; only the builder needs a glider.)
+    expect(requested).not.toContain('models/karts/gliders/paper-glider.glb');
     await page.keyboard.press('Escape');
     await settled(page, 4);
     await expect(kartScreen(page).locator('.mk8-kb-preview')).toHaveAttribute(
       'data-status',
       'ready',
     );
-    expect(requested).toContain('models/racers/mario.glb');
+    expect(requested).toContain('models/karts/gliders/paper-glider.glb');
+  });
+});
+
+test.describe('MK8 character select (MK-117)', () => {
+  const tiles = (page: Page) => page.locator('.mk8-scr-char .mk8-char-tile');
+  const plate = (page: Page) => page.locator('.mk8-scr-char .mk8-nameplate');
+  const selected = (page: Page) => page.locator('.mk8-scr-char .mk8-char-tile.is-selected');
+  const shown3d = (page: Page) => page.evaluate(() => window.__mk8?.preview?.shown());
+
+  test('keyboard: arrows move 4 across, each move speaks, Enter confirms, Esc returns', async ({
+    page,
+  }) => {
+    await loadScenario(page, 'mk8-ui-char');
+    await settled(page, 3);
+    await expect(page.locator('.mk8-scr-char .mk8-hdr')).toContainText('Choose your character');
+    await expect(tiles(page)).toHaveCount(12);
+    const names = await tiles(page).evaluateAll((els) =>
+      els.map((e) => e.getAttribute('aria-label')),
+    );
+    expect(names).toEqual([
+      'Mario',
+      'Luigi',
+      'Peach',
+      'Daisy',
+      'Yoshi',
+      'Toad',
+      'Koopa Troopa',
+      'Shy Guy',
+      'Donkey Kong',
+      'Bowser',
+      'Wario',
+      'Waluigi',
+    ]);
+    await expect(selected(page)).toHaveAttribute('data-racer', 'mk8-mario');
+    await expect(selected(page).locator('.mk8-p1')).toBeVisible();
+    await expect(page.locator('.mk8-scr-char .mk8-p1:visible')).toHaveCount(1);
+    await expect(plate(page)).toContainText('Mario');
+    await expect(plate(page)).toContainText('Medium weight');
+    // No pack: a stand-in initial, never Nintendo art.
+    await expect(page.locator('.mk8-char-still .mk8-art-stand-in')).toHaveText('M');
+    expect(await sounds(page)).toEqual([]);
+
+    await page.keyboard.press('ArrowRight');
+    await expect(selected(page)).toHaveAttribute('data-racer', 'mk8-luigi');
+    await page.keyboard.press('ArrowDown');
+    await expect(selected(page)).toHaveAttribute('data-racer', 'mk8-toad');
+    await expect(plate(page)).toContainText('Light weight');
+    await page.keyboard.press('ArrowDown');
+    await expect(selected(page)).toHaveAttribute('data-racer', 'mk8-bowser');
+    await expect(plate(page)).toContainText('Heavy weight');
+    // The last row and the left column stop the cursor.
+    await page.keyboard.press('ArrowDown');
+    await page.keyboard.press('ArrowLeft');
+    await page.keyboard.press('ArrowLeft');
+    await expect(selected(page)).toHaveAttribute('data-racer', 'mk8-donkey-kong');
+    expect(await sounds(page)).toEqual([
+      'ui/name-appear',
+      'voice/luigi/select',
+      'ui/name-appear',
+      'voice/toad/select',
+      'ui/name-appear',
+      'voice/bowser/select',
+      'ui/name-appear',
+      'voice/donkey-kong/select',
+    ]);
+
+    await page.keyboard.press('Enter');
+    await settled(page, 4);
+    await expect(page.locator('.mk8-scr-kart .mk8-kb-who')).toHaveAttribute(
+      'data-racer',
+      'mk8-donkey-kong',
+    );
+    expect((await flow(page)).loadout?.racer).toBe('mk8-donkey-kong');
+    await page.keyboard.press('Escape');
+    await settled(page, 3);
+    await expect(selected(page)).toHaveAttribute('data-racer', 'mk8-donkey-kong');
+    await page.keyboard.press('Escape');
+    await settled(page, 2);
+    await expect(page.locator('.mk8-scr-modes')).toBeVisible();
+  });
+
+  test('touch: a tap selects, a tap on the selected racer confirms, B goes back', async ({
+    page,
+  }, info) => {
+    const press = (locator: Locator) =>
+      info.project.use.hasTouch ? locator.tap() : locator.click();
+    await loadScenario(page, 'mk8-ui-char');
+    await settled(page, 3);
+    await press(tiles(page).nth(6));
+    await expect(selected(page)).toHaveAttribute('data-racer', 'mk8-koopa-troopa');
+    await expect(plate(page)).toContainText('Koopa Troopa');
+    expect(await sounds(page)).toEqual(['ui/name-appear', 'voice/koopa-troopa/select']);
+    await press(tiles(page).nth(6));
+    await settled(page, 4);
+    expect((await flow(page)).loadout?.racer).toBe('mk8-koopa-troopa');
+    await press(page.locator('.mk8-scr-kart .mk8-hint-b'));
+    await settled(page, 3);
+    await press(page.locator('.mk8-scr-char .mk8-hint-b'));
+    await settled(page, 2);
+  });
+
+  test('remembers the last racer picked', async ({ page }) => {
+    await loadScenario(page, 'mk8-ui-char');
+    await settled(page, 3);
+    await page.keyboard.press('ArrowRight');
+    await expect(selected(page)).toHaveAttribute('data-racer', 'mk8-luigi');
+    // Only a confirmed pick is remembered.
+    await page.keyboard.press('Escape');
+    await settled(page, 2);
+    await page.keyboard.press('Enter');
+    await settled(page, 3);
+    await expect(selected(page)).toHaveAttribute('data-racer', 'mk8-mario');
+    await page.keyboard.press('ArrowRight');
+    await page.keyboard.press('ArrowRight');
+    await page.keyboard.press('ArrowRight');
+    await page.keyboard.press('Enter');
+    await settled(page, 4);
+    await loadScenario(page, 'mk8-ui-char');
+    await settled(page, 3);
+    await expect(selected(page)).toHaveAttribute('data-racer', 'mk8-daisy');
+    await expect(plate(page)).toContainText('Daisy');
+  });
+
+  test('with a pack: the 3D racer turns in the portrait and follows the cursor within 300 ms', async ({
+    page,
+  }) => {
+    const { requested } = await servePack(page);
+    await loadScenario(page, 'mk8-ui-char');
+    await settled(page, 3);
+    await expect.poll(() => shown3d(page), { timeout: 20_000 }).toBe('mk8-mario');
+    await expect(page.locator('.mk8-char-portrait')).toHaveClass(/has-3d/);
+    await expect(page.locator('.mk8-preview-canvas')).toBeVisible();
+    // Every racer's model and the voice lines the pack has, the first racer's first.
+    await expect
+      .poll(() => requested.filter((p) => p.startsWith('models/racers/')).length)
+      .toBe(12);
+    expect(requested).toContain('audio/voices.json');
+    expect(requested).toContain('audio/voice/mario/fixture-select.m4a');
+    const racers = requested.filter((p) => p.startsWith('models/racers/'));
+    expect(racers[0]).toBe('models/racers/mario.glb');
+
+    for (const [key, racer] of [
+      ['ArrowRight', 'mk8-luigi'],
+      ['ArrowDown', 'mk8-toad'],
+      ['ArrowLeft', 'mk8-yoshi'],
+    ] as const) {
+      await page.keyboard.press(key);
+      await expect.poll(() => shown3d(page)).toBe(racer);
+      const latency = await page.evaluate(() => window.__mk8?.preview?.latency());
+      expect(latency, racer).toBeLessThan(300);
+    }
+    // The voice line asked for even where the pack has no clip (it stays silent then).
+    expect(await sounds(page)).toContain('voice/yoshi/select');
+  });
+
+  test('tap targets are at least 44 px and everything fits the screen', async ({ page }) => {
+    await loadScenario(page, 'mk8-ui-char');
+    await settled(page, 3);
+    await expectFits(page, '.mk8-scr-char .mk8-char-tile');
+    await expectFits(page, '.mk8-scr-char .mk8-char-portrait', false);
+    await expectFits(page, '.mk8-scr-char .mk8-nameplate', false);
+    await expectFits(page, '.mk8-scr-char .mk8-hint');
   });
 });
