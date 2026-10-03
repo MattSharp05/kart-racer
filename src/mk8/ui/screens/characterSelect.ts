@@ -14,8 +14,7 @@ import { RacerPreview } from '../../render/preview';
 import { art, Menu, menuScreen, nameplate, panel, squareTile } from '../kit';
 import type { CHARACTER_SPRITES } from '../sprites';
 import type { Mk8ScreenFactory } from '../stack';
-import { kartBuilder } from './kartBuilder';
-import type { Mk8Context } from './session';
+import type { Mk8Context, Mk8Screen } from './session';
 import './characterSelect.css';
 
 /** The grid's width (the mockup's 4 across). */
@@ -146,7 +145,7 @@ export function characterSelect(ctx: Mk8Context): Mk8ScreenFactory {
         const loadout = savedLoadout(ctx.store, racer);
         ctx.flow.loadout = loadout;
         saveLoadout(ctx.store, loadout);
-        stack.push(kartBuilder(ctx));
+        stack.push(ctx.next('char'));
       },
     });
 
@@ -201,3 +200,10 @@ export function characterSelect(ctx: Mk8Context): Mk8ScreenFactory {
     };
   };
 }
+
+/** The character select (MK-117); the `char` scenario start opens on it for a Grand Prix. */
+export const screen: Mk8Screen = {
+  id: 'char',
+  build: characterSelect,
+  starts: { char: { mode: 'grand-prix' } },
+};

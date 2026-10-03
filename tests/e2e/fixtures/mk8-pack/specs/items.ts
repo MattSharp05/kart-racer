@@ -1,15 +1,9 @@
-// Writes the fixture pack's item models (MK-103): one small synthetic GLB per MK8 item model id, in
-// the pack's layout (`models/items/<id>.glb`, group `items`) and its quirks (top along −Z, the item
-// box's glass at opacity 0, the red shell coloured like the green one), and adds them to
-// `manifest.json`. No Nintendo files: plain coloured shapes. Run: `node <this file>`.
-import { createHash } from 'node:crypto';
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
-import { Document, NodeIO } from '@gltf-transform/core';
+// The fixture pack's item models (MK-103, MK-112, MK-113): one plain coloured shape per MK8 item model id,
+// in the pack's layout (`models/items/<id>.glb`, group `items`) and its quirks the loader fixes:
+// the top along −Z, the item box's glass at opacity 0, the red shell coloured like the green one.
+import { Document } from '@gltf-transform/core';
 import * as THREE from 'three';
-
-const PACK = import.meta.dirname;
-const GROUP = 'items';
+import { glb, type FixtureFile } from './gltf.ts';
 
 interface Shape {
   geometry: THREE.BufferGeometry;
@@ -59,7 +53,7 @@ const SHAPES: Record<string, () => Shape> = {
 };
 
 /** One shape as a GLB, turned so its top is along −Z (as the pack's DAE conversions are). */
-async function glb(shape: Shape): Promise<Uint8Array> {
+function itemGlb(shape: Shape): Promise<Uint8Array> {
   const rotated = shape.geometry.rotateX(-Math.PI / 2);
   const geometry = rotated.index ? rotated.toNonIndexed() : rotated;
   geometry.computeVertexNormals();
@@ -82,34 +76,12 @@ async function glb(shape: Shape): Promise<Uint8Array> {
     .setMaterial(material);
   const mesh = doc.createMesh().addPrimitive(primitive);
   doc.createScene().addChild(doc.createNode('item').setMesh(mesh));
-  return new NodeIO().writeBinary(doc);
+  return glb(doc);
 }
 
-interface Entry {
-  path: string;
-  bytes: number;
-  sha256: string;
-  group: string;
-}
-
-const manifestPath = join(PACK, 'manifest.json');
-const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as { version: 1; files: Entry[] };
-const entries: Entry[] = [];
-mkdirSync(join(PACK, 'models', 'items'), { recursive: true });
-for (const [id, make] of Object.entries(SHAPES)) {
-  const path = `models/items/${id}.glb`;
-  const bytes = await glb(make());
-  writeFileSync(join(PACK, path), bytes);
-  entries.push({
-    path,
-    bytes: bytes.byteLength,
-    sha256: createHash('sha256').update(bytes).digest('hex'),
-    group: GROUP,
-  });
-}
-const written = new Set(entries.map((e) => e.path));
-manifest.files = [...manifest.files.filter((e) => !written.has(e.path)), ...entries].sort((a, b) =>
-  a.path < b.path ? -1 : a.path > b.path ? 1 : 0,
-);
-writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
-console.log(`Wrote ${entries.length} item models`);
+const files: FixtureFile[] = Object.entries(SHAPES).map(([id, make]) => ({
+  path: `models/items/${id}.glb`,
+  group: 'items',
+  make: () => itemGlb(make()),
+}));
+export default files;

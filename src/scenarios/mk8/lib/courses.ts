@@ -2,19 +2,19 @@
 // the final lap on Mario Kart Stadium, plus a race on the synthetic test ramp (no pack: CI's e2e).
 // The course is registered by `main.ts` before setup (`src/mk8/scenarioCourses.ts`); without it
 // the scenario shows "MK8 pack not installed", or the password box on the site before logging in.
-import { tracks } from '../content/tracks';
-import { MK8_ITEM_SET } from '../mk8/content/items/id';
-import { KART_IDS } from '../sim/data/karts';
-import { headingOf, scale, type Vec3 } from '../sim/math';
-import type { MeshTrackDef } from '../sim/meshTrack';
-import { createRace, raceSetupRng, type RacerSlot } from '../sim/race/createRace';
-import { rngInt, rngPick } from '../sim/rng';
-import { routeGeometry } from '../sim/route';
-import { createSimState } from '../sim/state';
-import { DT, tuning } from '../sim/tuning';
-import type { KartState, SimState } from '../sim/types';
-import { attractMode } from './menus';
-import type { ScenarioSetup } from './registry';
+import { tracks } from '../../../content/tracks';
+import { MK8_ITEM_SET } from '../../../mk8/content/items/id';
+import { KART_IDS } from '../../../sim/data/karts';
+import { headingOf, scale, type Vec3 } from '../../../sim/math';
+import type { MeshTrackDef } from '../../../sim/meshTrack';
+import { createRace, raceSetupRng, type RacerSlot } from '../../../sim/race/createRace';
+import { rngInt, rngPick } from '../../../sim/rng';
+import { routeGeometry } from '../../../sim/route';
+import { createSimState } from '../../../sim/state';
+import { DT, tuning } from '../../../sim/tuning';
+import type { KartState, SimState } from '../../../sim/types';
+import { attractMode } from '../../menus';
+import type { ScenarioSetup } from '../../registry';
 
 /** The races' engine class and laps (MK8's usual 150cc, 3 laps). */
 const ENGINE_CLASS = 150;
@@ -37,7 +37,11 @@ export function onCourse(
   return (seed) => {
     if (!tracks.has(trackId)) {
       const locked = mk8CourseLoad.state === 'locked';
-      return { state: attractMode(seed), screen: locked ? 'mk8CoursePassword' : 'mk8NotInstalled' };
+      return {
+        state: attractMode(seed),
+        screen: 'mk8',
+        mk8Start: locked ? 'course-password' : 'not-installed',
+      };
     }
     const def = tracks.get(trackId).def;
     if (def.kind !== 'mesh') throw new Error(`${trackId} isn't a mesh track`);

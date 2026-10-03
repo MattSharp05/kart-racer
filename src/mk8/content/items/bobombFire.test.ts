@@ -1,5 +1,5 @@
 import { beforeAll, describe, expect, it } from 'vitest';
-import { mk8Bobomb, mk8FireFlower } from '../../../scenarios/mk8';
+import { mk8Bobomb, mk8FireFlower } from '../../../scenarios/mk8/items';
 import { kartOnTrack } from '../../../scenarios/tracks';
 import { forwardFromHeading } from '../../../sim/math';
 import { step } from '../../../sim/step';

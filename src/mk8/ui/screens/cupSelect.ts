@@ -8,7 +8,7 @@ import { cupInfo, MK8_CUPS, type Mk8Course, type Mk8Cup } from '../../content/cu
 import { DEFAULT_ENGINE_CLASS, raceSetup } from '../../flow';
 import { art, Menu, menuScreen, squareTile } from '../kit';
 import type { Mk8ScreenFactory } from '../stack';
-import type { Mk8Context } from './session';
+import type { Mk8Context, Mk8Screen } from './session';
 import './cupSelect.css';
 
 /** Shown where a Time Trial best will be (the VS + Time Trial ticket fills it in). */
@@ -303,3 +303,16 @@ export function courseLoading(ctx: Mk8Context): Mk8ScreenFactory {
     };
   };
 }
+
+/**
+ * The cup/course select (MK-119), last before the race: the `cup` scenario start opens it for a
+ * 150cc Grand Prix, `course` for a 150cc VS Race.
+ */
+export const screen: Mk8Screen = {
+  id: 'cup',
+  build: cupSelect,
+  starts: {
+    cup: { mode: 'grand-prix', engineClass: 150 },
+    course: { mode: 'vs', engineClass: 150 },
+  },
+};
