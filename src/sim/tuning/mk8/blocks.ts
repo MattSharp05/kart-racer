@@ -11,4 +11,3 @@ export { mk8BulletBillTuning } from './bulletBill';
 export { mk8UnderwaterTuning } from './underwater';
 export { mk8GlideAimTuning } from './glideAim';
 export { mk8WallFloorTuning } from './wallFloor';
-export { mk8PiranhaCrazy8Tuning } from './piranhaCrazy8';
