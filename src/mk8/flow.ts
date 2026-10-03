@@ -5,11 +5,19 @@
 import { racers } from '../content/racers';
 import { tracks } from '../content/tracks';
 import type { KartId } from '../sim/data/karts';
+import type { RacerSlot } from '../sim/race/createRace';
 import type { EngineClass } from '../sim/tuning';
 import { MK8_ITEM_SET } from './content/items/id';
 import { defaultLoadout } from './content/parts';
 import { isKnownLoadout } from './content/stats';
 import { courseInfo, cupInfo, type Mk8CourseKey, type Mk8CupId } from './content/cups';
+import {
+  currentCourse,
+  gpSeed,
+  gridSlots,
+  startGrandPrix,
+  type Mk8GrandPrix,
+} from './gp/grandPrix';
 import type { Mk8Flow, Mk8GameMode, Mk8Loadout } from './ui/screens/session';
 
 /** The kart before character select and the kart builder pick one (MK8's defaults, MK-102). */
@@ -39,24 +47,65 @@ export interface Mk8RaceSetup {
   itemSet: string;
   /** The game mode it was picked in (MK-121: the results' choices and Grand Prix standings). */
   mode?: Mk8GameMode;
+  /** A Grand Prix (MK-130): the cup so far; this race is its `currentCourse`. */
+  gp?: Mk8GrandPrix;
+  /** A Grand Prix's karts (MK-130): the same rivals every race, on the reverse of the standings. */
+  field?: RacerSlot[];
 }
 
-/** The race the menus' choices make. Throws when no course was picked. */
-export function raceSetup(flow: Mk8Flow): Mk8RaceSetup {
-  if (!flow.course) throw new Error('MK8: no course chosen');
-  const course = courseInfo(flow.course);
+/**
+ * The race the menus' choices make. Throws when no course was picked. A Grand Prix (MK-130) races
+ * `gp`'s current course (a new cup from the choices without one) with its field.
+ */
+export function raceSetup(flow: Mk8Flow, gp?: Mk8GrandPrix): Mk8RaceSetup {
   const cup = flow.cup ?? 'mushroom';
-  if (cupInfo(cup).locked) throw new Error(`MK8: the ${cup} cup is locked`);
+  const engineClass = flow.engineClass ?? DEFAULT_ENGINE_CLASS;
   const loadout = flow.loadout ?? DEFAULT_LOADOUT;
+  const grandPrix =
+    flow.mode === 'grand-prix'
+      ? (gp ??
+        startGrandPrix({
+          cup,
+          engineClass,
+          player: loadout,
+          seed: gpSeed(cup, engineClass, loadout.racer),
+        }))
+      : undefined;
+  const key = (grandPrix && currentCourse(grandPrix)) ?? flow.course;
+  if (!key) throw new Error('MK8: no course chosen');
+  const course = courseInfo(key);
+  if (cupInfo(cup).locked) throw new Error(`MK8: the ${cup} cup is locked`);
+  const playerKart = racers.has(loadout.racer) ? loadout.racer : STAND_IN_RACER;
   return {
     course: course.key,
     cup,
     trackId: tracks.has(course.trackId) ? course.trackId : course.standIn,
-    engineClass: flow.engineClass ?? DEFAULT_ENGINE_CLASS,
+    engineClass,
     loadout,
     ...(isKnownLoadout(loadout) ? { raceLoadout: loadout } : {}),
-    playerKart: racers.has(loadout.racer) ? loadout.racer : STAND_IN_RACER,
+    playerKart,
     itemSet: MK8_ITEM_SET,
     ...(flow.mode ? { mode: flow.mode } : {}),
+    ...(grandPrix ? { gp: grandPrix, field: gpField(grandPrix, playerKart) } : {}),
   };
+}
+
+/**
+ * A Grand Prix race's karts: entrant `i` is kart `i` (the player first), each on its grid slot,
+ * the AI in their own loadouts; a racer not registered drives as the stand-in.
+ */
+export function gpField(gp: Mk8GrandPrix, playerKart: KartId): RacerSlot[] {
+  const slots = gridSlots(gp);
+  return gp.entrants.map((entrant, i): RacerSlot => {
+    const you = i === 0;
+    const known = racers.has(entrant.racer);
+    return {
+      kartId: you ? playerKart : known ? entrant.racer : STAND_IN_RACER,
+      controller: you ? 'local' : 'ai',
+      gridSlot: slots[i] ?? i,
+      ...((you || known) && isKnownLoadout(entrant.loadout)
+        ? { loadout: { ...entrant.loadout } }
+        : {}),
+    };
+  });
 }
