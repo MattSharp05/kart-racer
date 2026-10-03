@@ -69,14 +69,14 @@
     },
     {
       "path": "models/karts/bodies/standard-kart.glb",
-      "bytes": 4208,
-      "sha256": "77427c9e69a1a9a46e7d1717e35cfbf0e27badc213e48f69a10944e245c62309",
+      "bytes": 3684,
+      "sha256": "4712aaa5f8b3e6860ed8668eb43044c0c86f5675d0afa8c28f0648fc442df185",
       "group": "karts"
     },
     {
       "path": "models/karts/tires/standard-tires.glb",
-      "bytes": 2996,
-      "sha256": "f4b813b96f6c4c53096f0067db336091b8b2cd460b8c9be348b81af53ec35637",
+      "bytes": 9252,
+      "sha256": "733d6e0d199a299a16649ee1db483cf2e794ef5498860306785b753306481f12",
       "group": "karts"
     },
     {
@@ -123,8 +123,8 @@
     },
     {
       "path": "models/racers/peach.glb",
-      "bytes": 7280,
-      "sha256": "a14b84394f36d859e67fbd028b1e2c5e82f5bc8066b633c8161921dbb9839646",
+      "bytes": 7300,
+      "sha256": "320369399ac6c70438996442cddf395900c24283104093f6810e24c5e0b1fb30",
       "group": "racer/peach"
     },
     {

@@ -9,3 +9,8 @@ MK-103 added `models/items/*.glb`: one plain coloured shape per MK8 item model i
 `node tests/e2e/fixtures/mk8-pack/makeItemModels.ts` (which also updates `manifest.json`). They
 copy the real pack's quirks the loader fixes: the top along −Z, the item box's glass at opacity 0,
 and the red shell coloured like the green one. MK-112 added `golden-mushroom`.
+
+MK-136: `makeModels.ts`'s Standard Kart parts and Peach copy the real pack's quirks that
+`src/mk8/render/racerModel.ts` handles (skinned, quantized meshes; the tire model as the set of four
+tires, each with an overlay layer on the same geometry; physical materials; a white glow on the
+tires; fully transparent paint), so `racerModel.test.ts` and the racer e2e cover them in CI.
