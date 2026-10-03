@@ -2,6 +2,7 @@
 // move it (cursor sound), Enter confirms (decide sound); on touch a tap selects a tile and a tap
 // on the selected tile confirms it. Back is the stack's (Esc, Backspace, the B button).
 import type { SoundPlayer } from '../../audio/player';
+import type { SoundId } from '../../audio/soundIds';
 import { menuAction, nextIndex } from './nav';
 
 export interface MenuOptions {
@@ -14,20 +15,34 @@ export interface MenuOptions {
   onSelect?: (index: number) => void;
   /** OK on the selected tile. */
   onConfirm: (index: number) => void;
+  /** The sound of a move; the cursor blip by default (MK-119: the course roulette). */
+  moveSound?: SoundId;
+  /** Whether a tile can be confirmed (MK-119: locked cups can't); no decide sound when not. */
+  canConfirm?: (index: number) => boolean;
+  /** OK on a tile that can't be confirmed. */
+  onRefuse?: (index: number) => void;
 }
 
 export const SELECTED_CLASS = 'is-selected';
 
 export class Menu {
   index = 0;
+  /** An inactive menu ignores taps (a screen with two menus, MK-119); keys are the screen's to route. */
+  active = true;
   private readonly items: readonly HTMLElement[];
   private readonly columns: number;
   private readonly sounds: SoundPlayer;
   private readonly onSelect: ((index: number) => void) | undefined;
   private readonly onConfirm: (index: number) => void;
+  private readonly moveSound: SoundId;
+  private readonly canConfirm: (index: number) => boolean;
+  private readonly onRefuse: ((index: number) => void) | undefined;
 
   constructor(options: MenuOptions) {
     this.items = options.items;
+    this.moveSound = options.moveSound ?? 'ui/cursor';
+    this.canConfirm = options.canConfirm ?? (() => true);
+    this.onRefuse = options.onRefuse;
     this.columns = options.columns ?? 1;
     this.sounds = options.sounds;
     this.onSelect = options.onSelect;
@@ -51,11 +66,15 @@ export class Menu {
       if (selected) item.setAttribute('aria-current', 'true');
       else item.removeAttribute('aria-current');
     });
-    if (sound && changed) this.sounds.play('ui/cursor');
+    if (sound && changed) this.sounds.play(this.moveSound);
     if (changed || !sound) this.onSelect?.(index);
   }
 
   confirm(): void {
+    if (!this.canConfirm(this.index)) {
+      this.onRefuse?.(this.index);
+      return;
+    }
     this.sounds.play('ui/decide');
     this.onConfirm(this.index);
   }
@@ -72,6 +91,7 @@ export class Menu {
 
   /** A tap or click: select the tile, or confirm it when it already is. */
   private tap(index: number): void {
+    if (!this.active) return;
     if (index === this.index) this.confirm();
     else this.select(index);
   }

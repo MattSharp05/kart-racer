@@ -16,6 +16,9 @@ for (const name of [
   'mk8-ui-kit',
   'mk8-ui-title',
   'mk8-ui-mode',
+  'mk8-ui-cc',
+  'mk8-ui-cup',
+  'mk8-ui-course',
 ]) {
   test(`${name} (paused)`, async ({ page }) => {
     await loadScenario(page, name, { paused: true });

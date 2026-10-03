@@ -164,6 +164,8 @@ export interface RaceConfig {
   playerKart: KartId;
   /** A registered track (MK-50). */
   trackId: string;
+  /** A registered item set (MK-119: `mk8`); the original game's by default. */
+  itemSet?: string;
 }
 
 /**
@@ -233,6 +235,7 @@ export class RaceSession {
         engineClass: config.engineClass,
         playerKart: config.playerKart,
         trackId: config.trackId,
+        ...(config.itemSet !== undefined ? { itemSet: config.itemSet } : {}),
       }),
     );
   }
