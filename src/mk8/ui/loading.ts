@@ -41,7 +41,7 @@ declare module '../../ui/router' {
 }
 
 /** The MK8 header band (the mockup's blue, slanted bar) and the panel's MK8 look. */
-function frame(panel: HTMLElement, title: string): HTMLElement {
+export function frame(panel: HTMLElement, title: string): HTMLElement {
   panel.classList.add('mk8-screen');
   const header = document.createElement('div');
   header.className = 'mk8-header';
@@ -53,7 +53,7 @@ function frame(panel: HTMLElement, title: string): HTMLElement {
 }
 
 /** Back button in the footer; Escape or Backspace press it too. */
-function backFooter(panel: HTMLElement, onBack: () => void): HTMLButtonElement {
+export function backFooter(panel: HTMLElement, onBack: () => void): HTMLButtonElement {
   const back = button('Back', onBack, 'mk8-back');
   const footer = document.createElement('div');
   footer.className = 'mk8-footer';
@@ -63,7 +63,7 @@ function backFooter(panel: HTMLElement, onBack: () => void): HTMLButtonElement {
   return back;
 }
 
-const backKeys =
+export const backKeys =
   (onBack: () => void): ScreenHandle['onKey'] =>
   (e) => {
     if (e.key === 'Escape' || e.key === 'Backspace') onBack();
