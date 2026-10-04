@@ -42,9 +42,9 @@ export interface ScenarioSetup {
   online?: OnlineScenario;
   /**
    * Open a room over this state (MK-40): `&role=host` (default) creates one, with `&room=` as its
-   * code if given; `&role=client&room=CODE` joins it.
+   * code if given; `&role=client&room=CODE` joins it. `mk8` (MK-132): an MK8 room.
    */
-  lobby?: boolean;
+  lobby?: boolean | 'mk8';
 }
 
 /** The online part of a scenario: the race the host runs, and a default simulated network. */

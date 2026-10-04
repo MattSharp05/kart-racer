@@ -23,6 +23,7 @@ describe('MK8 course scenarios (MK-99, MK-105)', () => {
       'mk8-ui-results',
       'mk8-ui-standings',
       'mk8-race-all-items',
+      'mk8-online-race-2p',
       'mk8-voices',
     ];
     const onCourse = mk8Scenarios
@@ -63,7 +64,9 @@ describe('mk8-test-glide (MK-106)', () => {
 describe('MK8 scenario groups (MK-142)', () => {
   it('collects every group file, each scenario in the MK8 Mode group', () => {
     expect(mk8Scenarios.length).toBeGreaterThanOrEqual(MK8_SCENARIO_NAMES.length);
-    expect(new Set(mk8Scenarios.map((s) => s.group))).toEqual(new Set(['MK8 Mode']));
+    // Online races (MK-132) are listed under Online, with host and client links.
+    const offline = mk8Scenarios.filter((s) => !s.name.startsWith('mk8-online-'));
+    expect(new Set(offline.map((s) => s.group))).toEqual(new Set(['MK8 Mode']));
   });
 
   it('keeps every scenario name tickets link to', () => {

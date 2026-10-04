@@ -94,7 +94,12 @@ function initialState(params: LaunchParams): Launch {
         ...(setup.mk8Start ? { mk8Start: setup.mk8Start } : {}),
         ...(setup.storage ? { storage: setup.storage } : {}),
         ...(setup.lobby
-          ? { lobby: lobbyLaunch(params.role ?? 'host', params.room, params.laps) }
+          ? {
+              lobby: {
+                ...lobbyLaunch(params.role ?? 'host', params.room, params.laps),
+                ...(setup.lobby === 'mk8' ? { pack: 'mk8' as const } : {}),
+              },
+            }
           : {}),
         localRooms: params.net === 'local' || isOnlineScenario(scenario),
         ...(params.role ? { role: params.role } : {}),

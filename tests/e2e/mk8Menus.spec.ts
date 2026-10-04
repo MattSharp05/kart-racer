@@ -401,7 +401,7 @@ test.describe('MK8 engine class and cup/course select (MK-119)', () => {
     await expect(shields(page).nth(2)).toHaveAttribute('aria-current', 'true');
   });
 
-  test('character select goes on to the kart builder, then the engine class (Online stops there)', async ({
+  test('character select goes on to the kart builder, then the engine class (Online: its rooms)', async ({
     page,
   }) => {
     await loadScenario(page, 'mk8-ui-mode');
@@ -431,9 +431,10 @@ test.describe('MK8 engine class and cup/course select (MK-119)', () => {
     await settled(page, 3);
     await page.keyboard.press('Enter');
     await settled(page, 4);
-    await expect(page.locator('.mk8-scr-kart .mk8-hint-a')).toHaveCount(0);
+    // Online (MK-132): the kart builder goes on to the rooms tile, not the engine class.
     await page.keyboard.press('Enter');
-    await expect(page.locator('.mk8')).toHaveAttribute('data-depth', '4');
+    await settled(page, 5);
+    await expect(page.locator('.mk8-scr-online [data-mode="rooms"]')).toBeVisible();
   });
 
   test('engine class and cup/course tap targets are at least 44 px and fit the screen', async ({
