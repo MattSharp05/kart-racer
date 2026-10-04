@@ -7,6 +7,7 @@ import { showErrorBanner } from '../ui/errorBanner';
 import type { Router } from '../ui/router';
 import { installMk8ItemSounds } from './audio/itemSoundSkin';
 import { Mk8AudioPlayer } from './audio/player';
+import { installMk8Voices } from './audio/voiceSkin';
 import { courseInfo } from './content/cups';
 import type { Mk8RaceSetup } from './flow';
 import type { SoundId } from './audio/soundIds';
@@ -119,6 +120,11 @@ installMk8Hud({
 
 // MK8 races' item sounds (MK-129) from the pack, over our synth's.
 installMk8ItemSounds(() => audioPlayer());
+// Racers' voice lines in MK8 races (MK-110), loaded when a race starts.
+installMk8Voices(
+  () => audioPlayer(),
+  (ids) => packLoader().loadVoices(ids),
+);
 
 /** Where the `mk8-loading` scenario holds the bar. */
 const DEMO_PROGRESS = 0.5;

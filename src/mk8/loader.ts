@@ -85,6 +85,14 @@ export const ITEM_GROUPS = ['items', 'audio/items', 'audio/star'] as const;
 /** The groups of a course and of some racers, as the pipeline names them (`tools/mk8/sources.ts`). */
 export const courseGroups = (id: string): string[] => [`course/${id}`, `audio/course/${id}`];
 export const racerGroups = (ids: readonly string[]): string[] => ids.map((id) => `racer/${id}`);
+/**
+ * Racers' voice lines (MK-110): the voice index (`audio/voices.json`, group `audio/voice`) and each
+ * racer's clips (`audio/voice/<id>`), by the pipeline's voice id (`mario`).
+ */
+export const voiceGroups = (ids: readonly string[]): string[] => [
+  'audio/voice',
+  ...ids.map((id) => `audio/voice/${id}`),
+];
 
 export class Mk8Loader {
   private manifest: Manifest | undefined;
@@ -137,9 +145,14 @@ export class Mk8Loader {
     return this.loadGroups(courseGroups(id), onProgress);
   }
 
-  /** Racer models, on demand. */
+  /** Racer models and (MK-110) their voice lines, on demand. */
   loadRacers(ids: readonly string[], onProgress: OnProgress = () => {}): Promise<void> {
-    return this.loadGroups(racerGroups(ids), onProgress);
+    return this.loadGroups([...racerGroups(ids), ...voiceGroups(ids)], onProgress);
+  }
+
+  /** Racers' voice lines only (MK-110: races draw stand-in models, but the racers speak). */
+  loadVoices(ids: readonly string[], onProgress: OnProgress = () => {}): Promise<void> {
+    return this.loadGroups(voiceGroups(ids), onProgress);
   }
 
   /**

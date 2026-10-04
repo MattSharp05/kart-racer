@@ -24,6 +24,7 @@ describe('MK8 course scenarios (MK-99, MK-105)', () => {
       'mk8-ui-standings',
       'mk8-race-all-items',
       'mk8-online-race-2p',
+      'mk8-voices',
     ];
     const onCourse = mk8Scenarios
       .filter(
