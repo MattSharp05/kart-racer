@@ -1,5 +1,13 @@
 {
   "mario": {
-    "select": ["audio/voice/mario/fixture-select.m4a"]
+    "select": ["audio/voice/mario/fixture-select.m4a"],
+    "boost": ["audio/voice/mario/fixture-boost.m4a"],
+    "hit": ["audio/voice/mario/fixture-hit.m4a"],
+    "fall": ["audio/voice/mario/fixture-fall.m4a"]
+  },
+  "luigi": {
+    "boost": ["audio/voice/luigi/fixture-boost.m4a"],
+    "hit": ["audio/voice/luigi/fixture-hit.m4a"],
+    "fall": ["audio/voice/luigi/fixture-fall.m4a"]
   }
 }

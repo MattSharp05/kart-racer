@@ -18,7 +18,13 @@ describe('MK8 course scenarios (MK-99, MK-105)', () => {
   it('name the course of exactly the scenarios that drive one', () => {
     // MK-121's pause and results scenarios and MK-130's Grand Prix race on the test ramp too,
     // and MK-129's all-items race.
-    const onRamp = ['mk8-ui-pause', 'mk8-ui-results', 'mk8-ui-standings', 'mk8-race-all-items'];
+    const onRamp = [
+      'mk8-ui-pause',
+      'mk8-ui-results',
+      'mk8-ui-standings',
+      'mk8-race-all-items',
+      'mk8-voices',
+    ];
     const onCourse = mk8Scenarios
       .filter(
         (s) =>
