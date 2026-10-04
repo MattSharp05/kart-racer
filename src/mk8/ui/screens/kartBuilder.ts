@@ -128,10 +128,8 @@ export function kartBuilder(ctx: Mk8Context): Mk8ScreenFactory {
     /** Whether the builder is on show (the 3D preview loads and turns only then). */
     let onShow = false;
 
-    // Online stops here until its rooms come with their own ticket (as the stand-ins did).
-    const goesOn = ctx.flow.mode !== 'online';
+    // Online goes on to its rooms (MK-132); the other modes to the engine class.
     const confirm = () => {
-      if (!goesOn) return;
       const chosen = current();
       stack.sounds.play('ui/decide');
       saveLoadout(ctx.store, chosen);
@@ -145,7 +143,7 @@ export function kartBuilder(ctx: Mk8Context): Mk8ScreenFactory {
       title: 'Customize',
       sub: '↑↓ change part · ←→ switch column',
       hints: [
-        ...(goesOn ? [{ button: 'a' as const, label: 'OK', onPress: confirm }] : []),
+        { button: 'a', label: 'OK', onPress: confirm },
         { button: 'b', label: 'Back', onPress: () => stack.back() },
       ],
     });
