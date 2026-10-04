@@ -140,6 +140,42 @@
       "group": "audio/ui"
     },
     {
+      "path": "audio/voice/luigi/fixture-boost.m4a",
+      "bytes": 7535,
+      "sha256": "ceaa45bde8f7a8e0e2a8ac82bbe5faf2908a077cfa5efd2e7c584c0d78512e4d",
+      "group": "audio/voice/luigi"
+    },
+    {
+      "path": "audio/voice/luigi/fixture-fall.m4a",
+      "bytes": 7535,
+      "sha256": "ceaa45bde8f7a8e0e2a8ac82bbe5faf2908a077cfa5efd2e7c584c0d78512e4d",
+      "group": "audio/voice/luigi"
+    },
+    {
+      "path": "audio/voice/luigi/fixture-hit.m4a",
+      "bytes": 7535,
+      "sha256": "ceaa45bde8f7a8e0e2a8ac82bbe5faf2908a077cfa5efd2e7c584c0d78512e4d",
+      "group": "audio/voice/luigi"
+    },
+    {
+      "path": "audio/voice/mario/fixture-boost.m4a",
+      "bytes": 7535,
+      "sha256": "ceaa45bde8f7a8e0e2a8ac82bbe5faf2908a077cfa5efd2e7c584c0d78512e4d",
+      "group": "audio/voice/mario"
+    },
+    {
+      "path": "audio/voice/mario/fixture-fall.m4a",
+      "bytes": 7535,
+      "sha256": "ceaa45bde8f7a8e0e2a8ac82bbe5faf2908a077cfa5efd2e7c584c0d78512e4d",
+      "group": "audio/voice/mario"
+    },
+    {
+      "path": "audio/voice/mario/fixture-hit.m4a",
+      "bytes": 7535,
+      "sha256": "ceaa45bde8f7a8e0e2a8ac82bbe5faf2908a077cfa5efd2e7c584c0d78512e4d",
+      "group": "audio/voice/mario"
+    },
+    {
       "path": "audio/voice/mario/fixture-select.m4a",
       "bytes": 7535,
       "sha256": "ceaa45bde8f7a8e0e2a8ac82bbe5faf2908a077cfa5efd2e7c584c0d78512e4d",
@@ -147,8 +183,8 @@
     },
     {
       "path": "audio/voices.json",
-      "bytes": 76,
-      "sha256": "102e59eade7f00c7f6facaef74e2ebe6d46d13fdd606f332dccf46a9ad9c018a",
+      "bytes": 405,
+      "sha256": "912816a0bb1e2cd3f5b40700d3da05612c33a58cc0859149ce1578a3d322b9b7",
       "group": "audio/voice"
     },
     {
