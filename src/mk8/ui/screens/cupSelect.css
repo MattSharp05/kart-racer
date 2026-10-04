@@ -190,9 +190,7 @@
   right: 0;
   bottom: 0;
   left: 0;
-  /* Room on the right for the Time Trial best. */
-  padding: calc(24 * var(--u)) max(64px, calc(100 * var(--u))) calc(8 * var(--u))
-    calc(14 * var(--u));
+  padding: calc(24 * var(--u)) calc(14 * var(--u)) calc(8 * var(--u));
   overflow: hidden;
   border-radius: 0 0 calc(16 * var(--u)) calc(16 * var(--u));
   text-overflow: ellipsis;
@@ -204,8 +202,13 @@
 
 .mk8-course-best {
   position: absolute;
-  right: calc(10 * var(--u));
-  bottom: calc(10 * var(--u));
+  /* MK-134: under the map, clear of the course's name (a long name and a time overlapped on
+     phones). */
+  top: calc(100 * var(--u));
+  right: calc(8 * var(--u));
+  padding: calc(1 * var(--u)) calc(8 * var(--u));
+  border-radius: calc(6 * var(--u));
+  background: #000a;
   color: #ffe766;
   font-size: max(10px, calc(14 * var(--u)));
   font-weight: 800;
