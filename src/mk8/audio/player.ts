@@ -10,6 +10,7 @@ import {
   voiceSoundId,
   VOICES_PATH,
   type VoiceIndex,
+  type VoiceOptions,
   type VoiceSoundId,
 } from './voices';
 
@@ -23,9 +24,10 @@ export interface SoundPlayer {
   play(id: SoundId, volume?: number): void;
   /**
    * A racer's voice line (MK-117), by the pipeline's voice id (`mario`, `shy-guy`). Silent when
-   * the pack hasn't got the clip: there is no stand-in for a voice.
+   * the pack hasn't got the clip: there is no stand-in for a voice. MK-110's race lines pass a
+   * volume (distance) and a seeded `pick` of the event's clips; without one the clips take turns.
    */
-  voice?(racer: string, event: VoiceEvent): void;
+  voice?(racer: string, event: VoiceEvent, options?: VoiceOptions): void;
   /** Starts audio inside a user gesture (MK8's "press start"), where the player can. */
   unlock?(): void;
 }
@@ -192,17 +194,22 @@ export class Mk8AudioPlayer implements SoundPlayer {
     };
   }
 
-  voice(racer: string, event: VoiceEvent): void {
+  voice(racer: string, event: VoiceEvent, options: VoiceOptions = {}): void {
     this.played.push(voiceSoundId(racer, event));
     const ctx = this.ctx;
     if (!ctx || this.isMuted()) return;
     const clips = this.voiceIndex()?.[racer]?.[event] ?? [];
     if (clips.length === 0) return;
-    const key = `${racer}/${event}`;
-    const turn = this.voiceTurns.get(key) ?? 0;
-    this.voiceTurns.set(key, turn + 1);
-    const path = clips[turn % clips.length];
-    if (path && this.file(path)) this.sample(ctx, path);
+    let index: number;
+    if (options.pick !== undefined) {
+      index = Math.min(clips.length - 1, Math.floor(options.pick * clips.length));
+    } else {
+      const key = `${racer}/${event}`;
+      index = this.voiceTurns.get(key) ?? 0;
+      this.voiceTurns.set(key, index + 1);
+    }
+    const path = clips[index % clips.length];
+    if (path && this.file(path)) this.sample(ctx, path, options.volume);
   }
 
   /** The pack's voice index, once it is loaded (parsed once). */

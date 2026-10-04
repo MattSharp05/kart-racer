@@ -1,7 +1,7 @@
 // MK8 races' kart sounds (MK-111) over our game's (`src/audio/skin.ts`): kart events play the
 // pack's samples (`./kartSounds.ts`), and every frame `./mixer.ts` keeps the engine and terrain
-// loops going. Wraps the skin already there (MK-129's item sounds, MK-110's voices): events that
-// aren't the karts' go on to it. Without the pack, or for a sound the pack hasn't got, our synth
+// loops going. Wraps the skin already there (MK-129's item sounds, MK-110's voices): every event
+// goes on to it, and decides our synth's sound unless it's a kart event. Without the pack, or for a sound the pack hasn't got, our synth
 // plays as ever; a sound the table silences stays silent only while the pack's sounds cover it.
 import { setSoundSkin, soundSkin } from '../../audio/skin';
 import type { SimEvent, SimState } from '../../sim/types';
@@ -77,11 +77,10 @@ export function installMk8KartSounds(
   setSoundSkin({
     owns: (state) => inner?.owns(state) ?? isMk8Race(state),
     play: (event, state, followId) => {
-      if (isMk8Race(state)) {
-        const played = playKartSound(player(), event, state, followId);
-        if (played !== undefined) return played;
-      }
-      return inner?.play(event, state, followId) ?? false;
+      // Every event goes on to the skins below too (MK-110's voices speak on kart events).
+      const below = inner?.play(event, state, followId) ?? false;
+      const played = isMk8Race(state) ? playKartSound(player(), event, state, followId) : undefined;
+      return played ?? below;
     },
     starMusic: () => inner?.starMusic() ?? false,
     update: (state, view, active) => {

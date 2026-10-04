@@ -6,7 +6,14 @@ import { tuning } from '../../sim/tuning';
 import type { SimEvent, SimState } from '../../sim/types';
 import { registerTestRamp } from '../content/courses/test-ramp/register';
 import { registerMk8Content } from '../register';
-import { KART_HEARING_RANGE, playKartSound, type KartSoundPlayer } from './kartSoundSkin';
+import { setSoundSkin, soundSkin } from '../../audio/skin';
+import {
+  installMk8KartSounds,
+  KART_HEARING_RANGE,
+  playKartSound,
+  type KartSoundPlayer,
+} from './kartSoundSkin';
+import { installMk8Voices } from './voiceSkin';
 import {
   engineRate,
   ENGINE_RATE,
@@ -182,5 +189,29 @@ describe('MK8 kart sounds (MK-111)', () => {
     expect(KART_SAMPLES).toContain('terrain/wall/metal');
     expect(KART_SAMPLES).toContain('drift/start');
     expect(KART_SAMPLES.every((id) => !id.startsWith('items/'))).toBe(true);
+  });
+
+  it('over the voices skin: kart events still reach the voices (MK-110)', () => {
+    const before = soundSkin();
+    try {
+      setSoundSkin(undefined);
+      const said: string[] = [];
+      installMk8Voices(
+        () => ({ voice: (racer, line) => said.push(`${racer}/${line}`) }),
+        () => Promise.resolve(),
+      );
+      const { played, player } = recorder();
+      installMk8KartSounds(
+        () => player,
+        () => 0,
+      );
+      const skin = soundSkin()!;
+      const state = race();
+      expect(skin.play({ type: 'boostPad', kartId: 0 }, state, 0)).toBe(true);
+      expect(played.map((p) => p.id)).toEqual(['kart/standard-kart/boost']);
+      expect(said).toEqual(['mario/boost']);
+    } finally {
+      setSoundSkin(before);
+    }
   });
 });

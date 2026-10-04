@@ -9,6 +9,7 @@ import { installMk8ItemSounds } from './audio/itemSoundSkin';
 import { installMk8KartSounds } from './audio/kartSoundSkin';
 import { KART_SAMPLES } from './audio/kartSounds';
 import { Mk8AudioPlayer } from './audio/player';
+import { installMk8Voices } from './audio/voiceSkin';
 import { courseInfo } from './content/cups';
 import type { Mk8RaceSetup } from './flow';
 import { soundPath, type SoundId } from './audio/soundIds';
@@ -117,7 +118,13 @@ installMk8Hud({
 
 // MK8 races' item sounds (MK-129) from the pack, over our synth's.
 installMk8ItemSounds(() => audioPlayer());
-// MK8 races' engines, drift and terrain (MK-111): loaded with the race (`loadKartSounds`).
+// Racers' voice lines in MK8 races (MK-110), loaded when a race starts.
+installMk8Voices(
+  () => audioPlayer(),
+  (ids) => packLoader().loadVoices(ids),
+);
+// MK8 races' engines, drift and terrain (MK-111): loaded with the race (`loadKartSounds`). Last:
+// its skin wraps the others and passes their frame updates on.
 installMk8KartSounds(() => audioPlayer());
 
 /** Where the `mk8-loading` scenario holds the bar. */
