@@ -12,6 +12,7 @@ import testRampLook from './content/courses/test-ramp/look';
 import { testRampTrack } from './content/courses/test-ramp';
 import type { CourseLook } from './content/courses/types';
 import type { Mk8Loader } from './loader';
+import { batchCourseMeshes } from './render/courseBatch';
 import { createCourseLook } from './render/look';
 import { parseGlb } from './render/racerModel';
 
@@ -27,11 +28,44 @@ export function lowQualityPage(search = typeof location === 'undefined' ? '' : l
  * `PackLoadError` (a file failed). `route` replaces the committed one (the track editor's Test
  * drive).
  */
-export async function loadMk8Course(
+export function loadMk8Course(
   files: Mk8Loader,
   course: Mk8CourseContent,
   onProgress: (fraction: number) => void = () => {},
   { low = lowQualityPage(), route }: { low?: boolean; route?: RouteDef } = {},
+): Promise<boolean> {
+  // One load per course at a time (MK-133): the results screen preloads the next course, and the
+  // Next button's load then waits for that one instead of parsing the model again.
+  if (route) return loadCourseFiles(files, course, onProgress, low, route);
+  const key = `${course.packId}${low ? '-low' : ''}`;
+  const pending = loading.get(key);
+  if (pending?.files === files) return pending.promise;
+  const promise = loadCourseFiles(files, course, onProgress, low);
+  loading.set(key, { files, promise });
+  promise.then(
+    () => loading.get(key)?.promise === promise && loading.delete(key),
+    () => loading.get(key)?.promise === promise && loading.delete(key),
+  );
+  return promise;
+}
+
+/** Course loads under way, by pack id (and `-low`). */
+const loading = new Map<string, { files: Mk8Loader; promise: Promise<boolean> }>();
+
+/**
+ * Starts loading `course` in the background (MK-133: during a race's results, the cup's next
+ * course), so Next starts it sooner. Failures are left for the real load to report.
+ */
+export function preloadMk8Course(files: Mk8Loader, course: Mk8CourseContent): void {
+  loadMk8Course(files, course).catch(() => {});
+}
+
+async function loadCourseFiles(
+  files: Mk8Loader,
+  course: Mk8CourseContent,
+  onProgress: (fraction: number) => void,
+  low: boolean,
+  route?: RouteDef,
 ): Promise<boolean> {
   const collision = collisionPath(course.packId);
   const model = modelPath(course.packId, low);
@@ -57,7 +91,8 @@ export async function loadMk8Course(
 
 /**
  * The course never moves: matrices once, and nothing casts or takes the karts' shadows. Meshes of
- * `hidden` materials are taken out.
+ * `hidden` materials are taken out, and the rest merged by material and cell (MK-133: a few dozen
+ * draws instead of hundreds; `userData.batch` keeps the mesh counts).
  */
 function prepareCourseModel(scene: THREE.Group, hidden: ReadonlySet<string>): void {
   const drop: THREE.Object3D[] = [];
@@ -71,6 +106,7 @@ function prepareCourseModel(scene: THREE.Group, hidden: ReadonlySet<string>): vo
     object.receiveShadow = false;
   });
   for (const object of drop) object.removeFromParent();
+  scene.userData.batch = batchCourseMeshes(scene);
   scene.updateMatrixWorld(true);
   scene.traverse((object) => (object.matrixAutoUpdate = false));
 }

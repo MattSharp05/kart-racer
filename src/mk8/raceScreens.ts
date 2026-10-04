@@ -10,7 +10,7 @@ import { formatTime } from '../ui/hud/format';
 import type { Router } from '../ui/router';
 import { courseInfo, cupInfo, MUSHROOM_COURSES } from './content/cups';
 import { mk8Course } from './content/courses';
-import { loadMk8Course } from './courses';
+import { loadMk8Course, preloadMk8Course } from './courses';
 import { DEFAULT_LOADOUT, raceSetup, type Mk8RaceSetup } from './flow';
 import {
   currentCourse,
@@ -108,6 +108,14 @@ export function showResults(
   const gp = race.gp;
   const after = gp && recordRace(gp, state.positions);
   const next = after ? !gpOver(after) || 'podium' : nextCourse(race) !== undefined;
+  // MK-133: the next course loads while the results show.
+  const nextKey = after
+    ? gpOver(after)
+      ? undefined
+      : currentCourse(after)
+    : nextCourse(race)?.key;
+  const nextContent = nextKey && mk8Course(courseInfo(nextKey).pack);
+  if (nextContent) preloadMk8Course(packLoader(), nextContent);
   const choices = resultChoices(gameModeId, next !== false)
     // A cup's last race goes on to the podium only.
     .filter((id) => !(next === 'podium' && id === 'quit'))

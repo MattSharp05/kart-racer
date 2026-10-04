@@ -31,3 +31,17 @@ compare). `look.test.ts` checks every glow and water material a look names is in
 `materials.ts`. Without it, the look ramp (`mk8-look-ramp`: the test ramp under its own id, with
 `courses/test-ramp/look.ts`) carries a look for CI: `mk8-test-look-start`, `-water`, `-boost`
 (`tests/e2e/mk8Look.spec.ts`, `tests/visual/mk8Look.visual.spec.ts`).
+
+## Perf (MK-133)
+
+- `courseBatch.ts`: when a course loads (`../courses.ts`), its static meshes are merged by
+  material per 120 m cell (`COURSE_CELL_METRES`): a few dozen draws instead of one per GLB
+  mesh, and the cells keep frustum culling working. Skinned, instanced, morphing, multi-material
+  and mirrored meshes stay as they are. The loaded model's `userData.batch` holds the mesh counts
+  before and after.
+- The results screen starts loading the cup's next course (`preloadMk8Course`), and a load of a
+  course already under way waits for it, so Next doesn't parse the model twice.
+- Budgets (TDD v3: < 300 draws, < 400k triangles per frame, desktop):
+  `tests/e2e/perfAllTracks.spec.ts` → "MK8 courses" runs `mk8-test-race` with the fixture pack in
+  CI at full and low quality; the 4 real courses run only with `MK8_OUT=<pack>`. The throttled
+  Pixel 7 check (`tests/soak/phoneAllTracks.spec.ts`, `pnpm test:soak`) has the same MK8 entries.
