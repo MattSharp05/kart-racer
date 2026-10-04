@@ -23,3 +23,4 @@ export { default as piranhaCrazy8 } from './piranhaCrazy8';
 export { default as vsTimeTrial } from './vsTimeTrial';
 export { default as voices } from './voices';
 export { default as kartSounds } from './kartSounds';
+export { default as phone } from './phone';
