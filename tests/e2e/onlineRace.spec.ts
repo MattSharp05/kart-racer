@@ -174,7 +174,7 @@ test.describe('/dev Online group', () => {
     await dev.waitForFunction(() => window.__game?.ready === true);
     const client = await context.newPage();
     await client.goto('/dev.html');
-    await client.getByRole('link', { name: 'online-race-2p client' }).click();
+    await client.getByRole('link', { name: 'online-race-2p client', exact: true }).click();
     await client.waitForFunction(() => window.__game?.ready === true);
 
     await expect.poll(() => netInfo(dev).then((net) => net?.players)).toBe(2);

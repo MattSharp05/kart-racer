@@ -5,6 +5,7 @@ export const MK8_SCREEN_ORDER: readonly string[] = [
   'mode',
   'char',
   'kart',
+  'online',
   'cc',
   'vs',
   'cup',

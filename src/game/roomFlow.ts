@@ -1,13 +1,14 @@
-import type { TrackContent } from '../content/tracks';
 import {
   defaultSettings,
   kartOf,
   lobbySlots,
   raceOptions,
+  roomPack,
   settingsOf,
   type LobbyContent,
   type LobbySettings,
   type LobbyStart,
+  type MemberPack,
 } from '../net/lobbyState';
 import { raceIceConfig, type RelayMode } from '../net/iceConfig';
 import { localRaceLinks, webRtcRaceLinks } from '../net/raceLinks';
@@ -24,7 +25,8 @@ import type { SignalingChannel } from '../net/webrtc';
 import type { Router } from '../ui/router';
 import '../ui/screens/join';
 import '../ui/screens/lobby';
-import type { LobbyChoice } from '../ui/screens/lobby';
+import type { LobbyChoice, LobbyTrack } from '../ui/screens/lobby';
+import type { Loadout } from '../sim/types';
 import '../ui/screens/online';
 import type { NetRole, RaceLinkMode } from './launchParams';
 import type { OnlineLaunch } from './online';
@@ -50,13 +52,40 @@ export interface LobbyLaunch {
   code?: string;
   /** `&laps=`: the host's races are this many laps (short races for tests and QA). */
   laps?: number;
+  /** An MK8 room (MK-132, the `mk8-online-lobby` scenario): the host creates one. */
+  pack?: 'mk8';
 }
+
+/**
+ * MK8 rooms (MK-132): what MK8 Mode's chunk gives the lobby. Its courses, racers and the AI's
+ * loadouts; the player's loadout; and each course's loading, which registers it as a track.
+ */
+export interface Mk8RoomContent {
+  tracks: readonly LobbyTrack[];
+  racers: readonly LobbyChoice[];
+  aiLoadouts: readonly Loadout[];
+  /** The loadout MK8 Mode last picked (character select and the kart builder, MK-102). */
+  loadout(): Loadout;
+  /** Loads course `trackId`: ready with its course file's hash, or why it can't. */
+  prepare(
+    trackId: string,
+    onProgress: (fraction: number) => void,
+  ): Promise<Pick<MemberPack, 'state' | 'hash'>>;
+}
+
+/** Course loading progress is told to the room in steps this big (each one is a presence update). */
+const PROGRESS_STEP = 0.25;
 
 /** What the lobby offers (MK-47), and how the game takes part in it. */
 export interface LobbyHooks {
   /** The menu tracks and the racers, from the content registries. */
-  tracks: readonly TrackContent[];
+  tracks: readonly LobbyTrack[];
   racers: readonly LobbyChoice[];
+  /**
+   * MK8 rooms (MK-132): loads MK8 Mode's chunk for them (`local`: `?net=local` rooms, which also
+   * offer the synthetic test course). Rejects if it can't.
+   */
+  mk8?: (local: boolean) => Promise<Mk8RoomContent>;
   /** Runs a started race. */
   onRace?: (launch: OnlineLaunch) => void;
   /** The host's start couldn't reach the room: stop the race and come back to the lobby. */
@@ -101,6 +130,17 @@ export class RoomFlow {
   private racingStart: LobbyStart | null = null;
   /** Laps of the host's races, if the launch set them (`&laps=`). */
   private laps: number | undefined;
+  /** MK8 rooms (MK-132): MK8 Mode's content once loaded, and whether to create one. */
+  private mk8: Mk8RoomContent | null = null;
+  private mk8Loading: Promise<Mk8RoomContent | null> | null = null;
+  private wantMk8 = false;
+  /** The loadout MK8 Mode handed over (`launchMk8`); otherwise its last saved one. */
+  private mk8Loadout: Loadout | undefined;
+  /** MK8 rooms: the course this device last started loading, and how it stands. */
+  private preparing = '';
+  private pack: MemberPack | undefined;
+  /** MK8 Mode's content couldn't load for this room: said once, not retried until the next room. */
+  private mk8Failed = false;
 
   /**
    * @param player What this device shows the room (nickname, colour, racer).
@@ -125,11 +165,48 @@ export class RoomFlow {
   }
 
   /** Opens a launch's room: create it (host) or join its code (client). */
-  launch({ role, code, laps }: LobbyLaunch): void {
+  launch({ role, code, laps, pack }: LobbyLaunch): void {
     this.laps = laps;
+    this.wantMk8 = pack === 'mk8';
     if (role === 'host') void this.create(code);
     else if (code) void this.join(code);
     else this.showOnline();
+  }
+
+  /**
+   * MK8 Mode's Online (MK-132): the Online screen, whose rooms are MK8 rooms, `loadout` the kart
+   * this device races. MK8 Mode's content for the lobby loads meanwhile.
+   */
+  launchMk8(loadout: Loadout): void {
+    this.leave();
+    this.wantMk8 = true;
+    this.mk8Loadout = loadout;
+    void this.loadMk8();
+    this.showOnline();
+  }
+
+  /** MK8 Mode's lobby content, loaded once (null if it can't load). */
+  private loadMk8(): Promise<Mk8RoomContent | null> {
+    const load = this.lobby.mk8;
+    if (this.mk8) return Promise.resolve(this.mk8);
+    if (!load) return Promise.resolve(null);
+    this.mk8Loading ??= load(this.rooms.local).then(
+      (content) => (this.mk8 = content),
+      () => {
+        this.mk8Loading = null;
+        return null;
+      },
+    );
+    return this.mk8Loading;
+  }
+
+  /** What this device shows the room: the game's player info, plus its MK8 kart and course. */
+  private memberInfo(mk8: boolean): MemberInfo {
+    const info = this.player();
+    const content = mk8 ? this.mk8 : null;
+    if (!content) return info;
+    const loadout = this.mk8Loadout ?? content.loadout();
+    return { ...info, racer: loadout.racer, loadout, ...(this.pack ? { pack: this.pack } : {}) };
   }
 
   readonly showOnline = (message?: string, busy?: string): void => {
@@ -174,6 +251,13 @@ export class RoomFlow {
 
   /** Leaves the room (or stops creating or joining one). */
   leave(): void {
+    this.leaveRoom();
+    // Out of the rooms (the title, MK8 Mode…): the next Online is the original game's again.
+    this.wantMk8 = false;
+  }
+
+  /** Leaves the room, staying in the online screens (an MK8 Online's rooms stay MK8 rooms). */
+  private leaveRoom(): void {
     this.racing = null;
     this.racingStart = null;
     this.attempt += 1;
@@ -185,7 +269,7 @@ export class RoomFlow {
     this.screens.show('join', {
       onJoin: (code) => void this.join(code),
       onBack: () => {
-        this.leave();
+        this.leaveRoom();
         this.showOnline();
       },
       ...(initial ? { initial } : {}),
@@ -196,8 +280,11 @@ export class RoomFlow {
   private async create(code?: string): Promise<void> {
     const attempt = this.start();
     this.showOnline(undefined, 'Creating room…');
+    // An MK8 room needs MK8 Mode's courses before its first settings.
+    const mk8 = this.wantMk8 && (await this.loadMk8()) !== null;
+    if (attempt !== this.attempt) return;
     await this.enter(attempt, () =>
-      createRoom(this.rooms.backend, this.player(), code ? { code } : {}),
+      createRoom(this.rooms.backend, this.memberInfo(mk8), code ? { code } : {}),
     );
   }
 
@@ -208,8 +295,69 @@ export class RoomFlow {
   }
 
   private start(): number {
-    this.leave();
+    this.leaveRoom();
+    this.preparing = '';
+    this.pack = undefined;
+    this.mk8Failed = false;
     return this.attempt;
+  }
+
+  /** Whether `room` is an MK8 room this device has MK8 Mode's content for (MK-132). */
+  private isMk8(room: Room): boolean {
+    return roomPack(room.members) === 'mk8' && this.mk8 !== null;
+  }
+
+  /**
+   * MK8 rooms (MK-132): joining one loads MK8 Mode's content (then this device's kart goes to the
+   * room), and every device loads the host's course, telling the room how it stands. The host can
+   * start once everyone has it, the same version as its own (`packWaiting`).
+   */
+  private checkPack(room: Room): void {
+    if (roomPack(room.members) !== 'mk8' || this.room !== room) return;
+    if (!this.mk8) {
+      if (this.mk8Failed) return;
+      void this.loadMk8().then((content) => {
+        if (this.room !== room || this.mk8Failed) return;
+        if (!content) {
+          this.mk8Failed = true;
+          const trackId = room.host?.lobby?.trackId ?? '';
+          this.setPack(room, { course: trackId, state: 'failed' });
+          return;
+        }
+        // The lobby again, now with MK8 Mode's courses and karts.
+        if (this.screens.current === 'lobby' && !this.racing) this.showLobby(room);
+        this.checkPack(room);
+      });
+      return;
+    }
+    // Joined by code or link: this device's MK8 kart goes to the room (once: then it has one).
+    if (!room.members.find((m) => m.id === room.selfId)?.loadout) {
+      const { racer, loadout } = this.memberInfo(true);
+      if (loadout) void room.update({ racer, loadout });
+    }
+    const trackId = settingsOf(room.members, this.content()).trackId;
+    if (trackId === this.preparing) return;
+    this.preparing = trackId;
+    let told = 0;
+    this.setPack(room, { course: trackId, state: 'loading', progress: 0 });
+    this.mk8
+      .prepare(trackId, (fraction) => {
+        if (this.preparing !== trackId || fraction - told < PROGRESS_STEP || fraction >= 1) return;
+        told = fraction;
+        this.setPack(room, { course: trackId, state: 'loading', progress: fraction });
+      })
+      .then(
+        (result) => result,
+        (): Pick<MemberPack, 'state'> => ({ state: 'failed' }),
+      )
+      .then((result) => {
+        if (this.preparing === trackId) this.setPack(room, { course: trackId, ...result });
+      });
+  }
+
+  private setPack(room: Room, pack: MemberPack): void {
+    this.pack = pack;
+    if (this.room === room) room.update({ pack }).catch(() => undefined);
   }
 
   /** Opens the lobby once `open` has the room; its errors go back to the Online screen. */
@@ -228,18 +376,21 @@ export class RoomFlow {
     if (room.ended) return this.showOnline(ROOM_ERROR_MESSAGES[room.ended]);
     this.room = room;
     this.lastCode = room.code;
+    const mk8 = this.wantMk8 && this.mk8 !== null;
     room.onEnded((reason) => {
       this.room = null;
       this.lobby.onRoomEnded?.();
       this.showOnline(ROOM_ERROR_MESSAGES[reason]);
     });
     // The host's first settings (best effort: everyone shows the defaults until they arrive).
-    if (room.isHost) void room.update({ lobby: defaultSettings(this.content()) });
+    if (room.isHost) void room.update({ lobby: defaultSettings(this.content(mk8)) });
     room.onChange(() => {
+      this.checkPack(room);
       this.checkStart(room);
       this.checkLeft(room);
     });
     this.showLobby(room);
+    this.checkPack(room);
   }
 
   /**
@@ -268,11 +419,13 @@ export class RoomFlow {
   }
 
   private showLobby(room: Room, message?: string): void {
+    const mk8 = this.isMk8(room) ? this.mk8 : null;
     this.screens.show('lobby', {
       room,
       link: this.link(room.code),
-      tracks: this.lobby.tracks,
-      racers: this.lobby.racers,
+      tracks: mk8?.tracks ?? this.lobby.tracks,
+      racers: mk8?.racers ?? this.lobby.racers,
+      ...(mk8 ? { pack: 'mk8' as const } : {}),
       ...(message ? { message } : {}),
       onSettings: (settings: LobbySettings) => void room.update({ lobby: settings }),
       onRacer: (racer) => {
@@ -282,13 +435,23 @@ export class RoomFlow {
       onReady: (ready) => void room.update({ ready }),
       onStart: () => void this.startRace(room),
       onLeave: () => {
-        this.leave();
+        this.leaveRoom();
         this.showOnline();
       },
     });
   }
 
-  private content(): LobbyContent {
+  /** What the room offers: MK8 Mode's content in MK8 rooms (`mk8`: the one being created). */
+  private content(mk8 = this.room !== null && this.isMk8(this.room)): LobbyContent {
+    const content = mk8 ? this.mk8 : null;
+    if (content) {
+      return {
+        trackIds: content.tracks.map((t) => t.id),
+        racerIds: content.racers.map((r) => r.id),
+        pack: 'mk8',
+        aiLoadouts: content.aiLoadouts,
+      };
+    }
     return {
       trackIds: this.lobby.tracks.map((t) => t.id),
       racerIds: this.lobby.racers.map((r) => r.id),

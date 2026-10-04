@@ -10,8 +10,23 @@ describe('MK8 screen flow (MK-142)', () => {
   const flow = new Mk8ScreenFlow();
 
   it('finds every screen file, in order.ts’s order', () => {
-    expect(ids(flowScreens())).toEqual(['title', 'mode', 'char', 'kart', 'cc', 'vs', 'cup']);
+    expect(ids(flowScreens())).toEqual([
+      'title',
+      'mode',
+      'char',
+      'kart',
+      'online',
+      'cc',
+      'vs',
+      'cup',
+    ]);
     expect(flow.first().id).toBe('title');
+  });
+
+  it('goes on from the kart builder to the rooms in Online only (MK-132)', () => {
+    expect(flow.next('kart', { mode: 'online' }).id).toBe('online');
+    expect(flow.next('kart', { mode: 'grand-prix' }).id).toBe('cc');
+    expect(ids(flow.start('online')?.screens ?? [])).toEqual(['mode', 'char', 'kart', 'online']);
   });
 
   it('goes title → mode → character → kart → engine class → cups', () => {

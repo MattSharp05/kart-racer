@@ -69,11 +69,13 @@ export function raceFromSetup(setup: RaceSetup, localKartId: number): SimState {
     itemsOn: setup.itemsOn,
     seed: setup.seed,
     laps: setup.laps,
+    ...(setup.itemSet !== undefined ? { itemSet: setup.itemSet } : {}),
     racers: setup.racers.map((racer, i) => ({
       kartId: racer.kartId,
       controller: i === localKartId ? 'local' : racer.human ? 'remote' : 'ai',
       gridSlot: racer.gridSlot,
       ...(racer.name !== undefined ? { name: racer.name } : {}),
+      ...(racer.loadout ? { loadout: { ...racer.loadout } } : {}),
     })),
   });
   // The host's personalities, not ones re-drawn here: the host may have drawn setup randomness
@@ -665,6 +667,7 @@ function withHostKarts(state: SimState, host: SimState, kartId: number): SimStat
 }
 
 function entitiesMatch(predicted: SimState, host: SimState): boolean {
+  if (!coinsMatch(predicted, host)) return false;
   if (predicted.entities.length !== host.entities.length) return false;
   return predicted.entities.every((e, i) => {
     const h = host.entities[i];
@@ -673,6 +676,18 @@ function entitiesMatch(predicted: SimState, host: SimState): boolean {
       return false;
     }
     return distance(e.position, h.position) < NET.reconcilePosition;
+  });
+}
+
+/** The race's coins (MK-109): the same ones there, taken and dropped. */
+function coinsMatch(predicted: SimState, host: SimState): boolean {
+  const a = predicted.coins;
+  const b = host.coins;
+  if (!a || !b) return a === b;
+  if (a.length !== b.length) return false;
+  return a.every((coin, i) => {
+    const h = b[i];
+    return h !== undefined && h.id === coin.id && coin.respawnTimer > 0 === h.respawnTimer > 0;
   });
 }
 
@@ -696,7 +711,21 @@ function kartMatches(k: KartState | undefined, h: KartState | undefined): boolea
     k.spinTimer > 0 === h.spinTimer > 0 &&
     k.starTimer > 0 === h.starTimer > 0 &&
     k.shrinkTimer > 0 === h.shrinkTimer > 0 &&
-    k.race.stallTimer > 0 === h.race.stallTimer > 0
+    k.race.stallTimer > 0 === h.race.stallTimer > 0 &&
+    mk8Matches(k, h)
+  );
+}
+
+/** The MK8 kart state's discrete parts (v6, MK-132): all equal when neither kart has any. */
+function mk8Matches(k: KartState, h: KartState): boolean {
+  return (
+    k.antigrav === h.antigrav &&
+    !k.glide === !h.glide &&
+    k.coins === h.coins &&
+    k.inWater === h.inWater &&
+    k.item.second?.held === h.item.second?.held &&
+    (k.item.second?.roulette ?? 0) > 0 === (h.item.second?.roulette ?? 0) > 0 &&
+    (k.spinBoostTimer ?? 0) > 0 === (h.spinBoostTimer ?? 0) > 0
   );
 }
 

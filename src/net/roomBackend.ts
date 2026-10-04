@@ -1,4 +1,5 @@
-import type { LobbySettings, LobbyStart } from './lobbyState';
+import type { Loadout } from '../sim/types';
+import type { LobbySettings, LobbyStart, MemberPack } from './lobbyState';
 import type { Signal } from './webrtc';
 
 /**
@@ -16,6 +17,10 @@ export interface MemberInfo {
   racer: string;
   /** Ready to start (MK-47). */
   ready: boolean;
+  /** MK8 rooms (MK-132): the racer and kart parts picked in MK8 Mode. */
+  loadout?: Loadout;
+  /** MK8 rooms (MK-132): how this device's copy of the host's course stands. */
+  pack?: MemberPack;
 }
 
 /** One player present in a room. */

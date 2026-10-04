@@ -1,12 +1,12 @@
 import { DT } from '../sim/tuning';
-import type { KartState, SimState } from '../sim/types';
+import type { InputFrame, KartState, SimState } from '../sim/types';
 import type { OnlineClient } from './client';
 import { NET } from './config';
 import type { OnlineHost } from './host';
 import type { NetConditions } from './netsim';
 import type { RaceStanding } from './protocol';
 import { NetSmoother, type KartPose } from './smoothing';
-import { onlineRace, scriptedInput, TICK_MS } from './testRace';
+import { onlineRace, scriptedInput, TICK_MS, type TestRaceOverrides } from './testRace';
 
 /**
  * The netcode lab (MK-73, test-only like `testRace.ts`): a whole online race over loopback under a
@@ -31,6 +31,15 @@ export interface LabOptions {
    * loop runs two ticks back to back every other tick's time, so half its inputs leave late).
    */
   clientFrameTicks?: number;
+  /** Another track, racers, engine class or item set (MK-132: MK8 races on mesh tracks). */
+  race?: TestRaceOverrides;
+  /**
+   * The scripted players' input (default `scriptedInput`, Sunny Circuit's): the state that player
+   * sees (the host's, or a client's prediction), the kart it drives and who it is.
+   */
+  input?: (state: SimState | null, kartId: number, who: string) => InputFrame;
+  /** Changes the host's race before anyone joins (MK-132: karts placed at an anti-gravity wall). */
+  prepare?: (state: SimState) => void;
 }
 
 /** Sorted samples → a few percentiles. */
@@ -59,6 +68,8 @@ export interface LabClientReport {
    */
   ownTruthError: Spread;
   remoteTruthError: Spread;
+  /** `ownTruthError` over only the frames with the own kart in anti-gravity (MK-132; mesh tracks). */
+  ownTruthErrorAntigrav: Spread;
   /** Ticks re-simulated per snapshot, and the share of snapshots that needed none, %. */
   resimTicksPerSnapshot: number;
   matchedPercent: number;
@@ -130,7 +141,7 @@ interface Watch {
    */
   shown: SimState | null;
   /** Every drawn pose while racing, checked against the host's truth at the end. */
-  frames: { kartId: number; tick: number; x: number; z: number }[];
+  frames: { kartId: number; tick: number; x: number; y: number; z: number; antigrav: boolean }[];
   leadSum: number;
   leadSamples: number;
 }
@@ -178,7 +189,14 @@ function drawFrame(watch: Watch, ticks: number): void {
     if (previous && kart.respawnTimer <= 0 && kart.race.finishTick === undefined) {
       const moved = jump(previous, pose, kart, ticks);
       (id === kartId ? watch.ownJumps : watch.remoteJumps).push(moved);
-      watch.frames.push({ kartId: id, tick: state.tick, x: pose.x, z: pose.z });
+      watch.frames.push({
+        kartId: id,
+        tick: state.tick,
+        x: pose.x,
+        y: pose.y,
+        z: pose.z,
+        antigrav: kart.antigrav === true,
+      });
     }
     watch.drawn.set(id, pose);
   }
@@ -211,9 +229,13 @@ export function runLab({
   laps = 1,
   racingTicks = 0,
   clientFrameTicks = 1,
+  race: overrides = {},
+  input = (state, kartId) => scriptedInput(state?.karts[kartId], state?.tick ?? 0, kartId),
+  prepare,
 }: LabOptions) {
-  const race = onlineRace({ clients, conditions, seed, laps });
+  const race = onlineRace({ clients, conditions, seed, laps, race: overrides });
   const { host, clock } = race;
+  prepare?.(host.state);
   const watches: Watch[] = race.clients.map((client, i) => {
     const smoother = new NetSmoother({
       kartId: i + 1,
@@ -242,18 +264,18 @@ export function runLab({
   let stopAt = Infinity;
   let ticks = 0;
   /** The host's kart positions after each tick (ground plane), for the truth errors. */
-  const truth = new Map<number, { x: number; z: number }[]>();
+  const truth = new Map<number, { x: number; y: number; z: number }[]>();
   while (ticks < Math.min(limit, stopAt)) {
-    host.tick(scriptedInput(host.state.karts[0], host.state.tick, 0));
+    host.tick(input(host.state, 0, 'host'));
     truth.set(
       host.state.tick,
-      host.state.karts.map((k) => ({ x: k.position.x, z: k.position.z })),
+      host.state.karts.map((k) => ({ x: k.position.x, y: k.position.y, z: k.position.z })),
     );
     const frame = (ticks + 1) % clientFrameTicks === 0;
     for (const watch of frame ? watches : []) {
       const { client, kartId } = watch;
       for (let i = 0; i < clientFrameTicks; i += 1) {
-        client.tick(scriptedInput(client.state?.karts[kartId], client.state?.tick ?? 0, kartId));
+        client.tick(input(client.state, kartId, `client-${kartId}`));
         afterTick(watch);
       }
       client.takeEvents();
@@ -276,11 +298,12 @@ export function runLab({
         s.firstSnapshotTick < 0
           ? 0
           : (client.snapshotTick - s.firstSnapshotTick) / NET.snapshotEveryTicks + 1;
-      const truthErrors = (own: boolean) =>
+      const truthErrors = (own: boolean, antigravOnly = false) =>
         watch.frames.flatMap((f) => {
           const real = truth.get(f.tick)?.[f.kartId];
-          if (!real || (f.kartId === kartId) !== own) return [];
-          return [Math.hypot(f.x - real.x, f.z - real.z)];
+          if (!real || (f.kartId === kartId) !== own || (antigravOnly && !f.antigrav)) return [];
+          // Ground plane, as players read it; in anti-gravity the wall or ceiling counts too.
+          return [Math.hypot(f.x - real.x, antigravOnly ? f.y - real.y : 0, f.z - real.z)];
         });
       const ownTruthErrors = truthErrors(true);
       const remoteTruthErrors = truthErrors(false);
@@ -295,6 +318,7 @@ export function runLab({
         remoteJump: spread(watch.remoteJumps),
         ownTruthError: spread(ownTruthErrors),
         remoteTruthError: spread(remoteTruthErrors),
+        ownTruthErrorAntigrav: spread(truthErrors(true, true)),
         resimTicksPerSnapshot: s.snapshots > 0 ? s.replayTicks / s.snapshots : 0,
         matchedPercent: s.snapshots > 0 ? (s.matched / s.snapshots) * 100 : 0,
         snapshotMsAvg: s.snapshots > 0 ? s.snapshotMsTotal / s.snapshots : 0,

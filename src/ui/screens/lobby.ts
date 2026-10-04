@@ -1,15 +1,18 @@
-import type { TrackContent } from '../../content/tracks';
 import {
   allReady,
-  ENGINE_CLASSES,
+  engineClassesOf,
+  hostOf,
   kartOf,
+  packLabel,
+  packWaiting,
   settingsOf,
   type LobbyContent,
+  type LobbyPack,
   type LobbySettings,
 } from '../../net/lobbyState';
 import { MAX_ROOM_PLAYERS, type RoomMember } from '../../net/room';
 import { createRacerPicker, type RacerPicker } from '../components/racerPicker';
-import { trackCard } from '../components/trackCard';
+import { trackCard, type CardTrack } from '../components/trackCard';
 import { registerScreen } from '../router';
 import { button, heading, row } from './common';
 import './lobby.css';
@@ -33,6 +36,12 @@ export interface LobbyChoice {
   name: string;
 }
 
+/** A track the lobby offers, as its card shows it (an MK8 course may not be loaded yet, MK-132). */
+export type LobbyTrack = CardTrack;
+
+/** MK8 rooms (MK-132): the host waits for everyone's course. */
+export const PACK_WAITING_MESSAGE = 'Waiting for everyone to load the course…';
+
 export interface LobbyProps {
   room: LobbyRoom;
   /** The room link to share (`/?room=CODE`). */
@@ -40,8 +49,13 @@ export interface LobbyProps {
   /** Why the last race didn't happen (shown until the next change). */
   message?: string;
   /** Tracks the host can pick (as cards, MK-78) and racers everyone can pick, in menu order. */
-  tracks: readonly TrackContent[];
+  tracks: readonly LobbyTrack[];
   racers: readonly LobbyChoice[];
+  /**
+   * MK8 rooms (MK-132): MK8 Mode's courses and racers; each player's kart comes from MK8 Mode
+   * (no racer picker here), and the host starts once everyone has the course.
+   */
+  pack?: LobbyPack;
   /** Host: new track, cc or items. */
   onSettings: (settings: LobbySettings) => void;
   onRacer: (racer: string) => void;
@@ -71,6 +85,7 @@ registerScreen('lobby', (panel, props) => {
   const content: LobbyContent = {
     trackIds: props.tracks.map((t) => t.id),
     racerIds: props.racers.map((r) => r.id),
+    ...(props.pack ? { pack: props.pack } : {}),
   };
   const self = () => room.members.find((m) => m.id === room.selfId);
 
@@ -128,7 +143,7 @@ registerScreen('lobby', (panel, props) => {
   trackSlot.className = 'lobby-track';
   /** The shown card, rebuilt when the host's track changes. */
   let shownTrack = '';
-  const ccButtons = ENGINE_CLASSES.map((cc) => {
+  const ccButtons = engineClassesOf(props.pack).map((cc) => {
     const el = button(`${cc}cc`, () => props.onSettings({ ...current(), cc }));
     el.dataset.cc = String(cc);
     return el;
@@ -173,6 +188,8 @@ registerScreen('lobby', (panel, props) => {
   };
   const racer = button('', openPicker, 'lobby-racer');
   racer.setAttribute('aria-haspopup', 'dialog');
+  // MK8 rooms: the kart was built in MK8 Mode; here it's only shown.
+  racer.disabled = props.pack !== undefined;
 
   const ready = button('Ready', () => props.onReady(!self()?.ready));
   ready.className = 'primary lobby-ready';
@@ -193,10 +210,19 @@ registerScreen('lobby', (panel, props) => {
   const render = () => {
     const me = self();
     const settings = current();
-    const everyone = allReady(room.members);
+    const loading = packWaiting(room.members, settings.trackId);
+    const everyone = allReady(room.members) && loading.length === 0;
     count.textContent = `Players ${room.members.length}/${MAX_ROOM_PLAYERS} · AI fills the rest`;
+    const host = hostOf(room.members);
     list.replaceChildren(
-      ...room.members.map((m) => playerRow(m, m.id === room.selfId, props.racers)),
+      ...room.members.map((m) =>
+        playerRow(
+          m,
+          m.id === room.selfId,
+          props.racers,
+          props.pack ? packLabel(m, settings.trackId, host) : '',
+        ),
+      ),
     );
     // Controls are updated in place, so an open picker isn't closed by someone else's change.
     const chosen = props.tracks.find((t) => t.id === settings.trackId);
@@ -223,7 +249,10 @@ registerScreen('lobby', (panel, props) => {
     const mine = props.racers.find((r) => r.id === me?.racer);
     racer.textContent = `Racer: ${mine?.name ?? '…'}`;
     racer.dataset.racer = mine?.id ?? '';
-    racer.setAttribute('aria-label', `Racer: ${mine?.name ?? 'none'}. Change`);
+    racer.setAttribute(
+      'aria-label',
+      `Racer: ${mine?.name ?? 'none'}${props.pack ? '' : '. Change'}`,
+    );
     ready.textContent = me?.ready ? '✓ Ready' : 'Ready';
     ready.setAttribute('aria-pressed', String(me?.ready === true));
     ready.hidden = room.isHost;
@@ -237,7 +266,9 @@ registerScreen('lobby', (panel, props) => {
       : room.isHost
         ? everyone
           ? ''
-          : 'Waiting for everyone to be ready…'
+          : allReady(room.members)
+            ? PACK_WAITING_MESSAGE
+            : 'Waiting for everyone to be ready…'
         : me?.ready
           ? 'Waiting for the host to start…'
           : '';
@@ -277,7 +308,7 @@ registerScreen('lobby', (panel, props) => {
  * tap on the selected card, Enter or `choose` picks it. `onKey` says whether it took the key.
  */
 function trackChoice(
-  tracks: readonly TrackContent[],
+  tracks: readonly LobbyTrack[],
   initial: string,
   onPick: (trackId: string) => void,
 ): {
@@ -331,6 +362,7 @@ function playerRow(
   member: RoomMember,
   isSelf: boolean,
   racers: readonly LobbyChoice[],
+  pack: string,
 ): HTMLLIElement {
   const li = document.createElement('li');
   li.dataset.memberId = member.id;
@@ -349,7 +381,10 @@ function playerRow(
     member.isHost && '★ Host',
     isSelf && 'You',
     !member.isHost && (member.ready ? '✓ Ready' : '…'),
+    // MK8 rooms (MK-132): the course loading, or why it can't.
+    pack,
   ].filter((t): t is string => !!t);
+  if (pack) li.dataset.pack = pack;
   for (const text of tags) {
     const tag = document.createElement('span');
     tag.className = 'player-tag';

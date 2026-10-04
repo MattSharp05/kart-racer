@@ -1,11 +1,12 @@
 import { items, registerItem, unregisterItem, type ItemContent } from '../content/items';
 import type { KartId } from '../sim/data/karts';
 import { autopilotInput } from '../sim/autopilot';
-import type { RacerSlot } from '../sim/race/createRace';
+import { meshAutopilotInput, type StuckState } from '../sim/ai/meshDriver';
+import type { CreateRaceOptions, RacerSlot } from '../sim/race/createRace';
 import { rngFloat, seedRng } from '../sim/rng';
 import { getTrack, trackGeometry } from '../sim/track';
 import { DT } from '../sim/tuning';
-import type { InputFrame, KartState } from '../sim/types';
+import type { InputFrame, KartState, SimState } from '../sim/types';
 import { OnlineClient } from './client';
 import { OnlineHost } from './host';
 import { createLoopbackPair, type NetConditions } from './netsim';
@@ -42,6 +43,11 @@ export function onlineRacers(humans: number, karts = 8): RacerSlot[] {
   }));
 }
 
+/** What a test race may change from the default (Sunny Circuit, 100cc, the four original karts). */
+export type TestRaceOverrides = Partial<
+  Pick<CreateRaceOptions, 'trackId' | 'racers' | 'engineClass' | 'itemSet'>
+>;
+
 /** Host + clients on loopback links with `conditions` both ways (link i seeded with seed + i). */
 export function onlineRace({
   clients,
@@ -49,12 +55,15 @@ export function onlineRace({
   seed = 7,
   laps = 1,
   itemsOn = true,
+  race = {},
 }: {
   clients: number;
   conditions: NetConditions;
   seed?: number;
   laps?: number;
   itemsOn?: boolean;
+  /** Another track, racers, engine class or item set (MK-132: an MK8 race on a mesh track). */
+  race?: TestRaceOverrides;
 }) {
   const clock = virtualClock();
   const host = new OnlineHost(
@@ -65,6 +74,7 @@ export function onlineRace({
       itemsOn,
       seed,
       laps,
+      ...race,
     },
     0,
   );
@@ -114,6 +124,25 @@ export function scriptedInput(
     item: phase === 100,
     ...(stuck ? { respawn: true } : {}),
   };
+}
+
+/** Each scripted mesh-track driver's backing-out memory (per player: host and clients apart). */
+const meshStuck = new Map<string, StuckState>();
+
+/**
+ * `scriptedInput` on a mesh track (MK-132): the route autopilot, backing out when wedged, with
+ * drifts and item presses on the same rhythm. `who` keeps each driver's memory apart.
+ */
+export function meshScriptedInput(state: SimState | null, kartId: number, who: string): InputFrame {
+  const kart = state?.karts[kartId];
+  if (!state || !kart) return { throttle: 0, brake: 0, steer: 0, drift: false, item: false };
+  const track = getTrack(state.trackId);
+  if (track.kind !== 'mesh') throw new Error(`${state.trackId} isn't a mesh track`);
+  let stuck = meshStuck.get(who);
+  if (!stuck) meshStuck.set(who, (stuck = { stuckTime: 0, recoverTime: 0 }));
+  const input = meshAutopilotInput(kart, track, state.engineClass, 1, stuck);
+  const phase = (state.tick + kartId * 40) % 240;
+  return { ...input, drift: input.drift || (phase > 150 && phase < 180), item: phase === 100 };
 }
 
 /** A scripted kart slower than this (m/s) this long into its lap (ticks) is stuck. */
