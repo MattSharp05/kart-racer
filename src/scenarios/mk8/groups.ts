@@ -21,4 +21,5 @@ export { default as allItems } from './allItems';
 export { default as thwompRuins } from './thwompRuins';
 export { default as piranhaCrazy8 } from './piranhaCrazy8';
 export { default as vsTimeTrial } from './vsTimeTrial';
+export { default as voices } from './voices';
 export { default as phone } from './phone';

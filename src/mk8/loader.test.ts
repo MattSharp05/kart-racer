@@ -23,6 +23,9 @@ const MANIFEST: Manifest = {
     },
     { path: 'models/racers/mario.glb', bytes: 40, sha256: 'f', group: 'racer/mario' },
     { path: 'models/racers/luigi.glb', bytes: 40, sha256: 'g', group: 'racer/luigi' },
+    { path: 'audio/voices.json', bytes: 10, sha256: 'h', group: 'audio/voice' },
+    { path: 'audio/voice/mario/a.m4a', bytes: 10, sha256: 'i', group: 'audio/voice/mario' },
+    { path: 'audio/voice/luigi/a.m4a', bytes: 10, sha256: 'j', group: 'audio/voice/luigi' },
   ],
 };
 
@@ -83,6 +86,9 @@ describe('MK8 pack loader (MK-97)', () => {
     await loader.loadRacers(['mario']);
     expect(requested.sort()).toEqual([
       '/mk8/audio/course/stadium/crowd.m4a',
+      '/mk8/audio/voice/luigi/a.m4a',
+      '/mk8/audio/voice/mario/a.m4a',
+      '/mk8/audio/voices.json',
       '/mk8/manifest.json',
       '/mk8/models/courses/stadium/course.glb',
       '/mk8/models/racers/luigi.glb',
@@ -90,6 +96,17 @@ describe('MK8 pack loader (MK-97)', () => {
     ]);
     expect(loader.hasGroups(['course/stadium', 'racer/mario'])).toBe(true);
     expect(loader.hasGroups(['ui'])).toBe(false);
+  });
+
+  it("loads racers' voice lines alone (MK-110): the index and their clips", async () => {
+    const { fetch, requested } = server();
+    const loader = new Mk8Loader({ fetch });
+    await loader.loadVoices(['mario']);
+    expect(requested.sort()).toEqual([
+      '/mk8/audio/voice/mario/a.m4a',
+      '/mk8/audio/voices.json',
+      '/mk8/manifest.json',
+    ]);
   });
 
   it('loads single files by path (MK-101), and refuses a path the pack has not got', async () => {
