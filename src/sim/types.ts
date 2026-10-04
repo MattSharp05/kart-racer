@@ -171,6 +171,8 @@ export interface KartState {
   antigrav?: boolean;
   /** Seconds left of an anti-gravity spin boost (MK-108, `sim/spinBoost.ts`); mesh tracks only. */
   spinBoostTimer?: number;
+  /** Seconds left flattened by a Thwomp (MK-124, `sim/hazards`); mesh tracks only. */
+  squashTimer?: number;
   /**
    * MK8 Mode's kart parts (MK-102): when set, its physics come from MK8's stat table instead of
    * the racer's stats (`kartType` still picks the model). Set at the start of a race, never changed.

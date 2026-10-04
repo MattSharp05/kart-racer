@@ -80,6 +80,11 @@ export interface PeriodicHazard extends HazardBase {
    * it does. Absent: a block between two pillars.
    */
   piston?: boolean;
+  /**
+   * Render only (MK-124): drawn as a Thwomp, a spiked stone block with a face that glares while
+   * it waits, hovering `lift` m up and slamming down onto its footprint. Absent: see `piston`.
+   */
+  thwomp?: { lift: number };
 }
 
 /** An area that switches on for part of each period (a sandstorm): changes grip and visibility. */

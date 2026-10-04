@@ -8,6 +8,7 @@ import type { RouteDef } from '../../../sim/route';
 import { routeSurfaces } from '../../../sim/routeSurfaces';
 import marioKartStadium from './mario-kart-stadium';
 import sweetSweetCanyon from './sweet-sweet-canyon';
+import thwompRuins from './thwomp-ruins';
 import waterPark from './water-park';
 import type { Mk8CourseContent } from './types';
 
@@ -18,6 +19,7 @@ export const MK8_COURSES: readonly Mk8CourseContent[] = [
   marioKartStadium,
   waterPark,
   sweetSweetCanyon,
+  thwompRuins,
 ];
 
 /** Registry order of MK8 courses (after our tracks; they're offered only by MK8 Mode's menus). */
@@ -39,7 +41,13 @@ export function courseTrack(
   route: RouteDef = course.route,
 ): MeshTrackDef {
   const collisionByRoute = routeSurfaces(collision, route, course.surfaceRules);
-  return { id: course.trackId, kind: 'mesh', collision: collisionByRoute, route };
+  return {
+    id: course.trackId,
+    kind: 'mesh',
+    collision: collisionByRoute,
+    route,
+    ...(course.hazards ? { hazards: course.hazards } : {}),
+  };
 }
 
 /**
