@@ -1,7 +1,8 @@
 import { devices, expect, test, type Page } from '@playwright/test';
+import { servePack } from '../e2e/mk8';
 
 /**
- * Phone perf on every track (MK-71): can a mid-range phone's CPU keep a race at ≥ 30 fps on each
+ * Phone perf on every track (MK-71; MK8 courses MK-133, below): can a mid-range phone's CPU keep a race at ≥ 30 fps on each
  * of the 6 tracks, at the quality adaptive quality settles on for a slow phone (`&quality=low`:
  * pixel ratio 1, low-quality mode) and at full quality? A Pixel 7 landscape profile with its CPU
  * throttled 4× (Chrome DevTools' "mid-range mobile") races `track-<id>` (you on autopilot + 7 AI,
@@ -24,6 +25,25 @@ const TRACKS = [
   'neon-harbour',
   'canopy-rush',
   'cog-works',
+];
+/**
+ * MK8 courses (MK-133): the synthetic test ramp race with the fixture pack always; the 4 real
+ * courses with `MK8_OUT=<pack>` (local only, ADR 0009).
+ */
+const MK8_PACK = process.env.MK8_OUT;
+const MK8_SCENARIOS = [
+  { scenario: 'mk8-test-race', real: false },
+  ...['mk8-stadium-race', 'mk8-waterpark-race', 'mk8-canyon-race', 'mk8-ruins-race'].map(
+    (scenario) => ({ scenario, real: true }),
+  ),
+];
+const RACES = [
+  ...TRACKS.map((track) => ({ name: track, scenario: `track-${track}`, pack: undefined })),
+  ...MK8_SCENARIOS.map(({ scenario, real }) => ({
+    name: scenario,
+    scenario,
+    pack: real ? (MK8_PACK ?? null) : ('fixture' as const),
+  })),
 ];
 const QUALITIES = ['low', 'full'] as const;
 /** 4× CPU throttle: Chrome DevTools' "mid-range mobile" preset. */
@@ -60,13 +80,14 @@ function stepPhone(page: Page, draw: boolean): Promise<number> {
 }
 
 test.describe('phone perf on every track (MK-71)', () => {
-  for (const track of TRACKS) {
+  for (const { name: track, scenario, pack } of RACES) {
     for (const quality of QUALITIES) {
       test(`a 4×-throttled Pixel 7's CPU keeps ≥ ${MIN_FPS} fps on ${track} (${quality} quality)`, async ({
         browser,
         browserName,
       }) => {
         test.skip(browserName !== 'chromium', 'CPU throttling is a Chrome DevTools feature');
+        test.skip(pack === null, 'needs the real MK8 pack: MK8_OUT=<pack>');
         test.skip(quality === 'full' && !process.env.FULL_QUALITY, 'FULL_QUALITY=1 adds these');
         test.setTimeout(480_000);
         const context = await browser.newContext({
@@ -88,9 +109,11 @@ test.describe('phone perf on every track (MK-71)', () => {
             });
         });
         const page = await context.newPage();
+        if (pack) await servePack(page, pack === 'fixture' ? {} : { dir: pack });
         const q = quality === 'low' ? '&quality=low' : '';
-        await page.goto(`/?scenario=track-${track}&paused=1${q}`);
+        await page.goto(`/?scenario=${scenario}&paused=1${q}`);
         await page.waitForFunction(() => window.__game?.ready === true);
+        await page.evaluate(() => window.__game!.whenReady());
         await page.evaluate(() => window.__game!.setAutopilot(0, true));
         await page.evaluate((n) => window.__game!.step(n, { render: false }), SETTLE_TICKS);
         const cdp = await context.newCDPSession(page);
