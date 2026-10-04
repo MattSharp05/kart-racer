@@ -2,6 +2,30 @@
   "version": 1,
   "files": [
     {
+      "path": "audio/drift/blue.m4a",
+      "bytes": 7535,
+      "sha256": "ceaa45bde8f7a8e0e2a8ac82bbe5faf2908a077cfa5efd2e7c584c0d78512e4d",
+      "group": "audio/drift"
+    },
+    {
+      "path": "audio/drift/orange.m4a",
+      "bytes": 7535,
+      "sha256": "ceaa45bde8f7a8e0e2a8ac82bbe5faf2908a077cfa5efd2e7c584c0d78512e4d",
+      "group": "audio/drift"
+    },
+    {
+      "path": "audio/drift/purple.m4a",
+      "bytes": 7535,
+      "sha256": "ceaa45bde8f7a8e0e2a8ac82bbe5faf2908a077cfa5efd2e7c584c0d78512e4d",
+      "group": "audio/drift"
+    },
+    {
+      "path": "audio/drift/start.m4a",
+      "bytes": 7535,
+      "sha256": "ceaa45bde8f7a8e0e2a8ac82bbe5faf2908a077cfa5efd2e7c584c0d78512e4d",
+      "group": "audio/drift"
+    },
+    {
       "path": "audio/items/banana-drop.m4a",
       "bytes": 7535,
       "sha256": "ceaa45bde8f7a8e0e2a8ac82bbe5faf2908a077cfa5efd2e7c584c0d78512e4d",
@@ -128,10 +152,298 @@
       "group": "audio/items"
     },
     {
+      "path": "audio/kart/b-dasher/accel.m4a",
+      "bytes": 7535,
+      "sha256": "ceaa45bde8f7a8e0e2a8ac82bbe5faf2908a077cfa5efd2e7c584c0d78512e4d",
+      "group": "audio/kart"
+    },
+    {
+      "path": "audio/kart/b-dasher/boost.m4a",
+      "bytes": 7535,
+      "sha256": "ceaa45bde8f7a8e0e2a8ac82bbe5faf2908a077cfa5efd2e7c584c0d78512e4d",
+      "group": "audio/kart"
+    },
+    {
+      "path": "audio/kart/b-dasher/idle.m4a",
+      "bytes": 7535,
+      "sha256": "ceaa45bde8f7a8e0e2a8ac82bbe5faf2908a077cfa5efd2e7c584c0d78512e4d",
+      "group": "audio/kart"
+    },
+    {
+      "path": "audio/kart/b-dasher/mini-turbo.m4a",
+      "bytes": 7535,
+      "sha256": "ceaa45bde8f7a8e0e2a8ac82bbe5faf2908a077cfa5efd2e7c584c0d78512e4d",
+      "group": "audio/kart"
+    },
+    {
+      "path": "audio/kart/cat-cruiser/accel.m4a",
+      "bytes": 7535,
+      "sha256": "ceaa45bde8f7a8e0e2a8ac82bbe5faf2908a077cfa5efd2e7c584c0d78512e4d",
+      "group": "audio/kart"
+    },
+    {
+      "path": "audio/kart/cat-cruiser/boost.m4a",
+      "bytes": 7535,
+      "sha256": "ceaa45bde8f7a8e0e2a8ac82bbe5faf2908a077cfa5efd2e7c584c0d78512e4d",
+      "group": "audio/kart"
+    },
+    {
+      "path": "audio/kart/cat-cruiser/idle.m4a",
+      "bytes": 7535,
+      "sha256": "ceaa45bde8f7a8e0e2a8ac82bbe5faf2908a077cfa5efd2e7c584c0d78512e4d",
+      "group": "audio/kart"
+    },
+    {
+      "path": "audio/kart/cat-cruiser/mini-turbo.m4a",
+      "bytes": 7535,
+      "sha256": "ceaa45bde8f7a8e0e2a8ac82bbe5faf2908a077cfa5efd2e7c584c0d78512e4d",
+      "group": "audio/kart"
+    },
+    {
+      "path": "audio/kart/mach-8/accel.m4a",
+      "bytes": 7535,
+      "sha256": "ceaa45bde8f7a8e0e2a8ac82bbe5faf2908a077cfa5efd2e7c584c0d78512e4d",
+      "group": "audio/kart"
+    },
+    {
+      "path": "audio/kart/mach-8/boost.m4a",
+      "bytes": 7535,
+      "sha256": "ceaa45bde8f7a8e0e2a8ac82bbe5faf2908a077cfa5efd2e7c584c0d78512e4d",
+      "group": "audio/kart"
+    },
+    {
+      "path": "audio/kart/mach-8/idle.m4a",
+      "bytes": 7535,
+      "sha256": "ceaa45bde8f7a8e0e2a8ac82bbe5faf2908a077cfa5efd2e7c584c0d78512e4d",
+      "group": "audio/kart"
+    },
+    {
+      "path": "audio/kart/mach-8/mini-turbo.m4a",
+      "bytes": 7535,
+      "sha256": "ceaa45bde8f7a8e0e2a8ac82bbe5faf2908a077cfa5efd2e7c584c0d78512e4d",
+      "group": "audio/kart"
+    },
+    {
+      "path": "audio/kart/pipe-frame/accel.m4a",
+      "bytes": 7535,
+      "sha256": "ceaa45bde8f7a8e0e2a8ac82bbe5faf2908a077cfa5efd2e7c584c0d78512e4d",
+      "group": "audio/kart"
+    },
+    {
+      "path": "audio/kart/pipe-frame/boost.m4a",
+      "bytes": 7535,
+      "sha256": "ceaa45bde8f7a8e0e2a8ac82bbe5faf2908a077cfa5efd2e7c584c0d78512e4d",
+      "group": "audio/kart"
+    },
+    {
+      "path": "audio/kart/pipe-frame/idle.m4a",
+      "bytes": 7535,
+      "sha256": "ceaa45bde8f7a8e0e2a8ac82bbe5faf2908a077cfa5efd2e7c584c0d78512e4d",
+      "group": "audio/kart"
+    },
+    {
+      "path": "audio/kart/pipe-frame/mini-turbo.m4a",
+      "bytes": 7535,
+      "sha256": "ceaa45bde8f7a8e0e2a8ac82bbe5faf2908a077cfa5efd2e7c584c0d78512e4d",
+      "group": "audio/kart"
+    },
+    {
+      "path": "audio/kart/sports-coupe/accel.m4a",
+      "bytes": 7535,
+      "sha256": "ceaa45bde8f7a8e0e2a8ac82bbe5faf2908a077cfa5efd2e7c584c0d78512e4d",
+      "group": "audio/kart"
+    },
+    {
+      "path": "audio/kart/sports-coupe/boost.m4a",
+      "bytes": 7535,
+      "sha256": "ceaa45bde8f7a8e0e2a8ac82bbe5faf2908a077cfa5efd2e7c584c0d78512e4d",
+      "group": "audio/kart"
+    },
+    {
+      "path": "audio/kart/sports-coupe/idle.m4a",
+      "bytes": 7535,
+      "sha256": "ceaa45bde8f7a8e0e2a8ac82bbe5faf2908a077cfa5efd2e7c584c0d78512e4d",
+      "group": "audio/kart"
+    },
+    {
+      "path": "audio/kart/sports-coupe/mini-turbo.m4a",
+      "bytes": 7535,
+      "sha256": "ceaa45bde8f7a8e0e2a8ac82bbe5faf2908a077cfa5efd2e7c584c0d78512e4d",
+      "group": "audio/kart"
+    },
+    {
+      "path": "audio/kart/standard-kart/accel.m4a",
+      "bytes": 7535,
+      "sha256": "ceaa45bde8f7a8e0e2a8ac82bbe5faf2908a077cfa5efd2e7c584c0d78512e4d",
+      "group": "audio/kart"
+    },
+    {
+      "path": "audio/kart/standard-kart/boost.m4a",
+      "bytes": 7535,
+      "sha256": "ceaa45bde8f7a8e0e2a8ac82bbe5faf2908a077cfa5efd2e7c584c0d78512e4d",
+      "group": "audio/kart"
+    },
+    {
+      "path": "audio/kart/standard-kart/idle.m4a",
+      "bytes": 7535,
+      "sha256": "ceaa45bde8f7a8e0e2a8ac82bbe5faf2908a077cfa5efd2e7c584c0d78512e4d",
+      "group": "audio/kart"
+    },
+    {
+      "path": "audio/kart/standard-kart/mini-turbo.m4a",
+      "bytes": 7535,
+      "sha256": "ceaa45bde8f7a8e0e2a8ac82bbe5faf2908a077cfa5efd2e7c584c0d78512e4d",
+      "group": "audio/kart"
+    },
+    {
       "path": "audio/star/music.m4a",
       "bytes": 7535,
       "sha256": "ceaa45bde8f7a8e0e2a8ac82bbe5faf2908a077cfa5efd2e7c584c0d78512e4d",
       "group": "audio/star"
+    },
+    {
+      "path": "audio/terrain/asphalt/land.m4a",
+      "bytes": 7535,
+      "sha256": "ceaa45bde8f7a8e0e2a8ac82bbe5faf2908a077cfa5efd2e7c584c0d78512e4d",
+      "group": "audio/terrain"
+    },
+    {
+      "path": "audio/terrain/asphalt/run.m4a",
+      "bytes": 7535,
+      "sha256": "ceaa45bde8f7a8e0e2a8ac82bbe5faf2908a077cfa5efd2e7c584c0d78512e4d",
+      "group": "audio/terrain"
+    },
+    {
+      "path": "audio/terrain/asphalt/slip.m4a",
+      "bytes": 7535,
+      "sha256": "ceaa45bde8f7a8e0e2a8ac82bbe5faf2908a077cfa5efd2e7c584c0d78512e4d",
+      "group": "audio/terrain"
+    },
+    {
+      "path": "audio/terrain/dirt/land.m4a",
+      "bytes": 7535,
+      "sha256": "ceaa45bde8f7a8e0e2a8ac82bbe5faf2908a077cfa5efd2e7c584c0d78512e4d",
+      "group": "audio/terrain"
+    },
+    {
+      "path": "audio/terrain/dirt/run.m4a",
+      "bytes": 7535,
+      "sha256": "ceaa45bde8f7a8e0e2a8ac82bbe5faf2908a077cfa5efd2e7c584c0d78512e4d",
+      "group": "audio/terrain"
+    },
+    {
+      "path": "audio/terrain/dirt/slip.m4a",
+      "bytes": 7535,
+      "sha256": "ceaa45bde8f7a8e0e2a8ac82bbe5faf2908a077cfa5efd2e7c584c0d78512e4d",
+      "group": "audio/terrain"
+    },
+    {
+      "path": "audio/terrain/grass/land.m4a",
+      "bytes": 7535,
+      "sha256": "ceaa45bde8f7a8e0e2a8ac82bbe5faf2908a077cfa5efd2e7c584c0d78512e4d",
+      "group": "audio/terrain"
+    },
+    {
+      "path": "audio/terrain/grass/run.m4a",
+      "bytes": 7535,
+      "sha256": "ceaa45bde8f7a8e0e2a8ac82bbe5faf2908a077cfa5efd2e7c584c0d78512e4d",
+      "group": "audio/terrain"
+    },
+    {
+      "path": "audio/terrain/grass/slip.m4a",
+      "bytes": 7535,
+      "sha256": "ceaa45bde8f7a8e0e2a8ac82bbe5faf2908a077cfa5efd2e7c584c0d78512e4d",
+      "group": "audio/terrain"
+    },
+    {
+      "path": "audio/terrain/metal/land.m4a",
+      "bytes": 7535,
+      "sha256": "ceaa45bde8f7a8e0e2a8ac82bbe5faf2908a077cfa5efd2e7c584c0d78512e4d",
+      "group": "audio/terrain"
+    },
+    {
+      "path": "audio/terrain/metal/run.m4a",
+      "bytes": 7535,
+      "sha256": "ceaa45bde8f7a8e0e2a8ac82bbe5faf2908a077cfa5efd2e7c584c0d78512e4d",
+      "group": "audio/terrain"
+    },
+    {
+      "path": "audio/terrain/metal/slip.m4a",
+      "bytes": 7535,
+      "sha256": "ceaa45bde8f7a8e0e2a8ac82bbe5faf2908a077cfa5efd2e7c584c0d78512e4d",
+      "group": "audio/terrain"
+    },
+    {
+      "path": "audio/terrain/sand/land.m4a",
+      "bytes": 7535,
+      "sha256": "ceaa45bde8f7a8e0e2a8ac82bbe5faf2908a077cfa5efd2e7c584c0d78512e4d",
+      "group": "audio/terrain"
+    },
+    {
+      "path": "audio/terrain/sand/run.m4a",
+      "bytes": 7535,
+      "sha256": "ceaa45bde8f7a8e0e2a8ac82bbe5faf2908a077cfa5efd2e7c584c0d78512e4d",
+      "group": "audio/terrain"
+    },
+    {
+      "path": "audio/terrain/sand/slip.m4a",
+      "bytes": 7535,
+      "sha256": "ceaa45bde8f7a8e0e2a8ac82bbe5faf2908a077cfa5efd2e7c584c0d78512e4d",
+      "group": "audio/terrain"
+    },
+    {
+      "path": "audio/terrain/wall/concrete.m4a",
+      "bytes": 7535,
+      "sha256": "ceaa45bde8f7a8e0e2a8ac82bbe5faf2908a077cfa5efd2e7c584c0d78512e4d",
+      "group": "audio/terrain"
+    },
+    {
+      "path": "audio/terrain/wall/metal.m4a",
+      "bytes": 7535,
+      "sha256": "ceaa45bde8f7a8e0e2a8ac82bbe5faf2908a077cfa5efd2e7c584c0d78512e4d",
+      "group": "audio/terrain"
+    },
+    {
+      "path": "audio/terrain/wall/wood.m4a",
+      "bytes": 7535,
+      "sha256": "ceaa45bde8f7a8e0e2a8ac82bbe5faf2908a077cfa5efd2e7c584c0d78512e4d",
+      "group": "audio/terrain"
+    },
+    {
+      "path": "audio/terrain/water/land.m4a",
+      "bytes": 7535,
+      "sha256": "ceaa45bde8f7a8e0e2a8ac82bbe5faf2908a077cfa5efd2e7c584c0d78512e4d",
+      "group": "audio/terrain"
+    },
+    {
+      "path": "audio/terrain/water/run.m4a",
+      "bytes": 7535,
+      "sha256": "ceaa45bde8f7a8e0e2a8ac82bbe5faf2908a077cfa5efd2e7c584c0d78512e4d",
+      "group": "audio/terrain"
+    },
+    {
+      "path": "audio/terrain/water/slip.m4a",
+      "bytes": 7535,
+      "sha256": "ceaa45bde8f7a8e0e2a8ac82bbe5faf2908a077cfa5efd2e7c584c0d78512e4d",
+      "group": "audio/terrain"
+    },
+    {
+      "path": "audio/terrain/wood/land.m4a",
+      "bytes": 7535,
+      "sha256": "ceaa45bde8f7a8e0e2a8ac82bbe5faf2908a077cfa5efd2e7c584c0d78512e4d",
+      "group": "audio/terrain"
+    },
+    {
+      "path": "audio/terrain/wood/run.m4a",
+      "bytes": 7535,
+      "sha256": "ceaa45bde8f7a8e0e2a8ac82bbe5faf2908a077cfa5efd2e7c584c0d78512e4d",
+      "group": "audio/terrain"
+    },
+    {
+      "path": "audio/terrain/wood/slip.m4a",
+      "bytes": 7535,
+      "sha256": "ceaa45bde8f7a8e0e2a8ac82bbe5faf2908a077cfa5efd2e7c584c0d78512e4d",
+      "group": "audio/terrain"
     },
     {
       "path": "audio/ui/fixture-sine.m4a",
