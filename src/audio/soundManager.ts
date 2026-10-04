@@ -185,6 +185,11 @@ export class SoundManager {
   }
 
   update(state: SimState, view: AudioView): void {
+    // The skin's own loops (MK-111: MK8's engines and terrain) follow the race, pause and mute;
+    // its player starts on its own gesture, so it's updated before ours has started too.
+    const skin = soundSkin();
+    const skinned = !this.muted && skin?.owns(state) === true;
+    skin?.update?.(state, view, skinned && !view.paused && !view.menu);
     const synth = this.synth;
     if (!synth) return;
     // Paused: freeze all audio.
@@ -197,9 +202,9 @@ export class SoundManager {
     const me = state.karts[view.followId];
     const racing = !view.menu;
     // The skin's own star music (MK-129) replaces our star loop: the race music rests meanwhile.
-    const skin = soundSkin();
     const star = !!me && me.starTimer > 0;
-    const skinStar = star && !this.muted && skin?.owns(state) === true && skin.starMusic();
+    const skinStar = star && skinned && skin.starMusic();
+    const skinEngines = skinned && skin.engines?.() === true;
     this.music?.play(!racing ? 'menu' : skinStar ? 'none' : star ? 'star' : 'race');
 
     // Roulette ticking while your item slot spins.
@@ -237,7 +242,8 @@ export class SoundManager {
       const freq = 55 + ratio * 130 + (kart?.boostTimer ? 25 : 0);
       voice.osc.frequency.setTargetAtTime(freq, now, 0.05);
       voice.sub.frequency.setTargetAtTime(freq / 2, now, 0.05);
-      voice.gain.gain.setTargetAtTime(kart ? volume * (0.4 + ratio * 0.6) : 0, now, 0.08);
+      const on = kart && !skinEngines;
+      voice.gain.gain.setTargetAtTime(on ? volume * (0.4 + ratio * 0.6) : 0, now, 0.08);
     });
   }
 }
