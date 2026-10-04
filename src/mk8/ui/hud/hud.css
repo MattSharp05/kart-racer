@@ -440,3 +440,20 @@ body.touch .mk8-hud-position small {
   font-size: calc(18 * var(--u));
   opacity: 0.8;
 }
+
+/* Phones (MK-134): the clock and its splits go down the side away from the touch buttons, so a
+   long Time Trial's splits never reach the Item button: under the coins on the left (right hand),
+   under the minimap on the right (left hand, buttons on the left). */
+body.touch .mk8-hud-timer {
+  top: calc(var(--edge-top) + 230 * var(--u));
+  right: auto;
+  left: var(--edge-left);
+  justify-items: start;
+}
+
+body.touch:has(.touch-controls[data-hand='left']) .mk8-hud-timer {
+  top: calc(var(--edge-top) + 204 * var(--u));
+  right: calc(var(--edge-right) + 52px);
+  left: auto;
+  justify-items: end;
+}
