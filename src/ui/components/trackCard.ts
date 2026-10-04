@@ -19,8 +19,8 @@ const SVG_NS = 'http://www.w3.org/2000/svg';
  * dot on the start line. Drawn from the spline data, so a new track gets one by registering (no
  * screenshots, no WebGL). `null` for tracks without a spline (the test arena).
  */
-export function trackOutline(track: TrackContent): SVGSVGElement | null {
-  if (track.def.kind !== 'spline') return null;
+export function trackOutline(track: CardTrack): SVGSVGElement | null {
+  if (track.def?.kind !== 'spline') return null;
   const geometry = trackGeometry(track.def);
   const points = Array.from({ length: OUTLINE_SAMPLES }, (_, i) =>
     geometry.pointAt(i / OUTLINE_SAMPLES),
@@ -55,6 +55,10 @@ export function trackOutline(track: TrackContent): SVGSVGElement | null {
   return svg;
 }
 
+/** What a card shows of a track: an MK8 room's course (MK-132) has no track data until it loads. */
+export type CardTrack = Pick<TrackContent, 'id' | 'name' | 'hazard'> &
+  Partial<Pick<TrackContent, 'def'>>;
+
 /** A track's saved records as the card's lines: best race and best lap, or none yet. */
 export function recordText(record: TrackRecord): string[] {
   const lines = [
@@ -70,7 +74,7 @@ export function recordText(record: TrackRecord): string[] {
  * and the keyboard; `aria-checked` marks the selected one.
  */
 export function trackCard(
-  track: TrackContent,
+  track: CardTrack,
   record: TrackRecord | null,
   onPick: () => void,
 ): HTMLButtonElement {

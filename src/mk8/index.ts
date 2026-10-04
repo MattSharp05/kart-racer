@@ -22,6 +22,8 @@ import {
 import { mk8Course } from './content/courses';
 import { loadMk8Course } from './courses';
 import { registerMk8Content } from './register';
+import { mk8RoomContent } from './online';
+import type { Mk8RoomContent } from '../game/roomFlow';
 import {
   STAGE_DEMOS,
   buildDemo,
@@ -38,7 +40,7 @@ import './ui/password';
 import type { PreviewHooks } from './ui/screens/characterSelect';
 import { Mk8ScreenFlow } from './ui/screens';
 import { installMk8Hud, type HudHooks } from './ui/hud';
-import type { Mk8Context, Mk8Flow, Mk8Screen } from './ui/screens/session';
+import type { Mk8Context, Mk8Flow, Mk8Loadout, Mk8Screen } from './ui/screens/session';
 import { sprite } from './ui/sprites';
 import './ui/stack';
 import './ui/stage';
@@ -54,6 +56,8 @@ export interface Mk8Host {
   startRace?: (setup: Mk8RaceSetup) => void;
   /** Where picks are remembered (MK-117); the browser's storage by default. */
   store?: KeyValueStore;
+  /** Online (MK-132): the game's rooms, as MK8 rooms racing `loadout`. */
+  openRoom?: (loadout: Mk8Loadout) => void;
 }
 
 declare global {
@@ -281,6 +285,7 @@ async function openMenus(
     loadCharacters: (first, onFirst) => loadCharacters(files, first, onFirst),
     store: host.store ?? browserStore(),
     next: (from) => screenFlow.next(from, flow).build(ctx),
+    ...(host.openRoom ? { openRoom: host.openRoom } : {}),
   };
   const sounds = audioPlayer();
   if (window.__mk8) window.__mk8.flow = flow;
@@ -459,4 +464,9 @@ async function loadFonts(): Promise<void> {
     await loaded;
   }
   await Promise.all(FONT_FACES.map((face) => document.fonts.load(face)));
+}
+
+/** MK8 rooms (MK-132): MK8 Mode's courses, racers and karts for the game's room lobby. */
+export function roomContent(local: boolean): Mk8RoomContent {
+  return mk8RoomContent(packLoader(), { local });
 }

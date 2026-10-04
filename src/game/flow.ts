@@ -171,6 +171,8 @@ export class Flow {
       {
         tracks: menuTracks(),
         racers: gameRacers(),
+        // MK8 rooms (MK-132): MK8 Mode's chunk gives their courses and karts.
+        mk8: (local) => import('../mk8').then((mk8) => mk8.roomContent(local)),
         onRace: this.startOnlineRace,
         onStartFailed: (message) => this.abortOnlineRace(message),
         onRoomEnded: () => this.leaveOnlineRace(),
@@ -385,6 +387,7 @@ export class Flow {
             isMuted: () => this.sound.isMuted,
             startRace: this.startMk8Race,
             store: this.store,
+            openRoom: (loadout) => this.rooms.launchMk8(loadout),
           },
           mode,
         );
@@ -579,7 +582,8 @@ export class Flow {
     this.mk8Race = undefined;
     this.screens.hide();
     this.beforeLoad();
-    this.ranked = !this.scenarioPage || this.leaderboard.test;
+    // MK8 races (MK-132) have no leaderboard.
+    this.ranked = (!this.scenarioPage || this.leaderboard.test) && !launch.race.itemSet;
     const state = createRace(launch.race);
     this.session.load(state);
     this.world.reset('chase', localKartOf(state));

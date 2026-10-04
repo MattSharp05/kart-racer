@@ -9,6 +9,7 @@ import type { Loadout } from '../../sim/types';
 import { attractMode } from '../menus';
 import { ONLINE_GROUP } from '../online';
 import type { Scenario, ScenarioSetup } from '../registry';
+import { openMk8 } from './lib/menus';
 import { TEST_RAMP } from './testRamp';
 
 const KARTS = 8;
@@ -27,10 +28,17 @@ export const MK8_ONLINE_LOADOUTS: readonly Loadout[] = [
   { racer: 'mk8-daisy', body: 'standard-kart', tires: 'slim-tires', glider: 'peach-parasol' },
 ];
 
+const DEFAULT: Loadout = {
+  racer: 'mk8-mario',
+  body: 'standard-kart',
+  tires: 'standard-tires',
+  glider: 'paper-glider',
+};
+
 /** The host's race on the test ramp: kart 0 the host, 1…players−1 the clients, the rest AI. */
 export function mk8OnlineRaceOptions(seed: number, players: number): CreateRaceOptions {
   const racers = Array.from({ length: KARTS }, (_, i): RacerSlot => {
-    const loadout = MK8_ONLINE_LOADOUTS[i % MK8_ONLINE_LOADOUTS.length]!;
+    const loadout = MK8_ONLINE_LOADOUTS[i % MK8_ONLINE_LOADOUTS.length] ?? DEFAULT;
     return {
       kartId: loadout.racer,
       controller: i === 0 ? 'local' : i < players ? 'remote' : 'ai',
@@ -67,6 +75,22 @@ const scenarios: Scenario[] = [
     defaultSeed: 1,
     mk8Course: TEST_RAMP.id,
     setup: (seed) => mk8OnlineRace(seed, 2),
+  },
+  {
+    name: 'mk8-online-lobby',
+    group: ONLINE_GROUP,
+    description:
+      'An MK8 room’s lobby over BroadcastChannel (MK-132): the host link creates it, the client link joins in another window. MK8 courses (plus the test ramp here, no pack needed) and 50–200cc; each player’s MK8 kart (MK8 Mode’s last pick) and course loading shows by their name; Start waits until everyone has the course.',
+    defaultSeed: 1,
+    setup: (seed) => ({ state: attractMode(seed), view: 'chase', screen: 'title', lobby: 'mk8' }),
+  },
+  {
+    name: 'mk8-ui-online',
+    group: 'MK8 Mode',
+    description:
+      'MK8 Mode’s Online (MK-132), after character select and the kart builder: the Rooms tile. OK opens the rooms (Create room / Join room); a room created here is an MK8 room racing the kart you built. Add &net=local to use BroadcastChannel rooms without Supabase.',
+    defaultSeed: 1,
+    setup: openMk8('online'),
   },
 ];
 export default scenarios;

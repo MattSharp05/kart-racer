@@ -80,6 +80,8 @@ export interface Mk8Context {
    * pushes. Screens never import each other.
    */
   next(from: string): Mk8ScreenFactory;
+  /** Online (MK-132): the game's rooms as MK8 rooms, racing `loadout`; absent outside the game. */
+  openRoom?: (loadout: Mk8Loadout) => void;
 }
 
 /**
