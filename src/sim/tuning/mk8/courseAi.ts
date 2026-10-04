@@ -16,6 +16,11 @@ export const mk8CourseAiTuning = {
      * drift look-ahead, m: on a narrow strip up a wall a slide or a shove puts it over the edge.
      */
     minWidth: 8,
+    /**
+     * Thwomps (MK-124): it plans to cross under one at this speed or more, m/s (the original
+     * game's crushers: `tuning.ai.crusherPassSpeed`).
+     */
+    thwompPassSpeed: 14,
     /** Glide ramps: it lines up on the ramp's middle from this far before it, m. */
     glideLead: 35,
     /** Gliding, it dives while there is drivable ground this far below at most, m; else floats. */
