@@ -58,7 +58,7 @@ export interface RemotePeer {
 
 /** The race setup a client needs to build the same race as `state` (see `encodeStart`). */
 export function raceSetupOf(options: CreateRaceOptions, state: SimState): RaceSetup {
-  return {
+  const setup: RaceSetup = {
     trackId: state.trackId,
     engineClass: state.engineClass,
     itemsOn: options.itemsOn,
@@ -78,8 +78,11 @@ export function raceSetupOf(options: CreateRaceOptions, state: SimState): RaceSe
             },
           }
         : {}),
+      ...(kart.loadout ? { loadout: { ...kart.loadout } } : {}),
     })),
   };
+  if (state.itemSet !== undefined) setup.itemSet = state.itemSet;
+  return setup;
 }
 
 /** `state`'s standings, leader first: finished karts with their finish tick (MK-55). */
