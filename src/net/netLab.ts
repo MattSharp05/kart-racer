@@ -263,13 +263,21 @@ export function runLab({
   /** A few seconds after the results so the last snapshots (and Results) reach every client. */
   let stopAt = Infinity;
   let ticks = 0;
-  /** The host's kart positions after each tick (ground plane), for the truth errors. */
-  const truth = new Map<number, { x: number; y: number; z: number }[]>();
+  /**
+   * The host's kart positions after each tick (ground plane), for the truth errors, and whether
+   * each was spinning out from a hit then.
+   */
+  const truth = new Map<number, { x: number; y: number; z: number; hit: boolean }[]>();
   while (ticks < Math.min(limit, stopAt)) {
     host.tick(input(host.state, 0, 'host'));
     truth.set(
       host.state.tick,
-      host.state.karts.map((k) => ({ x: k.position.x, y: k.position.y, z: k.position.z })),
+      host.state.karts.map((k) => ({
+        x: k.position.x,
+        y: k.position.y,
+        z: k.position.z,
+        hit: k.spinTimer > 0,
+      })),
     );
     const frame = (ticks + 1) % clientFrameTicks === 0;
     for (const watch of frame ? watches : []) {
@@ -302,6 +310,9 @@ export function runLab({
         watch.frames.flatMap((f) => {
           const real = truth.get(f.tick)?.[f.kartId];
           if (!real || (f.kartId === kartId) !== own || (antigravOnly && !f.antigrav)) return [];
+          // A hit is the host's to decide (ADR 0005): no client can predict it, so the frames it
+          // takes the news to arrive measure the lag, not the prediction (as respawns, above).
+          if (real.hit) return [];
           // Ground plane, as players read it; in anti-gravity the wall or ceiling counts too.
           return [Math.hypot(f.x - real.x, antigravOnly ? f.y - real.y : 0, f.z - real.z)];
         });

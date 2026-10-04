@@ -9,7 +9,15 @@ import { routeGeometry, type RouteGeometry } from '../route';
 import { rightOf } from '../surfaceKart';
 import { meshCrusherSpeedLimit } from './hazards';
 import { DT, tuning, type EngineClass } from '../tuning';
-import { NEUTRAL_INPUT, type AiState, type InputFrame, type KartState } from '../types';
+import {
+  NEUTRAL_INPUT,
+  type AiState,
+  type InputFrame,
+  type KartState,
+  type SimState,
+} from '../types';
+import { wantsDrift } from './driver';
+import { glidePitch, glideRampLine, meshTacticOffset, minWidthAhead } from './meshTactics';
 
 /** The kart's progress along the route, searched near its last lap fraction. */
 function hereOn(geometry: RouteGeometry, kart: KartState): number {
@@ -17,14 +25,20 @@ function hereOn(geometry: RouteGeometry, kart: KartState): number {
   return geometry.project(kart.position, hint).s;
 }
 
-/** Steering towards `target` in the kart's plane: +1 full right, −1 full left. */
-function steerTowards(kart: KartState, target: Vec3, gain: number): number {
+/**
+ * The angle to `target` in the kart's own surface plane (projected onto it: walls and ceilings
+ * like flat road), radians, positive to the right.
+ */
+function aimAngle(kart: KartState, target: Vec3): number {
   const up = kart.up ?? { x: 0, y: 1, z: 0 };
   const forward = kart.forward ?? { x: 0, y: 0, z: -1 };
   const to = sub(target, kart.position);
-  const ahead = dot(to, forward);
-  const right = dot(to, rightOf(forward, up));
-  return clamp(Math.atan2(right, ahead) * gain, -1, 1);
+  return Math.atan2(dot(to, rightOf(forward, up)), dot(to, forward));
+}
+
+/** Steering towards `target` in the kart's plane: +1 full right, −1 full left. */
+function steerTowards(kart: KartState, target: Vec3, gain: number): number {
+  return clamp(aimAngle(kart, target) * gain, -1, 1);
 }
 
 /** The point `lookAhead` m further along the route, `lateral` m right of the centreline (clamped). */
@@ -61,6 +75,8 @@ export function meshAiInput(
   engineClass: EngineClass,
   racing: boolean,
   tick?: number,
+  /** The race (MK-128): coins and the other karts, for its tactics; without it, none. */
+  state?: SimState,
 ): InputFrame {
   const cfg = tuning.ai;
   const geometry = routeGeometry(track.route);
@@ -78,9 +94,9 @@ export function meshAiInput(
 
   const speed = Math.max(0, kart.speed);
   const lookAhead = cfg.lookAheadBase + speed * cfg.lookAheadPerSpeed;
-  // Plus where items take it (MK-129, `./meshItems.ts`): round a banana, towards a box.
-  const lateral = geometry.racingLineAt(s + lookAhead) + ai.lineOffset + (ai.steerOffset ?? 0);
-  const steer = steerTowards(kart, aimPoint(geometry, s, lookAhead, lateral), cfg.steerGain);
+  const target = meshAimPoint(kart, ai, track, geometry, s, lookAhead, racing, state);
+  const angle = aimAngle(kart, target);
+  let steer = clamp(angle * cfg.steerGain, -1, 1);
 
   const physics = kartPhysics(kart.kartType, engineClass, kart.loadout);
   const top = physics.topSpeed * (ai.speedScale ?? 1);
@@ -89,17 +105,80 @@ export function meshAiInput(
     racing && tick !== undefined && track.hazards?.length
       ? meshCrusherSpeedLimit(kart, tick, track, kart.race.lastT >= 0 ? kart.race.lastT : undefined)
       : Infinity;
-  return {
-    ...pedals(
-      geometry,
-      s,
+  // On the glider (MK-106): dive to land where there's ground below, float over a gap (MK-128).
+  if (kart.glide !== undefined) {
+    ai.drifting = false;
+    return { ...NEUTRAL_INPUT, ...glidePitch(kart, track), steer };
+  }
+
+  // Drifting (MK-128): as on spline tracks (`wantsDrift`), with the route's turns about the road's
+  // up, so it drifts round anti-gravity and underwater corners like any other; not on a narrow
+  // strip (`courseAi.minWidth`).
+  const error = -angle;
+  const roomy = minWidthAhead(geometry, s, cfg.driftLookAhead) >= tuning.mk8.courseAi.minWidth;
+  if (!roomy) ai.drifting = false;
+  const drift =
+    racing &&
+    roomy &&
+    wantsDrift(
+      kart,
+      ai,
+      maxTurnAhead(geometry, s, cfg.driftLookAhead),
       speed,
-      Math.min(cruise, crusher),
-      ai.skill * physics.handling ** cfg.cornerHandling,
-      kart.glide !== undefined,
-    ),
-    steer,
-  };
+      top,
+      engineClass,
+      error,
+    );
+  if (drift && !kart.driftHeld) steer = error > 0 ? -1 : 1; // full lock on the press picks the side
+  const drive = pedals(
+    geometry,
+    s,
+    speed,
+    Math.min(cruise, crusher),
+    ai.skill * physics.handling ** cfg.cornerHandling,
+  );
+  // Never brake out of a drift: lift instead, as on spline tracks.
+  if (drift) return { ...drive, brake: 0, drift: true, steer };
+  return { ...drive, steer };
+}
+
+/**
+ * Where the AI steers: `lookAhead` m along the route, on a glide ramp's middle on the way to one
+ * (MK-128); else on the racing line plus where items take it (MK-129, `./meshItems.ts`: round a
+ * banana, towards a box) or, failing those, a tactic (`./meshTactics.ts`: a coin, a spin-boost
+ * bump).
+ */
+function meshAimPoint(
+  kart: KartState,
+  ai: AiState,
+  track: MeshTrackDef,
+  geometry: RouteGeometry,
+  s: number,
+  lookAhead: number,
+  racing: boolean,
+  state: SimState | undefined,
+): Vec3 {
+  const rampLine = glideRampLine(geometry, track, s + lookAhead);
+  let offset = ai.steerOffset ?? 0;
+  if (offset === 0 && racing && state && kart.glide === undefined) {
+    const hint = kart.race.lastT >= 0 ? kart.race.lastT : undefined;
+    offset = meshTacticOffset(kart, ai, state, geometry, geometry.project(kart.position, hint));
+  }
+  const lateral = rampLine ?? geometry.racingLineAt(s + lookAhead) + ai.lineOffset + offset;
+  return aimPoint(geometry, s, lookAhead, lateral);
+}
+
+/** The point an AI kart on a mesh track is steering at right now (the `?ai-debug=1` overlay). */
+export function meshAiTargetPoint(
+  kart: KartState,
+  ai: AiState,
+  track: MeshTrackDef,
+  state: SimState,
+): Vec3 {
+  const geometry = routeGeometry(track.route);
+  const lookAhead = tuning.ai.lookAheadBase + Math.max(0, kart.speed) * tuning.ai.lookAheadPerSpeed;
+  const racing = state.phase === 'racing';
+  return meshAimPoint(kart, ai, track, geometry, hereOn(geometry, kart), lookAhead, racing, state);
 }
 
 /** A driver's stuck counters (an AI's own; the autopilot's are its caller's). */

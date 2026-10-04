@@ -266,7 +266,8 @@ export function meshCrusherSpeedLimit(
   const spots = meshCrushers(track);
   if (!spots.length) return Infinity;
   const route = routeGeometry(track.route);
-  return speedLimitFor(kart, tick, spots, route.project(kart.position, hint), route.length);
+  const here = route.project(kart.position, hint);
+  return speedLimitFor(kart, tick, spots, here, route.length, tuning.mk8.courseAi.thwompPassSpeed);
 }
 
 function speedLimitFor(
@@ -275,6 +276,8 @@ function speedLimitFor(
   spots: readonly CrusherSpot[],
   here: { s: number; lateral: number },
   length: number,
+  /** The slowest it plans to cross a footprint at, m/s. */
+  passSpeed: number = tuning.ai.crusherPassSpeed,
 ): number {
   const cfg = tuning.ai;
   // The nearest crusher ahead (not yet passed) whose footprint covers where the kart is across.
@@ -296,13 +299,13 @@ function speedLimitFor(
   if (enter <= 0) return Infinity;
   const width = 2 * reach;
   const speed = Math.max(kart.speed, MIN_SPEED);
-  const pass = Math.max(speed, cfg.crusherPassSpeed);
+  const pass = Math.max(speed, passSpeed);
   if (openThroughout(next.def, tick, enter / speed, enter / speed + width / pass)) return Infinity;
   // Later: the first arrival (checked every PREDICT_TICKS, up to two cycles out) that crosses clear.
   const horizon = 2 * next.def.period;
   for (let at = enter / speed; at <= horizon; at += PREDICT_TICKS * DT) {
     const arrive = enter / at;
-    if (openThroughout(next.def, tick, at, at + width / Math.max(arrive, cfg.crusherPassSpeed))) {
+    if (openThroughout(next.def, tick, at, at + width / Math.max(arrive, passSpeed))) {
       return arrive;
     }
   }

@@ -92,7 +92,7 @@ export function beforeMovement(
       const racing = state.phase === 'racing' || state.phase === 'finished';
       kart.ai.steerOffset =
         state.phase === 'racing' ? meshAiSteerOffset(kart, kart.ai, state, track) : 0;
-      const drive = meshAiInput(kart, kart.ai, track, state.engineClass, racing, state.tick);
+      const drive = meshAiInput(kart, kart.ai, track, state.engineClass, racing, state.tick, state);
       resolved[kart.id] =
         state.phase === 'racing'
           ? { ...drive, ...meshAiItemInput(kart, kart.ai, state, track) }
