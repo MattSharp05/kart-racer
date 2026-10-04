@@ -73,8 +73,17 @@ export function aiInput(
     const here = geometry.project(kart.position).s;
 
     // Drifting (MK-15): hop into a drift for tight corners, hold it for a mini-turbo.
-    const driftCurvature = maxCurvatureAhead(geometry, line, here, cfg.driftLookAhead);
-    drift = racing && wantsDrift(kart, ai, driftCurvature, speed, top, engineClass, error);
+    drift =
+      racing &&
+      wantsDrift(
+        kart,
+        ai,
+        maxCurvatureAhead(geometry, line, here, cfg.driftLookAhead),
+        speed,
+        top,
+        engineClass,
+        error,
+      );
     if (drift && !kart.driftHeld) steer = error > 0 ? -1 : 1; // full lock on the press picks the side
     const curvature = maxCurvatureAhead(geometry, line, here, cfg.brakeHorizon);
     // On a slippery surface ahead (ice), corners are planned with its grip, so the AI slows before
