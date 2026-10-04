@@ -3,7 +3,7 @@ import { hitKart } from '../items/hit';
 import type { Vec3 } from '../math';
 import { isRespawning } from '../respawn';
 import type { TrackDef } from '../track';
-import { tuning } from '../tuning';
+import { DT, tuning } from '../tuning';
 import type { KartState, SimEvent, SimState } from '../types';
 import mover from './mover';
 import periodic from './periodic';
@@ -25,9 +25,9 @@ for (const kind of [mover, periodic, rotator, sway, zoneEffect])
 /** `by` on the `kartHit` event for a hit from a hazard (no kart threw it). */
 export const HAZARD_HITTER = -1;
 
-/** The hazards of `track` (arenas have none). */
+/** The hazards of `track` (arenas have none; MK8 courses may, MK-124). */
 export function trackHazards(track: TrackDef): readonly HazardDef[] {
-  return track.kind === 'spline' ? (track.hazards ?? []) : [];
+  return track.kind === 'arena' ? [] : (track.hazards ?? []);
 }
 
 /** Pose of `hazard` at `ticks` (may be fractional, for drawing between ticks). */
@@ -83,14 +83,24 @@ export function hazardWarning(hazards: readonly HazardDef[], tick: number): stri
 
 /**
  * Karts touching a hazard this tick are pushed clear and bumped, spun out or squashed, by the
- * hazard's effect. Runs after the karts have moved.
+ * hazard's effect. Runs after the karts have moved. `mesh` (MK8 courses, MK-124): a squash
+ * flattens the kart for `tuning.mk8.squashTime` (`KartState.squashTimer`), and a kart well below
+ * a hazard (on a road under it) is out of its reach as one well above is.
  */
 export function updateHazards(
   state: SimState,
   hazards: readonly HazardDef[],
   events: SimEvent[],
   only?: number,
+  mesh = false,
 ): void {
+  if (mesh) {
+    for (const kart of state.karts) {
+      if (kart.squashTimer === undefined) continue;
+      kart.squashTimer = Math.max(0, kart.squashTimer - DT);
+      if (kart.squashTimer === 0) delete kart.squashTimer;
+    }
+  }
   for (const hazard of hazards) {
     const kind = hazardKinds.get(hazard.kind);
     if (!kind.contact) continue;
@@ -98,10 +108,13 @@ export function updateHazards(
     for (const kart of state.karts) {
       // Simulating one kart (`StepOptions.only`, MK-74): hazards touch only that one.
       if (only !== undefined && kart.id !== only) continue;
-      if (isRespawning(kart) || kart.position.y - pose.y > tuning.hazards.clearance) continue;
+      const above = kart.position.y - pose.y;
+      if (isRespawning(kart) || above > tuning.hazards.clearance) continue;
+      if (mesh && -above > tuning.hazards.clearance) continue;
       const contact = kind.contact(hazard, pose, kart.position, tuning.hazards.kartRadius);
       if (!contact) continue;
-      applyContact(kart, contact, contact.effect ?? hazard.effect ?? kind.defaultEffect, events);
+      const effect = contact.effect ?? hazard.effect ?? kind.defaultEffect;
+      applyContact(kart, contact, effect, events, mesh);
     }
   }
 }
@@ -111,6 +124,7 @@ function applyContact(
   contact: HazardContact,
   effect: HazardEffect,
   events: SimEvent[],
+  mesh: boolean,
 ): void {
   if (effect === 'squash') {
     // Flattened where it stands: stopped dead, and out of control for longer than an item hit.
@@ -118,7 +132,11 @@ function applyContact(
     if (!hitKart(kart, HAZARD_HITTER, 'hazard', events, { crush: true })) return;
     kart.velocity = { x: 0, y: 0, z: 0 };
     kart.speed = 0;
-    const spin = tuning.spinSeconds * tuning.hazards.squashSpinFactor;
+    // MK8 (MK-124): flat for `squashTime` (drawn squashed, not spinning), then off again.
+    if (mesh) kart.squashTimer = tuning.mk8.squashTime;
+    const spin = mesh
+      ? tuning.mk8.squashTime
+      : tuning.spinSeconds * tuning.hazards.squashSpinFactor;
     kart.spinTimer = spin;
     kart.invulnerableTimer = spin + tuning.hitInvulnerableSeconds;
     return;

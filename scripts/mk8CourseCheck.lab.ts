@@ -44,7 +44,7 @@ it(`MK8 course check: ${COURSE}, ${SEEDS} seeds at ${CC}cc`, { timeout: 30 * 60_
     `collision triangles by surface (after the route's rules): ${JSON.stringify(surfaces)}`,
     `centreline gaps: ${gaps.length ? gaps.map((t) => t.toFixed(3)).join(' ') : 'none'}`,
     '',
-    'seed | player s | fastest s | slowest s | best lap s | worst stuck s | respawns (player, AI) | ms CPU',
+    'seed | player s | fastest s | slowest s | best lap s | worst stuck s | respawns (player, AI) | crushes (player, AI) | ms CPU',
   ];
   const results = [];
   for (let seed = 1; seed <= SEEDS; seed += 1) {
@@ -62,6 +62,7 @@ it(`MK8 course check: ${COURSE}, ${SEEDS} seeds at ${CC}cc`, { timeout: 30 * 60_
         r.bestLap.toFixed(2),
         r.worstStuck.toFixed(1),
         `${r.respawns[0] ?? 0}, ${r.respawns.slice(1).reduce((a, b) => a + b, 0)}`,
+        `${r.crushes[0] ?? 0}, ${r.crushes.slice(1).reduce((a, b) => a + b, 0)}`,
         ms.toFixed(0),
       ].join(' | '),
     );

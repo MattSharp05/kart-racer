@@ -1,0 +1,82 @@
+// Thwomp Ruins' route (MK-124), in the track editor's format: /dev/track-editor.html?course=thwomp-ruins.
+// Pure data (ADR 0010). A DRAFT laid out without the pack: the lap's shape (start straight, the
+// Thwomp hall, the anti-gravity wall, the sunken passage) but not yet traced on the course's
+// collision mesh. Trace it in the editor on the real pack and export over this file (README.md).
+import type { RouteDef } from '../../../../sim/route';
+
+export const route: RouteDef = {
+  points: [
+    { x: 0, y: 0, z: 0, up: { x: 0, y: 1, z: 0 }, width: 12, racingLine: 0 },
+    { x: 0, y: 0, z: -15, up: { x: 0, y: 1, z: 0 }, width: 12, racingLine: 0 },
+    { x: 0, y: 0, z: -30, up: { x: 0, y: 1, z: 0 }, width: 12, racingLine: 0 },
+    { x: 0, y: 0, z: -45, up: { x: 0, y: 1, z: 0 }, width: 12, racingLine: 0 },
+    { x: 0, y: 0, z: -60, up: { x: 0, y: 1, z: 0 }, width: 12, racingLine: 0 },
+    { x: 0, y: 0, z: -75, up: { x: 0, y: 1, z: 0 }, width: 12, racingLine: 0 },
+    { x: 0, y: 0, z: -90, up: { x: 0, y: 1, z: 0 }, width: 12, racingLine: 0 },
+    { x: 3, y: 0, z: -105, up: { x: 0, y: 1, z: 0 }, width: 12, racingLine: 0 },
+    { x: 12, y: 0, z: -118, up: { x: 0, y: 1, z: 0 }, width: 12, racingLine: 0 },
+    { x: 26, y: 0, z: -128, up: { x: 0, y: 1, z: 0 }, width: 12, racingLine: 0 },
+    { x: 42, y: 0, z: -133, up: { x: 0, y: 1, z: 0 }, width: 12, racingLine: 0 },
+    { x: 58, y: 0, z: -135, up: { x: 0, y: 1, z: 0 }, width: 12, racingLine: 0 },
+    { x: 72, y: 0, z: -135, up: { x: 0, y: 1, z: 0 }, width: 12, racingLine: 0 },
+    { x: 86, y: 0, z: -135, up: { x: 0, y: 1, z: 0 }, width: 12, racingLine: 0 },
+    { x: 100, y: 0, z: -135, up: { x: 0, y: 1, z: 0 }, width: 12, racingLine: 0 },
+    { x: 114, y: 0, z: -135, up: { x: 0, y: 1, z: 0 }, width: 12, racingLine: 0 },
+    { x: 128, y: 0, z: -132, up: { x: 0, y: 1, z: 0 }, width: 12, racingLine: 0 },
+    { x: 140, y: 0, z: -124, up: { x: 0, y: 1, z: 0 }, width: 12, racingLine: 0 },
+    { x: 149, y: 0, z: -112, up: { x: 0, y: 1, z: 0 }, width: 12, racingLine: 0 },
+    { x: 155, y: 0.5, z: -97, up: { x: -0.174, y: 0.985, z: 0 }, width: 12, racingLine: 0 },
+    { x: 160, y: 2, z: -82, up: { x: -0.574, y: 0.819, z: 0 }, width: 11, racingLine: 0 },
+    { x: 164, y: 4.5, z: -66, up: { x: -0.866, y: 0.5, z: 0 }, width: 11, racingLine: 0 },
+    { x: 166, y: 6, z: -50, up: { x: -0.94, y: 0.342, z: 0 }, width: 11, racingLine: 0 },
+    { x: 166, y: 6, z: -34, up: { x: -0.94, y: 0.342, z: 0 }, width: 11, racingLine: 0 },
+    { x: 164, y: 4.5, z: -18, up: { x: -0.866, y: 0.5, z: 0 }, width: 11, racingLine: 0 },
+    { x: 160, y: 2, z: -3, up: { x: -0.574, y: 0.819, z: 0 }, width: 11, racingLine: 0 },
+    { x: 155, y: 0.5, z: 11, up: { x: -0.174, y: 0.985, z: 0 }, width: 12, racingLine: 0 },
+    { x: 148, y: 0, z: 24, up: { x: 0, y: 1, z: 0 }, width: 12, racingLine: 0 },
+    { x: 138, y: 0, z: 36, up: { x: 0, y: 1, z: 0 }, width: 12, racingLine: 0 },
+    { x: 125, y: -1, z: 45, up: { x: 0, y: 1, z: 0 }, width: 12, racingLine: 0 },
+    { x: 110, y: -3, z: 50, up: { x: 0, y: 1, z: 0 }, width: 12, racingLine: 0 },
+    { x: 95, y: -5.5, z: 52, up: { x: 0, y: 1, z: 0 }, width: 12, racingLine: 0 },
+    { x: 80, y: -6, z: 52, up: { x: 0, y: 1, z: 0 }, width: 12, racingLine: 0 },
+    { x: 65, y: -6, z: 52, up: { x: 0, y: 1, z: 0 }, width: 12, racingLine: 0 },
+    { x: 50, y: -5.5, z: 52, up: { x: 0, y: 1, z: 0 }, width: 12, racingLine: 0 },
+    { x: 36, y: -3, z: 50, up: { x: 0, y: 1, z: 0 }, width: 12, racingLine: 0 },
+    { x: 24, y: -1, z: 46, up: { x: 0, y: 1, z: 0 }, width: 12, racingLine: 0 },
+    { x: 13, y: 0, z: 38, up: { x: 0, y: 1, z: 0 }, width: 12, racingLine: 0 },
+    { x: 5, y: 0, z: 27, up: { x: 0, y: 1, z: 0 }, width: 12, racingLine: 0 },
+    { x: 1, y: 0, z: 14, up: { x: 0, y: 1, z: 0 }, width: 12, racingLine: 0 },
+  ],
+  checkpoints: [0, 0.25, 0.45, 0.7, 0.9],
+  // Off the anti-gravity wall: back at its foot.
+  respawnPoints: [{ from: 0.47, to: 0.665, t: 0.4492 }],
+  gridSlots: [
+    { t: 0.99338, lateral: -2.5 },
+    { t: 0.98842, lateral: 2.5 },
+    { t: 0.98345, lateral: -2.5 },
+    { t: 0.97849, lateral: 2.5 },
+    { t: 0.97352, lateral: -2.5 },
+    { t: 0.96856, lateral: 2.5 },
+    { t: 0.96359, lateral: -2.5 },
+    { t: 0.95863, lateral: 2.5 },
+  ],
+  itemBoxRows: [
+    { t: 0.06, laterals: [-3.6, -1.2, 1.2, 3.6] },
+    { t: 0.255, laterals: [-3.6, -1.2, 1.2, 3.6] },
+    { t: 0.7, laterals: [-3.6, -1.2, 1.2, 3.6] },
+    { t: 0.93, laterals: [-3.6, -1.2, 1.2, 3.6] },
+  ],
+  coinLines: [
+    { from: 0.03, to: 0.05, lateral: 0, count: 5 },
+    { from: 0.15, to: 0.17, lateral: 1.5, count: 4 },
+    { from: 0.3, to: 0.34, lateral: 0, count: 5 },
+    { from: 0.53, to: 0.6, lateral: 2, count: 6 },
+    { from: 0.79, to: 0.84, lateral: 0, count: 5 },
+    { from: 0.86, to: 0.88, lateral: -2, count: 3 },
+  ],
+  zones: [
+    { kind: 'antigrav', from: 0.47, to: 0.665 },
+    // The sunken passage.
+    { kind: 'water', min: { x: 30, y: -10, z: 38 }, max: { x: 118, y: -1.5, z: 64 } },
+  ],
+};

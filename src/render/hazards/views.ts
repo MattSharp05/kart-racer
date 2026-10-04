@@ -13,6 +13,7 @@ import { DT } from '../../sim/tuning';
 import { createHeadlights } from '../headlights';
 import { createAnimal, updateAnimal } from './animal';
 import { createPiston, updatePiston } from './piston';
+import { createThwomp, updateThwomp } from './thwomp';
 
 /**
  * How one hazard kind is drawn (MK-49): a model built once per hazard, posed every frame from the
@@ -256,6 +257,7 @@ const CRUSHER_THICKNESS = 1.4;
 export const periodicView: HazardView<PeriodicHazard> = {
   id: 'periodic',
   create(def, night) {
+    if (def.thwomp) return createThwomp(def);
     if (def.piston) return createPiston(def);
     const group = new THREE.Group();
     const block = new THREE.Mesh(
@@ -282,6 +284,10 @@ export const periodicView: HazardView<PeriodicHazard> = {
     return group;
   },
   update(object, def, pose, _camera, ticks) {
+    if (def.thwomp) {
+      updateThwomp(object, def, pose, ticks);
+      return undefined;
+    }
     if (def.piston) {
       updatePiston(object, def, pose, ticks);
       return undefined;
