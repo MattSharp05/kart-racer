@@ -9,7 +9,8 @@ import { mk8Course } from './content/courses';
 import { registerTestRamp } from './content/courses/test-ramp/register';
 import { loadMk8Course, registerLookRamp } from './courses';
 import { loadEditorRoute } from './editorRoute';
-import { packLoader } from './index';
+import { trackLoad } from '../game/pending';
+import { loadKartSounds, packLoader } from './index';
 import { PackLockedError, PackLoadError, PackNotInstalledError } from './loader';
 import { registerMk8Content } from './register';
 
@@ -26,6 +27,8 @@ export async function prepareMk8Scenario(course: string, search: string): Promis
   registerLookRamp(packLoader());
   // MK8's item set and racers, for the races' setup (`createRace` looks the item set up).
   registerMk8Content();
+  // MK-111: the kart sounds, while the scenario sets up (`__game.whenReady` waits for them).
+  void trackLoad(loadKartSounds());
   const content = mk8Course(course);
   if (!content || tracks.has(content.trackId)) return 'ready';
   const fromEditor = new URLSearchParams(search).get('editorRoute') === '1';
