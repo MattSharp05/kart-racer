@@ -50,6 +50,7 @@ import type { KeyValueStore } from './storage/store';
 import type { Mk8Start } from '../mk8';
 import type { Mk8RaceSetup } from '../mk8/flow';
 import { MK8_ITEM_SET } from '../mk8/content/items/id';
+import { applyModeRules } from '../mk8/modes';
 import { showErrorBanner } from '../ui/errorBanner';
 import { trackLoad } from './pending';
 
@@ -569,6 +570,8 @@ export class Flow {
       ...(setup.raceLoadout ? { playerLoadout: setup.raceLoadout } : {}),
       ...(setup.field ? { racers: setup.field } : {}),
     });
+    // VS Race settings and Time Trial (MK-131), on the fresh race before anything draws it.
+    applyModeRules(this.session.game.state, setup);
     this.world.reset('chase', this.session.localKartId);
     this.session.game.resume();
     this.pauseButton.hidden = false;

@@ -171,6 +171,8 @@ export interface KartState {
   antigrav?: boolean;
   /** Seconds left of an anti-gravity spin boost (MK-108, `sim/spinBoost.ts`); mesh tracks only. */
   spinBoostTimer?: number;
+  /** Seconds left flattened by a Thwomp (MK-124, `sim/hazards`); mesh tracks only. */
+  squashTimer?: number;
   /**
    * MK8 Mode's kart parts (MK-102): when set, its physics come from MK8's stat table instead of
    * the racer's stats (`kartType` still picks the model). Set at the start of a race, never changed.
@@ -342,6 +344,13 @@ export interface SimState {
   race: RaceInfo;
   /** The registered item set this race hands out (MK-103: `mk8`); absent = the original game's. */
   itemSet?: string;
+  /**
+   * The only items the boxes hand out (MK-131: a VS Race's "bananas only" and the like), weighted
+   * by the item set's odds; absent = every item of the set.
+   */
+  itemPool?: ItemId[];
+  /** A Time Trial (MK-131): one kart against the clock; the HUD shows the timer and lap splits. */
+  timeTrial?: boolean;
   /** Coins on the track (MK-109): only on tracks whose route has coin lines. */
   coins?: CoinEntity[];
 }

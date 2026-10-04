@@ -18,6 +18,8 @@ import {
   startGrandPrix,
   type Mk8GrandPrix,
 } from './gp/grandPrix';
+import { timeTrialField } from './modes/timeTrial';
+import { DEFAULT_VS_RULES, type VsRules } from './modes/vsRace';
 import type { Mk8Flow, Mk8GameMode, Mk8Loadout } from './ui/screens/session';
 
 /** The kart before character select and the kart builder pick one (MK8's defaults, MK-102). */
@@ -49,8 +51,13 @@ export interface Mk8RaceSetup {
   mode?: Mk8GameMode;
   /** A Grand Prix (MK-130): the cup so far; this race is its `currentCourse`. */
   gp?: Mk8GrandPrix;
-  /** A Grand Prix's karts (MK-130): the same rivals every race, on the reverse of the standings. */
+  /**
+   * A Grand Prix's karts (MK-130): the same rivals every race, on the reverse of the standings. A
+   * Time Trial's (MK-131): the player alone.
+   */
   field?: RacerSlot[];
+  /** A VS Race's settings (MK-131): items and CPU difficulty. */
+  vs?: VsRules;
 }
 
 /**
@@ -76,17 +83,20 @@ export function raceSetup(flow: Mk8Flow, gp?: Mk8GrandPrix): Mk8RaceSetup {
   const course = courseInfo(key);
   if (cupInfo(cup).locked) throw new Error(`MK8: the ${cup} cup is locked`);
   const playerKart = racers.has(loadout.racer) ? loadout.racer : STAND_IN_RACER;
+  const raceLoadout = isKnownLoadout(loadout) ? loadout : undefined;
   return {
     course: course.key,
     cup,
     trackId: tracks.has(course.trackId) ? course.trackId : course.standIn,
     engineClass,
     loadout,
-    ...(isKnownLoadout(loadout) ? { raceLoadout: loadout } : {}),
+    ...(raceLoadout ? { raceLoadout } : {}),
     playerKart,
     itemSet: MK8_ITEM_SET,
     ...(flow.mode ? { mode: flow.mode } : {}),
     ...(grandPrix ? { gp: grandPrix, field: gpField(grandPrix, playerKart) } : {}),
+    ...(flow.mode === 'time-trial' ? { field: timeTrialField(playerKart, raceLoadout) } : {}),
+    ...(flow.mode === 'vs' ? { vs: { ...(flow.vs ?? DEFAULT_VS_RULES) } } : {}),
   };
 }
 

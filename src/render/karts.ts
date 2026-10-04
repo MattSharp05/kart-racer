@@ -224,8 +224,9 @@ export class KartRenderer {
     const drift = kart.drift.direction;
     // Lean outward and swing the tail out, like a drifting kart.
     model.body.rotation.z = drift * DRIFT_LEAN;
-    // Spin-out (MK-17): one full turn over the spin time.
-    const spin = kart.spinTimer > 0 ? (1 - kart.spinTimer / tuning.spinSeconds) * Math.PI * 2 : 0;
+    // Spin-out (MK-17): one full turn over the spin time. Flattened by a Thwomp (MK-124): no spin.
+    const spinning = kart.spinTimer > 0 && !kart.squashTimer;
+    const spin = spinning ? (1 - kart.spinTimer / tuning.spinSeconds) * Math.PI * 2 : 0;
     model.body.rotation.y = -drift * DRIFT_YAW + spin;
 
     const showSparks = drift !== 0;

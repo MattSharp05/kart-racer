@@ -25,6 +25,8 @@ describe('MK8 race setup from the menus (MK-119)', () => {
       playerKart: STAND_IN_RACER,
       itemSet: MK8_ITEM_SET,
       mode: 'vs',
+      // MK-131: a VS Race carries its rules (the defaults until the settings screen sets them).
+      vs: { items: 'on', cpu: 'normal' },
     });
   });
 

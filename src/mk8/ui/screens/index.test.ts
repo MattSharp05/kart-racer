@@ -10,7 +10,16 @@ describe('MK8 screen flow (MK-142)', () => {
   const flow = new Mk8ScreenFlow();
 
   it('finds every screen file, in order.ts’s order', () => {
-    expect(ids(flowScreens())).toEqual(['title', 'mode', 'char', 'kart', 'online', 'cc', 'cup']);
+    expect(ids(flowScreens())).toEqual([
+      'title',
+      'mode',
+      'char',
+      'kart',
+      'online',
+      'cc',
+      'vs',
+      'cup',
+    ]);
     expect(flow.first().id).toBe('title');
   });
 
@@ -34,6 +43,12 @@ describe('MK8 screen flow (MK-142)', () => {
     expect(flow.next('kart', { mode: 'time-trial' }).id).toBe('cup');
   });
 
+  it('puts the VS settings in the engine class’s place in a VS Race only (MK-131)', () => {
+    expect(flow.next('kart', { mode: 'vs' }).id).toBe('vs');
+    expect(flow.next('vs', { mode: 'vs' }).id).toBe('cup');
+    expect(flow.next('cc', { mode: 'grand-prix' }).id).toBe('cup');
+  });
+
   it('opens scenario starts over the screens that lead there, with their choices', () => {
     expect(flow.start('title')).toEqual({ flow: {}, screens: [] });
     expect(ids(flow.start('mode')?.screens ?? [])).toEqual(['mode']);
@@ -41,7 +56,7 @@ describe('MK8 screen flow (MK-142)', () => {
     expect(flow.start('cup')?.flow).toEqual({ mode: 'grand-prix', engineClass: 150 });
     const course = flow.start('course');
     expect(course?.flow).toEqual({ mode: 'vs', engineClass: 150 });
-    expect(ids(course?.screens ?? [])).toEqual(['mode', 'char', 'kart', 'cc', 'cup']);
+    expect(ids(course?.screens ?? [])).toEqual(['mode', 'char', 'kart', 'vs', 'cup']);
     expect(flow.start('load')).toBeUndefined();
     expect(flow.start('constructor')).toBeUndefined();
   });

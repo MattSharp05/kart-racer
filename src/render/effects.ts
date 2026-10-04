@@ -5,6 +5,8 @@ import type { KartState, SimEvent, SimState } from '../sim/types';
 import type { ChaseCamera } from './camera';
 import type { DrawnFrame, KartRenderer } from './karts';
 
+/** How flat a kart a Thwomp landed on is drawn (MK-124): 70 % shorter, wider. */
+const THWOMP_FLAT = 0.7;
 const MAX_PARTICLES = 320;
 const GRAVITY = 9;
 
@@ -154,6 +156,8 @@ export class Effects {
       this.burst(kart, tick, 60, CONFETTI, 9, 0.18, 110, 5);
     }
     now.squash *= Math.pow(0.85, ticks);
+    // Flattened by a Thwomp (MK-124): flat while it lasts, then springing back up.
+    if ((kart.squashTimer ?? 0) > 0) now.squash = THWOMP_FLAT;
     this.memory.set(kart.id, now);
     this.squash(kart.id, now.squash, kart, tick);
 

@@ -12,3 +12,6 @@ export { mk8UnderwaterTuning } from './underwater';
 export { mk8GlideAimTuning } from './glideAim';
 export { mk8WallFloorTuning } from './wallFloor';
 export { mk8ItemAiTuning } from './itemAi';
+export { mk8ThwompTuning } from './thwomp';
+export { mk8PiranhaCrazy8Tuning } from './piranhaCrazy8';
+export { mk8ModesTuning } from './modes';

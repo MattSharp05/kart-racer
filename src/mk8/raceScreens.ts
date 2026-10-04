@@ -2,9 +2,11 @@
 // MK8 screen stack over the race (the game's `mk8Stack` router screen), with the pack's sounds and
 // sprites. `src/game/flow.ts` imports this lazily when an MK8 race pauses or finishes.
 import { racers } from '../content/racers';
+import type { RecordUpdate } from '../game/storage/records';
 import { tracks } from '../content/tracks';
 import { browserStore, type KeyValueStore } from '../game/storage/store';
 import type { SimState } from '../sim/types';
+import { formatTime } from '../ui/hud/format';
 import type { Router } from '../ui/router';
 import { courseInfo, cupInfo, MUSHROOM_COURSES } from './content/cups';
 import { mk8Course } from './content/courses';
@@ -35,6 +37,8 @@ import {
 } from './results';
 import type { SpriteSource } from './ui/kit/styleGuide';
 import { podiumFiles } from './render/podium';
+import { saveTimeTrial } from './modes/timeTrial';
+import { vsRulesLabel } from './modes/vsRace';
 import { confirmQuitGp } from './ui/screens/confirm';
 import { pauseMenu } from './ui/screens/pause';
 import { podiumScreen, type PodiumRow } from './ui/screens/podium';
@@ -123,14 +127,30 @@ export function showResults(
   const { race: n, of } = gp ? { race: raceIndex(gp) + 1, of: gp.courses.length } : raceOfCup(race);
   const title = raceTitle(state, setup ?? (gp ? race : undefined));
   const showsStandings = gameModeId === 'grand-prix';
+  // A Time Trial (MK-131) saves its records and says what it beat.
+  const records =
+    gameModeId === 'time-trial'
+      ? saveTimeTrial(
+          handlers.store ?? browserStore(),
+          race.course,
+          state,
+          localKartId,
+          race.loadout.racer,
+        )
+      : undefined;
+  const rules = race.vs ? vsRulesLabel(race.vs) : '';
   const before = new Map((gp ? gpPoints(gp) : []).map((points, kartId) => [kartId, points]));
   screens.show('mk8Stack', {
     first: resultsScreen({
       title: title.title,
       sub: showsStandings
         ? `Race ${n} / ${of} · Standings`
-        : `${modeInfo(gameModeId).label} · ${title.sub}`,
+        : [modeInfo(gameModeId).label, title.sub, rules].filter(Boolean).join(' · '),
       rows,
+      ...(records && (records.newRace || records.newLap) ? { banner: 'New record!' } : {}),
+      ...(gameModeId === 'time-trial'
+        ? { notes: timeTrialNotes(state.karts[localKartId]?.race.lapTimes ?? [], records) }
+        : {}),
       ...(showsStandings ? { standings: gpStandings(rows, before) } : {}),
       choices,
       sprites: packSprites(),
@@ -139,6 +159,24 @@ export function showResults(
     sounds: audioPlayer(),
     onExit: handlers.onQuit,
   });
+}
+
+/** A Time Trial's lines under its row: each lap's split, then the course's best race and lap. */
+export function timeTrialNotes(
+  lapTimes: readonly number[],
+  records: RecordUpdate | undefined,
+): string[] {
+  const laps = lapTimes.map((t, i) => `Lap ${i + 1}  ${formatTime(t)}`);
+  const best = records?.record;
+  return [
+    ...laps,
+    ...(best?.race
+      ? [`Best race  ${formatTime(best.race.time)}${records?.newRace ? '  NEW' : ''}`]
+      : []),
+    ...(best?.lap
+      ? [`Best lap  ${formatTime(best.lap.time)}${records?.newLap ? '  NEW' : ''}`]
+      : []),
+  ];
 }
 
 /**
@@ -277,6 +315,7 @@ async function goNext(
         course: key,
         engineClass: race.engineClass,
         loadout: race.loadout,
+        ...(race.vs ? { vs: race.vs } : {}),
       },
       gp,
     ),

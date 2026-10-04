@@ -5,6 +5,7 @@ import type { EngineClass } from '../../../sim/tuning';
 import type { Loadout } from '../../../sim/types';
 import type { Mk8CourseKey, Mk8CupId } from '../../content/cups';
 import type { Mk8RaceSetup } from '../../flow';
+import type { VsRules } from '../../modes/vsRace';
 import type { KartPreviewFiles } from '../../render/kartPreview';
 import type { SpriteSource } from '../kit/styleGuide';
 import type { Mk8ScreenFactory } from '../stack';
@@ -51,6 +52,8 @@ export interface Mk8Flow {
   /** Cup/course select (MK-119): the cup, and the course raced (a GP's first course). */
   cup?: Mk8CupId;
   course?: Mk8CourseKey;
+  /** VS Race settings (MK-131): items and CPU difficulty. */
+  vs?: VsRules;
 }
 
 /** What every MK8 menu screen is built with. */

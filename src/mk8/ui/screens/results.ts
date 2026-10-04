@@ -44,6 +44,10 @@ export interface ResultsOptions {
   sprites: SpriteSource;
   /** Show the end straight away (reduced motion, tests). */
   instant: boolean;
+  /** A Time Trial's (MK-131): "New record!" over the table. */
+  banner?: string;
+  /** A Time Trial's lines under the table: the lap splits and the course's records. */
+  notes?: readonly string[];
 }
 
 /** Where the screen is: rows sliding in, points counting up, rows re-sorting, done. */
@@ -114,7 +118,24 @@ export function resultsScreen(options: ResultsOptions): Mk8ScreenFactory {
       },
     });
     menu.active = false;
-    body.append(table, choiceList);
+    // A Time Trial's banner and notes go round the table (MK-131); other races keep it bare.
+    if (options.banner || options.notes?.length) {
+      const main = document.createElement('div');
+      main.className = 'mk8-res-main';
+      if (options.banner) main.append(cell('span', 'mk8-res-banner', options.banner));
+      main.append(table);
+      if (options.notes?.length) {
+        const notes = document.createElement('ul');
+        notes.className = 'mk8-res-notes';
+        for (const text of options.notes) {
+          const item = document.createElement('li');
+          item.textContent = text;
+          notes.append(item);
+        }
+        main.append(notes);
+      }
+      body.append(main, choiceList);
+    } else body.append(table, choiceList);
 
     let phase: ResultsPhase = 'rows';
     const timers: number[] = [];

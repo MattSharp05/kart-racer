@@ -18,4 +18,7 @@ export { default as underwater } from './underwater';
 export { default as waterPark } from './waterPark';
 export { default as grandPrix } from './grandPrix';
 export { default as allItems } from './allItems';
+export { default as thwompRuins } from './thwompRuins';
+export { default as piranhaCrazy8 } from './piranhaCrazy8';
+export { default as vsTimeTrial } from './vsTimeTrial';
 export { default as online } from './online';

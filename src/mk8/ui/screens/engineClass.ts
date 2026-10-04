@@ -87,12 +87,13 @@ function standIn(cc: EngineClass): HTMLElement {
 }
 
 /**
- * The engine class (MK-119), skipped in Time Trial (always 150cc there); the `cc` scenario start
+ * The engine class (MK-119), skipped in Time Trial (always 150cc there) and VS Race; the `cc` scenario start
  * opens on it for a Grand Prix.
  */
 export const screen: Mk8Screen = {
   id: 'cc',
   build: engineClass,
   starts: { cc: { mode: 'grand-prix' } },
-  skip: (flow) => flow.mode === 'time-trial',
+  // VS Race (MK-131): its settings screen picks the class.
+  skip: (flow) => flow.mode === 'time-trial' || flow.mode === 'vs',
 };
