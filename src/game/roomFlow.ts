@@ -139,6 +139,8 @@ export class RoomFlow {
   /** MK8 rooms: the course this device last started loading, and how it stands. */
   private preparing = '';
   private pack: MemberPack | undefined;
+  /** MK8 Mode's content couldn't load for this room: said once, not retried until the next room. */
+  private mk8Failed = false;
 
   /**
    * @param player What this device shows the room (nickname, colour, racer).
@@ -296,6 +298,7 @@ export class RoomFlow {
     this.leaveRoom();
     this.preparing = '';
     this.pack = undefined;
+    this.mk8Failed = false;
     return this.attempt;
   }
 
@@ -312,20 +315,25 @@ export class RoomFlow {
   private checkPack(room: Room): void {
     if (roomPack(room.members) !== 'mk8' || this.room !== room) return;
     if (!this.mk8) {
+      if (this.mk8Failed) return;
       void this.loadMk8().then((content) => {
-        if (this.room !== room) return;
+        if (this.room !== room || this.mk8Failed) return;
         if (!content) {
+          this.mk8Failed = true;
           const trackId = room.host?.lobby?.trackId ?? '';
           this.setPack(room, { course: trackId, state: 'failed' });
           return;
         }
-        const { racer, loadout } = this.memberInfo(true);
-        void room.update({ racer, ...(loadout ? { loadout } : {}) });
         // The lobby again, now with MK8 Mode's courses and karts.
         if (this.screens.current === 'lobby' && !this.racing) this.showLobby(room);
         this.checkPack(room);
       });
       return;
+    }
+    // Joined by code or link: this device's MK8 kart goes to the room (once: then it has one).
+    if (!room.members.find((m) => m.id === room.selfId)?.loadout) {
+      const { racer, loadout } = this.memberInfo(true);
+      if (loadout) void room.update({ racer, loadout });
     }
     const trackId = settingsOf(room.members, this.content()).trackId;
     if (trackId === this.preparing) return;
