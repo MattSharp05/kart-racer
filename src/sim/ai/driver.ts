@@ -73,7 +73,8 @@ export function aiInput(
     const here = geometry.project(kart.position).s;
 
     // Drifting (MK-15): hop into a drift for tight corners, hold it for a mini-turbo.
-    drift = racing && wantsDrift(kart, ai, geometry, line, here, speed, top, engineClass, error);
+    const driftCurvature = maxCurvatureAhead(geometry, line, here, cfg.driftLookAhead);
+    drift = racing && wantsDrift(kart, ai, driftCurvature, speed, top, engineClass, error);
     if (drift && !kart.driftHeld) steer = error > 0 ? -1 : 1; // full lock on the press picks the side
     const curvature = maxCurvatureAhead(geometry, line, here, cfg.brakeHorizon);
     // On a slippery surface ahead (ice), corners are planned with its grip, so the AI slows before
@@ -96,21 +97,20 @@ export function aiInput(
 /**
  * Whether the AI holds the drift button this tick. Starts a drift when the racing line ahead
  * curves tighter than `driftCurvature`; lets go once it has the mini-turbo tier it's after and the
- * corner opens up, or early if the kart is swinging past its line.
+ * corner opens up, or early if the kart is swinging past its line. `curvature`: the tightest bend
+ * within `driftLookAhead` m, 1/m; `error`: the aim's angle, positive when the target is to the left.
+ * Mesh tracks drift with it too (MK-128, `./meshDriver.ts`).
  */
-function wantsDrift(
+export function wantsDrift(
   kart: KartState,
   ai: AiState,
-  geometry: TrackGeometry,
-  line: readonly number[],
-  here: number,
+  curvature: number,
   speed: number,
   top: number,
   engineClass: EngineClass,
   error: number,
 ): boolean {
   const cfg = tuning.ai;
-  const curvature = maxCurvatureAhead(geometry, line, here, cfg.driftLookAhead);
   if (ai.drifting) {
     const direction = kart.drift.direction;
     // Pressed, but no drift came of it (too slow / not steering hard enough): let go.
