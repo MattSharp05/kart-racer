@@ -2,6 +2,8 @@ import { hazardPose } from '../hazards';
 import type { HazardDef, MoverHazard, PeriodicHazard } from '../hazards/types';
 import type { Vec3 } from '../math';
 import { pointOnRoute, type RouteInfo } from '../routes';
+import type { MeshTrackDef } from '../meshTrack';
+import { routeGeometry } from '../route';
 import type { TrackGeometry } from '../splineTrack';
 import { DT, tuning } from '../tuning';
 import type { AiState, KartState } from '../types';
@@ -177,6 +179,29 @@ interface CrusherSpot {
 
 const isCrusher = (hazard: HazardDef): hazard is PeriodicHazard => hazard.kind === 'periodic';
 
+/** A crusher's spot on the road from where its centre projects (`s`, `lateral`) and the road's heading there. */
+function crusherSpot(
+  def: PeriodicHazard,
+  s: number,
+  lateral: number,
+  roadHeading: number,
+): CrusherSpot {
+  // The footprint turned to the road: its heading against the road's.
+  const angle = def.heading - roadHeading;
+  const cos = Math.abs(Math.cos(angle));
+  const sin = Math.abs(Math.sin(angle));
+  return {
+    def,
+    s,
+    lateral,
+    along: def.halfLength * cos + def.halfWidth * sin,
+    across: def.halfWidth * cos + def.halfLength * sin,
+  };
+}
+
+/** Heading (0 faces −Z) of a direction's XZ part. */
+const headingXZ = (d: { x: number; z: number }) => Math.atan2(-d.x, -d.z);
+
 /** A track's crushers, measured once per track. */
 const crushersByTrack = new WeakMap<TrackGeometry, CrusherSpot[]>();
 function trackCrushers(geometry: TrackGeometry): CrusherSpot[] {
@@ -184,19 +209,24 @@ function trackCrushers(geometry: TrackGeometry): CrusherSpot[] {
   if (!spots) {
     spots = (geometry.def.hazards ?? []).filter(isCrusher).map((def) => {
       const at = geometry.project(def.centre);
-      // The footprint turned to the road: its heading against the road's (heading 0 faces −Z).
-      const angle = def.heading - Math.atan2(-at.tangent.x, -at.tangent.z);
-      const cos = Math.abs(Math.cos(angle));
-      const sin = Math.abs(Math.sin(angle));
-      return {
-        def,
-        s: at.s,
-        lateral: at.lateral,
-        along: def.halfLength * cos + def.halfWidth * sin,
-        across: def.halfWidth * cos + def.halfLength * sin,
-      };
+      return crusherSpot(def, at.s, at.lateral, headingXZ(at.tangent));
     });
     crushersByTrack.set(geometry, spots);
+  }
+  return spots;
+}
+
+/** A mesh track's crushers (MK-124: Thwomps) on its route, measured once per track. */
+const crushersByMeshTrack = new WeakMap<MeshTrackDef, CrusherSpot[]>();
+function meshCrushers(track: MeshTrackDef): CrusherSpot[] {
+  let spots = crushersByMeshTrack.get(track);
+  if (!spots) {
+    const route = routeGeometry(track.route);
+    spots = (track.hazards ?? []).filter(isCrusher).map((def) => {
+      const at = route.project(def.centre);
+      return crusherSpot(def, at.s, at.lateral, headingXZ(route.frameAt(at.t).tangent));
+    });
+    crushersByMeshTrack.set(track, spots);
   }
   return spots;
 }
@@ -220,15 +250,40 @@ function openThroughout(def: PeriodicHazard, tick: number, from: number, to: num
 export function crusherSpeedLimit(kart: KartState, tick: number, geometry: TrackGeometry): number {
   const spots = trackCrushers(geometry);
   if (!spots.length) return Infinity;
+  return speedLimitFor(kart, tick, spots, geometry.project(kart.position), geometry.length);
+}
+
+/**
+ * `crusherSpeedLimit` on a mesh track (MK-124: Thwomp Ruins' Thwomps), along its route. `hint`:
+ * the kart's lap fraction last tick (a road passing over itself can't swap where it is).
+ */
+export function meshCrusherSpeedLimit(
+  kart: KartState,
+  tick: number,
+  track: MeshTrackDef,
+  hint?: number,
+): number {
+  const spots = meshCrushers(track);
+  if (!spots.length) return Infinity;
+  const route = routeGeometry(track.route);
+  return speedLimitFor(kart, tick, spots, route.project(kart.position, hint), route.length);
+}
+
+function speedLimitFor(
+  kart: KartState,
+  tick: number,
+  spots: readonly CrusherSpot[],
+  here: { s: number; lateral: number },
+  length: number,
+): number {
   const cfg = tuning.ai;
-  const here = geometry.project(kart.position);
   // The nearest crusher ahead (not yet passed) whose footprint covers where the kart is across.
   let next: CrusherSpot | undefined;
   let distance = Infinity;
   for (const spot of spots) {
     const reach = spot.along + tuning.hazards.kartRadius + cfg.crusherMargin;
-    const ahead = (((spot.s - here.s) % geometry.length) + geometry.length) % geometry.length;
-    const d = ahead > geometry.length - reach ? ahead - geometry.length : ahead;
+    const ahead = (((spot.s - here.s) % length) + length) % length;
+    const d = ahead > length - reach ? ahead - length : ahead;
     if (d > cfg.crusherLookAhead || d + reach <= 0 || d >= distance) continue;
     if (Math.abs(here.lateral - spot.lateral) > spot.across + tuning.hazards.kartRadius) continue;
     next = spot;
