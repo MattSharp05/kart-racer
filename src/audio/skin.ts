@@ -1,4 +1,5 @@
 import type { SimEvent, SimState } from '../sim/types';
+import type { AudioView } from './soundManager';
 
 /**
  * Another sound set for some races (MK-129: MK8 Mode's item sounds), registered at runtime by the
@@ -12,6 +13,13 @@ export interface SoundSkin {
   play(event: SimEvent, state: SimState, followId: number): boolean;
   /** Whether it plays the star music itself (then our faster star loop isn't played). */
   starMusic(): boolean;
+  /**
+   * Every frame (MK-111: MK8's engine and terrain loops), for any race; `active` when the race is
+   * the skin's and sound is on. Not active, its loops should fall silent.
+   */
+  update?(state: SimState, view: AudioView, active: boolean): void;
+  /** Whether it plays the karts' engines itself (then our synth's engine hum is silent). */
+  engines?(): boolean;
 }
 
 let current: SoundSkin | undefined;

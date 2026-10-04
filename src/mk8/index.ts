@@ -6,10 +6,12 @@ import { browserStore, type KeyValueStore } from '../game/storage/store';
 import { showErrorBanner } from '../ui/errorBanner';
 import type { Router } from '../ui/router';
 import { installMk8ItemSounds } from './audio/itemSoundSkin';
+import { installMk8KartSounds } from './audio/kartSoundSkin';
+import { KART_SAMPLES } from './audio/kartSounds';
 import { Mk8AudioPlayer } from './audio/player';
 import { courseInfo } from './content/cups';
 import type { Mk8RaceSetup } from './flow';
-import type { SoundId } from './audio/soundIds';
+import { soundPath, type SoundId } from './audio/soundIds';
 import { parseVoiceIndex, voiceClips, VOICES_PATH, type VoiceSoundId } from './audio/voices';
 import { MK8_RACER_VIEWS } from './content/racers/render';
 import {
@@ -115,6 +117,8 @@ installMk8Hud({
 
 // MK8 races' item sounds (MK-129) from the pack, over our synth's.
 installMk8ItemSounds(() => audioPlayer());
+// MK8 races' engines, drift and terrain (MK-111): loaded with the race (`loadKartSounds`).
+installMk8KartSounds(() => audioPlayer());
 
 /** Where the `mk8-loading` scenario holds the bar. */
 const DEMO_PROGRESS = 0.5;
@@ -252,6 +256,18 @@ export function start(host: Mk8Host, mode: Mk8Start = 'load'): Promise<void> {
 export async function prepareRace(): Promise<void> {
   registerMk8Content();
   await prepareMk8Items(packLoader());
+  await loadKartSounds();
+}
+
+let kartSounds: Promise<void> | undefined;
+
+/**
+ * The bank's kart, terrain and drift sounds the pack has (MK-111), once per page; without a pack
+ * our synth plays them, so this never rejects.
+ */
+export function loadKartSounds(): Promise<void> {
+  kartSounds ??= loadIfThere(KART_SAMPLES.map(soundPath)).catch(() => undefined);
+  return kartSounds;
 }
 
 /**
@@ -340,6 +356,14 @@ async function loadCharacters(
   await files.loadFiles(inPack(filesOf([first])));
   onFirst?.();
   await files.loadFiles(inPack(filesOf(others)));
+}
+
+/** Loads the files of `paths` the pack has (MK-111); rejects without a pack. */
+async function loadIfThere(paths: readonly string[]): Promise<void> {
+  const files = packLoader();
+  const manifest = await files.loadManifest();
+  const has = new Set(manifest.files.map((e) => e.path));
+  await files.loadFiles(paths.filter((path) => has.has(path)));
 }
 
 async function loadPackIfThere(files: Mk8Loader): Promise<void> {

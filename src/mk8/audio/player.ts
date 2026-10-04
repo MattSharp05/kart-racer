@@ -34,11 +34,15 @@ export interface SoundPlayer {
 export interface SoundLoop {
   /** 0–1, eased over a moment so changes don't click. */
   setVolume(volume: number): void;
+  /** Playback rate (MK-111: an engine's pitch by speed), eased like the volume. */
+  setRate?(rate: number): void;
   stop(): void;
 }
 
 /** How quickly a loop's volume follows `setVolume`, s (time constant). */
 const LOOP_EASE = 0.15;
+/** Playback-rate changes smaller than this aren't sent (every frame would otherwise). */
+const RATE_STEP = 0.005;
 
 /** Loudness of sampled sounds and of the stand-ins. */
 const SAMPLE_VOLUME = 0.8;
@@ -163,16 +167,23 @@ export class Mk8AudioPlayer implements SoundPlayer {
     gain.connect(out);
     let source: AudioBufferSourceNode | undefined;
     let stopped = false;
+    let rate = 1;
     void this.buffer(soundPath(id)).then((buffer) => {
       if (!buffer || stopped) return;
       source = ctx.createBufferSource();
       source.buffer = buffer;
       source.loop = true;
+      if (rate !== 1) source.playbackRate.value = rate;
       source.connect(gain);
       source.start();
     });
     return {
       setVolume: (v) => gain.gain.setTargetAtTime(v * SAMPLE_VOLUME, ctx.currentTime, LOOP_EASE),
+      setRate: (r) => {
+        if (Math.abs(r - rate) < RATE_STEP) return;
+        rate = r;
+        source?.playbackRate.setTargetAtTime(r, ctx.currentTime, LOOP_EASE);
+      },
       stop: () => {
         stopped = true;
         source?.stop();
