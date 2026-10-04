@@ -106,7 +106,10 @@ export function meshAiInput(
       ? meshCrusherSpeedLimit(kart, tick, track, kart.race.lastT >= 0 ? kart.race.lastT : undefined)
       : Infinity;
   // On the glider (MK-106): dive to land where there's ground below, float over a gap (MK-128).
-  if (kart.glide !== undefined) return { ...NEUTRAL_INPUT, ...glidePitch(kart, track), steer };
+  if (kart.glide !== undefined) {
+    ai.drifting = false;
+    return { ...NEUTRAL_INPUT, ...glidePitch(kart, track), steer };
+  }
 
   // Drifting (MK-128): as on spline tracks (`wantsDrift`), with the route's turns about the road's
   // up, so it drifts round anti-gravity and underwater corners like any other; not on a narrow

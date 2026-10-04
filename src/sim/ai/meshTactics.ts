@@ -73,11 +73,16 @@ export function meshTacticOffset(
   for (const coin of coins) {
     if (coin.respawnTimer > 0) continue;
     if (coin.ownerId === kart.id && (coin.ownerImmune ?? 0) > 0) continue;
-    let p = coin.life === undefined ? cache.get(coin.id) : undefined;
+    // A line coin's place is the same for everyone (no kart's hint: cached once, like item boxes);
+    // a dropped one's is searched near this kart.
+    const lineCoin = coin.life === undefined;
+    let p = lineCoin ? cache.get(coin.id) : undefined;
     if (!p) {
-      const full = geometry.project(coin.position, here.t);
+      const full = lineCoin
+        ? geometry.project(coin.position)
+        : geometry.project(coin.position, here.t);
       p = { s: full.s, lateral: full.lateral };
-      if (coin.life === undefined) cache.set(coin.id, p);
+      if (lineCoin) cache.set(coin.id, p);
     }
     const d = gap(geometry, here.s, p.s);
     if (d <= 1 || d > cfg.coinRange || d >= nearest) continue;
