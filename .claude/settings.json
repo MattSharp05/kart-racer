@@ -25,7 +25,9 @@
       "Bash(gh run watch:*)",
       "mcp__Notion",
       "mcp__github",
-      "mcp__Claude_Code_Remote"
+      "mcp__Claude_Code_Remote",
+      "mcp__claude-code-remote",
+      "mcp__96d91051-5e99-498c-9c78-8e4e620902d2"
     ]
   }
 }
