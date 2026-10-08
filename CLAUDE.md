@@ -10,7 +10,7 @@ Follows the `dev-workflow` skill (ticket-driven: Notion → branch → PR → QA
 - Tickets data source: collection://36312bfb-9682-471e-85e4-08a7034a4ff2 (ID prefix: MK)
 - Epics data source: collection://2445fc6b-0619-46c1-b0cb-59003f6b0325
 - GitHub: MattSharp05/kart-racer
-- Preview URLs: Vercel preview per PR (link is on the PR); production: https://kart-racer-alpha.vercel.app (scenario index at `/dev`)
+- Production: https://kart-racer-alpha.vercel.app (scenario index at `/dev`). Vercel builds `main` only (`vercel.json` → `git.deploymentEnabled`): no per-PR preview builds, since CI already builds every PR and QA happens on production. A ticket's `Preview` link is its production scenario link; QA media is captured from a local `pnpm build` + `pnpm preview` in CI's image
 - QA mode: batched, **no waves or QA stops (v2)**: the orchestrator builds in dependency order (Wave = order only) until every v2 ticket is QA Pending, then Matthew QAs on the ticket pages. Priority: the online chain (spike → net core → prediction → race flow → polish) first. _MVP history: waves 1–5 → 6–7 → 8–10 → 11–14; checkpoints MK-5, MK-10, MK-14._
 - Approval: standing (the v2 plan was approved at epic level on 2026-09-25; stop only at blocks)
 - Parallel builders: up to 4 (a 3rd or 4th only when the tickets' `Files touched` don't overlap, e.g. separate track/item/racer folders; tickets sharing `package.json`/lockfile or a registry file run one after another)
