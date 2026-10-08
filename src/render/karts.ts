@@ -144,6 +144,11 @@ export class KartRenderer {
   /** Each kart's glider (MK-106), made the first time it glides. */
   private readonly gliders: (Glider | undefined)[] = [];
   private readonly types: KartId[] = [];
+  /**
+   * Karts drawn by the primitive model while their racer view's own model loads (MK-136): asked
+   * for again each frame until it is there.
+   */
+  private readonly waiting: boolean[] = [];
   /** Last sim tick the wheels were advanced for, so they spin once per tick, not per frame. */
   private wheelTick = -1;
   private readonly pose: KartPose = { x: 0, y: 0, z: 0, heading: 0 };
@@ -165,7 +170,12 @@ export class KartRenderer {
   ) {
     const pose = this.pose;
     current.karts.forEach((kart, i) => {
-      const model = this.models[i] ?? this.createModel(kart);
+      const model =
+        this.models[i] === undefined
+          ? this.createModel(kart)
+          : this.waiting[i]
+            ? this.replaceWhenLoaded(i, kart, this.models[i])
+            : this.models[i];
       const before = previous.karts[i] ?? kart;
       pose.x = before.position.x + (kart.position.x - before.position.x) * alpha;
       pose.y = before.position.y + (kart.position.y - before.position.y) * alpha;
@@ -188,6 +198,7 @@ export class KartRenderer {
       }
       this.syncGlider(i, model, kart, ticks);
       const steer = inputs[i]?.steer ?? 0;
+      model.animate?.(kart, steer, ticks, current.engineClass);
       for (const pivot of model.frontWheels) pivot.rotation.y = -steer * MAX_WHEEL_TURN;
       this.syncEffects(model, kart, current.tick);
       // Mesh tracks (MK-108): hover wheels and glow in anti-gravity, the spin-boost spin.
@@ -201,12 +212,15 @@ export class KartRenderer {
    * once the kart lands (by the ticks stepped, so a paused frame holds it).
    */
   private syncGlider(i: number, model: KartModel, kart: KartState, ticks: number): void {
-    let glider = this.gliders[i];
+    // The model's own glider (MK-136: an MK8 loadout's), timed the same way.
+    let glider: Pick<Glider, 'openness' | 'setOpenness'> | undefined =
+      model.glider ?? this.gliders[i];
     if (!glider) {
       if (!kart.glide) return;
-      glider = new Glider(racerViews.get(kart.kartType).colours.accent);
-      model.body.add(glider.object);
-      this.gliders[i] = glider;
+      const made = new Glider(racerViews.get(kart.kartType).colours.accent);
+      model.body.add(made.object);
+      this.gliders[i] = made;
+      glider = made;
     }
     // A tick's worth open on the launch tick (its glide time is still 0), so it shows at once.
     const openness = kart.glide
@@ -217,7 +231,7 @@ export class KartRenderer {
 
   /** How open kart `id`'s glider is: 0 folded away (or none) … 1 open (MK-106). */
   gliderOpenness(id: number): number {
-    return this.gliders[id]?.openness ?? 0;
+    return (this.models[id]?.glider ?? this.gliders[id])?.openness ?? 0;
   }
 
   private syncEffects(model: KartModel, kart: KartState, tick: number): void {
@@ -282,6 +296,7 @@ export class KartRenderer {
     this.models.length = 0;
     this.gliders.length = 0;
     this.types.length = 0;
+    this.waiting.length = 0;
     this.wheelTick = -1;
   }
 
@@ -305,13 +320,36 @@ export class KartRenderer {
   }
 
   private createModel(kart: KartState): KartModel {
+    const i = this.models.length;
     // The same kart type twice in a race gets an alternate paint job.
     const repeats = this.types.filter((type) => type === kart.kartType).length;
     this.types.push(kart.kartType);
-    const model = this.factory.create(kart.kartType, alternateColours(kart.kartType, repeats));
+    const own = racerViews.get(kart.kartType).model?.(kart);
+    this.waiting[i] = own === 'loading';
+    const model =
+      own !== undefined && own !== 'loading'
+        ? own
+        : this.factory.create(kart.kartType, alternateColours(kart.kartType, repeats));
+    return this.place(i, model);
+  }
+
+  /** Kart `i`'s model: its view's own once that has loaded (MK-136), else the stand-in it has. */
+  private replaceWhenLoaded(i: number, kart: KartState, current: KartModel): KartModel {
+    const own = racerViews.get(kart.kartType).model?.(kart);
+    if (own === 'loading') return current;
+    this.waiting[i] = false;
+    if (own === undefined) return current;
+    this.scene.remove(current.root);
+    this.gliders[i] = undefined;
+    // Carry over what the stand-in was showing (a shrunk kart stays shrunk).
+    own.root.scale.copy(current.root.scale);
+    return this.place(i, own);
+  }
+
+  private place(i: number, model: KartModel): KartModel {
     if (this.headlights) model.body.add(createHeadlights(...KART_HEADLIGHTS));
     this.scene.add(model.root);
-    this.models.push(model);
+    this.models[i] = model;
     return model;
   }
 }

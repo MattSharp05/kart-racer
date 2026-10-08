@@ -19,6 +19,7 @@ import {
   type Mk8GrandPrix,
 } from './gp/grandPrix';
 import { timeTrialField } from './modes/timeTrial';
+import { vsField, vsSeed } from './modes/vsField';
 import { DEFAULT_VS_RULES, type VsRules } from './modes/vsRace';
 import type { Mk8Flow, Mk8GameMode, Mk8Loadout } from './ui/screens/session';
 
@@ -84,6 +85,10 @@ export function raceSetup(flow: Mk8Flow, gp?: Mk8GrandPrix): Mk8RaceSetup {
   if (cupInfo(cup).locked) throw new Error(`MK8: the ${cup} cup is locked`);
   const playerKart = racers.has(loadout.racer) ? loadout.racer : STAND_IN_RACER;
   const raceLoadout = isKnownLoadout(loadout) ? loadout : undefined;
+  const vs =
+    grandPrix || flow.mode === 'time-trial'
+      ? undefined
+      : vsField(playerKart, raceLoadout, vsSeed(course.key, engineClass, loadout.racer));
   return {
     course: course.key,
     cup,
@@ -96,6 +101,8 @@ export function raceSetup(flow: Mk8Flow, gp?: Mk8GrandPrix): Mk8RaceSetup {
     ...(flow.mode ? { mode: flow.mode } : {}),
     ...(grandPrix ? { gp: grandPrix, field: gpField(grandPrix, playerKart) } : {}),
     ...(flow.mode === 'time-trial' ? { field: timeTrialField(playerKart, raceLoadout) } : {}),
+    // MK-136: a VS Race's CPUs are MK8 racers too (the original game's picks otherwise).
+    ...(vs ? { field: vs } : {}),
     ...(flow.mode === 'vs' ? { vs: { ...(flow.vs ?? DEFAULT_VS_RULES) } } : {}),
   };
 }
