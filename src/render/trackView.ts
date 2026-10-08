@@ -133,6 +133,23 @@ function overviewBounds(track: TrackDef): OverviewBounds {
   return bounds;
 }
 
+/** A mesh track's chase camera sees this many times the width of its collision's bounds. */
+const MESH_FAR_SPAN = 1.25;
+/** Its near plane is this share of its far one: the depth buffer keeps the same precision. */
+const MESH_NEAR_PER_FAR = 1 / 20000;
+
+/**
+ * The chase camera's near and far planes on `track`: the scene's defaults, but a mesh track bigger
+ * than they reach (an MK8 course at 3×, MK-105 revisit: ~2–3 km across) is seen end to end, its
+ * near plane moved out with the far one so the road doesn't flicker in the distance.
+ */
+export function chaseCameraRange(track: TrackDef): { near: number; far: number } {
+  if (track.kind !== 'mesh') return { near: CAMERA_NEAR, far: CAMERA_FAR };
+  const { minX, maxX, minZ, maxZ } = overviewBounds(track);
+  const far = Math.max(CAMERA_FAR, Math.hypot(maxX - minX, maxZ - minZ) * MESH_FAR_SPAN);
+  return { near: Math.max(CAMERA_NEAR, far * MESH_NEAR_PER_FAR), far };
+}
+
 /**
  * Points the camera straight down at the whole track (overview/debug scenarios), north (−Z) up.
  * Call it every frame in the overview: it follows the window's aspect ratio. Returns true.
@@ -145,7 +162,7 @@ export function overviewCamera(camera: THREE.PerspectiveCamera, track: TrackDef)
   camera.up.set(0, 0, -1);
   camera.lookAt((minX + maxX) / 2, 0, (minZ + maxZ) / 2);
   // See down to the ground under the highest road, and through tree crowns and roofs above it.
-  const far = Math.max(CAMERA_FAR, top + height + OVERVIEW_FAR_MARGIN);
+  const far = Math.max(chaseCameraRange(track).far, top + height + OVERVIEW_FAR_MARGIN);
   const near = Math.max(CAMERA_NEAR, height - OVERVIEW_HEADROOM);
   if (camera.far !== far || camera.near !== near) {
     camera.far = far;
