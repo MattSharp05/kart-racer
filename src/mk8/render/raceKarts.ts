@@ -250,8 +250,9 @@ export function buildKartModel(loadout: Loadout, paths: KartPaths): KartModel {
       if (ticks <= 0) return;
       topSpeed ??= kartPhysics(state.kartType, engineClass, state.loadout).topSpeed;
       motion = stepMotion(motion, motionInput(state, { steer }, topSpeed), ticks * DT);
-      // The renderer turns the whole kart for a spin-out already.
-      racer.pose({ ...motion, spin: 0 });
+      // The race's renderer already spins the kart for a spin-out and bobs and squashes its body
+      // (`render/effects.ts`): the racer adds its lean, look-back and trick roll.
+      racer.pose({ ...motion, spin: 0, bob: 0, squash: 0 });
     },
     ...(kart.hasGlider
       ? {
