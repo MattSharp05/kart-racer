@@ -8,11 +8,10 @@ import { servePack } from './mk8';
 const PACK = process.env.MK8_OUT;
 
 /**
- * TDD v3's per-course budgets at the grid (desktop). Canyon's grid is over the 300 draw calls by a
- * few (314 at full quality, 300 at `quality=low`: the course is ~110, the 8 karts the rest), an
- * overrun listed on MK-123; this keeps it from growing.
+ * TDD v3's per-course budgets at the grid (desktop). Canyon's grid was over the 300 draw calls
+ * (314, MK-123) until the MK-105 revisit drew its materials solid at 3×: 206 now.
  */
-const DRAW_CALL_BUDGET = 320;
+const DRAW_CALL_BUDGET = 300;
 const TRIANGLE_BUDGET = 400_000;
 
 /** Kart 0 on the autopilot until it finishes (or `maxSeconds`): its laps, glides and respawns. */

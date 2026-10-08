@@ -4,7 +4,7 @@
 import { meshAutopilotInput } from '../../../sim/ai/meshDriver';
 import { HAZARD_HITTER } from '../../../sim/hazards';
 import { add, scale, type Vec3 } from '../../../sim/math';
-import { groundAt, surfaceMask, type MeshTrackDef } from '../../../sim/meshTrack';
+import { groundAt, raycastMesh, surfaceMask, type MeshTrackDef } from '../../../sim/meshTrack';
 import { createRace, type RacerSlot } from '../../../sim/race/createRace';
 import { routeGeometry } from '../../../sim/route';
 import { inRange } from '../../../sim/splineTrack';
@@ -12,6 +12,7 @@ import { step } from '../../../sim/step';
 import { getTrack } from '../../../sim/track';
 import { DT, type EngineClass } from '../../../sim/tuning';
 import type { InputFrame, SimState } from '../../../sim/types';
+import { MK8_COURSE_SCALE, MK8_COURSES } from '.';
 
 /** A kart slower than this, not being carried back, counts as stuck, m/s. */
 const STUCK_SPEED = 1;
@@ -114,18 +115,30 @@ export function courseRace(
 const DRIVABLE = surfaceMask('road', 'offroad', 'boost', 'antigrav', 'glide');
 
 /**
+ * On a scaled MK8 course the centreline may run this × the scale off the road, m: the window the
+ * kart's ground probe gave the authored routes at 1:1 (`conformRoute` takes most of it out).
+ */
+const SCALED_ROUTE_TOLERANCE = 1.5;
+
+/**
  * Lap fractions (every metre of the route) where a kart on the centreline would find no drivable
- * ground under it, outside the route's respawn ranges (a jump's flight is one).
+ * ground under it, outside the route's respawn ranges (a jump's flight is one). On a scaled MK8
+ * course (MK-105 revisit) "under it" is within the route's tolerance either way along its up.
  */
 export function centrelineGaps(trackId: string): number[] {
   const track = meshTrack(trackId);
   const geometry = routeGeometry(track.route);
+  const scaled = MK8_COURSES.some((c) => c.trackId === trackId);
+  const reach = SCALED_ROUTE_TOLERANCE * MK8_COURSE_SCALE;
   const gaps: number[] = [];
   for (const sample of geometry.samples) {
     const t = sample.s / geometry.length;
     if (track.route.respawnPoints.some((r) => inRange(t, r))) continue;
-    const above = add(sample.position, scale(sample.up, 0.5));
-    if (!groundAt(track.collision, above, sample.up, DRIVABLE)) gaps.push(t);
+    const found = scaled
+      ? (raycastMesh(track.collision, sample.position, scale(sample.up, -1), reach, DRIVABLE) ??
+        raycastMesh(track.collision, sample.position, sample.up, reach, DRIVABLE))
+      : groundAt(track.collision, add(sample.position, scale(sample.up, 0.5)), sample.up, DRIVABLE);
+    if (!found) gaps.push(t);
   }
   return gaps;
 }

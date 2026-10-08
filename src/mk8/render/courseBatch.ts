@@ -16,7 +16,8 @@ export interface BatchStats {
 
 /**
  * Merges `root`'s static meshes in place: those with the same material, the same vertex
- * attributes and a centre in the same `cellSize` cell (on X/Z) become one mesh in world space.
+ * attributes and a centre in the same `cellSize` cell (on X/Z, world space) become one mesh, a
+ * child of `root` (so `root`'s own transform, e.g. a course's scale, still applies once).
  * Left alone: skinned, instanced and morphing meshes, meshes with several materials and mirrored
  * ones (their winding would flip). Call it before the course is first drawn, with its matrices up
  * to date; it never changes what is drawn, only how many draws it takes.
@@ -44,9 +45,10 @@ export function batchCourseMeshes(
   });
 
   let merged = 0;
+  const toRoot = root.matrixWorld.clone().invert();
   for (const meshes of groups.values()) {
     if (meshes.length < 2) continue;
-    const geometry = mergeGeometries(meshes.map(worldGeometry));
+    const geometry = mergeGeometries(meshes.map((m) => rootGeometry(m, toRoot)));
     const first = meshes[0];
     if (!geometry || !first) continue;
     const material = first.material as THREE.Material;
@@ -85,8 +87,8 @@ function signature(geometry: THREE.BufferGeometry): string {
   return `${attributes.join(',')}|${geometry.index ? 'i' : 'n'}`;
 }
 
-/** A copy of the mesh's geometry in world space, attributes de-interleaved. */
-function worldGeometry(mesh: THREE.Mesh): THREE.BufferGeometry {
+/** A copy of the mesh's geometry in the root's space (`toRoot`: world → root), de-interleaved. */
+function rootGeometry(mesh: THREE.Mesh, toRoot: THREE.Matrix4): THREE.BufferGeometry {
   const source = mesh.geometry as THREE.BufferGeometry;
   const geometry = new THREE.BufferGeometry();
   for (const name of Object.keys(source.attributes)) {
@@ -99,6 +101,6 @@ function worldGeometry(mesh: THREE.Mesh): THREE.BufferGeometry {
     );
   }
   if (source.index) geometry.setIndex(source.index.clone());
-  geometry.applyMatrix4(mesh.matrixWorld);
+  geometry.applyMatrix4(new THREE.Matrix4().multiplyMatrices(toRoot, mesh.matrixWorld));
   return geometry;
 }

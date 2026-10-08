@@ -25,6 +25,29 @@ export interface MeshTrackDef {
   route: RouteDef;
   /** Hazards on the course (MK-124: Thwomp Ruins' Thwomps); poses a pure function of tick. */
   hazards?: HazardDef[];
+  /**
+   * How many times its authored size the course is drawn and driven (MK-105 revisit: MK8 courses
+   * at 3×, `sim/meshScale.ts`). The fall limits grow with it (`meshFallLimits`). Default 1.
+   */
+  scale?: number;
+}
+
+/**
+ * When a kart on `track` counts as fallen: landed more than `depth` m below the road, or in the
+ * air longer than `airSeconds` (`glideSeconds` gliding). On a scaled course drops are `scale`
+ * times deeper (free fall from them lasts √`scale` times longer) and glides `scale` times longer.
+ */
+export function meshFallLimits(track: MeshTrackDef): {
+  depth: number;
+  airSeconds: number;
+  glideSeconds: number;
+} {
+  const scale = track.scale ?? 1;
+  return {
+    depth: tuning.fallDepth * scale,
+    airSeconds: tuning.mk8.fallSeconds * Math.sqrt(scale),
+    glideSeconds: tuning.mk8.glide.fallSeconds * scale,
+  };
 }
 
 /** Bit mask of surfaces, for the `mask` argument of the queries. */

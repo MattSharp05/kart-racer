@@ -4,6 +4,7 @@
 // track once its pack files are loaded (`src/mk8/courses.ts`); `test-ramp` is the code-built fixture.
 import { tracks } from '../../../content/tracks';
 import { decodeCollision, type CollisionMesh, type MeshTrackDef } from '../../../sim/meshTrack';
+import { conformRoute, scaleCollision, scaleHazard, scaleRoute } from '../../../sim/meshScale';
 import type { RouteDef } from '../../../sim/route';
 import { routeSurfaces } from '../../../sim/routeSurfaces';
 import marioKartStadium from './mario-kart-stadium';
@@ -22,6 +23,13 @@ export const MK8_COURSES: readonly Mk8CourseContent[] = [
   thwompRuins,
 ];
 
+/**
+ * Every MK8 course is drawn and driven this many times its size in the pack (MK-105 revisit: at
+ * 1:1 the road fits about 4 karts across and a Stadium lap takes 24 s, against MK8's ~35 s). The
+ * authored data (`route.ts`, `materials.ts`, the track editor) stays in the pack's units.
+ */
+export const MK8_COURSE_SCALE = 3;
+
 /** Registry order of MK8 courses (after our tracks; they're offered only by MK8 Mode's menus). */
 const ORDER = 900;
 
@@ -34,19 +42,25 @@ export const collisionPath = (packId: string): string => `models/courses/${packI
 export const modelPath = (packId: string, low: boolean): string =>
   `models/courses/${packId}/course${low ? '-low' : ''}.glb`;
 
-/** The course as a mesh track: the pack's collision, with surfaces the route corrects. */
+/**
+ * The course as a mesh track: the pack's collision, with surfaces the route corrects (in the
+ * pack's units, where those rules were tuned), then everything scaled by `MK8_COURSE_SCALE` and
+ * the route laid back onto the road where its longer spans left it (`conformRoute`).
+ */
 export function courseTrack(
   course: Mk8CourseContent,
   collision: CollisionMesh,
   route: RouteDef = course.route,
+  factor: number = MK8_COURSE_SCALE,
 ): MeshTrackDef {
-  const collisionByRoute = routeSurfaces(collision, route, course.surfaceRules);
+  const scaled = scaleCollision(routeSurfaces(collision, route, course.surfaceRules), factor);
   return {
     id: course.trackId,
     kind: 'mesh',
-    collision: collisionByRoute,
-    route,
-    ...(course.hazards ? { hazards: course.hazards } : {}),
+    collision: scaled,
+    route: conformRoute(scaleRoute(route, factor), scaled, factor),
+    ...(course.hazards ? { hazards: course.hazards.map((h) => scaleHazard(h, factor)) } : {}),
+    ...(factor !== 1 && { scale: factor }),
   };
 }
 

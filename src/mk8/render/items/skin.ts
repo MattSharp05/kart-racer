@@ -34,6 +34,7 @@ import { CRAZY8, crazy8Ring } from '../../content/items/crazy-8/sim';
 import { crazy8Halo, crazy8Model } from '../../content/items/crazy-8/render';
 import { fireFlowerModel } from '../../content/items/fire-flower/render';
 import { TICK_RATE, tuning } from '../../../sim/tuning';
+import { itemBoxModel } from './itemBox';
 import type { ItemModels } from './models';
 import { OUR_LOOKS } from './ours';
 
@@ -181,6 +182,8 @@ export class Mk8ItemRenderer implements ItemRenderer {
   private readonly struck = new Map<number, number>();
   private readonly offset = new THREE.Vector3();
   private readonly questionMarks: ModelPool;
+  /** Item boxes (MK-105 revisit): drawn in code as 3D boxes, the pack's flat-looking glass not. */
+  private readonly boxes: ModelPool;
   /** Spiny Shell explosions (MK-113): the pack has no model, so ours. */
   private readonly blasts: ModelPool;
   /** The held Fire Flower (MK-114): the pack has no model, so ours. */
@@ -199,6 +202,9 @@ export class Mk8ItemRenderer implements ItemRenderer {
     // One shared texture: the pool copies the first mark.
     const mark = questionMark();
     this.questionMarks = new ModelPool(scene, () => mark.clone());
+    const box = itemBoxModel();
+    box.scale.setScalar(SIZE.itemBox);
+    this.boxes = new ModelPool(scene, () => box.clone());
     this.blasts = new ModelPool(scene, explosionModel);
     this.fireFlowers = new ModelPool(scene, () => {
       const flower = fireFlowerModel();
@@ -257,6 +263,7 @@ export class Mk8ItemRenderer implements ItemRenderer {
     }
     for (const pool of this.pools.values()) pool.finish();
     this.questionMarks.finish();
+    this.boxes.finish();
     this.blasts.finish();
     this.fireFlowers.finish();
     this.piranhas.finish();
@@ -318,7 +325,7 @@ export class Mk8ItemRenderer implements ItemRenderer {
   }
 
   private drawEntities(state: SimState, time: number): void {
-    const box = this.pool(MK8_ITEM_BOX_MODEL, SIZE.itemBox);
+    const box = this.models.has(MK8_ITEM_BOX_MODEL) ? this.boxes : undefined;
     const banana = this.pool(MODEL_OF.get('banana'), SIZE.banana);
     const shells = {
       green: this.pool(MODEL_OF.get('green'), SIZE.shell),
