@@ -1,6 +1,7 @@
 // MK8 Mode's race HUD (MK-127) on the synthetic MK8 test ramp: no pack needed (with one, the HUD
 // draws the pack's item, coin and racer sprites). All racing, 3 laps at 150cc, MK8's items; the
 // field are MK8 racers so the minimap shows their heads.
+import { defaultLoadout } from '../../mk8/content/parts';
 import { DT } from '../../sim/tuning';
 import { giveItem } from '../../sim/items';
 import type { MeshTrackDef } from '../../sim/meshTrack';
@@ -29,6 +30,8 @@ const LAP_2_SINCE = 10;
 function mk8Field(state: SimState): SimState {
   state.karts.forEach((kart, i) => {
     kart.kartType = HUD_RACERS[i % HUD_RACERS.length] ?? kart.kartType;
+    // Its kart too (MK-136: the course races give every kart a loadout of its racer's).
+    if (kart.loadout) kart.loadout = defaultLoadout(kart.kartType);
   });
   return state;
 }

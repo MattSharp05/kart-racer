@@ -19,6 +19,14 @@ import { MK8_BODIES, MK8_GLIDERS, MK8_TIRES, defaultLoadout } from '../content/p
 import { mk8RacerView } from '../content/racers/render';
 import { MK8_RACER_STAND_INS } from '../content/racers/standIn';
 import { REST_MOTION, motionInput, stepMotion, type MotionState } from './motion';
+import { PackLockedError, PackNotInstalledError } from '../loader';
+
+/** Whether the page asked for low quality (`&quality=low`), read once. */
+let lowPage: boolean | undefined;
+const lowQualityPage = () =>
+  (lowPage ??=
+    typeof location !== 'undefined' &&
+    new URLSearchParams(location.search).get('quality') === 'low');
 
 /** Where race karts' pack files come from (the page's `Mk8Loader`). */
 export interface RaceKartFiles {
@@ -35,10 +43,6 @@ export const KART_DRAW_CALL_BUDGET = 8;
 
 /** The pack's smaller model next to `path` (`-low`: smaller textures). */
 export const lowModelPath = (path: string) => path.replace(/\.glb$/, '-low.glb');
-
-/** Whether the page asked for low quality (`&quality=low`). */
-const lowQualityPage = () =>
-  typeof location !== 'undefined' && new URLSearchParams(location.search).get('quality') === 'low';
 
 /** The pack files a kart of `loadout` is drawn from (the glider's may be missing). */
 interface KartPaths {
@@ -60,7 +64,9 @@ const loads = new Map<string, Promise<void>>();
 /** Every parsed GLB, by pack path: karts clone these. */
 const templates = new Map<string, Promise<THREE.Group>>();
 const parsed = new Map<string, THREE.Group>();
-/** Racer ids of the models built so far (tests: `window.__mk8.raceKarts`). */
+/** How many of the latest builds the test hook remembers. */
+const BUILT_KEPT = 64;
+/** Racer ids of the latest models built (tests: `window.__mk8.raceKarts`). */
 const built: string[] = [];
 
 /** Where kart models load their files when a race needs one not loaded yet (MK8 Mode's loader). */
@@ -119,7 +125,14 @@ function request(files: RaceKartFiles, loadout: Loadout, low: boolean): Promise<
     recipes.set(key, { status: 'loading' });
     load = loadRecipe(files, loadout, low).then(
       (recipe) => void recipes.set(key, recipe),
-      () => void recipes.set(key, { status: 'missing' }),
+      (e: unknown) => {
+        // The stand-in for now. No pack, or a locked one: for good (the password reloads the
+        // page). Anything else (a dropped connection): the next race's `prepareRaceKarts` tries
+        // again (never the per-frame lookup, which would retry every frame).
+        recipes.set(key, { status: 'missing' });
+        if (!(e instanceof PackNotInstalledError || e instanceof PackLockedError))
+          loads.delete(key);
+      },
     );
     loads.set(key, load);
   }
@@ -159,7 +172,7 @@ function template(files: RaceKartFiles, path: string): Promise<THREE.Group> {
           return scene;
         })
       : Promise.reject(new Error(`MK8 pack file not loaded: ${path}`));
-    // A failed parse may be tried again by the next race.
+    // A failed parse is tried again by the next load of the file.
     pending.catch(() => templates.delete(path));
     templates.set(path, pending);
   }
@@ -220,6 +233,7 @@ export function buildKartModel(loadout: Loadout, paths: KartPaths): KartModel {
   root.add(body);
   body.add(racer.object);
   built.push(view.id);
+  if (built.length > BUILT_KEPT) built.shift();
 
   const kart = racer.kart;
   const [frontLeft, , , rearRight] = kart.wheels;
@@ -295,4 +309,5 @@ export function resetRaceKarts(): void {
   parsed.clear();
   built.length = 0;
   source = undefined;
+  lowPage = undefined;
 }

@@ -340,6 +340,7 @@ export class KartRenderer {
     this.waiting[i] = false;
     if (own === undefined) return current;
     this.scene.remove(current.root);
+    disposeModel(current.root);
     this.gliders[i] = undefined;
     // Carry over what the stand-in was showing (a shrunk kart stays shrunk).
     own.root.scale.copy(current.root.scale);
@@ -352,6 +353,16 @@ export class KartRenderer {
     this.models[i] = model;
     return model;
   }
+}
+
+/** Frees a model's geometries and materials once it's out of the scene for good. */
+function disposeModel(root: THREE.Object3D): void {
+  root.traverse((node) => {
+    if (!(node instanceof THREE.Mesh)) return;
+    (node.geometry as THREE.BufferGeometry).dispose();
+    for (const material of [node.material as THREE.Material | THREE.Material[]].flat())
+      material.dispose();
+  });
 }
 
 /** The star glow for a kart model, created on first use. */

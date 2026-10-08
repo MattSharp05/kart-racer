@@ -25,7 +25,7 @@ import {
 } from './gp/grandPrix';
 import { isScriptedGp, scriptedGpFor, scriptedGrandPrix } from './gp/scripted';
 import { saveTrophy } from './gp/trophies';
-import { audioPlayer, packLoader, prepareRace } from './index';
+import { audioPlayer, packLoader, prepareRace, raceKartsOf } from './index';
 import { PackLockedError, PackNotInstalledError } from './loader';
 import {
   gpStandings,
@@ -314,20 +314,20 @@ async function goNext(
     // No pack here (or the site's still locked): the course's stand-in.
     if (!(e instanceof PackNotInstalledError || e instanceof PackLockedError)) throw e;
   }
-  await prepareRace();
-  handlers.onNext(
-    raceSetup(
-      {
-        ...(race.mode ? { mode: race.mode } : {}),
-        cup: race.cup,
-        course: key,
-        engineClass: race.engineClass,
-        loadout: race.loadout,
-        ...(race.vs ? { vs: race.vs } : {}),
-      },
-      gp,
-    ),
+  const next = raceSetup(
+    {
+      ...(race.mode ? { mode: race.mode } : {}),
+      cup: race.cup,
+      course: key,
+      engineClass: race.engineClass,
+      loadout: race.loadout,
+      ...(race.vs ? { vs: race.vs } : {}),
+    },
+    gp,
   );
+  // MK-136: the next race's karts loaded with it.
+  await prepareRace(raceKartsOf(next));
+  handlers.onNext(next);
 }
 
 /** Sprite URLs from the loaded pack's bytes; undefined without a pack (stand-in initials). */

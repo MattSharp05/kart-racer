@@ -3,7 +3,7 @@
 // course and the picks, so a scenario link or a test gets the same field every time.
 import { racers } from '../../content/racers';
 import type { RacerSlot } from '../../sim/race/createRace';
-import { rngFloat, rngInt, seedRng, type RngHolder } from '../../sim/rng';
+import { rngInt, seedRng, type RngHolder } from '../../sim/rng';
 import type { EngineClass } from '../../sim/tuning';
 import type { KartId } from '../../sim/data/karts';
 import type { Loadout } from '../../sim/types';
@@ -17,7 +17,8 @@ const PLAYER_SLOTS = [4, 7] as const;
 
 /** The seed of a VS Race's field: the course, engine class and player's racer. */
 export function vsSeed(course: string, engineClass: EngineClass, racer: string): number {
-  // FNV-1a, as a Grand Prix's seed.
+  // FNV-1a, as a Grand Prix's seed (`gpSeed`; not imported: this file is in the main bundle via the
+  // course scenarios, `gp/grandPrix.ts` brings every course with it).
   let h = 2166136261;
   for (const ch of `vs:${course}:${engineClass}:${racer}`) {
     h ^= ch.charCodeAt(0);
@@ -43,7 +44,7 @@ export function vsField(
     .sort();
   if (pool.length < FIELD - 1) return undefined;
   for (let i = pool.length - 1; i > 0; i--) {
-    const j = Math.floor(rngFloat(rng) * (i + 1));
+    const j = rngInt(rng, 0, i);
     [pool[i], pool[j]] = [pool[j] as string, pool[i] as string];
   }
   const playerSlot = rngInt(rng, ...PLAYER_SLOTS);

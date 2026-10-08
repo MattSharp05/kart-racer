@@ -145,6 +145,28 @@ describe('MK8 racers in races (MK-136)', () => {
     expect(modelOf(kart!).root.name).toBe(`mk8-kart:${kart!.kartType}`);
   });
 
+  it('tries a failed load again with the next race, not every frame', async () => {
+    const [kart] = race().karts;
+    const { files } = fixtureFiles();
+    let fail = true;
+    let manifestCalls = 0;
+    const flaky: RaceKartFiles = {
+      ...files,
+      loadManifest: () => {
+        manifestCalls += 1;
+        return fail ? Promise.reject(new Error('connection reset')) : files.loadManifest();
+      },
+    };
+    useRaceKartFiles(() => flaky);
+    await prepareRaceKarts(flaky, [kart!]);
+    expect(raceKartModel(kart!)).toBeUndefined();
+    expect(raceKartModel(kart!)).toBeUndefined();
+    expect(manifestCalls).toBe(1);
+    fail = false;
+    await prepareRaceKarts(flaky, [kart!]);
+    expect(modelOf(kart!).root.name).toBe(`mk8-kart:${kart!.kartType}`);
+  });
+
   it('stays a stand-in without a pack', async () => {
     const [kart] = race().karts;
     const { files } = fixtureFiles({ missing: true });
