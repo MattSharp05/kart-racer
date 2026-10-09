@@ -1,5 +1,6 @@
 // An MK8 course's content (MK-105): what we author for it. Its model and collision are the pack's.
 import type { HazardDef } from '../../../sim/hazards/types';
+import type { CollisionBox } from '../../../sim/meshCollision';
 import type { RouteDef } from '../../../sim/route';
 import type { RouteSurfaceOptions } from '../../../sim/routeSurfaces';
 import type { SoundId } from '../../audio/soundIds';
@@ -17,6 +18,11 @@ export interface Mk8CourseContent {
   surfaceRules?: RouteSurfaceOptions;
   /** The course's hazards (MK-124: Thwomp Ruins' Thwomps), as on our own tracks (`sim/hazards`). */
   hazards?: HazardDef[];
+  /**
+   * Boxes (the pack's units) whose collision triangles are taken out when the course loads
+   * (MK-128): scenery that `hazards` stand in for, so karts aren't stopped by what isn't drawn.
+   */
+  collisionHoles?: readonly CollisionBox[];
   /** Its light, sky, post-processing, water and ambience (MK-125); the plain look when absent. */
   look?: CourseLook;
 }

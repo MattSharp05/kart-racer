@@ -170,3 +170,51 @@ describe('routeSurfaces with waterIsRoad (MK-122)', () => {
     expect(surfaceOf(routeSurfaces(mesh([lid]), route([pool])), 0)).toBe('road');
   });
 });
+
+describe('routeSurfaces with wallIsRoad and glideZonesOnly (MK-128)', () => {
+  const as = (surface: MeshSurface, tri: Tri): Tri => ({ ...tri, surface });
+  /** A slope on the road (Thwomp Ruins' ramp labelled `di_Wall_B`), rising 0.3 m over 1 m. */
+  const slope: Tri = {
+    a: { x: 40, y: 0, z: -1 },
+    c: { x: 41, y: 0.3, z: -1 },
+    b: { x: 40, y: 0, z: 0 },
+  };
+  const rail: Tri = {
+    a: { x: 40, y: 0, z: 6 },
+    b: { x: 41, y: 0, z: 6 },
+    c: { x: 40, y: 1, z: 6 },
+  };
+
+  it('makes walls lying on the road, facing up like it, road; walls standing up or off it stay', () => {
+    const tris = [
+      as('wall', slope),
+      as('wall', rail),
+      // Upright across the road: a step's face.
+      as('wall', { a: { x: 40, y: 0, z: -2 }, b: { x: 40, y: 0, z: 2 }, c: { x: 40, y: 1, z: 0 } }),
+      // Lying flat but beside the road, or high over it.
+      as('wall', flat(40, 9)),
+      as('wall', flat(40, 0, 2.5)),
+    ];
+    const out = routeSurfaces(mesh(tris), route(), { wallIsRoad: true });
+    expect([0, 1, 2, 3, 4].map((i) => surfaceOf(out, i))).toEqual([
+      'road',
+      'wall',
+      'wall',
+      'wall',
+      'wall',
+    ]);
+    // Without the option every wall stays a wall.
+    const plain = routeSurfaces(mesh(tris), route());
+    expect(plain.surfaces.every((s) => s === MESH_SURFACES.indexOf('wall'))).toBe(true);
+  });
+
+  it('makes glide surfaces outside the glide zones road, and keeps those in one', () => {
+    const along = (x: number) => routeGeometry(route()).project({ x, y: 0, z: 0 }).t;
+    const zones: RouteDef['zones'] = [{ kind: 'glide', from: along(70), to: along(80) }];
+    const tris = [as('glide', flat(40, 0)), as('glide', flat(75, 0))];
+    const out = routeSurfaces(mesh(tris), route(zones), { glideZonesOnly: true });
+    expect([0, 1].map((i) => surfaceOf(out, i))).toEqual(['road', 'glide']);
+    const plain = routeSurfaces(mesh(tris), route(zones));
+    expect([0, 1].map((i) => surfaceOf(plain, i))).toEqual(['glide', 'glide']);
+  });
+});

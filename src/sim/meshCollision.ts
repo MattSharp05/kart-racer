@@ -146,6 +146,46 @@ export function collisionFromTriangles(
   });
 }
 
+/** An axis-aligned box, world space. */
+export interface CollisionBox {
+  min: { x: number; y: number; z: number };
+  max: { x: number; y: number; z: number };
+}
+
+/**
+ * `mesh` without the triangles whose centre lies inside one of `boxes` (MK-128: scenery a course's
+ * hazards stand in for, like Thwomp Ruins' stone Thwomps), its grid rebuilt. The same mesh when
+ * nothing is dropped.
+ */
+export function withoutTriangles(
+  mesh: CollisionMesh,
+  boxes: readonly CollisionBox[],
+): CollisionMesh {
+  const { positions } = mesh;
+  const centre = (t: number, axis: number) =>
+    ((positions[t * 9 + axis] ?? 0) +
+      (positions[t * 9 + 3 + axis] ?? 0) +
+      (positions[t * 9 + 6 + axis] ?? 0)) /
+    3;
+  const inside = (t: number, { min, max }: CollisionBox) => {
+    const x = centre(t, 0);
+    const y = centre(t, 1);
+    const z = centre(t, 2);
+    return x >= min.x && x <= max.x && y >= min.y && y <= max.y && z >= min.z && z <= max.z;
+  };
+  const keep: number[] = [];
+  for (let t = 0; t < mesh.surfaces.length; t += 1)
+    if (!boxes.some((box) => inside(t, box))) keep.push(t);
+  if (keep.length === mesh.surfaces.length) return mesh;
+  const kept = new Float32Array(keep.length * 9);
+  const surfaces = new Uint8Array(keep.length);
+  keep.forEach((t, i) => {
+    kept.set(positions.subarray(t * 9, t * 9 + 9), i * 9);
+    surfaces[i] = mesh.surfaces[t] ?? 0;
+  });
+  return collisionFromTriangles(kept, surfaces, mesh.cellSize);
+}
+
 const pad4 = (n: number) => (n + 3) & ~3;
 
 /** Decodes `collision.bin` (pure: the pack loader fetches the bytes). Throws on a bad file. */

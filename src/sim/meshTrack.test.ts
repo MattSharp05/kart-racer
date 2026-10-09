@@ -18,6 +18,7 @@ import {
   raycastMesh,
   surfaceMask,
   wallContact,
+  withoutTriangles,
   type CollisionMesh,
 } from './meshTrack';
 import { rngRange, seedRng, type RngHolder } from './rng';
@@ -306,5 +307,32 @@ describe('determinism', () => {
     expect(run(mesh, list)).toEqual(first);
     expect(run(mesh, [...list].reverse()).reverse()).toEqual(first);
     expect(run(decodeCollision(writeCollision(mesh)), list)).toEqual(first);
+  });
+});
+
+describe('withoutTriangles (MK-128)', () => {
+  /** A 1 m triangle at (x, y, z), its corner there. */
+  const tri = (x: number, y: number, z: number) => [x, y, z, x + 1, y, z, x, y, z + 1];
+  const box = { min: v(4, 0, -1), max: v(6, 3, 1) };
+
+  it('drops the triangles centred inside a box and rebuilds the grid; keeps the rest', () => {
+    const positions = new Float32Array([...tri(0, 0, 0), ...tri(4.5, 1, -0.5), ...tri(10, 0, 0)]);
+    const surfaces = new Uint8Array([0, 3, 1]);
+    const out = withoutTriangles(collisionFromTriangles(positions, surfaces, 4), [box]);
+    expect(Array.from(out.surfaces)).toEqual([0, 1]);
+    expect(Array.from(out.positions)).toEqual([...tri(0, 0, 0), ...tri(10, 0, 0)]);
+    // The grid answers queries on what's left: down onto the kept triangle, through the dropped one.
+    expect(
+      raycastMesh(out, v(10.2, 2, 0.2), v(0, -1, 0), 5, surfaceMask('offroad')),
+    ).not.toBeNull();
+    expect(
+      raycastMesh(out, v(4.7, 3, -0.3), v(0, -1, 0), 5, surfaceMask(...MESH_SURFACES)),
+    ).toBeNull();
+  });
+
+  it('is the same mesh when nothing is inside a box (or there are none)', () => {
+    const m = collisionFromTriangles(new Float32Array(tri(0, 0, 0)), new Uint8Array([0]), 4);
+    expect(withoutTriangles(m, [box])).toBe(m);
+    expect(withoutTriangles(m, [])).toBe(m);
   });
 });

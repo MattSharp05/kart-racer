@@ -19,6 +19,7 @@ const ANTIGRAV = MESH_SURFACES.indexOf('antigrav');
 const OFFROAD = MESH_SURFACES.indexOf('offroad');
 const WALL = MESH_SURFACES.indexOf('wall');
 const WATER = MESH_SURFACES.indexOf('water');
+const GLIDE = MESH_SURFACES.indexOf('glide');
 
 const UNDER = surfaceMask('road', 'offroad', 'boost', 'antigrav', 'glide');
 
@@ -44,6 +45,17 @@ export interface RouteSurfaceOptions {
    * lying there).
    */
   waterIsRoad?: boolean;
+  /**
+   * The pack labels some of this course's road `wall` (MK-128: Thwomp Ruins' `di_Wall_B` slopes,
+   * MK-93's guess from the name): wall triangles lying on the road, facing like it, become road.
+   * Every other wall stays a wall.
+   */
+  wallIsRoad?: boolean;
+  /**
+   * Glide triangles outside the route's glide zones become road (MK-128: the pack guesses Thwomp
+   * Ruins' trick ramps, `di_Jump`, as glide boards, and leaving one would open the glider).
+   */
+  glideZonesOnly?: boolean;
 }
 
 /** Whether triangle `t` lies flat on the top of one of `volumes`, over its footprint. */
@@ -74,23 +86,38 @@ function onWaterTop(
  * kart's ground rays to reach → wall (they look past it); on the road inside an `antigrav` zone →
  * anti-gravity; beside the road (further out than its edge, at its level): standing up from it →
  * wall, facing up like it → offroad. Everything else keeps its surface. With `waterIsRoad`, `water`
- * triangles get the same rules, except that over the road they stay water.
+ * triangles get the same rules, except that over the road they stay water. With `wallIsRoad`,
+ * `wall` triangles on the road facing up like it become road; with `glideZonesOnly`, `glide`
+ * triangles outside the glide zones become road.
  */
 export function routeSurfaces(
   collision: CollisionMesh,
   route: RouteDef,
-  { waterIsRoad = false }: RouteSurfaceOptions = {},
+  { waterIsRoad = false, wallIsRoad = false, glideZonesOnly = false }: RouteSurfaceOptions = {},
 ): CollisionMesh {
   const r = tuning.meshTrack.routeSurfaces;
   const geometry = routeGeometry(route);
   const zones = route.zones.flatMap((z) => (z.kind === 'antigrav' ? [z] : []));
+  const glides = route.zones.flatMap((z) => (z.kind === 'glide' ? [z] : []));
   const volumes = waterIsRoad ? route.zones.flatMap((z) => (z.kind === 'water' ? [z] : [])) : [];
   const { positions, normals } = collision;
   const surfaces = collision.surfaces.slice();
   for (let t = 0; t < surfaces.length; t += 1) {
     const water = surfaces[t] === WATER;
-    if (surfaces[t] !== ROAD && !(water && waterIsRoad)) continue;
-    if (volumes.length > 0 && onWaterTop(positions, t, volumes)) {
+    const wall = surfaces[t] === WALL;
+    const glide = surfaces[t] === GLIDE;
+    if (
+      surfaces[t] !== ROAD &&
+      !(water && waterIsRoad) &&
+      !(wall && wallIsRoad) &&
+      !(glide && glideZonesOnly)
+    )
+      continue;
+    if (
+      (water || surfaces[t] === ROAD) &&
+      volumes.length > 0 &&
+      onWaterTop(positions, t, volumes)
+    ) {
       surfaces[t] = WATER;
       continue;
     }
@@ -101,12 +128,25 @@ export function routeSurfaces(
       z: ((positions[o + 2] ?? 0) + (positions[o + 5] ?? 0) + (positions[o + 8] ?? 0)) / 3,
     };
     const near = geometry.project(centre);
+    if (glide) {
+      if (!glides.some((z) => inZone(near.t, z.from, z.to))) surfaces[t] = ROAD;
+      continue;
+    }
     if (near.distance > r.reach) continue;
     const frame = geometry.frameAt(near.t);
     const offset = sub(centre, frame.position);
     const height = dot(offset, frame.up);
     if (Math.abs(height) > r.heightTolerance) continue;
     const beyond = Math.abs(dot(offset, frame.right)) - frame.width / 2;
+    const facing =
+      (normals[t * 3] ?? 0) * frame.up.x +
+      (normals[t * 3 + 1] ?? 0) * frame.up.y +
+      (normals[t * 3 + 2] ?? 0) * frame.up.z;
+    if (wall) {
+      if (beyond <= 0 && Math.abs(height) <= r.overhead && facing >= r.offroadFacing)
+        surfaces[t] = ROAD;
+      continue;
+    }
     if (
       height > r.overhead &&
       beyond <= r.antigravMargin &&
@@ -115,10 +155,6 @@ export function routeSurfaces(
       if (!water) surfaces[t] = WALL;
       continue;
     }
-    const facing =
-      (normals[t * 3] ?? 0) * frame.up.x +
-      (normals[t * 3 + 1] ?? 0) * frame.up.y +
-      (normals[t * 3 + 2] ?? 0) * frame.up.z;
     // Facing like the road, not its kerbs' sides or the end of a deck (MK-122: karts stuck to it).
     if (
       beyond <= r.antigravMargin &&
