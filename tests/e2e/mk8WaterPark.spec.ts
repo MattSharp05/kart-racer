@@ -75,7 +75,9 @@ test.describe('Water Park on the real pack (MK-122, local only)', () => {
       const game = window.__game!;
       game.setAutopilot(0, true);
       const water: boolean[] = [];
-      for (let i = 0; i < 16; i += 1) water.push(game.step(30).karts[0]!.inWater === true);
+      // Up to 24 s: the course is 3× its pack size (MK-105 revisit), so is the swim to the ring.
+      for (let i = 0; i < 48 && !(i > 0 && water.at(-1) === false); i += 1)
+        water.push(game.step(30).karts[0]!.inWater === true);
       return {
         first: water[0],
         left: water.indexOf(false) > 0,

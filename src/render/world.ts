@@ -17,10 +17,15 @@ import { skinOf } from './itemSkins';
 import { KartRenderer, type DrawnFrame, type KartPoseFilter } from './karts';
 import { NameTags } from './nameTags';
 import { AdaptiveQuality } from './quality';
-import { CAMERA_FAR, CAMERA_NEAR, createScene, defaultLook } from './scene';
+import { createScene, defaultLook } from './scene';
 import { trackTheme } from './theme';
 import type { TrackLook } from './trackLook';
-import { createTrackView, overviewCamera, type TrackViewUpdate } from './trackView';
+import {
+  chaseCameraRange,
+  createTrackView,
+  overviewCamera,
+  type TrackViewUpdate,
+} from './trackView';
 import { trackViews } from '../content/tracks/render';
 import { UnderwaterView } from './underwater';
 
@@ -185,9 +190,10 @@ export class World {
       return;
     }
     this.camera.up.set(0, 1, 0);
-    if (this.camera.far !== CAMERA_FAR || this.camera.near !== CAMERA_NEAR) {
-      this.camera.far = CAMERA_FAR;
-      this.camera.near = CAMERA_NEAR;
+    const { near, far } = chaseCameraRange(this.track.def);
+    if (this.camera.far !== far || this.camera.near !== near) {
+      this.camera.far = far;
+      this.camera.near = near;
       this.camera.updateProjectionMatrix();
     }
     if (this.hiddenFog && !this.scene.fog) this.scene.fog = this.hiddenFog;

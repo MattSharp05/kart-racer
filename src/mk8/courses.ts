@@ -7,14 +7,39 @@ import { trackViews } from '../content/tracks/render';
 import type { TrackLook, TrackLookContext } from '../render/trackLook';
 import type { RouteDef } from '../sim/route';
 import { ambiencePlayer, CourseAmbience, gameMuted } from './audio/ambience';
-import { collisionPath, modelPath, registerCourse, type Mk8CourseContent } from './content/courses';
+import {
+  collisionPath,
+  MK8_COURSE_SCALE,
+  modelPath,
+  registerCourse,
+  type Mk8CourseContent,
+} from './content/courses';
 import testRampLook from './content/courses/test-ramp/look';
 import { testRampTrack } from './content/courses/test-ramp';
 import type { CourseLook } from './content/courses/types';
 import type { Mk8Loader } from './loader';
-import { batchCourseMeshes } from './render/courseBatch';
+import { batchCourseMeshes, COURSE_CELL_METRES, type BatchStats } from './render/courseBatch';
+import { fixCourseMaterials, type MaterialStats } from './render/courseMaterials';
 import { createCourseLook } from './render/look';
 import { parseGlb } from './render/racerModel';
+
+declare global {
+  interface Window {
+    /**
+     * Each loaded course model by pack id (`-low` at low quality): how its materials were sorted
+     * and how many meshes batching left (MK-105 revisit), for e2e tests on a real pack.
+     */
+    __mk8Courses?: Record<string, CourseModelInfo>;
+  }
+}
+
+/** What loading made of a course's model. */
+export interface CourseModelInfo {
+  materials: MaterialStats;
+  meshesBefore: number;
+  meshesAfter: number;
+  scale: number;
+}
 
 /** Whether the page asked for low quality (`&quality=low`): the `-low` model (smaller textures). */
 export function lowQualityPage(search = typeof location === 'undefined' ? '' : location.search) {
@@ -80,10 +105,18 @@ async function loadCourseFiles(
   if (!trackViews.has(course.trackId)) {
     const scene = await parseGlb(modelBytes);
     prepareCourseModel(scene, new Set(course.hiddenMaterials));
+    if (typeof window !== 'undefined') {
+      window.__mk8Courses ??= {};
+      window.__mk8Courses[`${course.packId}${low ? '-low' : ''}`] = {
+        materials: scene.userData.materials as MaterialStats,
+        ...(scene.userData.batch as BatchStats),
+        scale: scene.scale.x,
+      };
+    }
     trackViews.register({
       id: course.trackId,
       model: () => courseInstance(scene),
-      ...(course.look && { look: courseLook(course.look, files) }),
+      ...(course.look && { look: courseLook(scaleLook(course.look, MK8_COURSE_SCALE), files) }),
     });
   }
   return true;
@@ -91,10 +124,17 @@ async function loadCourseFiles(
 
 /**
  * The course never moves: matrices once, and nothing casts or takes the karts' shadows. Meshes of
- * `hidden` materials are taken out, and the rest merged by material and cell (MK-133: a few dozen
- * draws instead of hundreds; `userData.batch` keeps the mesh counts).
+ * `hidden` materials are taken out, materials that only claim to be see-through are drawn solid
+ * (`courseMaterials.ts`: the road and walls hid nothing behind them), the model is scaled like the
+ * track (`MK8_COURSE_SCALE`), and the rest merged by material and cell (MK-133: a few dozen draws
+ * instead of hundreds, the cells as big on the course as before; `userData.batch` keeps the mesh
+ * counts, `userData.materials` how the materials were sorted).
  */
-function prepareCourseModel(scene: THREE.Group, hidden: ReadonlySet<string>): void {
+export function prepareCourseModel(
+  scene: THREE.Group,
+  hidden: ReadonlySet<string>,
+  factor: number = MK8_COURSE_SCALE,
+): void {
   const drop: THREE.Object3D[] = [];
   scene.traverse((object) => {
     if (!(object instanceof THREE.Mesh)) return;
@@ -106,7 +146,9 @@ function prepareCourseModel(scene: THREE.Group, hidden: ReadonlySet<string>): vo
     object.receiveShadow = false;
   });
   for (const object of drop) object.removeFromParent();
-  scene.userData.batch = batchCourseMeshes(scene);
+  scene.userData.materials = fixCourseMaterials(scene);
+  scene.scale.multiplyScalar(factor);
+  scene.userData.batch = batchCourseMeshes(scene, COURSE_CELL_METRES * factor);
   scene.updateMatrixWorld(true);
   scene.traverse((object) => (object.matrixAutoUpdate = false));
 }
@@ -142,6 +184,29 @@ export function registerLookRamp(files: Mk8Loader): void {
 
 /** After the test ramp's place (1000) in the track registry. */
 const LOOK_RAMP_ORDER = 1001;
+
+/**
+ * `look` for a course `factor` times its pack size: its fog, water ripples and placed sounds as
+ * far away and as big on the course as at 1:1.
+ */
+export function scaleLook(look: CourseLook, factor: number): CourseLook {
+  if (factor === 1) return look;
+  return {
+    ...look,
+    ...(look.fog && {
+      fog: { ...look.fog, near: look.fog.near * factor, far: look.fog.far * factor },
+    }),
+    // The ripples as big on the course as they were, drifting as fast across it.
+    ...(look.water && {
+      water: { ...look.water, scale: look.water.scale * factor, flow: look.water.flow * factor },
+    }),
+    ambience: look.ambience.map((sound) => ({
+      ...sound,
+      ...(sound.at && { at: sound.at.map((v) => v * factor) as [number, number, number] }),
+      ...(sound.radius !== undefined && { radius: sound.radius * factor }),
+    })),
+  };
+}
 
 /** A course's look for its track view: drawn by `render/look.ts`, its loops from the pack. */
 function courseLook(look: CourseLook, files: Mk8Loader): (context: TrackLookContext) => TrackLook {

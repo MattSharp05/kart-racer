@@ -91,4 +91,18 @@ describe('course mesh batching (MK-133)', () => {
     const merged = meshes(root)[0]!;
     expect(merged.geometry.getAttribute('position').count).toBe(72);
   });
+
+  it('merges under a scaled root without scaling twice (MK-105 revisit: courses drawn 3×)', () => {
+    const road = new THREE.MeshBasicMaterial({ name: 'road' });
+    const root = new THREE.Group();
+    root.add(box(road, 0), box(road, 10));
+    root.scale.setScalar(3);
+    const before = worldBox(root);
+
+    expect(batchCourseMeshes(root, 300)).toEqual({ meshesBefore: 2, meshesAfter: 1 });
+    const after = worldBox(root);
+    expect(after.min.distanceTo(before.min)).toBeLessThan(1e-5);
+    expect(after.max.distanceTo(before.max)).toBeLessThan(1e-5);
+    expect(after.max.x).toBeCloseTo(31.5, 5);
+  });
 });

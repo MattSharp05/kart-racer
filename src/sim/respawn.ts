@@ -1,7 +1,7 @@
 import { cancelDrift } from './drift';
 import { endGlide } from './glide';
 import { add, dot, headingOf, scale, sub, WORLD_UP, type Vec3 } from './math';
-import { raycastMesh, surfaceMask, type MeshTrackDef } from './meshTrack';
+import { meshFallLimits, raycastMesh, surfaceMask, type MeshTrackDef } from './meshTrack';
 import { routeGeometry, type RouteGeometry } from './route';
 import { routeProgress } from './routes';
 import { inRange, type SplineTrackDef } from './splineTrack';
@@ -126,6 +126,7 @@ function updateMeshRespawns(
   only?: number,
 ): void {
   const geometry = routeGeometry(track.route);
+  const limits = meshFallLimits(track);
   for (const kart of state.karts) {
     if (only !== undefined && kart.id !== only) continue;
     kart.respawnCooldown = Math.max(0, kart.respawnCooldown - dt);
@@ -141,26 +142,26 @@ function updateMeshRespawns(
       const last = kart.race.lastT >= 0 ? kart.race.lastT : kart.lastSafeT;
       const t = geometry.project(kart.position, last >= 0 ? last : undefined).t;
       const frame = geometry.frameAt(t);
-      below = dot(sub(kart.position, frame.position), frame.up) < -tuning.fallDepth;
+      below = dot(sub(kart.position, frame.position), frame.up) < -limits.depth;
       if (!below) kart.lastSafeT = t;
     }
     const fell =
       below ||
-      kart.airTime > (kart.glide ? tuning.mk8.glide.fallSeconds : tuning.mk8.fallSeconds) ||
-      kart.position.y < track.collision.gridMin[1] - tuning.fallDepth ||
-      (!kart.grounded && overKillFloor(track, kart));
+      kart.airTime > (kart.glide ? limits.glideSeconds : limits.airSeconds) ||
+      kart.position.y < track.collision.gridMin[1] - limits.depth ||
+      (!kart.grounded && overKillFloor(track, kart, limits.depth));
     const asked = inputs[kart.id]?.respawn === true && kart.respawnCooldown <= 0;
     if (fell || asked) startMeshRespawn(state, kart, track, geometry, events);
   }
 }
 
 /**
- * Whether a kart in the air is over the void floor, within `fallDepth` below it with no ground
+ * Whether a kart in the air is over the void floor, within `depth` below it with no ground
  * in between (a bridge over a kill plane is fine to hop on).
  */
-function overKillFloor(track: MeshTrackDef, kart: KartState): boolean {
+function overKillFloor(track: MeshTrackDef, kart: KartState, depth: number): boolean {
   const down = kart.gravityDir ?? { x: 0, y: -1, z: 0 };
-  const kill = raycastMesh(track.collision, kart.position, down, tuning.fallDepth, VOID);
+  const kill = raycastMesh(track.collision, kart.position, down, depth, VOID);
   if (!kill) return false;
   return raycastMesh(track.collision, kart.position, down, kill.distance, RESPAWN_GROUND) === null;
 }

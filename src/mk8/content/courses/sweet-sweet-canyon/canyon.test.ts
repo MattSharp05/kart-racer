@@ -16,7 +16,7 @@ import type { EngineClass } from '../../../../sim/tuning';
 import type { SimEvent, SimState } from '../../../../sim/types';
 import { insideWater } from '../../../../sim/underwater';
 import { MK8_CUPS } from '../../cups';
-import { collisionPath, mk8Course, registerCourse } from '..';
+import { collisionPath, MK8_COURSE_SCALE, mk8Course, registerCourse } from '..';
 import { centrelineGaps, courseRace } from '../courseCheck';
 import canyon from '.';
 import { materials } from './materials';
@@ -114,9 +114,13 @@ describe.skipIf(!hasPack)('Sweet Sweet Canyon on the real pack (local only)', ()
     it(`at ${cc}cc the glide ramp launches a glide that lands on the giant cake`, () => {
       const track = getTrack(canyon.trackId);
       if (track.kind !== 'mesh') throw new Error('not a mesh track');
-      const glide = zone('glide');
-      if (glide?.landing === undefined) throw new Error('no glide landing');
-      const frame = geometry.frameAt(glide.from - 30 / geometry.length);
+      // The course as registered: 3× the pack's size (MK-105 revisit), its route with it.
+      const raced = routeGeometry(track.route);
+      const at = (t: number) => t * raced.length;
+      const glide = track.route.zones.find((z) => z.kind === 'glide');
+      if (glide?.kind !== 'glide' || glide.landing === undefined)
+        throw new Error('no glide landing');
+      const frame = raced.frameAt(glide.from - (30 * MK8_COURSE_SCALE) / raced.length);
       let state: SimState = createSimState({
         seed: 1,
         trackId: canyon.trackId,
@@ -133,7 +137,7 @@ describe.skipIf(!hasPack)('Sweet Sweet Canyon on the real pack (local only)', ()
       });
       const events: SimEvent[] = [];
       const stuck = { stuckTime: 0, recoverTime: 0 };
-      for (let i = 0; i < 60 * 12; i += 1) {
+      for (let i = 0; i < 60 * 12 * MK8_COURSE_SCALE; i += 1) {
         const kart = state.karts[0]!;
         const r = step(state, [meshAutopilotInput(kart, track, cc, 1, stuck)]);
         state = r.state;
@@ -145,9 +149,9 @@ describe.skipIf(!hasPack)('Sweet Sweet Canyon on the real pack (local only)', ()
       expect(events.some((e) => e.type === 'respawn')).toBe(false);
       expect(kart.grounded).toBe(true);
       // Down on the deck or the spiral's first bend, not in the lake.
-      const landed = metres(kart.lastSafeT);
-      expect(landed).toBeGreaterThan(metres(glide.landing) - 5);
-      expect(landed).toBeLessThan(metres(glide.landing) + 45);
+      const landed = at(kart.lastSafeT);
+      expect(landed).toBeGreaterThan(at(glide.landing) - 5 * MK8_COURSE_SCALE);
+      expect(landed).toBeLessThan(at(glide.landing) + 45 * MK8_COURSE_SCALE);
     });
 
   it('a 150cc race: the player on the autopilot and 7 AI finish 3 laps, nobody stuck', () => {

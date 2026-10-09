@@ -14,7 +14,7 @@ import { getTrack } from '../../../../sim/track';
 import { DT, tuning } from '../../../../sim/tuning';
 import { insideWater } from '../../../../sim/underwater';
 import { MK8_CUPS } from '../../cups';
-import { collisionPath, courseTrack, mk8Course, registerCourse } from '..';
+import { collisionPath, courseTrack, MK8_COURSE_SCALE, mk8Course, registerCourse } from '..';
 import { centrelineGaps, courseRace } from '../courseCheck';
 import { routeRibbonCollision } from '../routeRibbon';
 import ruins from '.';
@@ -132,9 +132,14 @@ describe.skipIf(!hasPack)('Thwomp Ruins on the real pack (local only)', () => {
     );
   });
 
-  it('registers with its Thwomps', () => {
+  it('registers with its Thwomps, moved with the course scale', () => {
     const track = getTrack(ruins.trackId);
-    expect(track.kind === 'mesh' && track.hazards).toEqual(thwomps);
+    expect(track.kind === 'mesh' && track.hazards).toEqual(
+      thwomps.map((t) => ({
+        ...t,
+        centre: { x: t.centre.x * MK8_COURSE_SCALE, y: 0, z: t.centre.z * MK8_COURSE_SCALE },
+      })),
+    );
   });
 
   it('has drivable ground under every metre of the centreline', () => {
