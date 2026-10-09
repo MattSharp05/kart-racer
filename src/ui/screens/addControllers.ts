@@ -32,7 +32,7 @@ export function showAddControllers(hub: RemoteHub, origin: string, net: RemoteNe
   help.className = 'add-controllers-help';
   help.textContent =
     "Scan a code with a phone's camera to use the phone as that player's controller. " +
-    "Player 1's phone drives your kart; players 2–4 race once split-screen arrives.";
+    "Player 1's phone drives your kart; players 2–4's drive theirs in a race for 2–4 players (Players, on the racer select).";
   const error = document.createElement('p');
   error.className = 'add-controllers-error';
   error.hidden = true;

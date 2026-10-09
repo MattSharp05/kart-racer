@@ -35,3 +35,9 @@ Options weighed:
 - Phones need the site to be reachable: on production that's the public URL; locally the phone must be on the same LAN as `pnpm dev`.
 - E2E covers pairing over BroadcastChannel (`tests/e2e/remote.spec.ts`); real WebRTC between a phone and a desktop is checked by hand on production (MK-146's QA).
 - MK-147 replaces only the phone page's look (`src/remote/page/view.ts` + `remote.css`), adding tilt and touch steering; MK-144 binds slots to players through `remoteInput(slot)`.
+
+## Amendment (MK-147, 2026-10-09)
+
+- **Protocol:** the input packet's button flags also carry _look back_ and _pause_ (still 9 bytes); pause is held while pressed and the desktop acts on its rising edge. A new 2-byte desktop → phone **Buzz** (`hit` | `turbo`) makes the phone vibrate (`navigator.vibrate`; iPhones flash instead, Safari has no vibration) when its kart is hit by an item or gets a mini-turbo, at most one of each per tick.
+- **Steering on the phone:** tilt (DeviceOrientation, the game's own `input/tiltMath.ts` mapping) by default, touch (the D-pad's left/right) as an option, both saved on the phone with the calibrated level. Browsers that gate motion access (iOS Safari, and Chromium/WebKit expose `requestPermission`) show a Start sheet; the page never asks without a tap.
+- **Slots → players:** with MK-144's input sources, slots 2–4's phones are the `phone` source for players 2–4 (`src/input/sources/phone.ts`); player 1's phone stays merged into this device's controls. No new dependency.

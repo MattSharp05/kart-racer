@@ -1,3 +1,4 @@
+import { localRace } from './local';
 import { attractMode } from './menus';
 import { racingSince, sunnyRace } from './race';
 import type { Scenario } from './registry';
@@ -25,5 +26,16 @@ export const remoteScenarios: Scenario[] = [
     defaultSeed: 1,
     addControllers: true,
     setup: (seed) => ({ state: racingSince(sunnyRace(seed), 1) }),
+  },
+  {
+    name: 'remote-2p',
+    group: 'Phone controllers',
+    description:
+      "A 2-player race in countdown under Add Controllers (MK-147): P2's kart drives itself " +
+      "until a phone scans Player 2's code, then that phone drives it. Player 1's phone (or " +
+      'the keyboard) drives P1.',
+    defaultSeed: 1,
+    addControllers: true,
+    setup: (seed) => ({ state: localRace(seed, 2), players: 2 }),
   },
 ];

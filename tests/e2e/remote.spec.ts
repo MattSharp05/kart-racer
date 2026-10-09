@@ -165,6 +165,41 @@ test.describe('phone controllers', () => {
     await expect(slot1).toHaveAttribute('data-state', 'connected');
   });
 
+  test("P2's phone takes P2's kart over in a 2-player race (MK-147)", async ({ page, context }) => {
+    const code = `E2E-${Date.now() % 1e6}-${(pairings += 1)}`;
+    await openDesktop(page, 'remote-2p', code);
+    await allowMotion(context);
+    const phone = await openPhone(context, page, 2);
+    await expect(phone.locator('.remote-status')).toHaveText('Player 2 · Connected', {
+      timeout: CONNECT_TIMEOUT_MS,
+    });
+    await startTilt(phone);
+    await page.locator('.add-controllers-done').click();
+    await page.locator('.menu-paused button', { hasText: 'Resume' }).click();
+    await page.evaluate(() => window.__game!.pause());
+
+    // The phone holds the brake: P2's kart stays on the line instead of driving itself.
+    const release = await hold(phone, 'brake');
+    await expect.poll(async () => (await slots(page))[1]?.input.brake).toBe(1);
+    const held = await step(page, 4 * 60 + 60);
+    await release();
+    expect(held.slotKarts).toEqual([0, 1]);
+    expect(held.karts[1]!.speed).toBeLessThan(0.5);
+    // Then gas.
+    const go = await hold(phone, 'gas');
+    await expect.poll(async () => (await slots(page))[1]?.input.throttle).toBe(1);
+    const moving = await step(page, 60);
+    await go();
+    expect(moving.karts[1]!.speed).toBeGreaterThan(3);
+
+    // P2's Pause pauses the race and says who.
+    await page.evaluate(() => window.__game!.resume());
+    const pause = await hold(phone, 'pause');
+    await expect(page.locator('.menu-paused')).toBeVisible();
+    await expect(page.locator('.menu-paused')).toContainText('P2');
+    await pause();
+  });
+
   test('a link without a code asks for a rescan', async ({ page }) => {
     await page.goto('/remote?slot=1');
     await expect(page.locator('.remote-status')).toContainText('Scan the QR code');
