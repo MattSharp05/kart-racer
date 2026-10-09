@@ -6,6 +6,7 @@
 import * as THREE from 'three';
 import { tuning } from '../../sim/tuning';
 import { fitModel } from './racerModel';
+import { seatRacer, type SeatReport } from './seatPose';
 
 export const LAKITU_PATH = 'models/npcs/lakitu.glb';
 const TICKS_PER_SECOND = 60;
@@ -169,11 +170,16 @@ export class Lakitu {
   private readonly linePositions: THREE.BufferAttribute;
   /** The pose last drawn (test hooks read it). */
   current: LakituPose = HIDDEN;
+  /** His arms, bent forward at load (`seatPose.ts`). */
+  readonly arms: SeatReport;
 
   constructor(model: THREE.Object3D) {
     this.object.name = 'lakitu';
     this.object.visible = false;
-    this.object.add(fitModel(model, 'y', LAKITU.height));
+    const fitted = fitModel(model, 'y', LAKITU.height);
+    // His arms come in a T-pose like the racers': bent forward to hold the light, sign and rod.
+    this.arms = seatRacer(model, fitted, ['arm']);
+    this.object.add(fitted);
 
     const housing = new THREE.Mesh(
       new THREE.BoxGeometry(LIGHT_SIZE.width, LIGHT_SIZE.height, LIGHT_SIZE.depth),

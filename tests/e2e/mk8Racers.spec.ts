@@ -53,6 +53,13 @@ test.describe('MK8 racers and Lakitu', () => {
       expect(n).toBeGreaterThan(0);
       expect(n).toBeLessThanOrEqual(6);
     }
+    // QA round 2: every racer sits, legs and arms bent out of the T-pose, found by bone name.
+    const seats = await page.evaluate(() => (window.__mk8!.stage as Hooks).seats());
+    expect(seats).toHaveLength(12);
+    for (const seat of seats) {
+      expect(seat.byName).toBe(true);
+      expect(seat.limbs.map((l) => l.kind).sort()).toEqual(['arm', 'arm', 'leg', 'leg']);
+    }
     // Only the models it shows: every racer and the Standard Kart, no Lakitu.
     expect(requested).toContain('models/racers/waluigi.glb');
     expect(requested).toContain('models/karts/bodies/standard-kart.glb');
