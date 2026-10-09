@@ -11,6 +11,7 @@ import {
   parseGlb,
   racerModelPath,
   dropLayers,
+  mergeStaticMeshes,
   singleTire,
   uprightBody,
 } from './racerModel';
@@ -123,5 +124,42 @@ describe('MK8 racer model with the real pack’s quirks (MK-136)', () => {
     expect(boxOf(uprightBody(zUp.clone())).max.z).toBeCloseTo(1.75);
     const yUp = new THREE.Mesh(new THREE.BoxGeometry(1, 0.6, 2.5));
     expect(uprightBody(yUp)).toBe(yUp);
+  });
+
+  it('merges quantized meshes (int16 positions scaled by their node) without changing their shape', () => {
+    // MK-101 round 4: baking the node's dequantization scale into int16 positions wrapped them round
+    // (MK-123 found it on the courses). A plain, unskinned part: two quantized wheels, one material.
+    const rubber = new THREE.MeshBasicMaterial({ name: 'rubber' });
+    const quantized = (x: number) => {
+      const geometry = new THREE.BufferGeometry();
+      const q = new Int16Array([
+        -32767, -32767, 0, 32767, -32767, 0, 0, 32767, 32767, 0, 0, -32767,
+      ]);
+      geometry.setAttribute('position', new THREE.BufferAttribute(q, 3, true));
+      const n = new Int8Array([0, 0, 127, 0, 0, 127, 0, 0, 127, 0, 0, 127]);
+      geometry.setAttribute('normal', new THREE.BufferAttribute(n, 3, true));
+      geometry.setIndex([0, 1, 2, 0, 2, 3]);
+      const mesh = new THREE.Mesh(geometry, rubber);
+      mesh.position.set(x, 0.5, 0);
+      mesh.scale.set(0.5, 0.5, 0.25); // the node's dequantization: the mesh's box, out past ±1 m
+      return mesh;
+    };
+    const part = new THREE.Group();
+    part.add(quantized(-1.2), quantized(1.2));
+    const root = new THREE.Group();
+    root.position.set(3, 1, -2);
+    root.rotation.y = 0.7;
+    root.scale.setScalar(1.5);
+    root.add(part);
+    const before = boxOf(root);
+
+    mergeStaticMeshes(root);
+
+    expect(meshes(root)).toHaveLength(1);
+    const after = boxOf(root);
+    expect(after.min.distanceTo(before.min)).toBeLessThan(1e-3);
+    expect(after.max.distanceTo(before.max)).toBeLessThan(1e-3);
+    const normal = meshes(root)[0]!.geometry.getAttribute('normal');
+    expect(new THREE.Vector3().fromBufferAttribute(normal, 0).length()).toBeCloseTo(1, 2);
   });
 });
