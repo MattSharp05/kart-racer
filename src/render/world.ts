@@ -18,7 +18,7 @@ import { drawnGroundFor } from './drawnGround';
 import { KartRenderer, type DrawnFrame, type KartPoseFilter } from './karts';
 import { NameTags } from './nameTags';
 import { AdaptiveQuality } from './quality';
-import { createScene, defaultLook } from './scene';
+import { CAMERA_FAR, CAMERA_NEAR, createScene, defaultLook } from './scene';
 import { trackTheme } from './theme';
 import type { TrackLook } from './trackLook';
 import {
@@ -29,6 +29,15 @@ import {
 } from './trackView';
 import { trackViews } from '../content/tracks/render';
 import { UnderwaterView } from './underwater';
+import {
+  pixelRect,
+  splitViews,
+  STEP_DOWN_FROM_VIEWS,
+  STEPPED_DOWN_PIXEL_RATIO,
+  viewFov,
+  type SplitLayout,
+  type ViewRect,
+} from './viewports';
 
 /** Longest real frame we feed the sim, so a backgrounded tab doesn't cause a huge catch-up. */
 const MAX_FRAME_SECONDS = 0.25;
@@ -63,6 +72,27 @@ export interface WorldOptions {
   playerColour?: (kartId: number) => string;
   /** `&quality=low` (MK-71): start in, and keep, adaptive quality's lowest setting. */
   lowQuality?: boolean;
+  /**
+   * The local players' karts by slot, P1 first (MK-145): with 2–4 of them the chase view splits,
+   * one view each. Fewer: the one view follows `follow`.
+   */
+  views?: () => readonly number[];
+  /** How two players' views share the screen (MK-145): stacked (default) or side by side. */
+  splitLayout?: () => SplitLayout;
+}
+
+/** One player's view of a split screen (MK-145), as the HUD and tests see it. */
+export interface PlayerView {
+  /** Player slot: 0 = P1. */
+  slot: number;
+  kartId: number;
+  rect: ViewRect;
+}
+
+/** A split-screen view after P1's: its own camera and chase camera (MK-145). */
+interface ExtraView {
+  camera: THREE.PerspectiveCamera;
+  chase: ChaseCamera;
 }
 
 /** A name tag's colour when the options don't say. */
@@ -125,6 +155,20 @@ export class World {
   private lastSimTime = 0;
   /** The track's fog, put away while the overview shows (hazards may set it again each frame). */
   private hiddenFog: THREE.Fog | THREE.FogExp2 | undefined;
+  /** Split-screen (MK-145): P2–P4's cameras, made the first time they're needed. */
+  private readonly extraViews: ExtraView[] = [];
+  /** The 3-player split's overview quadrant camera (MK-145). */
+  private overviewCam: THREE.PerspectiveCamera | undefined;
+  /** The karts the split views follow this frame, P1 first; empty with one view. */
+  private viewKarts: readonly number[] = [];
+  /** The split views drawn last frame (MK-145); empty with one view. */
+  private playerViews: PlayerView[] = [];
+  /** The overview quadrant of a 3-player split (MK-145). */
+  private overview: ViewRect | undefined;
+  /** 3–4 views: quality stepped down (MK-145). */
+  private steppedDown = false;
+  private readonly canvasSize = new THREE.Vector2();
+  private readonly spot = new THREE.Vector3();
 
   constructor(
     canvas: HTMLCanvasElement,
@@ -143,7 +187,7 @@ export class World {
     this.chaseCamera = new ChaseCamera(this.camera);
     // Juice (MK-27). Shake and FOV kick respect reduced motion (OS setting or &reduced-motion=1).
     this.chaseCamera.reducedMotion = options.reducedMotion;
-    this.effects = new Effects(this.scene, this.karts, this.chaseCamera);
+    this.effects = new Effects(this.scene, this.karts, (kartId) => this.chaseOf(kartId));
     this.itemBoxes = new ItemBoxRenderer(this.scene);
     this.coins = new CoinRenderer(this.scene);
     this.underwater = new UnderwaterView(this.scene);
@@ -157,12 +201,49 @@ export class World {
       (low) => this.effects.setLowQuality(low),
       (low) => this.track.look?.setLowQuality?.(low),
     ];
-    this.quality = new AdaptiveQuality(window.devicePixelRatio, (pixelRatio, lowQuality) => {
-      this.renderer.setPixelRatio(pixelRatio);
-      this.lowQualityHooks.forEach((hook) => hook(lowQuality));
-      this.markChanged();
-    });
+    this.quality = new AdaptiveQuality(window.devicePixelRatio, () => this.applyQuality());
     if (options.lowQuality) this.quality.forceLow();
+  }
+
+  /** Adaptive quality's pixel ratio and low-quality mode, stepped down for 3–4 views (MK-145). */
+  private applyQuality(): void {
+    const { pixelRatio, lowQuality } = this.quality;
+    const stepped = this.steppedDown;
+    this.renderer.setPixelRatio(
+      stepped ? Math.min(pixelRatio, STEPPED_DOWN_PIXEL_RATIO) : pixelRatio,
+    );
+    this.lowQualityHooks.forEach((hook) => hook(lowQuality || stepped));
+    this.markChanged();
+  }
+
+  /** The chase camera following kart `kartId`, if a view follows it (camera juice, MK-27). */
+  private chaseOf(kartId: number): ChaseCamera | undefined {
+    if (this.viewKarts.length < 2) return kartId === this.followId ? this.chaseCamera : undefined;
+    const index = this.viewKarts.indexOf(kartId);
+    if (index < 0) return undefined;
+    return index === 0 ? this.chaseCamera : this.extraViews[index - 1]?.chase;
+  }
+
+  /** The split views drawn last frame (MK-145), P1 first; empty with a single view. */
+  views(): readonly PlayerView[] {
+    return this.playerViews;
+  }
+
+  /** The 3-player split's overview quadrant (MK-145), if one shows. */
+  overviewRect(): ViewRect | null {
+    return this.overview ?? null;
+  }
+
+  /**
+   * Where kart `kartId` is drawn in the overview quadrant (MK-145), as fractions of the quadrant
+   * from its top left; null without an overview or kart.
+   */
+  overviewSpot(kartId: number): { x: number; y: number } | null {
+    const model = this.karts.kart(kartId);
+    const camera = this.overviewCam;
+    if (!this.overview || !model || !camera) return null;
+    const point = this.spot.copy(model.position).project(camera);
+    return { x: (point.x + 1) / 2, y: (1 - point.y) / 2 };
   }
 
   /**
@@ -177,6 +258,8 @@ export class World {
     this.nameTags.reset();
     this.view = view;
     this.followId = follow;
+    // Split views start behind their karts again (new cameras snap on their first frame).
+    this.extraViews.length = 0;
     this.markChanged();
   }
 
@@ -245,31 +328,29 @@ export class World {
     }
     this.syncSkins(state);
     this.aiDebug?.sync(state);
-    const followed = this.karts.kart(followId);
     const kart = state.karts[followId];
+    // Split-screen (MK-145): 2–4 local players in the chase view get a view each.
+    const viewKarts = view === 'chase' ? (this.options.views?.() ?? []) : [];
+    const split = viewKarts.length > 1;
+    this.viewKarts = split ? viewKarts : [];
+    this.setSteppedDown(split && viewKarts.length >= STEP_DOWN_FROM_VIEWS);
     this.applyOverview(view === 'overview');
+    // Paused: the cameras hold still (shake and FOV kick freeze too).
+    const seconds = game.paused ? 0 : frameSeconds;
     if (view === 'lineup') {
       this.lineup.update(game.paused ? 0 : frameSeconds);
-    } else if (followed && kart && view === 'chase') {
-      const speedRatio = Math.abs(kart.speed) / tuning.topSpeed[state.engineClass];
-      // Paused: the camera holds still (shake and FOV kick freeze too).
-      const seconds = game.paused ? 0 : frameSeconds;
-      // Gliding (MK-106): pull back as the glider opens, in again as it folds.
-      this.chaseCamera.pullBack = this.karts.gliderOpenness(followId);
-      // Mesh tracks (MK-99): follow the kart's own up, onto walls and ceilings.
-      if (kart.up && this.karts.frame(followId, this.followedFrame))
-        this.chaseCamera.followSurface(
-          followed,
-          this.followedFrame,
-          speedRatio,
-          seconds,
-          snapCamera,
-          this.cameraClip,
-        );
-      else this.chaseCamera.update(followed, speedRatio, seconds, 0, snapCamera);
+    } else if (split) {
+      viewKarts.forEach((kartId, i) => {
+        const extra = i === 0 ? undefined : this.extraView(i - 1);
+        this.followKart(extra?.chase ?? this.chaseCamera, kartId, seconds, snapCamera);
+        if (extra) this.fitRange(extra.camera);
+      });
+    } else if (view === 'chase') {
+      this.followKart(this.chaseCamera, followId, seconds, snapCamera);
     }
     const followedSpeed = kart ? Math.abs(kart.speed) / tuning.topSpeed[state.engineClass] : 0;
-    this.effects.update(state, followId, followedSpeed, view);
+    // One screen-wide speed-lines overlay: not over several views.
+    this.effects.update(state, followId, followedSpeed, split ? 'split' : view);
     this.nameTags.sync(
       state,
       followId,
@@ -278,12 +359,135 @@ export class World {
       this.options.playerColour ?? (() => DEFAULT_TAG_COLOUR),
       view === 'chase',
     );
+    this.layOutViews(split ? viewKarts : []);
     const route = this.track.def.kind === 'mesh' ? this.track.def.route : undefined;
     this.underwater.sync(state, route, simTime, (id) => this.karts.body(id), this.camera);
     this.onUpdate(frameSeconds);
     const look = this.track.look;
     look?.update?.({ state, ticks, followId, camera: this.camera, paused: game.paused });
-    if (draw && !look?.render?.()) this.renderer.render(this.scene, this.camera);
+    if (!draw) return;
+    if (split) this.drawSplit(state);
+    else if (!look?.render?.()) this.renderer.render(this.scene, this.camera);
+  }
+
+  /** Moves `chase` (and so its camera) behind kart `kartId` for this frame. */
+  private followKart(chase: ChaseCamera, kartId: number, seconds: number, snap: boolean): void {
+    const state = this.game.state;
+    const followed = this.karts.kart(kartId);
+    const kart = state.karts[kartId];
+    if (!followed || !kart) return;
+    const speedRatio = Math.abs(kart.speed) / tuning.topSpeed[state.engineClass];
+    // Gliding (MK-106): pull back as the glider opens, in again as it folds.
+    chase.pullBack = this.karts.gliderOpenness(kartId);
+    // Mesh tracks (MK-99): follow the kart's own up, onto walls and ceilings.
+    if (kart.up && this.karts.frame(kartId, this.followedFrame))
+      chase.followSurface(followed, this.followedFrame, speedRatio, seconds, snap, this.cameraClip);
+    else chase.update(followed, speedRatio, seconds, 0, snap);
+  }
+
+  /** P2–P4's view `index` (0 = P2), made on first use. */
+  private extraView(index: number): ExtraView {
+    let extra = this.extraViews[index];
+    if (!extra) {
+      const camera = new THREE.PerspectiveCamera(this.camera.fov, 1, CAMERA_NEAR, CAMERA_FAR);
+      const chase = new ChaseCamera(camera);
+      chase.reducedMotion = this.options.reducedMotion;
+      extra = { camera, chase };
+      this.extraViews[index] = extra;
+    }
+    return extra;
+  }
+
+  /** A split view's clip planes: the track's chase range, as P1's camera (MK-145). */
+  private fitRange(camera: THREE.PerspectiveCamera): void {
+    const { near, far } = chaseCameraRange(this.track.def);
+    if (camera.far === far && camera.near === near) return;
+    camera.far = far;
+    camera.near = near;
+    camera.updateProjectionMatrix();
+  }
+
+  /** Steps quality down for 3–4 views and back up after (MK-145). */
+  private setSteppedDown(on: boolean): void {
+    if (on === this.steppedDown) return;
+    this.steppedDown = on;
+    this.applyQuality();
+  }
+
+  /**
+   * The split views for `viewKarts` (MK-145), for the HUD and tests; none with one view. Leaving
+   * split-screen puts P1's camera back on the whole canvas.
+   */
+  private layOutViews(viewKarts: readonly number[]): void {
+    if (viewKarts.length < 2) {
+      if (this.playerViews.length > 0) this.fitCamera(this.camera, { x: 0, y: 0, w: 1, h: 1 });
+      this.playerViews = [];
+      this.overview = undefined;
+      return;
+    }
+    const { views, overview } = splitViews(
+      viewKarts.length,
+      this.options.splitLayout?.() ?? 'stacked',
+    );
+    this.playerViews = views.map((rect, slot) => ({ slot, kartId: viewKarts[slot] ?? -1, rect }));
+    this.overview = overview;
+  }
+
+  /** Sets `camera`'s aspect to `rect`'s on the canvas. */
+  private fitCamera(camera: THREE.PerspectiveCamera, rect: ViewRect): void {
+    const { x: width, y: height } = this.renderer.getSize(this.canvasSize);
+    const aspect = (rect.w * width) / Math.max(1, rect.h * height);
+    if (Math.abs(camera.aspect - aspect) < 1e-6) return;
+    camera.aspect = aspect;
+    camera.updateProjectionMatrix();
+  }
+
+  /**
+   * Draws each player's view into its part of the canvas (MK-145), and the 3-player split's
+   * overview quadrant. Renderer stats add up over the views. MK8 courses' own looks (post-
+   * processing) are left out: MK8 split-screen is its own ticket (MK-148).
+   */
+  private drawSplit(state: SimState): void {
+    const renderer = this.renderer;
+    const { x: width, y: height } = renderer.getSize(this.canvasSize);
+    const overview = this.overview;
+    renderer.info.autoReset = false;
+    renderer.info.reset();
+    renderer.setScissorTest(true);
+    const colour = this.options.playerColour ?? (() => DEFAULT_TAG_COLOUR);
+    const drawInto = (rect: ViewRect, camera: THREE.PerspectiveCamera) => {
+      const px = pixelRect(rect, width, height);
+      renderer.setViewport(px.x, px.y, px.w, px.h);
+      renderer.setScissor(px.x, px.y, px.w, px.h);
+      renderer.render(this.scene, camera);
+    };
+    for (const { slot, kartId, rect } of this.playerViews) {
+      const camera = slot === 0 ? this.camera : this.extraView(slot - 1).camera;
+      this.fitCamera(camera, rect);
+      const models = (id: number) => this.karts.kart(id);
+      this.nameTags.sync(state, kartId, models, camera, colour, true);
+      // A very wide view draws with a narrower vertical FOV; the chase camera keeps its own.
+      const fov = camera.fov;
+      camera.fov = viewFov(fov, camera.aspect);
+      camera.updateProjectionMatrix();
+      drawInto(rect, camera);
+      camera.fov = fov;
+      camera.updateProjectionMatrix();
+    }
+    if (overview) {
+      this.overviewCam ??= new THREE.PerspectiveCamera(this.camera.fov, 1, CAMERA_NEAR, CAMERA_FAR);
+      const camera = this.overviewCam;
+      this.fitCamera(camera, overview);
+      overviewCamera(camera, this.track.def);
+      this.nameTags.sync(state, -1, () => undefined, camera, colour, false);
+      const fog = this.scene.fog;
+      this.scene.fog = null;
+      drawInto(overview, camera);
+      this.scene.fog = fog;
+    }
+    renderer.setScissorTest(false);
+    renderer.setViewport(0, 0, width, height);
+    renderer.info.autoReset = true;
   }
 
   /** Makes a renderer for each item renderer class not made yet (MK8 items register later). */
@@ -362,6 +566,13 @@ export class World {
       gliders: this.game.state.karts.map((_, i) => this.karts.gliderOpenness(i)),
       underwater: this.underwater.cameraUnder,
       propellers: this.underwater.propellersShown(),
+      views: this.playerViews.map(({ slot, kartId, rect }) => {
+        const camera = slot === 0 ? this.camera : this.extraView(slot - 1).camera;
+        const { x, y, z } = camera.position;
+        return { slot, kartId, rect, camera: { x, y, z, aspect: camera.aspect } };
+      }),
+      steppedDown: this.steppedDown,
+      pixelRatio: this.renderer.getPixelRatio(),
     };
   }
 

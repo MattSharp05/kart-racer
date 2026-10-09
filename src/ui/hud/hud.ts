@@ -21,6 +21,17 @@ function div(className: string): HTMLDivElement {
   return el;
 }
 
+/**
+ * Where a split-screen player's HUD sits (MK-145): its view's rect (fractions of the screen from
+ * the top left), the player's label ("P2") and slot colour. `compact` for quarter views.
+ */
+export interface HudView {
+  rect: { x: number; y: number; w: number; h: number };
+  label: string;
+  colour: string;
+  compact: boolean;
+}
+
 /** The icons the roulette cycles: the race's item set's (MK-103), once it is registered. */
 function rouletteItems(state: SimState): ItemId[] {
   return state.itemSet !== undefined && itemSets.has(state.itemSet)
@@ -54,6 +65,12 @@ export class Hud {
   private readonly minimap = new Minimap();
   private readonly screenFlash = div('hud-flash');
   private readonly screenEffects = new ScreenEffects();
+  /** The player's label on a split-screen view (MK-145). */
+  private readonly player = div('hud-player');
+  /** Coins (MK-109 tracks) on a split-screen view (MK-145). */
+  private readonly coins = div('hud-coins');
+  /** The split-screen view this HUD draws in (MK-145); null = the whole screen. */
+  private view: HudView | null = null;
   private centreUntil = 0;
   /**
    * Set while an online race waits for its players to connect (MK-73), e.g. "Connecting to Sam…":
@@ -62,15 +79,23 @@ export class Hud {
   waiting: string | null = null;
   private readonly shown = new Map<HTMLElement, string>();
 
-  constructor() {
+  /**
+   * `primary` is the screen's own HUD (P1's): only it shows the online waiting line and hands the
+   * race to another HUD skin (MK-127). Split-screen views of P2–P4 (MK-145) aren't primary.
+   */
+  constructor(private readonly primary = true) {
     this.timer.append(this.timerMain, this.lastLap);
     this.wrongWay.textContent = 'WRONG WAY';
     this.incoming.hidden = true;
     this.item2.hidden = true;
+    this.player.hidden = true;
+    this.coins.hidden = true;
     // Outside the kart HUD: a client has no kart until the host's Start arrives.
     this.waitingLine.hidden = true;
-    document.body.append(this.waitingLine);
+    if (primary) document.body.append(this.waitingLine);
     this.root.append(
+      this.player,
+      this.coins,
       this.lap,
       this.timer,
       this.item,
@@ -87,9 +112,52 @@ export class Hud {
     document.body.append(this.root);
   }
 
+  /**
+   * Puts this HUD in a split-screen view (MK-145), labelled with its player, or back on the whole
+   * screen (`null`).
+   */
+  setView(view: HudView | null): void {
+    const same =
+      view === this.view ||
+      (view !== null &&
+        this.view !== null &&
+        view.label === this.view.label &&
+        view.colour === this.view.colour &&
+        view.compact === this.view.compact &&
+        sameRect(view.rect, this.view.rect));
+    if (same) return;
+    this.view = view;
+    const style = this.root.style;
+    this.root.classList.toggle('hud-view', view !== null);
+    this.root.classList.toggle('hud-compact', view?.compact === true);
+    this.show(this.player, view !== null);
+    if (!view) {
+      style.removeProperty('left');
+      style.removeProperty('top');
+      style.removeProperty('width');
+      style.removeProperty('height');
+      style.removeProperty('--player-colour');
+      delete this.root.dataset.player;
+      return;
+    }
+    const percent = (fraction: number) => `${(fraction * 100).toFixed(3)}%`;
+    style.left = percent(view.rect.x);
+    style.top = percent(view.rect.y);
+    style.width = percent(view.rect.w);
+    style.height = percent(view.rect.h);
+    style.setProperty('--player-colour', view.colour);
+    this.root.dataset.player = view.label;
+    this.player.textContent = view.label;
+  }
+
+  /** Hides this HUD (a split-screen view no player uses now, MK-145). */
+  hide(): void {
+    this.show(this.root, false);
+  }
+
   /** Big centre messages come from sim events (countdown numbers, GO, FINISH) for kart `kartId`. */
   onEvents(events: SimEvent[], state: SimState, kartId: number, now: number): void {
-    const skin = hudSkin();
+    const skin = this.primary ? hudSkin() : undefined;
     if (skin?.owns(state)) skin.onEvents(events, state, kartId, now);
     for (const event of events) {
       if (event.type === 'countdown') this.flash(String(event.value), now, 1000);
@@ -135,7 +203,7 @@ export class Hud {
     const racing = state.phase !== 'free';
     const hidden = !kart || state.trackId === 'test-pad' || menuOpen;
     // Another HUD's race (MK-127: MK8 Mode's): it draws the race; ours keeps its effects and warnings.
-    const skin = hudSkin();
+    const skin = this.primary ? hudSkin() : undefined;
     const skinned = skin?.owns(state) === true;
     skin?.update(state, kartId, now, skinned && !hidden);
     if (hidden) {
@@ -188,6 +256,10 @@ export class Hud {
     this.updateItem(kart.item, now, roulette);
     this.updateSecondSlot(kart.item.second, now, roulette);
     this.updateIncoming(state, kart.id);
+    // Split views show coins where the track has them (MK-145; MK8 Mode's own HUD shows them alone).
+    const coins = this.view !== null && kart.coins !== undefined;
+    this.show(this.coins, coins);
+    if (coins) this.set(this.coins, `<span class="hud-coin"></span>${kart.coins ?? 0}`);
     this.minimap.update(state, kart.id);
     this.screenEffects.update(kart, now);
   }
@@ -258,4 +330,8 @@ export class Hud {
     this.centre.classList.add('pop');
     this.centreUntil = now + ms;
   }
+}
+
+function sameRect(a: HudView['rect'], b: HudView['rect']): boolean {
+  return a.x === b.x && a.y === b.y && a.w === b.w && a.h === b.h;
 }

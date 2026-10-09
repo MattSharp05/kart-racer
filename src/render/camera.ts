@@ -180,14 +180,16 @@ export class ChaseCamera {
 
   /** Shake and the speed/boost FOV (both camera modes). */
   private juice(dt: number, speedRatio: number): void {
-    if (this.shake > 0.001) {
+    // Paused (dt 0): no shake step; adding the same offset again every still frame would drift the
+    // camera away from its kart (MK-145: bumped split-screen karts on a paused frame).
+    if (this.shake > 0.001 && dt > 0) {
       this.shakeTime += dt;
       const s = this.shake;
       this.camera.position.x += Math.sin(this.shakeTime * 71) * s;
       this.camera.position.y += Math.sin(this.shakeTime * 53 + 1) * s * 0.6;
       this.camera.position.z += Math.cos(this.shakeTime * 67) * s;
       this.shake *= Math.exp(-SHAKE_DECAY * dt);
-    } else this.shake = 0;
+    } else if (this.shake <= 0.001) this.shake = 0;
     this.fovKick *= Math.exp(-FOV_KICK_DECAY * dt);
     const fov = BASE_FOV + MAX_EXTRA_FOV * Math.min(1, Math.max(0, speedRatio)) + this.fovKick;
     if (Math.abs(this.camera.fov - fov) > 0.01) {

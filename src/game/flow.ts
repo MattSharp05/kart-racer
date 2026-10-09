@@ -1,14 +1,16 @@
 import { SoundManager } from '../audio/soundManager';
 import { gameRacers } from '../content/racers';
 import { tracks } from '../content/tracks';
-import type { World } from '../render/world';
+import { isSplitLayout, type SplitLayout } from '../render/viewports';
+import type { PlayerView, World } from '../render/world';
 import { attractMode, sunnyLineup } from '../scenarios/menus';
 import type { ScenarioView } from '../scenarios/registry';
 import { isKartId, KART_IDS, type KartId } from '../sim/data/karts';
 import { createRace } from '../sim/race/createRace';
 import type { EngineClass } from '../sim/tuning';
 import type { SimEvent, SimState } from '../sim/types';
-import { Hud } from '../ui/hud/hud';
+import { Hud, type HudView } from '../ui/hud/hud';
+import { OverviewPanel } from '../ui/hud/overviewPanel';
 import { RotatePrompt } from '../ui/rotatePrompt';
 import { Router } from '../ui/router';
 import '../ui/screens/ccSelect';
@@ -44,7 +46,7 @@ import { onlineResultLines, recordFinish, recordLines, resultLines } from './res
 import { RoomFlow, type RoomService } from './roomFlow';
 import { DEFAULT_SEED, localKartOf, type Launch, type RaceSession } from './session';
 import { readPrefs, writePrefs } from './storage/prefs';
-import { MAX_PLAYERS, playerLabel } from '../input/slots';
+import { MAX_PLAYERS, playerLabel, playerSlotColour } from '../input/slots';
 import { getRecord, type RecordUpdate } from './storage/records';
 import { hasSeenHowToPlay, markHowToPlaySeen } from './storage/settings';
 import type { KeyValueStore } from './storage/store';
@@ -97,6 +99,10 @@ export function dropMessage(name: string | undefined): string {
 export class Flow {
   // Created in the same order as before MK-35, so the DOM overlays stack the same way.
   private readonly hud = new Hud();
+  /** Split-screen (MK-145): P2–P4's HUDs, by slot − 1, made the first time they're needed. */
+  private readonly viewHuds: Hud[] = [];
+  /** The 3-player split's overview quadrant HUD (MK-145), made the first time it's needed. */
+  private overviewPanel: OverviewPanel | undefined;
   private readonly screens = new Router();
   private readonly sound: SoundManager;
   private readonly soundControl: SoundControl;
@@ -152,6 +158,8 @@ export class Flow {
     this.chosenCc = ENGINE_CLASSES.find((cc) => cc === prefs.engineClass) ?? 100;
     const players = Math.round(prefs.players ?? 1);
     this.chosenPlayers = players >= 1 && players <= MAX_PLAYERS ? players : 1;
+    // Two players' split (MK-145): stacked unless they chose side by side.
+    if (isSplitLayout(prefs.split)) session.splitLayout = prefs.split;
     // A different racer each by default: the ones after P1's in the roster.
     this.otherKarts = Array.from({ length: MAX_PLAYERS - 1 }, (_, i) => {
       const saved = prefs.otherKarts?.[i];
@@ -241,11 +249,12 @@ export class Flow {
 
     world.onUpdate = () => {
       const menu = this.screens.current;
-      this.hud.update(game.state, session.localKartId, performance.now(), menu !== 'none');
+      this.updateHuds(menu !== 'none');
       this.sound.update(game.state, {
         menu: menu !== 'none' && menu !== 'paused',
         paused: game.paused,
         followId: world.followId,
+        players: session.slotKarts,
       });
       session.controls.touch.setActive(menu === 'none' && !this.rotatePrompt.shown);
       // A menu over a running online race: the kart coasts rather than steering with menu keys.
@@ -255,6 +264,50 @@ export class Flow {
       if (pausedBy >= 0 && menu === 'none' && !this.pauseButton.hidden) this.pauseRace(pausedBy);
       this.watchOnlineRace();
     };
+  }
+
+  /**
+   * The HUDs for this frame: one on the whole screen for the local kart, or one per split-screen
+   * view (MK-145), each in its view, labelled with its player.
+   */
+  private updateHuds(menuOpen: boolean): void {
+    const state = this.session.game.state;
+    const now = performance.now();
+    const views = this.world.views();
+    const overview = this.world.overviewRect();
+    if (overview && !menuOpen) {
+      this.overviewPanel ??= new OverviewPanel();
+      const players = views.map((view) => ({
+        kartId: view.kartId,
+        label: playerLabel(view.slot),
+        colour: playerSlotColour(view.slot),
+        spot: this.world.overviewSpot(view.kartId),
+      }));
+      this.overviewPanel.update(state, overview, players);
+    } else this.overviewPanel?.update(state, null, []);
+    if (views.length < 2) {
+      this.hud.setView(null);
+      this.hud.update(state, this.session.localKartId, now, menuOpen);
+      for (const hud of this.viewHuds) hud.hide();
+      return;
+    }
+    for (const view of views) {
+      const hud = this.hudOf(view.slot);
+      hud.setView(hudView(view, views.length));
+      hud.update(state, view.kartId, now, menuOpen);
+    }
+    this.viewHuds.slice(views.length - 1).forEach((hud) => hud.hide());
+  }
+
+  /** Player `slot`'s HUD: the screen's own for P1, else a split view's (made on first use). */
+  private hudOf(slot: number): Hud {
+    if (slot === 0) return this.hud;
+    let hud = this.viewHuds[slot - 1];
+    if (!hud) {
+      hud = new Hud(false);
+      this.viewHuds[slot - 1] = hud;
+    }
+    return hud;
   }
 
   /** Opens the pause menu if a race is running (Esc; a phone controller dropping, MK-146). */
@@ -535,6 +588,15 @@ export class Flow {
                 this.pickRacer(0);
               },
             },
+            split: {
+              layout: this.session.splitLayout,
+              onChange: (layout: SplitLayout) => {
+                if (layout === this.session.splitLayout) return;
+                this.session.splitLayout = layout;
+                this.savePrefs();
+                this.pickRacer(0);
+              },
+            },
           }
         : {}),
     });
@@ -579,6 +641,7 @@ export class Flow {
       track: this.chosenTrack,
       players: this.chosenPlayers,
       otherKarts: this.otherKarts,
+      split: this.session.splitLayout,
     });
   }
 
@@ -964,10 +1027,15 @@ export class Flow {
 
   private onEvents(events: SimEvent[], state: SimState): void {
     const followId = this.world.followId;
-    this.sound.onEvents(events, state, followId);
-    this.world.effects.onEvents(events, followId);
+    this.sound.onEvents(events, state, followId, this.session.slotKarts);
+    this.world.effects.onEvents(events);
     const me = this.session.localKartId;
-    this.hud.onEvents(events, state, me, performance.now());
+    const views = this.world.views();
+    const now = performance.now();
+    if (views.length > 1) {
+      // Split-screen (MK-145): each view's banners (FINAL LAP, FINISH) are its own player's.
+      for (const view of views) this.hudOf(view.slot).onEvents(events, state, view.kartId, now);
+    } else this.hud.onEvents(events, state, me, now);
     if (this.session.players > 1) {
       // Local multiplayer (MK-144): the results once every player has finished (the race's end).
       if (events.some((e) => e.type === 'phaseChanged' && e.phase === 'finished')) {
@@ -982,4 +1050,14 @@ export class Flow {
       this.resultsTimer = window.setTimeout(this.showResults, RESULTS_DELAY_MS);
     }
   }
+}
+
+/** A split-screen view's HUD placement (MK-145): its rect, player label and colour. */
+function hudView(view: PlayerView, views: number): HudView {
+  return {
+    rect: view.rect,
+    label: playerLabel(view.slot),
+    colour: playerSlotColour(view.slot),
+    compact: views > 2,
+  };
 }

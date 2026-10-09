@@ -13,6 +13,8 @@ export interface Prefs {
   players?: number;
   /** P2–P4's last racers (MK-144). */
   otherKarts?: string[];
+  /** Two players' split-screen (MK-145): `stacked` (default) or `side` by side. */
+  split?: string;
 }
 
 export const PREFS_KEY = 'kart-racer:prefs';

@@ -17,17 +17,25 @@
   gap: 0.5rem 1rem;
 }
 
-.menu-racerSelect .players-option {
+.menu-racerSelect .players-option,
+.menu-racerSelect .split-option {
   display: flex;
   align-items: center;
   gap: 0.35rem;
 }
 
-.menu-racerSelect .players-option button {
+.menu-racerSelect .players-option button,
+.menu-racerSelect .split-option button {
   padding-inline: 0.6rem;
 }
 
-.menu-racerSelect .players-option button.selected {
+.menu-racerSelect .players-option button.selected,
+.menu-racerSelect .split-option button.selected {
   outline: 2px solid currentcolor;
   font-weight: 700;
+}
+
+/* The 2-player split (MK-145): picture buttons. */
+.menu-racerSelect .split-option button svg {
+  display: block;
 }

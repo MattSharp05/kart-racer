@@ -86,6 +86,20 @@ export interface RenderInfo {
   underwater?: boolean;
   /** Each kart's propeller is showing (in the water), by kart id (MK-107). */
   propellers?: boolean[];
+  /**
+   * Split-screen (MK-145): each player's view, P1 first (empty with one view): the kart it
+   * follows, its rect (fractions of the canvas from the top left) and its camera's position.
+   */
+  views?: {
+    slot: number;
+    kartId: number;
+    rect: { x: number; y: number; w: number; h: number };
+    camera: { x: number; y: number; z: number; aspect: number };
+  }[];
+  /** 3–4 views: quality stepped down (MK-145). */
+  steppedDown?: boolean;
+  /** The canvas's pixel ratio now (adaptive quality, MK-145's step-down). */
+  pixelRatio?: number;
 }
 
 declare global {
