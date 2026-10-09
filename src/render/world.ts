@@ -14,6 +14,7 @@ import { HazardRenderer } from './hazards';
 import { CoinRenderer } from './coins';
 import { ItemBoxRenderer } from './itemBoxes';
 import { skinOf } from './itemSkins';
+import { drawnGroundFor } from './drawnGround';
 import { KartRenderer, type DrawnFrame, type KartPoseFilter } from './karts';
 import { NameTags } from './nameTags';
 import { AdaptiveQuality } from './quality';
@@ -137,6 +138,7 @@ export class World {
     this.followId = options.follow;
     this.lineup = new LineupCamera(this.camera);
     this.karts = new KartRenderer(this.scene);
+    this.karts.setDrawnGround(drawnGroundFor(options.track));
     this.karts.headlights = trackTheme(options.track).night ?? false;
     this.chaseCamera = new ChaseCamera(this.camera);
     // Juice (MK-27). Shake and FOV kick respect reduced motion (OS setting or &reduced-motion=1).
@@ -334,6 +336,7 @@ export class World {
     }
     if (this.scene.background instanceof THREE.Texture) this.scene.background.dispose();
     this.buildTrack(def);
+    this.karts.setDrawnGround(drawnGroundFor(def));
     // The old track's fog, if the overview put it away, isn't this track's to restore (MK-91).
     this.hiddenFog = undefined;
     this.karts.headlights = trackTheme(def).night ?? false;
