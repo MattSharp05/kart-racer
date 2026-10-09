@@ -50,8 +50,13 @@ test.describe('phone controllers', () => {
     expect(url.pathname).toBe('/remote');
     expect(Object.fromEntries(url.searchParams)).toEqual({ room: code, slot: '3', net: 'local' });
     await expect(page.locator('.add-controllers-code')).toContainText(code);
+    // A modal: Tab stays on Done, arrows don't reach the title underneath.
+    const done = page.locator('.add-controllers-done');
+    await page.keyboard.press('Tab');
+    await page.keyboard.press('ArrowDown');
+    await expect(done).toBeFocused();
     // Done goes back to the title.
-    await page.locator('.add-controllers-done').click();
+    await done.click();
     await expect(page.locator('.add-controllers')).toHaveCount(0);
     await expect(page.locator('.menu-title')).toBeVisible();
   });

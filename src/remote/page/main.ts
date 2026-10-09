@@ -1,3 +1,4 @@
+import { REMOTE } from '../config';
 import { RemoteController } from '../controller';
 import { remoteLinks } from '../links';
 import { parseRemoteParams } from '../url';
@@ -9,8 +10,8 @@ import { createRemoteView } from './view';
  * `REMOTE.inputHz` times a second. Reconnecting is reloading the page (or rescanning the code).
  */
 
-/** How often the page runs the controller, ms (it sends inputs at its own 60 Hz). */
-const TICK_MS = 4;
+/** How often the page runs the controller, ms: once per input packet. */
+const TICK_MS = 1000 / REMOTE.inputHz;
 
 const root = document.querySelector<HTMLElement>('#remote');
 if (!root) throw new Error('Missing #remote');

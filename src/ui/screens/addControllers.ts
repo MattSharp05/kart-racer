@@ -12,13 +12,13 @@ import './addControllers.css';
  * A panel over whatever is showing rather than a router screen, so it can open over any of them.
  */
 
-/** How often the round-trip times refresh while the panel is open, ms. */
-const REFRESH_MS = 500;
+/** Hosts a phone can't reach: the desktop must be opened by its LAN address for the codes to work. */
+const LOOPBACK_HOSTS = ['localhost', '127.0.0.1', '[::1]'];
 
-let open: { root: HTMLElement; close: () => void } | null = null;
+let open: HTMLElement | null = null;
 
 export function showAddControllers(hub: RemoteHub, origin: string, net: RemoteNet): void {
-  if (open?.root.isConnected) return;
+  if (open?.isConnected) return;
   const root = document.createElement('div');
   root.className = 'add-controllers';
   root.setAttribute('role', 'dialog');
@@ -36,6 +36,11 @@ export function showAddControllers(hub: RemoteHub, origin: string, net: RemoteNe
   const error = document.createElement('p');
   error.className = 'add-controllers-error';
   error.hidden = true;
+  const loopback = document.createElement('p');
+  loopback.className = 'add-controllers-error add-controllers-loopback';
+  loopback.hidden = !LOOPBACK_HOSTS.includes(new URL(origin).hostname);
+  loopback.textContent =
+    "Phones can't open localhost: open this page by the computer's network address to pair one.";
   const list = document.createElement('ol');
   list.className = 'add-controllers-slots';
   const cards = hub
@@ -46,14 +51,13 @@ export function showAddControllers(hub: RemoteHub, origin: string, net: RemoteNe
   code.className = 'add-controllers-code';
   code.textContent = `Pairing code ${hub.code}`;
   const close = () => {
-    clearInterval(timer);
     stopWatching();
     root.remove();
     window.removeEventListener('keydown', onKey, true);
     open = null;
   };
   const done = button('Done', close, 'primary add-controllers-done');
-  panel.append(title, help, error, list, code, done);
+  panel.append(title, help, error, loopback, list, code, done);
   root.append(panel);
   document.body.append(root);
 
@@ -63,23 +67,22 @@ export function showAddControllers(hub: RemoteHub, origin: string, net: RemoteNe
     hub.info().forEach((info, i) => cards[i]?.update(info));
   };
   const stopWatching = hub.onChange(refresh);
-  const timer = setInterval(refresh, REFRESH_MS);
-  // Esc closes the panel and goes no further (not to the pause menu or title underneath).
+  // A modal: keys go no further than the panel (not to the pause menu or title underneath), Tab
+  // stays on Done, and Esc or Enter closes it. Space presses the focused Done button itself.
   const onKey = (e: KeyboardEvent) => {
-    if (e.key !== 'Escape' && e.key !== 'Enter') return;
     e.stopImmediatePropagation();
-    e.preventDefault();
-    close();
+    if (e.key === 'Tab') {
+      e.preventDefault();
+      done.focus();
+    } else if (e.key === 'Escape' || e.key === 'Enter') {
+      e.preventDefault();
+      close();
+    }
   };
   window.addEventListener('keydown', onKey, true);
   refresh();
   done.focus();
-  open = { root, close };
-}
-
-/** Closes the panel if it's open. */
-export function closeAddControllers(): void {
-  open?.close();
+  open = root;
 }
 
 function slotCard(info: SlotInfo, url: string) {

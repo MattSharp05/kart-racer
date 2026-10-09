@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { qrPath } from './qr';
-import { parseRemoteParams, remoteUrl } from './url';
+import { newPairingCode, parseRemoteParams, remoteUrl } from './url';
 
 describe('remote URL (MK-146)', () => {
   it('points at /remote on the given origin, slot 1-based', () => {
@@ -39,5 +39,12 @@ describe('qrPath', () => {
     // Top-left finder pattern: its outer ring starts at the border.
     expect(d.startsWith('M2 2h1v1h-1z')).toBe(true);
     expect(d).not.toContain('M0 0');
+  });
+});
+
+describe('newPairingCode', () => {
+  it('is 8 room-code characters', () => {
+    const code = newPairingCode();
+    expect(code).toMatch(/^[A-HJ-NP-Z2-9]{8}$/);
   });
 });

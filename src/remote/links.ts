@@ -14,7 +14,7 @@ import { supabaseRoomBackend } from '../net/roomBackendSupabase';
  */
 export interface RemoteNet {
   local: boolean;
-  links?: 'webrtc' | 'blocked';
+  links?: 'webrtc';
   relay?: RelayMode;
 }
 

@@ -1,7 +1,8 @@
 import { NEUTRAL_INPUT, type InputFrame } from '../sim/types';
 import { showToast } from '../ui/toast';
 import { RemoteHub, type SlotInfo } from './hub';
-import { remoteLinks, type RemoteNet } from './links';
+import { REMOTE } from './config';
+import { remoteLinks, type RemoteLinks, type RemoteNet } from './links';
 import { isPairingCode, newPairingCode } from './url';
 
 /**
@@ -10,6 +11,12 @@ import { isPairingCode, newPairingCode } from './url';
  * split-screen (MK-144) binds slots to players, the phone in slot 1 drives player 1
  * (`remoteInput(0)`, merged into `PlayerInput`).
  */
+
+/**
+ * Slots whose phone drives a player today: slot 1 → player 1. A drop in another slot doesn't
+ * pause the race until split-screen (MK-144) gives those phones a kart.
+ */
+const DRIVING_SLOTS = 1;
 
 export interface RemoteSetup extends RemoteNet {
   /** The page's query string: `&pair=<code>` fixes the pairing code (tests, QA links). */
@@ -35,11 +42,27 @@ export function remoteHub(): RemoteHub {
   const created = new RemoteHub(code);
   hub = created;
   const net = remoteNetOf(current);
-  remoteLinks(code, `desktop-${Math.random().toString(36).slice(2, 10)}`, net).then(
-    ({ links }) => created.listen(links),
-    () => created.markUnavailable(),
-  );
+  const peerId = `desktop-${Math.random().toString(36).slice(2, 10)}`;
+  let previous: RemoteLinks | null = null;
+  const link = () =>
+    remoteLinks(code, peerId, net).then(
+      (next) => {
+        created.listen(next.links);
+        previous?.close();
+        previous = next;
+      },
+      // A renewal that fails keeps the links it has; only a first failure means no pairing.
+      () => {
+        if (!previous) created.markUnavailable();
+      },
+    );
+  void link();
+  setInterval(() => void link(), REMOTE.relinkEveryMs);
   created.onDrop((slot) => {
+    if (slot >= DRIVING_SLOTS) {
+      showToast(`Player ${slot + 1}'s phone disconnected.`);
+      return;
+    }
     current.pause();
     showToast(`Player ${slot + 1}'s phone disconnected. Scan its code to reconnect.`);
     void openAddControllers();

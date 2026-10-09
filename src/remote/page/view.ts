@@ -58,6 +58,14 @@ export function createRemoteView(root: HTMLElement, onReconnect: () => void): Re
   root.append(header, pad, debug);
   // No long-press menus, text selection or double-tap zoom while holding buttons.
   root.addEventListener('contextmenu', (e) => e.preventDefault());
+  // A touch the system took (Control Center, a notification, the app switcher) may never send its
+  // pointerup: let go of everything rather than drive on by itself.
+  const releaseAll = () => {
+    for (const pointers of held.values()) pointers.clear();
+    for (const el of pad.querySelectorAll('.held')) el.classList.remove('held');
+  };
+  window.addEventListener('blur', releaseAll);
+  document.addEventListener('visibilitychange', releaseAll);
 
   const down = (id: Control) => (held.get(id)?.size ?? 0) > 0;
   return {
@@ -114,5 +122,6 @@ function controlButton(
   el.addEventListener('pointerdown', press);
   el.addEventListener('pointerup', release);
   el.addEventListener('pointercancel', release);
+  el.addEventListener('lostpointercapture', release);
   return el;
 }

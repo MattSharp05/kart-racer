@@ -112,7 +112,7 @@ flow.open(launch);
 installRemotes({
   search: window.location.search,
   local: launch.localRooms,
-  ...(params.links ? { links: params.links } : {}),
+  ...(params.links === 'webrtc' ? { links: params.links } : {}),
   ...(params.relay ? { relay: params.relay } : {}),
   pause: () => flow.pauseIfRacing(),
 });

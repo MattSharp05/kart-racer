@@ -1,4 +1,4 @@
-import { isRoomCode, randomRoomCode } from '../net/room';
+import { randomRoomCode } from '../net/room';
 import type { RelayMode } from '../net/iceConfig';
 import { REMOTE } from './config';
 import type { RemoteNet } from './links';
@@ -40,19 +40,27 @@ export function parseRemoteParams(search: string): RemoteParams | null {
     slot,
     net: {
       local: params.get('net') === 'local',
-      ...(links === 'webrtc' || links === 'blocked' ? { links } : {}),
+      ...(links === 'webrtc' ? { links } : {}),
       ...(relay === 'force' || relay === 'auto' ? { relay: relay as RelayMode } : {}),
     },
     netdebug: ['1', 'true'].includes(params.get('netdebug') ?? ''),
   };
 }
 
-/** A pairing code: a room code (4 characters, no look-alikes), or a longer test code. */
+/** A pairing code: room-code characters (no look-alikes), or a test code (`&pair=`). */
 export function isPairingCode(text: string): boolean {
-  return isRoomCode(text) || /^[A-Z0-9-]{4,24}$/.test(text);
+  return /^[A-Z0-9-]{4,24}$/.test(text);
 }
 
+/**
+ * Characters in a pairing code. Nobody types it (the QR code carries it), so it's long enough that
+ * two desktops never draw the same one and nobody guesses another's (32⁸ ≈ 10¹²).
+ */
+const PAIRING_CODE_LENGTH = 8;
+
 /** A fresh pairing code. */
-export function newPairingCode(): string {
-  return randomRoomCode();
+export function newPairingCode(random: () => number = Math.random): string {
+  let code = '';
+  while (code.length < PAIRING_CODE_LENGTH) code += randomRoomCode(random);
+  return code.slice(0, PAIRING_CODE_LENGTH);
 }

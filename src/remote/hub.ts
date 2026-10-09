@@ -70,8 +70,12 @@ export class RemoteHub {
     }));
   }
 
-  /** Starts taking phones on `links`, checking the slots every `REMOTE.watchEveryMs`. */
+  /**
+   * Starts taking phones on `links`, checking the slots every `REMOTE.watchEveryMs`. Listening on
+   * new links stops taking phones on the old ones (phones already linked stay).
+   */
   listen(links: RaceLinks): void {
+    this.stopAccepting?.();
     this.stopAccepting = links.host((transport, clientId) => this.accept(transport, clientId));
     this.timer ??= setInterval(() => this.tick(), REMOTE.watchEveryMs);
   }
@@ -143,23 +147,6 @@ export class RemoteHub {
     });
   }
 
-  /** Stops taking phones and lets every link go. */
-  close(): void {
-    this.stopAccepting?.();
-    this.stopAccepting = null;
-    if (this.timer) clearInterval(this.timer);
-    this.timer = null;
-    for (const link of this.pending) link.transport.close();
-    this.pending.clear();
-    for (const s of this.slots) {
-      if (s.link) this.send(s.link, { type: 'bye' });
-      s.link?.transport.close();
-      s.link = null;
-    }
-    this.changeListeners.clear();
-    this.dropListeners.clear();
-  }
-
   private receive(link: Link, message: RemoteMessage): void {
     const now = this.now();
     const seated = link.slot === null ? undefined : this.slots[link.slot];
@@ -174,6 +161,7 @@ export class RemoteHub {
       else slot.stale += 1;
     } else if (message.type === 'pong') {
       slot.rtt.pong(message.time, now);
+      this.changed();
     } else if (message.type === 'bye') {
       this.drop(link.slot);
     }

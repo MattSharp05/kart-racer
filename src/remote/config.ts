@@ -22,4 +22,9 @@ export const REMOTE = {
   connectTimeoutMs: 25_000,
   /** How often the desktop checks its slots for silence, ms. */
   watchEveryMs: 200,
+  /**
+   * The desktop renews its pairing links this often, ms (3 h), so phones that pair hours later get
+   * fresh TURN credentials (`/api/turn` hands out 4-hour ones, ADR 0008). Paired phones stay.
+   */
+  relinkEveryMs: 3 * 60 * 60 * 1000,
 } as const;
