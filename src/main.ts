@@ -19,6 +19,7 @@ import { mk8CourseLoad } from './scenarios/mk8/lib/courses';
 import { getTrack } from './sim/track';
 import { tuning } from './sim/tuning';
 import { NetDebugOverlay } from './ui/netDebug';
+import { installRemotes, openAddControllers } from './remote/desktop';
 import { restoreSteering } from './ui/settings/controlsSteering';
 import { PerfOverlay, poseLine } from './ui/perfOverlay';
 
@@ -107,6 +108,15 @@ if (launch.online) {
 }
 
 flow.open(launch);
+// Phone controllers (MK-146): paired from the Add Controllers panel; a dropped phone pauses the race.
+installRemotes({
+  search: window.location.search,
+  local: launch.localRooms,
+  ...(params.links ? { links: params.links } : {}),
+  ...(params.relay ? { relay: params.relay } : {}),
+  pause: () => flow.pauseIfRacing(),
+});
+if (params.scenario && scenarios.get(params.scenario)?.addControllers) void openAddControllers();
 // `&paused=1` wins over menu screens that start the sim (kart select, title): tests and QA links
 // get a still frame.
 if (params.paused) game.pause();

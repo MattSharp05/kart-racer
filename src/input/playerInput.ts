@@ -1,3 +1,4 @@
+import { remoteInput } from '../remote/desktop';
 import { NEUTRAL_INPUT, type InputFrame } from '../sim/types';
 import { KeyboardInput } from './keyboard';
 import { mergeInputs } from './merge';
@@ -12,6 +13,7 @@ export class PlayerInput {
   read(): InputFrame {
     // Tilt steers only while the touch controls do (not in menus, not on a keyboard).
     const tilted = this.touch.live ? { ...NEUTRAL_INPUT, steer: tilt.steer() } : NEUTRAL_INPUT;
-    return mergeInputs(this.keyboard.read(), this.touch.read(), tilted);
+    // A paired phone (MK-146) drives player 1 until split-screen binds phones to players (MK-144).
+    return mergeInputs(this.keyboard.read(), this.touch.read(), tilted, remoteInput(0));
   }
 }

@@ -70,6 +70,8 @@ export interface Scenario {
    * the test ramp's track id). `main.ts` registers that course before the scenario is set up.
    */
   mk8Course?: string;
+  /** Phone controllers (MK-146): open the Add Controllers panel over the scenario at boot. */
+  addControllers?: boolean;
 }
 
 export class ScenarioRegistry {
