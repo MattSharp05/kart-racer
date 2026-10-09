@@ -38,7 +38,9 @@ export function showAddControllers(hub: RemoteHub, origin: string, net: RemoteNe
   error.hidden = true;
   const list = document.createElement('ol');
   list.className = 'add-controllers-slots';
-  const cards = hub.info().map((info) => slotCard(info, remoteUrl(origin, hub.code, info.slot, net)));
+  const cards = hub
+    .info()
+    .map((info) => slotCard(info, remoteUrl(origin, hub.code, info.slot, net)));
   list.append(...cards.map((card) => card.el));
   const code = document.createElement('p');
   code.className = 'add-controllers-code';
