@@ -14,6 +14,7 @@ import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.j
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { STANDARD_PARTS, mk8Body, mk8Glider, mk8Tires } from '../content/parts';
 import type { Mk8RacerView } from '../content/racers/view';
+import { rootGeometry } from './courseBatch';
 import { Mk8Kart, bodyModelPath, tireModelPath } from './kartAssembly';
 import { trickRoll, type MotionState } from './motion';
 import { seatRacer, type SeatReport } from './seatPose';
@@ -282,11 +283,9 @@ export function mergeStaticMeshes(root: THREE.Object3D): void {
   });
   for (const [material, meshes] of byMaterial) {
     if (meshes.length < 2) continue;
-    const geometries = meshes.map((mesh) => {
-      const g = mesh.geometry.clone();
-      g.applyMatrix4(inverse.clone().multiply(mesh.matrixWorld));
-      return g;
-    });
+    // Positions as floats: the pack's are quantized (normalized int16, scaled back by the node), and
+    // baking the node's scale into int16 wrapped them round (MK-101 round 4, as MK-123 found).
+    const geometries = meshes.map((mesh) => rootGeometry(mesh, inverse));
     const merged = mergeGeometries(geometries);
     for (const g of geometries) g.dispose();
     if (!merged) continue;
