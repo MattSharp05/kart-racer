@@ -30,10 +30,29 @@ function hereOn(geometry: RouteGeometry, kart: KartState): number {
  * like flat road), radians, positive to the right.
  */
 function aimAngle(kart: KartState, target: Vec3): number {
+  if (kart.glide !== undefined) return levelAimAngle(kart, target);
   const up = kart.up ?? { x: 0, y: 1, z: 0 };
   const forward = kart.forward ?? { x: 0, y: 0, z: -1 };
   const to = sub(target, kart.position);
   return Math.atan2(dot(to, rightOf(forward, up)), dot(to, forward));
+}
+
+/**
+ * The angle to `target` seen from above, radians, positive to the right: on the glider, which
+ * turns about world up (`sim/glide.ts`). In the kart's own plane a target far below a diving kart
+ * reads as off to the side (MK-128 revisit: Stadium's glide at 3× scale, where the AI turned off
+ * the road onto a ledge).
+ */
+function levelAimAngle(kart: KartState, target: Vec3): number {
+  const forward = kart.forward ?? { x: 0, y: 0, z: -1 };
+  const fx = forward.x;
+  const fz = forward.z;
+  const length = Math.hypot(fx, fz);
+  if (length < 1e-6) return 0;
+  const tx = target.x - kart.position.x;
+  const tz = target.z - kart.position.z;
+  // Right of a level facing (fx, fz) is (−fz, fx) with +Y up: heading 0 faces −Z, right is +X.
+  return Math.atan2((tx * -fz + tz * fx) / length, (tx * fx + tz * fz) / length);
 }
 
 /** Steering towards `target` in the kart's plane: +1 full right, −1 full left. */
@@ -165,7 +184,23 @@ function meshAimPoint(
     offset = meshTacticOffset(kart, ai, state, geometry, geometry.project(kart.position, hint));
   }
   const lateral = rampLine ?? geometry.racingLineAt(s + lookAhead) + ai.lineOffset + offset;
-  return aimPoint(geometry, s, lookAhead, lateral);
+  let point = aimPoint(geometry, s, lookAhead, lateral);
+  // On the glider high over a route that drops away (Stadium's glide at 3× scale) the nearest
+  // route point lags behind, and so can the look-ahead: look on until it's ahead (MK-128).
+  for (let more = 1; kart.glide !== undefined && more <= GLIDE_LOOK_ON; more += 1) {
+    if (levelAhead(kart, point) > 0) break;
+    point = aimPoint(geometry, s, lookAhead * (1 + more), lateral);
+  }
+  return point;
+}
+
+/** Gliding, the look-ahead is stretched by itself at most this many times to get in front. */
+const GLIDE_LOOK_ON = 8;
+
+/** How far in front of the kart `target` is, seen from above (along its level facing), m. */
+function levelAhead(kart: KartState, target: Vec3): number {
+  const forward = kart.forward ?? { x: 0, y: 0, z: -1 };
+  return (target.x - kart.position.x) * forward.x + (target.z - kart.position.z) * forward.z;
 }
 
 /** The point an AI kart on a mesh track is steering at right now (the `?ai-debug=1` overlay). */
@@ -246,7 +281,9 @@ export function meshAutopilotInput(
   if (backing) return backing;
   const speed = Math.max(0, kart.speed);
   const lookAhead = tuning.ai.lookAheadBase + speed * tuning.ai.lookAheadPerSpeed;
-  const steer = steerTowards(kart, aimPoint(geometry, s, lookAhead, 0), tuning.ai.steerGain);
+  // On the route's racing line (MK-128: round Water Park's start-line post), as the AI drives it.
+  const line = geometry.racingLineAt(s + lookAhead);
+  const steer = steerTowards(kart, aimPoint(geometry, s, lookAhead, line), tuning.ai.steerGain);
   const physics = kartPhysics(kart.kartType, engineClass, kart.loadout);
   const drive = pedals(
     geometry,

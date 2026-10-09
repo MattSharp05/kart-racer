@@ -122,3 +122,17 @@ describe('mesh AI driver (MK-105)', () => {
     expect(meshAutopilotInput(kart, track(), 150).brake).toBe(0);
   });
 });
+
+describe('the route autopilot (MK-128)', () => {
+  it('drives the route’s racing line (round Water Park’s start-line post), like the AI', () => {
+    const kart = kartAt(tOnA(20), 20);
+    const route = track().route;
+    const onLine = {
+      ...track(),
+      route: { ...route, points: route.points.map((p) => ({ ...p, racingLine: 4 })) },
+    };
+    expect(meshAutopilotInput(kart, track(), 150).steer).toBeCloseTo(0, 1);
+    // A line 4 m right of the centreline: it steers right, onto it.
+    expect(meshAutopilotInput(kart, onLine, 150).steer).toBeGreaterThan(0.1);
+  });
+});
