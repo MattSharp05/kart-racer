@@ -9,13 +9,13 @@ import {
   MK8_BODIES,
   MK8_GLIDERS,
   MK8_TIRES,
+  resolveLoadout,
   type Mk8Part,
   type PartKind,
 } from '../../content/parts';
 import { MK8_RACERS } from '../../content/racers';
 import { loadoutStats, type Mk8Stat } from '../../content/stats';
 import { playerLabel } from '../../../input/slots';
-import { resolveLoadout } from '../../content/parts';
 import {
   flowPlayers,
   nextPicker,

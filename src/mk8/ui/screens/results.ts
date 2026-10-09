@@ -87,7 +87,7 @@ export function resultsScreen(options: ResultsOptions): Mk8ScreenFactory {
       if (row.player) {
         line.dataset.player = row.player;
         const badge = cell('span', 'mk8-res-player', row.player);
-        badge.style.background = playerSlotColour(Number(row.player.slice(1)) - 1);
+        badge.style.background = playerSlotColour(row.playerSlot ?? 0);
         name.prepend(badge);
       }
       const time = cell('span', 'mk8-res-time', row.time !== undefined ? formatTime(row.time) : '');

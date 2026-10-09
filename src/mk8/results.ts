@@ -22,8 +22,10 @@ export interface Mk8ResultRow {
   name: string;
   /** The local player's row (yellow); every local player's in local multiplayer (MK-148). */
   you: boolean;
-  /** Which local player the row is (MK-148: "P2"), in a race with several. */
+  /** Which local player the row is (MK-148: "P2"), in a race with several… */
   player?: string;
+  /** …and their slot (0 = P1), for their colour. */
+  playerSlot?: number;
   /** Race time, s; absent for a kart still racing. */
   time?: number;
 }
@@ -45,7 +47,7 @@ export function mk8ResultRows(state: SimState, local: number | readonly number[]
       racer,
       name: kart?.name ?? known,
       you: slot >= 0,
-      ...(slot >= 0 && players.length > 1 ? { player: playerLabel(slot) } : {}),
+      ...(slot >= 0 && players.length > 1 ? { player: playerLabel(slot), playerSlot: slot } : {}),
       ...(row.time !== undefined ? { time: row.time } : {}),
     };
   });

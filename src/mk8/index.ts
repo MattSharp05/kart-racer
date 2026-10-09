@@ -121,7 +121,7 @@ installMk8Hud({
     await loadFontsIfThere();
     return packSprites(files);
   },
-  play: (id) => audioPlayer().play(id),
+  play: (id, volume) => audioPlayer().play(id, volume),
   expose: (hud) => (window.__mk8 = { sounds: [], ...window.__mk8, hud }),
 });
 

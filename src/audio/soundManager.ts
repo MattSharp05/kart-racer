@@ -16,7 +16,7 @@ const AI_ENGINE_RANGE = 40;
  * Split-screen (MK-145): the other local players' own sounds (item, boost, hit…) play this much
  * quieter than P1's, who is the listener; their engines take the nearby-engine voices first.
  */
-const OTHER_PLAYER_VOLUME = 0.6;
+export const OTHER_PLAYER_VOLUME = 0.6;
 const OTHER_PLAYER_ENGINE_VOLUME = 0.05;
 /** Loudness of the rumble right next to a rolling snowball (MK-59). */
 const RUMBLE_VOLUME = 0.5;

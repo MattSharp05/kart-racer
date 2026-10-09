@@ -22,7 +22,10 @@ function localRace(players: number) {
     courseRace(track, seed, true, OTHER_RACERS.slice(0, players - 1));
 }
 
-/** P2… as fake controllers on the autopilot (P1 is this device's keyboard). */
+/**
+ * Fake controllers on the autopilot by slot, as MK-144's scenarios make them: slot 0's is unused
+ * (P1 is this device's keyboard), P2… drive themselves.
+ */
 function fakePlayers(players: number): FakePlayer[] {
   return Array.from({ length: players }, () => ({ autopilot: true }));
 }
