@@ -1,7 +1,7 @@
 import { addCoins } from './coins';
 import type { KartId } from './data/karts';
 import { forwardFromHeading, orthonormal, scale, vec3 } from './math';
-import { routeGeometry } from './route';
+import { routeGroundPoint } from './routeGround';
 import { seedRng } from './rng';
 import type { EngineClass } from './tuning';
 import { getTrack, trackGeometry } from './track';
@@ -131,11 +131,11 @@ export function createSimState({
 function itemBoxesFor(trackId: string): SimState['entities'] {
   const track = getTrack(trackId);
   if (track.kind === 'arena') return [];
-  // Mesh tracks (MK-105): the route's rows, on the road surface.
+  // Mesh tracks (MK-105): the route's rows, laid on the ground under them (MK-143).
   const pointAt =
     track.kind === 'spline'
       ? (t: number, lateral: number) => trackGeometry(track).pointAt(t, lateral)
-      : (t: number, lateral: number) => routeGeometry(track.route).frameAt(t, lateral).position;
+      : (t: number, lateral: number) => routeGroundPoint(track.route, track.collision, t, lateral);
   const rows = (track.kind === 'spline' ? track.itemBoxRows : track.route.itemBoxRows) ?? [];
   let id = 0;
   return rows.flatMap((row) =>

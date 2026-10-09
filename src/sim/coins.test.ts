@@ -4,8 +4,11 @@ import { registerTestRamp } from '../mk8/content/courses/test-ramp/register';
 import { testRampRoute } from '../mk8/content/courses/test-ramp/route';
 import { coinLineTs, routeCoins, updateCoins } from './coins';
 import { kartTopSpeed } from './kart';
+import { WORLD_UP } from './math';
+import { groundAt } from './meshTrack';
 import { createSimState, type KartSpawn } from './state';
 import { step } from './step';
+import { getTrack } from './track';
 import { DT, tuning } from './tuning';
 import { NEUTRAL_INPUT, type InputFrame, type SimEvent, type SimState } from './types';
 
@@ -75,7 +78,16 @@ describe('coin layout', () => {
   it('puts the test ramp’s coins on its coin lines, every kart at 0 coins', () => {
     const state = onRamp([onA(0), onA(-10)]);
     expect(state.coins).toHaveLength(10);
-    expect(state.coins).toEqual(routeCoins(testRampRoute));
+    const track = getTrack(TEST_RAMP_ID);
+    if (track.kind !== 'mesh') throw new Error('not a mesh track');
+    // On the ground (MK-143): the route's spots dropped onto the collision surface.
+    expect(state.coins).toEqual(routeCoins(testRampRoute, track.collision));
+    state.coins?.forEach((coin, k) => {
+      const spot = routeCoins(testRampRoute)[k]?.position;
+      if (!spot) throw new Error('no spot');
+      expect(Math.hypot(coin.position.x - spot.x, coin.position.z - spot.z)).toBeLessThan(0.05);
+      expect(groundAt(track.collision, coin.position, WORLD_UP)?.height).toBeCloseTo(0, 4);
+    });
     const first = state.coins?.slice(0, 5).map((c) => c.position);
     first?.forEach((p, k) => {
       expect(Math.abs(p.x - (18 + 2 * k))).toBeLessThan(0.2);

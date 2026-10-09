@@ -3,6 +3,7 @@ import { trackViews } from '../content/tracks/render';
 import { trackGeometry, type TrackDef } from '../sim/track';
 import { CAMERA_FAR, CAMERA_NEAR } from './scene';
 import { createBumperViews } from './bumpers';
+import { setDrawnModel } from './drawnGround';
 import { createCollisionMeshView } from './meshTrackView';
 import { createScenery } from './scenery';
 import { applyTheme, createNightLamps, trackTheme } from './theme';
@@ -25,6 +26,8 @@ export function createTrackView(scene: THREE.Scene, track: TrackDef): TrackViewU
     const view = trackViews.has(track.id) ? trackViews.get(track.id) : undefined;
     const model = view?.model?.();
     scene.add(model ?? createCollisionMeshView(track.collision));
+    // Karts sit on the road as it's drawn (MK-105 QA: `drawnGround.ts`).
+    if (model) setDrawnModel(track, model);
     // Boost bumpers (MK-108) on courses drawn from their collision mesh.
     if (!model) scene.add(createBumperViews(track.route.zones));
     return undefined;

@@ -19,7 +19,9 @@ import {
 } from './math';
 import { kartTopSpeed } from './kart';
 import { routeGeometry, type CoinLine, type RouteDef } from './route';
+import type { CollisionMesh } from './meshCollision';
 import { isRespawning } from './respawn';
+import { routeGroundPoint } from './routeGround';
 import { tuning } from './tuning';
 import type { CoinEntity, KartState, SimEvent, SimState } from './types';
 
@@ -35,14 +37,19 @@ export function coinLineTs(line: CoinLine): number[] {
   });
 }
 
-/** The coins a route's coin lines lay out, on its centreline frame (ids from 0). */
-export function routeCoins(route: RouteDef): CoinEntity[] {
+/**
+ * The coins a route's coin lines lay out (ids from 0): on its centreline frame, or with the track's
+ * `collision`, on the ground there (MK-143).
+ */
+export function routeCoins(route: RouteDef, collision?: CollisionMesh): CoinEntity[] {
   const geometry = routeGeometry(route);
   let id = 0;
   return route.coinLines.flatMap((line) =>
     coinLineTs(line).map((t) => ({
       id: id++,
-      position: geometry.frameAt(t, line.lateral).position,
+      position: collision
+        ? routeGroundPoint(route, collision, t, line.lateral)
+        : geometry.frameAt(t, line.lateral).position,
       respawnTimer: 0,
     })),
   );
@@ -56,7 +63,7 @@ export function addCoins(state: SimState): SimState {
   if (!tracks.has(state.trackId)) return state;
   const track = tracks.get(state.trackId).def;
   if (track.kind !== 'mesh' || track.route.coinLines.length === 0) return state;
-  state.coins = routeCoins(track.route);
+  state.coins = routeCoins(track.route, track.collision);
   for (const kart of state.karts) kart.coins = 0;
   return state;
 }
