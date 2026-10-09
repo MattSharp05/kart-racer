@@ -2,6 +2,7 @@ import { basicScenarios } from './basics';
 import { drivingScenarios } from './driving';
 import { itemScenarios } from './items';
 import { leaderboardScenarios } from './leaderboard';
+import { localScenarios } from './local';
 import { menuScenarios } from './menus';
 import { mk8Scenarios } from './mk8';
 import { onlineScenarios } from './online';
@@ -26,6 +27,7 @@ scenarios.register(
   ...trackSelectScenarios,
   ...leaderboardScenarios,
   ...onlineScenarios,
+  ...localScenarios,
   ...mk8Scenarios,
   ...Object.values(trackFolderScenarios).flat(),
   ...Object.values(itemFolderScenarios).flat(),

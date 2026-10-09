@@ -9,6 +9,10 @@ export interface Prefs {
   track?: string;
   /** MK8 Mode's last racer and kart parts (MK-102; read through `mk8/loadoutPrefs.ts`). */
   mk8Loadout?: Partial<Loadout>;
+  /** People racing on this screen (MK-144), 1–4. */
+  players?: number;
+  /** P2–P4's last racers (MK-144). */
+  otherKarts?: string[];
 }
 
 export const PREFS_KEY = 'kart-racer:prefs';

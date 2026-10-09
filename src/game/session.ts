@@ -1,11 +1,13 @@
 import { items } from '../content/items';
 import { PlayerInput } from '../input/playerInput';
+import { MAX_PLAYERS, PlayerSlots } from '../input/slots';
+import { inputSourceProviders, TestSource, type InputSource } from '../input/sources';
 import type { Mk8Start } from '../mk8';
 import { scenarios } from '../scenarios';
 import { attractMode } from '../scenarios/menus';
 import { isOnlineScenario } from '../scenarios/online';
 import { sunnyRace } from '../scenarios/race';
-import type { MenuScreen, OnlineScenario, ScenarioView } from '../scenarios/registry';
+import type { FakePlayer, MenuScreen, OnlineScenario, ScenarioView } from '../scenarios/registry';
 import { isKartId, KART_IDS, type KartId } from '../sim/data/karts';
 import type { EngineClass } from '../sim/tuning';
 import { createRace, type RacerSlot } from '../sim/race/createRace';
@@ -33,6 +35,10 @@ export interface Launch {
   mk8Start?: Mk8Start;
   /** The kart this device drives (MK-38). */
   localKartId: number;
+  /** People racing on this screen (MK-144): the scenario's `players`, else 1. */
+  players?: number;
+  /** Controllers the scenario binds to its player slots (MK-144: fake players), by slot. */
+  slotSources?: InputSource[];
   /** The scenario's saved data (MK-44), layered over the real store for this page load. */
   storage?: Record<string, string>;
   /** An online scenario (MK-46): host or join its race over `?net=local`. */
@@ -51,6 +57,17 @@ export const NO_LOCAL_KART = -1;
 /** The kart this device drives in `state`: the first `local` one. */
 export function localKartOf(state: SimState): number {
   return state.karts.find((kart) => kart.controller === 'local')?.id ?? NO_LOCAL_KART;
+}
+
+/**
+ * The karts the local players drive (MK-144), by player slot: the first `players` `local` karts in
+ * kart order (P1 is the first, as `localKartOf`).
+ */
+export function slotKartsOf(state: SimState, players: number): number[] {
+  return state.karts
+    .filter((kart) => kart.controller === 'local')
+    .slice(0, Math.max(1, Math.min(players, MAX_PLAYERS)))
+    .map((kart) => kart.id);
 }
 
 /** Resolves the starting state from the URL (`?scenario=`, `&seed=`, `&item=`, `&kart=`). */
@@ -87,6 +104,8 @@ function initialState(params: LaunchParams): Launch {
       return {
         state: setup.state,
         scenario: scenario.name,
+        ...(setup.players ? { players: setup.players } : {}),
+        ...(setup.fakePlayers ? { slotSources: setup.fakePlayers.map(fakeSource) } : {}),
         view: setup.view ?? 'chase',
         follow: setup.follow ?? localKartId,
         localKartId,
@@ -119,6 +138,13 @@ function initialState(params: LaunchParams): Launch {
     ...(params.room ? { lobby: lobbyLaunch('client', params.room) } : {}),
     localRooms: params.net === 'local',
   };
+}
+
+/** A scenario's fake controller (MK-144) as a test input source. */
+function fakeSource({ autopilot = false, pause = false }: FakePlayer): InputSource {
+  const source = new TestSource({ autopilot, label: 'Test' });
+  if (pause) source.pressPause();
+  return source;
 }
 
 /** A room from the URL; codes are upper case (links typed by hand may not be). */
@@ -179,6 +205,11 @@ export interface RaceConfig {
   playerLoadout?: Loadout;
   /** Every kart and its grid slot (MK-130: an MK8 Grand Prix's field); random AI otherwise. */
   racers?: readonly RacerSlot[];
+  /**
+   * The other local players' racers (MK-144): P2, P3, P4 drive these on this screen, the AI fills
+   * the rest of the 8-kart grid.
+   */
+  otherPlayers?: readonly KartId[];
 }
 
 /**
@@ -200,21 +231,75 @@ export class RaceSession {
    * keeps running (MK-55): the kart coasts instead of taking menu key presses as steering.
    */
   inputEnabled = true;
+  /**
+   * The local players' controllers (MK-144). Slot 0 (P1) is this device's keyboard and touch
+   * controls; P2–P4 get a paired phone (MK-146) or the "Auto" stand-in when a race starts.
+   */
+  readonly slots = new PlayerSlots();
+  /** People racing on this screen (MK-144): 1 except in local multiplayer races. */
+  players = 1;
+  /** Each local player's kart, by slot (P1 first); online, just this device's kart. */
+  slotKarts: number[] = [];
+  /** Each slot's input from the last tick, by slot. */
+  private slotInputs: InputFrame[] = [];
 
-  constructor(initial: SimState) {
+  constructor(initial: SimState, players = 1, slotSources: readonly InputSource[] = []) {
     this.localKartId = localKartOf(initial);
+    const controls: InputSource = {
+      kind: 'controls',
+      label: 'Keyboard',
+      read: () => this.controls.read(),
+    };
+    this.slots.bind(0, controls);
+    slotSources.forEach((source, slot) => {
+      if (slot > 0) this.slots.bind(slot, source);
+    });
     this.game = new Game(initial, () => {
-      const input = this.controls.read();
-      this.playerInput = this.inputEnabled ? input : NEUTRAL_INPUT;
+      this.slotInputs = this.slotKarts.map((_, slot) => {
+        const input = this.slots.source(slot)?.read() ?? NEUTRAL_INPUT;
+        return this.inputEnabled ? input : NEUTRAL_INPUT;
+      });
+      this.playerInput = this.slotInputs[0] ?? NEUTRAL_INPUT;
       return this.inputs();
     });
+    this.setPlayers(initial, players);
   }
 
-  /** Live inputs indexed by kart id: the local controls on the local kart, nothing for the rest. */
+  /**
+   * Live inputs indexed by kart id: each local player's controls on their kart (P1's on the local
+   * kart), nothing for the rest.
+   */
   inputs(): InputFrame[] {
     const inputs: InputFrame[] = [];
     if (this.localKartId !== NO_LOCAL_KART) inputs[this.localKartId] = this.playerInput;
+    this.slotKarts.forEach((kartId, slot) => {
+      if (slot > 0) inputs[kartId] = this.slotInputs[slot] ?? NEUTRAL_INPUT;
+    });
     return inputs;
+  }
+
+  /** The kart player slot `slot` drives, or `NO_LOCAL_KART`. */
+  slotKart(slot: number): number {
+    return this.slotKarts[slot] ?? NO_LOCAL_KART;
+  }
+
+  /** The first player slot whose controller asked to pause since the last call, else -1. */
+  takePause(): number {
+    return this.slots.takePause(this.slotKarts.length);
+  }
+
+  /**
+   * Maps the local players to `state`'s `local` karts and gives each slot a controller. A
+   * stand-in's kart drives itself (the autopilot), so a race with no phones yet still runs.
+   */
+  private setPlayers(state: SimState, players: number): void {
+    this.slotKarts = this.localKartId === NO_LOCAL_KART ? [] : slotKartsOf(state, players);
+    this.players = Math.max(1, this.slotKarts.length);
+    this.slotInputs = [];
+    if (this.players > 1) this.slots.fill(this.players, inputSourceProviders);
+    this.slotKarts.forEach((kartId, slot) => {
+      if (slot > 0 && this.slots.source(slot)?.autopilot) this.game.setAutopilot(kartId, true);
+    });
   }
 
   /**
@@ -225,18 +310,26 @@ export class RaceSession {
     this.leaveOnline();
     const online = new OnlineRace(launch, (kartId) => {
       this.localKartId = kartId;
+      this.slotKarts = [kartId];
       onLocalKart(kartId);
     });
     this.online = online;
     this.localKartId = online.localKartId;
+    // Online races have one player per device (couch players online are out of scope, MK-144).
+    this.slotKarts = this.localKartId === NO_LOCAL_KART ? [] : [this.localKartId];
+    this.players = 1;
     this.game.stepper = online.stepper;
   }
 
-  /** Swaps in a new state (menu background, race). The caller resumes the sim. */
-  load(state: SimState): void {
+  /**
+   * Swaps in a new state (menu background, race) with `players` people racing on this screen
+   * (MK-144). The caller resumes the sim.
+   */
+  load(state: SimState, players = 1): void {
     this.leaveOnline();
     this.localKartId = localKartOf(state);
     this.game.reset(state);
+    this.setPlayers(state, players);
   }
 
   /** Starts a fresh race: the player plus the AI field. */
@@ -247,6 +340,7 @@ export class RaceSession {
       this.load(createRace(itemSet !== undefined ? { ...opts, itemSet } : opts));
       return;
     }
+    const others = config.otherPlayers?.slice(0, MAX_PLAYERS - 1) ?? [];
     this.load(
       sunnyRace(config.seed, {
         karts: 1 + AI_RACERS,
@@ -256,7 +350,9 @@ export class RaceSession {
         trackId: config.trackId,
         ...(config.itemSet !== undefined ? { itemSet: config.itemSet } : {}),
         ...(config.playerLoadout ? { playerLoadout: config.playerLoadout } : {}),
+        ...(others.length ? { otherPlayers: others } : {}),
       }),
+      1 + others.length,
     );
   }
 

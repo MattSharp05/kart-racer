@@ -32,6 +32,11 @@ export interface RaceOptions {
   itemSet?: string;
   /** The player's MK8 kart parts (MK-102). */
   playerLoadout?: Loadout;
+  /**
+   * Local multiplayer (MK-144): P2–P4's racers. They are `local` karts 1, 2, 3 (after the player),
+   * on the back of the grid next to the player.
+   */
+  otherPlayers?: readonly KartId[];
 }
 
 /**
@@ -49,22 +54,32 @@ export function sunnyRace(seed: number, options: RaceOptions | number = {}): Sim
     trackId = sunnyCircuit.id,
     itemSet,
     playerLoadout,
+    otherPlayers = [],
   } = typeof options === 'number' ? { karts: options } : options;
   const rng = raceSetupRng(seed);
+  const humans = Math.min(1 + otherPlayers.length, karts);
   const playerSlot = ai && karts >= 5 ? rngInt(rng, 4, Math.min(7, karts - 1)) : 0;
-  const otherSlots = Array.from({ length: karts }, (_, i) => i).filter((i) => i !== playerSlot);
+  // With several people (MK-144) they take the back of the grid together, P1 first.
+  const humanSlots =
+    humans > 1 ? Array.from({ length: humans }, (_, i) => karts - humans + i) : [playerSlot];
+  const otherSlots = Array.from({ length: karts }, (_, i) => i).filter(
+    (i) => !humanSlots.includes(i),
+  );
   const racers = Array.from({ length: karts }, (_, i): RacerSlot => {
     if (i === 0)
       return {
         kartId: playerKart,
         controller: 'local',
-        gridSlot: playerSlot,
+        gridSlot: humanSlots[0] ?? playerSlot,
         ...(playerLoadout ? { loadout: playerLoadout } : {}),
       };
+    const other = otherPlayers[i - 1];
+    if (i < humans && other)
+      return { kartId: other, controller: 'local', gridSlot: humanSlots[i] ?? i };
     return {
       kartId: ai ? rngPick(rng, KART_IDS) : (KART_IDS[i % KART_IDS.length] ?? 'maple'),
       controller: ai ? 'ai' : 'remote',
-      gridSlot: otherSlots[i - 1] ?? i,
+      gridSlot: otherSlots[i - humans] ?? i,
     };
   });
   return createRace({
@@ -146,7 +161,7 @@ function atCountdown(state: SimState, ticksToGo: number): SimState {
 }
 
 /** Puts the race mid-way: GO happened `secondsAgo` ago. */
-function racingSince(state: SimState, secondsAgo: number): SimState {
+export function racingSince(state: SimState, secondsAgo: number): SimState {
   state.phase = 'racing';
   state.race.goTick = -Math.round(secondsAgo / DT);
   state.race.countdownStartTick = state.race.goTick - COUNTDOWN_TICKS;

@@ -25,6 +25,13 @@ export interface GameTestApi {
    */
   step(ticks: number, options?: { render?: boolean }): TestState;
   setInput(kartId: number, frame: Partial<InputFrame> | null): void;
+  /**
+   * Local multiplayer (MK-144): forces player slot `slot`'s input (0 = P1) on its kart, taking it
+   * off the autopilot, until cleared with `null`. False if no kart is in that slot.
+   */
+  setSlotInput(slot: number, frame: Partial<InputFrame> | null): boolean;
+  /** Presses player slot `slot`'s pause button, if its controller is a test one (MK-144). */
+  pressPause(slot: number): boolean;
   /** Let the centreline autopilot drive a kart (spline tracks). */
   setAutopilot(kartId: number, enabled: boolean): void;
   events(): SimEvent[];
@@ -39,8 +46,18 @@ export interface GameTestApi {
   loadState?(name: string, seed?: number): boolean;
 }
 
-/** `SimState` plus the session's local kart (not part of the sim). */
-export type TestState = SimState & { localKartId: number };
+/**
+ * `SimState` plus the session's local kart and, by player slot, the local players' karts (MK-144;
+ * not part of the sim).
+ */
+export type TestState = SimState & { localKartId: number; slotKarts: number[] };
+
+/** The session's player slots, as the test API sees them (MK-144). */
+export interface SlotHooks {
+  slotKarts(): number[];
+  /** Presses `slot`'s pause button; false unless its source is a test one. */
+  pressPause(slot: number): boolean;
+}
 
 /** Renderer stats and camera juice state (MK-27) for tests. */
 export interface RenderInfo {
@@ -99,10 +116,12 @@ export function installTestApi(
   localKartId: () => number,
   net: () => NetInfo | null = () => null,
   loadState: (name: string, seed?: number) => boolean = () => false,
+  slots: SlotHooks = { slotKarts: () => [localKartId()], pressPause: () => false },
 ): GameTestApi {
   const snapshot = (): TestState => ({
     ...structuredClone(game.state),
     localKartId: localKartId(),
+    slotKarts: slots.slotKarts(),
   });
   const api: GameTestApi = {
     ready: true,
@@ -121,6 +140,14 @@ export function installTestApi(
     },
     setInput: (kartId, frame) =>
       game.setInputOverride(kartId, frame ? { ...NEUTRAL_INPUT, ...frame } : null),
+    setSlotInput: (slot, frame) => {
+      const kartId = slots.slotKarts()[slot];
+      if (kartId === undefined) return false;
+      if (frame) game.setAutopilot(kartId, false);
+      game.setInputOverride(kartId, frame ? { ...NEUTRAL_INPUT, ...frame } : null);
+      return true;
+    },
+    pressPause: (slot) => slots.pressPause(slot),
     setAutopilot: (kartId, enabled) => game.setAutopilot(kartId, enabled),
     events: () => game.drainEvents(),
     renderInfo,
