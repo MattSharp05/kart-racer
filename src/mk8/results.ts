@@ -2,6 +2,7 @@
 // sim's finishing order, MK8's Grand Prix points and the standings they make, and the choices the
 // screen offers after a race in each mode. Pure (no DOM), so it is unit tested on plain states.
 import { racers } from '../content/racers';
+import { playerLabel } from '../input/slots';
 import { raceResults } from '../sim/raceFlow';
 import type { SimState } from '../sim/types';
 import { MK8_CUPS, type Mk8Course } from './content/cups';
@@ -19,15 +20,22 @@ export interface Mk8ResultRow {
   /** The kart's racer id (`mk8-mario`, or one of ours standing in). */
   racer: string;
   name: string;
-  /** The local player's row (yellow). */
+  /** The local player's row (yellow); every local player's in local multiplayer (MK-148). */
   you: boolean;
+  /** Which local player the row is (MK-148: "P2"), in a race with several. */
+  player?: string;
   /** Race time, s; absent for a kart still racing. */
   time?: number;
 }
 
-/** The results' rows in the sim's finishing order (`state.positions`), leader first. */
-export function mk8ResultRows(state: SimState, localKartId: number): Mk8ResultRow[] {
+/**
+ * The results' rows in the sim's finishing order (`state.positions`), leader first. `local` is the
+ * local player's kart, or (MK-148) every local player's by slot, P1 first.
+ */
+export function mk8ResultRows(state: SimState, local: number | readonly number[]): Mk8ResultRow[] {
+  const players = typeof local === 'number' ? [local] : local;
   return raceResults(state).map((row) => {
+    const slot = players.indexOf(row.kartId);
     const kart = state.karts[row.kartId];
     const racer = kart?.kartType ?? '';
     const known = racers.has(racer) ? racers.get(racer).name : racer;
@@ -36,7 +44,8 @@ export function mk8ResultRows(state: SimState, localKartId: number): Mk8ResultRo
       position: row.position,
       racer,
       name: kart?.name ?? known,
-      you: row.kartId === localKartId,
+      you: slot >= 0,
+      ...(slot >= 0 && players.length > 1 ? { player: playerLabel(slot) } : {}),
       ...(row.time !== undefined ? { time: row.time } : {}),
     };
   });

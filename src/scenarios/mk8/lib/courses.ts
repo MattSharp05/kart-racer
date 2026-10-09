@@ -53,12 +53,21 @@ export function onCourse(
   };
 }
 
-/** A 150cc race with MK8's items from the countdown: you + 7 AI, you starting 5th–8th (seeded). */
-export function courseRace(track: MeshTrackDef, seed: number, items = true): SimState {
+/**
+ * A 150cc race with MK8's items from the countdown: you + 7 AI, you starting 5th–8th (seeded).
+ * `others` (MK-148): P2–P4's MK8 racers, local players too, the AI filling the rest.
+ */
+export function courseRace(
+  track: MeshTrackDef,
+  seed: number,
+  items = true,
+  others: readonly string[] = [],
+): SimState {
   const rng = raceSetupRng(seed);
   // MK-136: MK8 racers in their karts (a VS Race's field, Mario for you) once MK8 Mode registered
   // them, as it has for every course scenario (`scenarioCourses.ts`).
-  const mk8 = vsField(PLAYER_RACER, defaultLoadout(PLAYER_RACER), seed);
+  const humans = others.map((racer) => ({ kartId: racer, loadout: defaultLoadout(racer) }));
+  const mk8 = vsField(PLAYER_RACER, defaultLoadout(PLAYER_RACER), seed, humans);
   const racers = mk8 ?? ourField(rng);
   return createRace({
     trackId: track.id,

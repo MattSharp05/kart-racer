@@ -47,3 +47,12 @@ test ramp; their `mk8Start` names the MK8 mode the results are for).
 MK-130 adds two more of these: `confirm.ts` (the "Quit the Grand Prix?" prompt the pause menu and
 the results push on their own stack before quitting a cup) and `podium.ts` (a Grand Prix's podium,
 its 3D in `src/mk8/render/podium.ts`). The cup logic is in `src/mk8/gp/` (README there).
+
+## Players (MK-148)
+
+`players.ts` (after `mode`, VS Race only) sets `Mk8Flow.players`, 1–4. With several players the
+character select and kart builder are built once per player (`Mk8Flow.picking`, read when the
+screen is pushed and set again on `onShow`, so Back gives the pick back): P1's pick is
+`flow.loadout` (saved on the device), P2–P4's `flow.others`; the kart builder's OK opens
+`ctx.open('char')` for the next player, and the last player's goes on as before. Helpers:
+`src/mk8/localPlayers.ts`. Scenarios `mk8-ui-players`, `mk8-ui-char-p2` (`src/scenarios/mk8/local.ts`).

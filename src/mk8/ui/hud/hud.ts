@@ -9,6 +9,7 @@ import { homingOn } from '../../../sim/items/entities';
 import { positionOf } from '../../../sim/race';
 import type { ItemId, KartState, SimEvent, SimState } from '../../../sim/types';
 import { formatTime, ordinal } from '../../../ui/hud/format';
+import type { HudView } from '../../../ui/hud/hud';
 import { raceClock } from '../../modes/timeTrial';
 import type { SoundId } from '../../audio/soundIds';
 import { lakituPose, LAKITU } from '../../render/lakitu';
@@ -36,6 +37,11 @@ const POP_TICKS = 18;
 const COUNTDOWN_POP_SECONDS = 0.35;
 /** Frame-time samples kept for the perf hook. */
 const PERF_SAMPLES = 120;
+/** The mockup's screen, px: `--u` is one of its pixels (MK-148: of the view's, split-screen). */
+const MOCKUP_WIDTH = 1280;
+const MOCKUP_HEIGHT = 720;
+/** Sounds of the whole race, not one player's: only the screen's own HUD plays them (MK-148). */
+const RACE_WIDE_SOUNDS: readonly SoundId[] = ['race/countdown', 'race/go'];
 
 function div(className: string, parent?: HTMLElement): HTMLDivElement {
   const el = document.createElement('div');
@@ -155,6 +161,8 @@ export class Mk8Hud {
   private readonly light = div('mk8-hud-light', this.lakitu);
   private readonly lamps = [0, 1, 2].map(() => div('mk8-hud-lamp', this.light));
   private readonly sign = div('mk8-hud-sign', this.lakitu);
+  /** The player's label on a split-screen view (MK-148), in their colour. */
+  private readonly player = div('mk8-hud-player');
   private projection: MapProjection | null = null;
   private trackId = '';
   private lastPosition = 0;
@@ -165,7 +173,14 @@ export class Mk8Hud {
   private readonly samples: number[] = [];
   private sprites: SpriteSource = () => undefined;
 
-  constructor(private readonly play: (id: SoundId) => void) {
+  /**
+   * `primary`: the screen's own HUD (P1's), which plays the race-wide sounds; split-screen views'
+   * HUDs (MK-148) play only their own player's.
+   */
+  constructor(
+    private readonly play: (id: SoundId) => void,
+    private readonly primary = true,
+  ) {
     this.mapImage.className = 'mk8-hud-map-sprite';
     this.mapImage.alt = '';
     this.mapImage.hidden = true;
@@ -188,7 +203,9 @@ export class Mk8Hud {
       this.timer,
       this.lakitu,
       this.countdown,
+      this.player,
     );
+    this.player.hidden = true;
     this.root.hidden = true;
     document.body.append(this.root);
   }
@@ -217,7 +234,44 @@ export class Mk8Hud {
   }
 
   onEvents(events: SimEvent[], state: SimState, kartId: number): void {
-    for (const id of hudSounds(events, state, kartId)) this.play(id);
+    for (const id of hudSounds(events, state, kartId)) {
+      if (this.primary || !RACE_WIDE_SOUNDS.includes(id)) this.play(id);
+    }
+  }
+
+  /**
+   * Puts the HUD in a split-screen view (MK-148): its rect, sized from the view as the mockup's
+   * screen, labelled with the player in their colour; `null` is the whole screen again.
+   */
+  setView(view: HudView | null): void {
+    const style = this.root.style;
+    this.root.classList.toggle('mk8-hud-view', view !== null);
+    this.root.classList.toggle('mk8-hud-compact', view?.compact === true);
+    this.player.hidden = view === null;
+    if (!view) {
+      for (const p of ['left', 'top', 'width', 'height', '--u', '--player-colour']) {
+        style.removeProperty(p);
+      }
+      delete this.root.dataset.player;
+      return;
+    }
+    const { x, y, w, h } = view.rect;
+    const percent = (fraction: number) => `${(fraction * 100).toFixed(3)}%`;
+    style.left = percent(x);
+    style.top = percent(y);
+    style.width = percent(w);
+    style.height = percent(h);
+    style.setProperty(
+      '--u',
+      `min(calc(100vw * ${w} / ${MOCKUP_WIDTH}), calc(100vh * ${h} / ${MOCKUP_HEIGHT}))`,
+    );
+    style.setProperty('--player-colour', view.colour);
+    this.root.dataset.player = view.label;
+    this.player.textContent = view.label;
+  }
+
+  hide(): void {
+    this.root.hidden = true;
   }
 
   update(state: SimState, kartId: number, visible: boolean): void {

@@ -827,7 +827,7 @@ export class Flow {
     if (this.screens.current !== 'none' || game.state.phase === 'finished') return;
     const online = this.session.online !== null;
     if (!online) game.pause();
-    if (!online && this.isMk8Race()) return this.showMk8Pause();
+    if (!online && this.isMk8Race()) return this.showMk8Pause(by);
     const pausedBy = this.session.players > 1 ? `Paused by ${playerLabel(by)}` : undefined;
     this.screens.show('paused', {
       onResume: this.resumeRace,
@@ -846,7 +846,7 @@ export class Flow {
   }
 
   /** MK8 Mode's pause menu (MK-121): Continue, Restart, Quit to MK8 Mode's menus. */
-  private showMk8Pause(): void {
+  private showMk8Pause(by = 0): void {
     this.pauseButton.hidden = true;
     const { state } = this.session.game;
     const resume = () => {
@@ -860,6 +860,8 @@ export class Flow {
         onRestart: this.startRace,
         onQuit: this.quitToMk8,
         mode: this.mk8RaceStart,
+        // Local multiplayer (MK-148): the menu says who paused.
+        ...(this.session.players > 1 ? { pausedBy: playerLabel(by) } : {}),
       }),
     );
   }
@@ -872,7 +874,8 @@ export class Flow {
       mk8.showResults(
         this.screens,
         state,
-        this.session.localKartId,
+        // Local multiplayer (MK-148): every player's row is marked.
+        this.session.players > 1 ? this.session.slotKarts : this.session.localKartId,
         this.mk8Race,
         this.mk8RaceStart,
         {

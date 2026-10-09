@@ -341,6 +341,7 @@ async function openMenus(
     loadCharacters: (first, onFirst) => loadCharacters(files, first, onFirst),
     store: host.store ?? browserStore(),
     next: (from) => screenFlow.next(from, flow).build(ctx),
+    open: (id) => screenFlow.byId(id).build(ctx),
     ...(host.openRoom ? { openRoom: host.openRoom } : {}),
   };
   const sounds = audioPlayer();

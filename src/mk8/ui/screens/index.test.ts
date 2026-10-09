@@ -13,6 +13,7 @@ describe('MK8 screen flow (MK-142)', () => {
     expect(ids(flowScreens())).toEqual([
       'title',
       'mode',
+      'players',
       'char',
       'kart',
       'online',
@@ -21,6 +22,15 @@ describe('MK8 screen flow (MK-142)', () => {
       'cup',
     ]);
     expect(flow.first().id).toBe('title');
+  });
+
+  it('asks how many players in a VS Race only (MK-148)', () => {
+    expect(flow.next('mode', { mode: 'vs' }).id).toBe('players');
+    expect(flow.next('mode', { mode: 'grand-prix' }).id).toBe('char');
+    expect(flow.next('players', { mode: 'vs' }).id).toBe('char');
+    expect(flow.byId('char').id).toBe('char');
+    expect(() => flow.byId('nope')).toThrow();
+    expect(flow.start('char-p2')?.flow).toMatchObject({ mode: 'vs', players: 2, picking: 1 });
   });
 
   it('goes on from the kart builder to the rooms in Online only (MK-132)', () => {
@@ -56,7 +66,8 @@ describe('MK8 screen flow (MK-142)', () => {
     expect(flow.start('cup')?.flow).toEqual({ mode: 'grand-prix', engineClass: 150 });
     const course = flow.start('course');
     expect(course?.flow).toEqual({ mode: 'vs', engineClass: 150 });
-    expect(ids(course?.screens ?? [])).toEqual(['mode', 'char', 'kart', 'vs', 'cup']);
+    // A VS Race asks how many players first (MK-148).
+    expect(ids(course?.screens ?? [])).toEqual(['mode', 'players', 'char', 'kart', 'vs', 'cup']);
     expect(flow.start('load')).toBeUndefined();
     expect(flow.start('constructor')).toBeUndefined();
   });

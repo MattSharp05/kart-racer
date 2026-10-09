@@ -123,9 +123,10 @@ test.describe('MK8 title and mode select', () => {
     await press(modeTiles(page).nth(1));
     await settled(page, 3);
     expect(await chosenMode(page)).toBe('vs');
-    await expect(charScreen(page)).toBeVisible();
+    // A VS Race asks how many players first (MK-148).
+    await expect(page.locator('.mk8-scr-players')).toBeVisible();
 
-    await press(charScreen(page).locator('.mk8-hint-b'));
+    await press(page.locator('.mk8-scr-players .mk8-hint-b'));
     await settled(page, 2);
     // The A hint confirms the selected tile.
     await press(modeTiles(page).nth(3));
@@ -326,7 +327,8 @@ test.describe('MK8 engine class and cup/course select (MK-119)', () => {
   }, info) => {
     const release = await holdCourseLoad(page);
     await loadScenario(page, 'mk8-ui-course');
-    await settled(page, 6);
+    // Title, mode, players (MK-148), character, kart, VS settings, then the cups.
+    await settled(page, 7);
     const press = (locator: Locator) =>
       info.project.use.hasTouch ? locator.tap() : locator.click();
     await expect(page.locator('.mk8-scr-cup .mk8-hdr .mk8-sub')).toHaveText('150cc');
@@ -347,7 +349,7 @@ test.describe('MK8 engine class and cup/course select (MK-119)', () => {
     // B returns to the cups; OK there comes back to the courses.
     await press(page.locator('.mk8-scr-cup .mk8-hint-b'));
     await expect(page.locator('.mk8-cup')).toHaveAttribute('data-phase', 'cup');
-    await expect(page.locator('.mk8')).toHaveAttribute('data-depth', '6');
+    await expect(page.locator('.mk8')).toHaveAttribute('data-depth', '7');
     await press(page.locator('.mk8-scr-cup .mk8-hint-a'));
     await expect(page.locator('.mk8-cup')).toHaveAttribute('data-phase', 'course');
 

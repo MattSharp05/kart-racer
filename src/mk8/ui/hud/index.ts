@@ -4,6 +4,7 @@
 import { trackLoad } from '../../../game/pending';
 import { tracks } from '../../../content/tracks';
 import type { SimState } from '../../../sim/types';
+import type { HudView } from '../../../ui/hud/hud';
 import { setHudSkin, type HudSkin } from '../../../ui/hud/skin';
 import type { SoundId } from '../../audio/soundIds';
 import { MK8_ITEM_SET } from '../../content/items/id';
@@ -27,24 +28,40 @@ export function isMk8Race(state: SimState): boolean {
   return tracks.has(state.trackId) && tracks.get(state.trackId).def.kind === 'mesh';
 }
 
-/** Registers MK8 Mode's HUD with our HUD (once per page). */
+/**
+ * Registers MK8 Mode's HUD with our HUD (once per page): each of our HUDs gets its own (MK-148:
+ * one per split-screen view), all drawing with the sprites loaded the first time one is needed.
+ */
 export function installMk8Hud(deps: Mk8HudDeps): void {
-  let hud: Mk8Hud | undefined;
-  const open = (): Mk8Hud => {
-    if (hud) return hud;
-    const created = new Mk8Hud((id) => deps.play(id));
-    hud = created;
-    const ready = trackLoad(deps.loadSprites()).then((sprites) => created.useSprites(sprites));
-    deps.expose?.(created.hooks(ready));
-    return created;
-  };
-  const skin: HudSkin = {
-    owns: isMk8Race,
-    update: (state, kartId, _now, visible) => {
-      if (visible) open().update(state, kartId, true);
-      else hud?.update(state, kartId, false);
-    },
-    onEvents: (events, state, kartId) => open().onEvents(events, state, kartId),
-  };
-  setHudSkin(skin);
+  let sprites: Promise<SpriteSource> | undefined;
+  let exposed = false;
+  setHudSkin((primary): HudSkin => {
+    let hud: Mk8Hud | undefined;
+    const open = (): Mk8Hud => {
+      if (hud) return hud;
+      const created = new Mk8Hud((id) => deps.play(id), primary);
+      if (view !== undefined) created.setView(view);
+      hud = created;
+      sprites ??= trackLoad(deps.loadSprites());
+      const ready = sprites.then((loaded) => created.useSprites(loaded));
+      // The test hooks are the screen's own HUD's (P1's).
+      if (primary || !exposed) deps.expose?.(created.hooks(ready));
+      exposed = true;
+      return created;
+    };
+    let view: HudView | null | undefined;
+    return {
+      owns: isMk8Race,
+      update: (state, kartId, _now, visible) => {
+        if (visible) open().update(state, kartId, true);
+        else hud?.update(state, kartId, false);
+      },
+      onEvents: (events, state, kartId) => open().onEvents(events, state, kartId),
+      hide: () => hud?.hide(),
+      setView: (next) => {
+        view = next;
+        hud?.setView(next);
+      },
+    };
+  });
 }

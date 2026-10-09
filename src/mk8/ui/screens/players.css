@@ -1,0 +1,36 @@
+/* MK8 Players (MK-148): the mode select's wide tiles, one per player count. */
+
+.mk8-players {
+  display: grid;
+  align-content: start;
+  padding-top: calc(64 * var(--u));
+  padding-left: max(calc(120 * var(--u)), env(safe-area-inset-left));
+  padding-right: max(calc(120 * var(--u)), env(safe-area-inset-right));
+}
+
+.mk8-players-list {
+  display: grid;
+  gap: max(8px, calc(22 * var(--u)));
+  width: min(100%, calc(760 * var(--u)));
+}
+
+.mk8-players-badges {
+  display: flex;
+  gap: calc(6 * var(--u));
+  align-items: center;
+  justify-content: center;
+}
+
+.mk8-players-badge {
+  padding: 0.15em 0.4em;
+  border-radius: 0.4em;
+  color: #fff;
+  font-size: max(11px, calc(22 * var(--u)));
+  font-style: italic;
+  -webkit-text-stroke: 1px rgb(0 0 0 / 0.35);
+}
+
+.mk8-wide .mk8-art.mk8-players-badges {
+  width: calc(230 * var(--u));
+  justify-content: flex-start;
+}

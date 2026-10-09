@@ -19,6 +19,11 @@ keeps only its screen effects and warnings there.
   sprite and a ×n count), racer → head sprite. Without the pack: our SVG item icons, the racer's
   paint and a CSS coin.
 
+Split-screen (MK-148): our HUD makes one skin per `Hud` (`HudSkinFactory`), so every player's view
+gets its own `Mk8Hud`, placed in the view by `setView` (`--u` is one mockup pixel of the view, the
+player's P1–P4 label under the item box). Only the screen's own (P1's) HUD plays the race-wide
+sounds (countdown, GO); each plays its own player's.
+
 Animations run on sim ticks, so a paused scenario always draws the same frame (visual baselines).
 Test hooks: `window.__mk8.hud` (`frameMs()`, `ready`). Scenarios: `src/scenarios/mk8/hud.ts`
 (`mk8-hud-roulette`, `-two-slots`, `-final-lap`, `-countdown`).

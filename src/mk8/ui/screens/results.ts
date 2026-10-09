@@ -5,6 +5,7 @@
 // (Next / Retry / Quit, by mode) show at the side. A (Enter, the bar's OK) skips the animation.
 // Reduced motion, or a page opened paused (tests), shows the end at once. Not a menu-flow screen
 // (no `screen` export): `raceScreens.ts` shows it in its own MK8 stack.
+import { playerSlotColour } from '../../../input/slots';
 import { formatTime } from '../../../ui/hud/format';
 import type { Mk8ResultChoice, Mk8ResultRow, Mk8StandingRow } from '../../results';
 import { art, buttonBar, header, Menu } from '../kit';
@@ -82,6 +83,13 @@ export function resultsScreen(options: ResultsOptions): Mk8ScreenFactory {
       const picture = art(icon && options.sprites(icon), row.name);
       picture.classList.add('mk8-res-icon');
       const name = cell('span', 'mk8-res-name', row.name);
+      // Local multiplayer (MK-148): whose row it is, in the player's colour.
+      if (row.player) {
+        line.dataset.player = row.player;
+        const badge = cell('span', 'mk8-res-player', row.player);
+        badge.style.background = playerSlotColour(Number(row.player.slice(1)) - 1);
+        name.prepend(badge);
+      }
       const time = cell('span', 'mk8-res-time', row.time !== undefined ? formatTime(row.time) : '');
       line.append(place, picture, name, time);
       const standing = options.standings?.find((s) => s.kartId === row.kartId);

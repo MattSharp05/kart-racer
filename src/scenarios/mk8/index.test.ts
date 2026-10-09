@@ -29,7 +29,7 @@ describe('MK8 course scenarios (MK-99, MK-105)', () => {
     const onCourse = mk8Scenarios
       .filter(
         (s) =>
-          /^mk8-(stadium-|waterpark-|canyon-|ruins-|gp-|test-|item-bullet|hud-|tt-(?!courses))/.test(
+          /^mk8-(local-|stadium-|waterpark-|canyon-|ruins-|gp-|test-|item-bullet|hud-|tt-(?!courses))/.test(
             s.name,
           ) || onRamp.includes(s.name),
       )

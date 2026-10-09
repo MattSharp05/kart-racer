@@ -25,3 +25,4 @@ export { default as online } from './online';
 export { default as voices } from './voices';
 export { default as kartSounds } from './kartSounds';
 export { default as phone } from './phone';
+export { default as local } from './local';

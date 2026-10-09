@@ -14,6 +14,15 @@ import {
 } from '../../content/parts';
 import { MK8_RACERS } from '../../content/racers';
 import { loadoutStats, type Mk8Stat } from '../../content/stats';
+import { playerLabel } from '../../../input/slots';
+import { resolveLoadout } from '../../content/parts';
+import {
+  flowPlayers,
+  nextPicker,
+  pickingSlot,
+  setSlotLoadout,
+  slotLoadout,
+} from '../../localPlayers';
 import { savedLoadout, saveLoadout, savedRacer } from '../../loadoutPrefs';
 import { KartPreview } from '../../render/kartPreview';
 import type { Loadout } from '../../../sim/types';
@@ -98,8 +107,15 @@ const RACER_SPRITES: Readonly<Record<string, string>> = {
 /** A swipe along a reel this far (CSS px) turns it one part. */
 const SWIPE_PX = 28;
 
-/** The racer and parts the builder opens on: the chosen racer in the last saved parts. */
-export function startingLoadout(ctx: Pick<Mk8Context, 'flow' | 'store'>): Loadout {
+/**
+ * The racer and parts the builder opens on: the chosen racer in the last saved parts. P2–P4
+ * (`slot` > 0, MK-148) open on their own pick so far.
+ */
+export function startingLoadout(ctx: Pick<Mk8Context, 'flow' | 'store'>, slot = 0): Loadout {
+  if (slot > 0) {
+    const own = slotLoadout(ctx.flow, slot);
+    return resolveLoadout(own?.racer ?? ctx.flow.loadout?.racer ?? FIRST_RACER, own);
+  }
   const racer = ctx.flow.loadout?.racer ?? savedRacer(ctx.store) ?? FIRST_RACER;
   return savedLoadout(ctx.store, racer);
 }
@@ -123,7 +139,9 @@ const partAt = (reel: Reel, step = 0): Mk8Part => {
 
 export function kartBuilder(ctx: Mk8Context): Mk8ScreenFactory {
   return (stack) => {
-    const loadout = startingLoadout(ctx);
+    // Several players (MK-148): this screen is player `slot`'s kart.
+    const slot = pickingSlot(ctx.flow);
+    const loadout = startingLoadout(ctx, slot);
     let focus = 0;
     /** Whether the builder is on show (the 3D preview loads and turns only then). */
     let onShow = false;
@@ -132,15 +150,21 @@ export function kartBuilder(ctx: Mk8Context): Mk8ScreenFactory {
     const confirm = () => {
       const chosen = current();
       stack.sounds.play('ui/decide');
-      saveLoadout(ctx.store, chosen);
-      ctx.flow.loadout = chosen;
+      if (slot === 0) saveLoadout(ctx.store, chosen);
+      setSlotLoadout(ctx.flow, slot, chosen);
       onShow = false;
       preview.pause();
-      stack.push(ctx.next('kart'));
+      // The next player picks their racer (MK-148), or on to the rules once everyone has.
+      const next = nextPicker(ctx.flow, slot);
+      if (next === undefined) stack.push(ctx.next('kart'));
+      else {
+        ctx.flow.picking = next;
+        stack.push(ctx.open('char'));
+      }
     };
     const { el, body } = menuScreen({
       name: 'kart',
-      title: 'Customize',
+      title: flowPlayers(ctx.flow) > 1 ? `${playerLabel(slot)}: Customize` : 'Customize',
       sub: '↑↓ change part · ←→ switch column',
       hints: [
         { button: 'a', label: 'OK', onPress: confirm },
@@ -304,6 +328,7 @@ export function kartBuilder(ctx: Mk8Context): Mk8ScreenFactory {
 
     const appear = () => {
       onShow = true;
+      ctx.flow.picking = slot;
       preview.resume();
       void preview.show(current());
     };

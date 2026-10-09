@@ -10,7 +10,7 @@ import { formatTime, ordinal } from './format';
 import { iconShowsUses, itemIcon, itemName } from './icons';
 import { Minimap } from './minimap';
 import { ScreenEffects } from './screenEffects';
-import { hudSkin } from './skin';
+import { hudSkin, type HudSkin, type HudSkinFactory } from './skin';
 import './hud.css';
 
 export { formatTime, ordinal } from './format';
@@ -78,10 +78,12 @@ export class Hud {
    */
   waiting: string | null = null;
   private readonly shown = new Map<HTMLElement, string>();
+  /** This HUD's skin (MK-127), made from the registered factory the first time it's asked for. */
+  private skinMade: { factory: HudSkinFactory; skin: HudSkin } | undefined;
 
   /**
-   * `primary` is the screen's own HUD (P1's): only it shows the online waiting line and hands the
-   * race to another HUD skin (MK-127). Split-screen views of P2–P4 (MK-145) aren't primary.
+   * `primary` is the screen's own HUD (P1's): only it shows the online waiting line. Split-screen
+   * views of P2–P4 (MK-145) aren't primary; each has its own skin in its view (MK-148).
    */
   constructor(private readonly primary = true) {
     this.timer.append(this.timerMain, this.lastLap);
@@ -127,6 +129,7 @@ export class Hud {
         sameRect(view.rect, this.view.rect));
     if (same) return;
     this.view = view;
+    this.skinMade?.skin.setView?.(view);
     const style = this.root.style;
     this.root.classList.toggle('hud-view', view !== null);
     this.root.classList.toggle('hud-compact', view?.compact === true);
@@ -150,14 +153,27 @@ export class Hud {
     this.player.textContent = view.label;
   }
 
-  /** Hides this HUD (a split-screen view no player uses now, MK-145). */
+  /** Hides this HUD (a split-screen view no player uses now, MK-145), and its skin. */
   hide(): void {
     this.show(this.root, false);
+    this.skinMade?.skin.hide();
+  }
+
+  /** This HUD's skin, if one is registered (made on first use, in this HUD's view). */
+  private skin(): HudSkin | undefined {
+    const factory = hudSkin();
+    if (!factory) return undefined;
+    if (this.skinMade?.factory !== factory) {
+      const skin = factory(this.primary);
+      skin.setView?.(this.view);
+      this.skinMade = { factory, skin };
+    }
+    return this.skinMade.skin;
   }
 
   /** Big centre messages come from sim events (countdown numbers, GO, FINISH) for kart `kartId`. */
   onEvents(events: SimEvent[], state: SimState, kartId: number, now: number): void {
-    const skin = this.primary ? hudSkin() : undefined;
+    const skin = this.skin();
     if (skin?.owns(state)) skin.onEvents(events, state, kartId, now);
     for (const event of events) {
       if (event.type === 'countdown') this.flash(String(event.value), now, 1000);
@@ -203,7 +219,7 @@ export class Hud {
     const racing = state.phase !== 'free';
     const hidden = !kart || state.trackId === 'test-pad' || menuOpen;
     // Another HUD's race (MK-127: MK8 Mode's): it draws the race; ours keeps its effects and warnings.
-    const skin = this.primary ? hudSkin() : undefined;
+    const skin = this.skin();
     const skinned = skin?.owns(state) === true;
     skin?.update(state, kartId, now, skinned && !hidden);
     if (hidden) {

@@ -18,6 +18,11 @@ Race rules by game mode, pure (no DOM), applied to a fresh race by `src/game/flo
   per engine class — apart from our tracks' records, and whatever track stood in for the course —
   and say "New record!" when either improves. The cup select's course cards show the best race.
 
+Local multiplayer (MK-148): `vsField`'s `others` (P2–P4, the Players screen's picks) race too, in
+karts 1… after the player's, all of them on the back half of the grid and CPUs (none of the
+players' racers) filling the rest; `Mk8RaceSetup.players` / `others` carry them to Next course and
+Retry. Grand Prix and Time Trial stay solo.
+
 Courses not drivable yet (no course folder in `content/courses/`) show "Not installed" on the
 course select in every mode and can't be started. Ghosts and MK8 leaderboards are out of scope.
 

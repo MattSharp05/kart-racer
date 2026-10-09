@@ -9,6 +9,7 @@ import type { RacerSlot } from '../sim/race/createRace';
 import type { EngineClass } from '../sim/tuning';
 import { MK8_ITEM_SET } from './content/items/id';
 import { defaultLoadout } from './content/parts';
+import { MK8_RACERS } from './content/racers';
 import { isKnownLoadout } from './content/stats';
 import { courseInfo, cupInfo, type Mk8CourseKey, type Mk8CupId } from './content/cups';
 import {
@@ -19,12 +20,16 @@ import {
   type Mk8GrandPrix,
 } from './gp/grandPrix';
 import { timeTrialField } from './modes/timeTrial';
-import { vsField, vsSeed } from './modes/vsField';
+import { flowPlayers, otherLoadouts } from './localPlayers';
+import { vsField, vsSeed, type VsHuman } from './modes/vsField';
 import { DEFAULT_VS_RULES, type VsRules } from './modes/vsRace';
 import type { Mk8Flow, Mk8GameMode, Mk8Loadout } from './ui/screens/session';
 
 /** The kart before character select and the kart builder pick one (MK8's defaults, MK-102). */
 export const DEFAULT_LOADOUT: Mk8Loadout = defaultLoadout('mk8-mario');
+
+/** MK8's racers in roster order. */
+const MK8_RACER_IDS = [...MK8_RACERS].sort((a, b) => a.order - b.order).map((r) => r.id);
 
 /** Engine class the menus start on (the mockup's, and MK8's usual pick). */
 export const DEFAULT_ENGINE_CLASS: EngineClass = 150;
@@ -59,6 +64,13 @@ export interface Mk8RaceSetup {
   field?: RacerSlot[];
   /** A VS Race's settings (MK-131): items and CPU difficulty. */
   vs?: VsRules;
+  /**
+   * People racing on this screen (MK-148: a VS Race's Players), when more than one: they drive the
+   * field's first karts, P1 first, each in their own split-screen view.
+   */
+  players?: number;
+  /** P2–P4's picks (MK-148), by slot − 1, so Next course and Retry race them again. */
+  others?: Mk8Loadout[];
 }
 
 /**
@@ -85,10 +97,19 @@ export function raceSetup(flow: Mk8Flow, gp?: Mk8GrandPrix): Mk8RaceSetup {
   if (cupInfo(cup).locked) throw new Error(`MK8: the ${cup} cup is locked`);
   const playerKart = racers.has(loadout.racer) ? loadout.racer : STAND_IN_RACER;
   const raceLoadout = isKnownLoadout(loadout) ? loadout : undefined;
+  // Local multiplayer (MK-148): P2–P4 in a VS Race, each racing their own pick.
+  const others =
+    flowPlayers(flow) > 1
+      ? otherLoadouts(flow, (slot) => defaultLoadout(neighbour(loadout, slot)))
+      : [];
+  const humans = others.map((other): VsHuman => ({
+    kartId: racers.has(other.racer) ? other.racer : STAND_IN_RACER,
+    ...(isKnownLoadout(other) ? { loadout: { ...other } } : {}),
+  }));
   const vs =
     grandPrix || flow.mode === 'time-trial'
       ? undefined
-      : vsField(playerKart, raceLoadout, vsSeed(course.key, engineClass, loadout.racer));
+      : vsField(playerKart, raceLoadout, vsSeed(course.key, engineClass, loadout.racer), humans);
   return {
     course: course.key,
     cup,
@@ -104,7 +125,15 @@ export function raceSetup(flow: Mk8Flow, gp?: Mk8GrandPrix): Mk8RaceSetup {
     // MK-136: a VS Race's CPUs are MK8 racers too (the original game's picks otherwise).
     ...(vs ? { field: vs } : {}),
     ...(flow.mode === 'vs' ? { vs: { ...(flow.vs ?? DEFAULT_VS_RULES) } } : {}),
+    ...(vs && others.length ? { players: 1 + others.length, others } : {}),
   };
+}
+
+/** The MK8 racer `slot` places after `loadout`'s in the roster: a player who didn't pick. */
+function neighbour(loadout: Mk8Loadout, slot: number): string {
+  const ids = MK8_RACER_IDS;
+  const at = Math.max(0, ids.indexOf(loadout.racer));
+  return ids[(at + slot) % ids.length] ?? loadout.racer;
 }
 
 /**
