@@ -92,9 +92,10 @@ function signature(geometry: THREE.BufferGeometry): string {
  * positions as floats. The pack's models are quantized (KHR_mesh_quantization: positions are
  * normalized int16 in the mesh's box, the node's transform scales them back), and moving int16
  * positions out to metres wrapped them round (MK-123 round 2: Sweet Sweet Canyon's road, merged
- * from many meshes, vanished while karts still drove on it).
+ * from many meshes, vanished while karts still drove on it). Racer and kart models merge with it too
+ * (`racerModel.ts` `mergeStaticMeshes`, MK-101 round 4).
  */
-function rootGeometry(mesh: THREE.Mesh, toRoot: THREE.Matrix4): THREE.BufferGeometry {
+export function rootGeometry(mesh: THREE.Mesh, toRoot: THREE.Matrix4): THREE.BufferGeometry {
   const source = mesh.geometry as THREE.BufferGeometry;
   const geometry = new THREE.BufferGeometry();
   for (const name of Object.keys(source.attributes)) {
