@@ -5,6 +5,7 @@ import * as THREE from 'three';
 import { tracks } from '../content/tracks';
 import { trackViews } from '../content/tracks/render';
 import type { TrackLook, TrackLookContext } from '../render/trackLook';
+import { GROUND_SURFACES, surfaceMask } from '../sim/meshTrack';
 import type { RouteDef } from '../sim/route';
 import { ambiencePlayer, CourseAmbience, gameMuted } from './audio/ambience';
 import {
@@ -93,7 +94,7 @@ async function loadCourseFiles(
   low: boolean,
   route?: RouteDef,
 ): Promise<boolean> {
-  const collision = collisionSourcePath(course);
+  const collision = collisionSourcePath(course, low);
   const model = modelPath(course.packId, low);
   const manifest = await files.loadManifest();
   const has = (path: string) => manifest.files.some((e) => e.path === path);
@@ -129,14 +130,17 @@ async function loadCourseFiles(
   return true;
 }
 
-/** Surfaces karts drive on: their materials are never see-through (`fixCourseMaterials`). */
-const GROUND: ReadonlySet<string> = new Set(['road', 'offroad', 'boost', 'antigrav', 'glide']);
-
 /** The materials a course's map (`collisionFromModel`) makes ground, to be drawn solid. */
 export function groundMaterials(course: Mk8CourseContent): Set<string> {
   return new Set(
     Object.entries(course.collisionFromModel ?? {})
-      .filter(([, surface]) => GROUND.has(surface))
+      // What karts drive on is never see-through (`fixCourseMaterials`).
+      .filter(
+        ([, surface]) =>
+          surface !== 'ignore' &&
+          surface !== 'void' &&
+          (surfaceMask(surface) & GROUND_SURFACES) !== 0,
+      )
       .map(([name]) => name),
   );
 }

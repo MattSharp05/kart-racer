@@ -9,6 +9,7 @@ import {
   testDriveUrl,
 } from '../../mk8/editorRoute';
 import { MK8_ASSET_BASE } from '../../mk8/ui/sprites';
+import { mk8Course } from '../../mk8/content/courses';
 import { guessSurface } from '../../../tools/mk8/collisionFormat';
 import type { Vec3 } from '../../sim/math';
 import type { MeshMaterialSurface } from '../../sim/meshCollision';
@@ -742,7 +743,9 @@ class TrackEditor {
       el(
         'p',
         { className: 'hint' },
-        'Unlisted materials use the name guesses. Overrides apply at the next pnpm mk8:build.',
+        mk8Course(this.course.id)?.collisionFromModel
+          ? 'Unlisted materials use the name guesses. This course builds its collision from the model at load: saved overrides apply on the next page load, no pack rebuild.'
+          : 'Unlisted materials use the name guesses. Overrides apply at the next pnpm mk8:build.',
       ),
       list,
       el('button', { onclick: () => download('materials.ts', file()) }, 'Download materials.ts'),

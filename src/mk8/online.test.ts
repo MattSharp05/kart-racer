@@ -4,7 +4,7 @@ import { MK8_COURSES } from './content/courses';
 import { TEST_RAMP_ID } from './content/courses/test-ramp';
 import { testRampTrack } from './content/courses/test-ramp';
 import { Mk8Loader } from './loader';
-import { mk8RoomContent, prepareCourse, TEST_RAMP_HASH } from './online';
+import { courseHash, mk8RoomContent, prepareCourse, TEST_RAMP_HASH } from './online';
 import { MemoryStore } from '../game/storage/store';
 
 /** MK8 rooms (MK-132): what MK8 Mode gives the lobby, and each course's loading and hash. */
@@ -74,5 +74,25 @@ describe('MK8 room content (MK-132)', () => {
       STADIUM.trackId,
     );
     expect(result).toEqual({ state: 'ready', hash: SHA.slice(0, 16) });
+  });
+});
+
+describe('course hashes for a room (MK-123 round 2)', () => {
+  const sha = 'ab'.repeat(32);
+  const canyon = MK8_COURSES.find((c) => c.packId === 'sweet-sweet-canyon');
+  const stadium = MK8_COURSES.find((c) => c.packId === 'mario-kart-stadium');
+
+  it('is the collision file’s hash for a course with collision.bin', () => {
+    expect(stadium && courseHash(sha, stadium)).toBe(sha.slice(0, 16));
+  });
+
+  it('mixes in the material map for a course built from its model, so different maps never match', () => {
+    if (!canyon?.collisionFromModel) throw new Error('Canyon builds collision from its model');
+    const hash = courseHash(sha, canyon);
+    expect(hash).toHaveLength(16);
+    expect(hash.slice(0, 8)).toBe(sha.slice(0, 8));
+    expect(courseHash(sha, { ...canyon })).toBe(hash);
+    const changed = { ...canyon.collisionFromModel, ck_spongeMulti01_Blight: 'ignore' as const };
+    expect(courseHash(sha, { ...canyon, collisionFromModel: changed })).not.toBe(hash);
   });
 });

@@ -49,12 +49,12 @@ export const modelPath = (packId: string, low: boolean): string =>
   `models/courses/${packId}/course${low ? '-low' : ''}.glb`;
 
 /**
- * The pack file a course's collision comes from: its `collision.bin`, or its full model when the
- * course builds its collision from the model (`collisionFromModel`, never the `-low` one: the sim
- * mustn't depend on `&quality`).
+ * The pack file a course's collision comes from: its `collision.bin`, or its model when the course
+ * builds its collision from the model (`collisionFromModel`): the one the page draws (`low`), since
+ * the full and `-low` models give the same collision (`modelCollision.ts`), so nothing more loads.
  */
-export const collisionSourcePath = (course: Mk8CourseContent): string =>
-  course.collisionFromModel ? modelPath(course.packId, false) : collisionPath(course.packId);
+export const collisionSourcePath = (course: Mk8CourseContent, low = false): string =>
+  course.collisionFromModel ? modelPath(course.packId, low) : collisionPath(course.packId);
 
 /**
  * A course's collision from the bytes of its `collisionSourcePath`. A course built from its model

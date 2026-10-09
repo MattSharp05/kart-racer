@@ -8,9 +8,12 @@
 // (`Mk8CourseContent.collisionFromModel`) and drives on the pack as it is, no rebuild.
 //
 // Deterministic: the bytes alone decide the result (meshopt decoding is exact, the transforms are
-// doubles rounded to float32 once), so host and clients build the same mesh. Always the full
-// model, never `-low`: the sim mustn't depend on `&quality`. Not simplified (the pipeline's
-// meshoptimizer is a dev dependency): every triangle of the kept materials, minus degenerate ones.
+// doubles rounded to float32 once), so host and clients build the same mesh. The full and `-low`
+// models give the same mesh: the pipeline encodes both from one geometry and only their textures
+// differ (`tools/mk8/modelCollision.test.ts` pins it), so the sim doesn't depend on `&quality`.
+// Not simplified (the pipeline's meshoptimizer is a dev dependency): every triangle of the kept
+// materials, minus degenerate ones; `modelCollision.perf.test.ts` holds a dense 300k-triangle
+// course to the query budget.
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 import {
   collisionFromTriangles,
@@ -145,14 +148,15 @@ export function modelCollision(
       }
       const position = prim.attributes.POSITION;
       if (position === undefined) continue;
+      if (surface === 'ignore') {
+        // Counted without decoding (indices, else vertices): ignored materials are a good share.
+        stats.ignored += Math.floor((json.accessors?.[prim.indices ?? position]?.count ?? 0) / 3);
+        continue;
+      }
       const positions = readAccessor(json, view, position);
       const indices =
         prim.indices === undefined ? undefined : readAccessor(json, view, prim.indices);
       const count = indices ? indices.length : positions.length / 3;
-      if (surface === 'ignore') {
-        stats.ignored += Math.floor(count / 3);
-        continue;
-      }
       const out = groups[MESH_SURFACES.indexOf(surface)];
       if (!out) throw new Error(`course model: unknown surface ${surface}`);
       const triangle = new Float32Array(9);

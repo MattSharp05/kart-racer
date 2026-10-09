@@ -69,7 +69,7 @@ export async function loadCourse(id: string, base = MK8_ASSET_BASE): Promise<Edi
     const bytes = await response.arrayBuffer();
     await modelCollisionReady;
     collision = modelCollision(bytes, map).mesh;
-    model = await loadModel(coursePath(base, id, 'course.glb'));
+    model = await parseModel(bytes);
   } else {
     const response = await fetch(coursePath(base, id, 'collision.bin'));
     if (!response.ok)
@@ -93,13 +93,19 @@ export async function loadCourse(id: string, base = MK8_ASSET_BASE): Promise<Edi
   return { id, collision, route, materials, model, handWritten: HAND_WRITTEN.has(id), warnings };
 }
 
-async function loadModel(url: string): Promise<Group> {
+async function gltfLoader() {
   const [{ GLTFLoader }, { MeshoptDecoder }] = await Promise.all([
     import('three/examples/jsm/loaders/GLTFLoader.js'),
     import('three/examples/jsm/libs/meshopt_decoder.module.js'),
   ]);
-  const loader = new GLTFLoader();
-  loader.setMeshoptDecoder(MeshoptDecoder);
-  const gltf = await loader.loadAsync(url);
-  return gltf.scene;
+  return new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
+}
+
+async function loadModel(url: string): Promise<Group> {
+  return (await (await gltfLoader()).loadAsync(url)).scene;
+}
+
+/** The model from bytes already fetched (a copy: the loader may keep the buffer). */
+async function parseModel(bytes: ArrayBuffer): Promise<Group> {
+  return (await (await gltfLoader()).parseAsync(bytes.slice(0), '')).scene;
 }
