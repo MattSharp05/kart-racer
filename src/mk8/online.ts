@@ -8,7 +8,7 @@ import { browserStore, type KeyValueStore } from '../game/storage/store';
 import type { Mk8RoomContent } from '../game/roomFlow';
 import type { MemberPack } from '../net/lobbyState';
 import type { Loadout } from '../sim/types';
-import { collisionPath, MK8_COURSES } from './content/courses';
+import { collisionSourcePath, MK8_COURSES } from './content/courses';
 import { registerTestRamp } from './content/courses/test-ramp/register';
 import { TEST_RAMP_ID } from './content/courses/test-ramp';
 import { defaultLoadout } from './content/parts';
@@ -87,7 +87,7 @@ export async function prepareCourse(
   if (!course) return { state: 'failed' };
   try {
     const manifest = await files.loadManifest();
-    const collision = manifest.files.find((e) => e.path === collisionPath(course.packId));
+    const collision = manifest.files.find((e) => e.path === collisionSourcePath(course));
     if (!collision) return { state: 'missing' };
     if (!tracks.has(trackId) && !(await loadMk8Course(files, course, onProgress))) {
       return { state: 'missing' };

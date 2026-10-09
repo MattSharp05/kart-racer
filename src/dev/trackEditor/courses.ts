@@ -2,6 +2,8 @@
 // its committed `route.ts` and `materials.ts`. `test-ramp` is built in code (CI has no pack);
 // real courses come from the local MK8 pack (`pnpm dev` serves `$MK8_OUT` at `/mk8/`, ADR 0009).
 import type { Group } from 'three';
+import { mk8Course } from '../../mk8/content/courses';
+import { modelCollision, modelCollisionReady } from '../../mk8/content/courses/modelCollision';
 import { buildTestRampCollision } from '../../mk8/content/courses/test-ramp/collision';
 import { MK8_ASSET_BASE } from '../../mk8/ui/sprites';
 import {
@@ -56,7 +58,19 @@ export async function loadCourse(id: string, base = MK8_ASSET_BASE): Promise<Edi
   let model: Group | undefined;
   const builtIn = BUILT_IN[id];
   if (builtIn) collision = builtIn();
-  else {
+  else if (mk8Course(id)?.collisionFromModel) {
+    // Built from the course model as the race builds it (MK-123 round 2), not `collision.bin`.
+    const map = mk8Course(id)?.collisionFromModel ?? {};
+    const response = await fetch(coursePath(base, id, 'course.glb'));
+    if (!response.ok)
+      throw new Error(
+        `No course model for "${id}" at ${coursePath(base, id, 'course.glb')}. Run pnpm mk8:build, then pnpm dev (MK8_OUT pointing at the pack).`,
+      );
+    const bytes = await response.arrayBuffer();
+    await modelCollisionReady;
+    collision = modelCollision(bytes, map).mesh;
+    model = await loadModel(coursePath(base, id, 'course.glb'));
+  } else {
     const response = await fetch(coursePath(base, id, 'collision.bin'));
     if (!response.ok)
       throw new Error(

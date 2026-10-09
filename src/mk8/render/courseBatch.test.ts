@@ -47,6 +47,31 @@ describe('course mesh batching (MK-133)', () => {
     for (const mesh of after) expect(mesh.matrixAutoUpdate).toBe(false);
   });
 
+  it('merges quantized meshes (int16 positions scaled by their node, as the pack writes them) in place', () => {
+    // MK-123 round 2: moving int16 positions out to metres wrapped them, and the merged road vanished.
+    const road = new THREE.MeshBasicMaterial({ name: 'road' });
+    const quantized = (x: number) => {
+      const geometry = new THREE.BufferGeometry();
+      const q = new Int16Array([-32767, 0, -32767, 32767, 0, -32767, 0, 32767, 32767, 0, 0, 0]);
+      geometry.setAttribute('position', new THREE.BufferAttribute(q, 3, true));
+      geometry.setIndex([0, 1, 2, 0, 2, 3]);
+      const mesh = new THREE.Mesh(geometry, road);
+      mesh.position.set(x, 1, 0);
+      mesh.scale.setScalar(40); // the node's dequantization: a 80 m piece of road
+      return mesh;
+    };
+    const root = new THREE.Group();
+    root.add(quantized(0), quantized(50));
+    const before = worldBox(root);
+
+    expect(batchCourseMeshes(root, 1000)).toEqual({ meshesBefore: 2, meshesAfter: 1 });
+
+    const bounds = worldBox(root);
+    expect(bounds.min.distanceTo(before.min)).toBeLessThan(1e-3);
+    expect(bounds.max.distanceTo(before.max)).toBeLessThan(1e-3);
+    expect(bounds.max.x).toBeCloseTo(90, 2);
+  });
+
   it('keeps cells apart, so the frustum can still skip the far side of the course', () => {
     const road = new THREE.MeshBasicMaterial({ name: 'road' });
     const root = new THREE.Group();

@@ -3,11 +3,12 @@ import { resolve } from 'node:path';
 import { expect, it } from 'vitest';
 import { tracks } from '../src/content/tracks';
 import {
-  collisionPath,
+  collisionSourcePath,
   courseTrack,
   MK8_COURSES,
   registerCourse,
 } from '../src/mk8/content/courses';
+import { modelCollisionReady } from '../src/mk8/content/courses/modelCollision';
 import { mk8AiPass, MK8_AI_TARGETS } from '../src/mk8/content/courses/aiCheck';
 import { routeRibbonCollision } from '../src/mk8/content/courses/routeRibbon';
 import { registerTestRamp } from '../src/mk8/content/courses/test-ramp/register';
@@ -31,6 +32,9 @@ import { tuning, type EngineClass } from '../src/sim/tuning';
  * stand-in mesh of its route (`routeRibbon.ts`, marked "stand-in"); and the synthetic test ramp
  * and its Thwomp copy.
  */
+// Courses that build their collision from the model need the meshopt decoder (MK-123).
+await modelCollisionReady;
+
 const SEEDS = Number(process.env.SEEDS ?? 5);
 const TRACKS = process.env.TRACKS?.split(',') ?? raceTrackIds();
 const CC = Number(process.env.CC ?? AI_PASS.engineClass) as EngineClass;
@@ -47,7 +51,7 @@ function mk8PassTracks(): [string, string][] {
   ];
   const pack = resolve(process.env.MK8_OUT ?? '.mk8-out');
   for (const course of MK8_COURSES) {
-    const file = resolve(pack, collisionPath(course.packId));
+    const file = resolve(pack, collisionSourcePath(course));
     if (existsSync(file)) {
       const bytes = readFileSync(file);
       registerCourse(

@@ -1,6 +1,7 @@
 // Sweet Sweet Canyon (MK-123). The route checks run everywhere; the drive checks need the real pack
-// (`$MK8_OUT`, default `.mk8-out/`; never in CI, ADR 0009) built with this course's `materials.ts`,
-// and are skipped without it. `pnpm mk8:course-check COURSE=sweet-sweet-canyon` runs the full pass.
+// (`$MK8_OUT`, default `.mk8-out/`; never in CI, ADR 0009), whose course model the collision is
+// built from with this course's `materials.ts` (round 2), and are skipped without it.
+// `pnpm mk8:course-check COURSE=sweet-sweet-canyon` runs the full pass.
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { beforeAll, describe, expect, it } from 'vitest';
@@ -16,13 +17,15 @@ import type { EngineClass } from '../../../../sim/tuning';
 import type { SimEvent, SimState } from '../../../../sim/types';
 import { insideWater } from '../../../../sim/underwater';
 import { MK8_CUPS } from '../../cups';
-import { collisionPath, MK8_COURSE_SCALE, mk8Course, registerCourse } from '..';
+import { groundMaterials } from '../../../courses';
+import { collisionSourcePath, MK8_COURSE_SCALE, mk8Course, registerCourse } from '..';
 import { centrelineGaps, courseRace } from '../courseCheck';
+import { modelCollisionReady } from '../modelCollision';
 import canyon from '.';
 import { materials } from './materials';
 
 const PACK = resolve(process.env.MK8_OUT ?? '.mk8-out');
-const COLLISION = resolve(PACK, collisionPath(canyon.packId));
+const COLLISION = resolve(PACK, collisionSourcePath(canyon));
 const hasPack = existsSync(COLLISION);
 
 const zone = <K extends RouteZone['kind']>(kind: K) =>
@@ -94,11 +97,32 @@ describe('Sweet Sweet Canyon: route and data (MK-123)', () => {
     expect(materials.ef_glideboard).toBe('glide');
     expect(materials.ck_chocosuger03).toBe('offroad');
   });
+
+  it('builds its collision from the full course model with materials.ts, so the pack needs no rebuild (round 2)', () => {
+    expect(canyon.collisionFromModel).toBe(materials);
+    expect(collisionSourcePath(canyon)).toBe('models/courses/sweet-sweet-canyon/course.glb');
+    // The other courses keep their collision.bin.
+    const stadium = mk8Course('mario-kart-stadium');
+    expect(stadium && collisionSourcePath(stadium)).toBe(
+      'models/courses/mario-kart-stadium/collision.bin',
+    );
+    // The roads MK-93's guesses got wrong: under the soda, and the "…Blight" ones they dropped.
+    expect(materials.ck_spongeMulti01_Water).toBe('road');
+    expect(materials.ck_spongeMulti01_Blight).toBe('road');
+    expect(materials.ef_juicenear).toBe('ignore');
+    // What's ground is drawn solid; the soda and the walls aren't touched.
+    const ground = groundMaterials(canyon);
+    expect(ground.has('ck_spongeMulti01_Blight')).toBe(true);
+    expect(ground.has('ck_candy01')).toBe(true);
+    expect(ground.has('ef_juicenear')).toBe(false);
+    expect(ground.has('ck_cookiewall01')).toBe(false);
+  });
 });
 
 describe.skipIf(!hasPack)('Sweet Sweet Canyon on the real pack (local only)', () => {
-  beforeAll(() => {
+  beforeAll(async () => {
     if (tracks.has(canyon.trackId)) return;
+    await modelCollisionReady;
     const bytes = readFileSync(COLLISION);
     registerCourse(
       canyon,

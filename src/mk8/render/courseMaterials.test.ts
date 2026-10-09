@@ -68,4 +68,22 @@ describe('course materials (MK-105 revisit: the road hid nothing behind it)', ()
       expect(m).toMatchObject({ transparent: true, depthWrite: false });
     expect(solid).toMatchObject({ transparent: false, alphaTest: 0 });
   });
+
+  it('draws the ground named by the course’s map solid, whatever its alpha (MK-123 round 2)', () => {
+    // A layered road keeps a blend weight in alpha: sorted by alpha it would be blended or cut out.
+    const read: AlphaReader = () => texels(0.4, 0.5);
+    const road = blended('ck_spongeMulti01');
+    const masked = new THREE.MeshStandardMaterial({ name: 'ck_candy01', alphaTest: 0.5 });
+    const soda = blended('ef_juicenear');
+    const root = new THREE.Group();
+    const geometry = new THREE.BoxGeometry();
+    for (const m of [road, masked, soda]) root.add(new THREE.Mesh(geometry, m));
+
+    const stats = fixCourseMaterials(root, read, new Set(['ck_spongeMulti01', 'ck_candy01']));
+
+    expect(stats).toEqual({ opaque: 1, cutout: 0, blend: 1 });
+    for (const m of [road, masked])
+      expect(m).toMatchObject({ transparent: false, depthWrite: true, alphaTest: 0 });
+    expect(soda).toMatchObject({ transparent: true, depthWrite: false });
+  });
 });

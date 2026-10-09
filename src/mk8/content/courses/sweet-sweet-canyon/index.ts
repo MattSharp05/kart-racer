@@ -9,10 +9,13 @@
 // the deck: its zone's `landing`, MK-123), down the spiral round the cake into the soda, along the
 // lake floor onto the gravity panel, up the twisting candy ribbons out of the water (anti-gravity;
 // the second ribbon crosses the first and drives too), the U through the sugar fields and down the
-// step onto the straight. The pack must be built with this `materials.ts`: MK-93's guesses made the
-// soda's surface solid road and the road under it water.
+// step onto the straight. Its collision is built from the course model with this `materials.ts` as
+// the course loads (MK-123 round 2, `collisionFromModel`): the deployed pack's `collision.bin` came
+// from MK-93's guesses (the soda's surface solid road, the road under it water, the "…Blight" roads
+// left out), so the pack works as it is, without a rebuild.
 import type { Mk8CourseContent } from '../types';
 import look from './look';
+import { materials } from './materials';
 import { route } from './route';
 
 const canyon: Mk8CourseContent = {
@@ -22,6 +25,7 @@ const canyon: Mk8CourseContent = {
   route,
   // MK8's caustics volume over the soda lake: invisible in the game, a pink box here.
   hiddenMaterials: ['CausticsArea3'],
+  collisionFromModel: materials,
   look,
 };
 

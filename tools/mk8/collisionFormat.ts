@@ -38,30 +38,8 @@ export type MaterialMap = Record<string, MaterialSurface>;
 /** What `collision.bin` holds (the sim's `CollisionData`; the sim adds face normals on load). */
 export type CollisionMesh = CollisionData;
 
-/**
- * Material-name rules for the per-course material map stub, first match wins. MK-92 added
- * `antigrav` (and `deco`/`shadow`/`bg` decoration); the names are a proposal until a real course's
- * materials have been checked (see `src/mk8/spike/NOTES.md`).
- */
-export const SURFACE_RULES: readonly [RegExp, MaterialSurface][] = [
-  [
-    /sky|cloud|tree|leaf|leaves|crowd|audience|flag|banner|light|effect|fx|deco|shadow|^bg/,
-    'ignore',
-  ],
-  [/water|sea|river|lake|pool/, 'water'],
-  [/dash|boost/, 'boost'],
-  [/wall|fence|rail|barrier|guard/, 'wall'],
-  [/grass|dirt|sand|mud|gravel|offroad|rough/, 'offroad'],
-  [/anti.?grav|zero.?g/, 'antigrav'],
-  [/glide|jump/, 'glide'],
-];
-
-/** Guess a surface from a material name, for the per-course material map stub. */
-export function guessSurface(material: string): MaterialSurface {
-  const name = material.toLowerCase();
-  for (const [pattern, surface] of SURFACE_RULES) if (pattern.test(name)) return surface;
-  return 'road';
-}
+// The guesses moved to `src/mk8/content/courses/surfaceGuess.ts` (MK-123): the client uses them too.
+export { guessSurface, SURFACE_RULES } from '../../src/mk8/content/courses/surfaceGuess.ts';
 
 /** Uniform grid over the triangles' bounds; each cell lists the triangles whose box touches it. */
 export const buildGrid = buildCollisionGrid;
