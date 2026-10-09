@@ -675,74 +675,74 @@
     },
     {
       "path": "models/racers/bowser.glb",
-      "bytes": 7288,
-      "sha256": "816aae445328f91d8395a4978b42a5e956c47b3a7b8594901386fe543416dd25",
+      "bytes": 23332,
+      "sha256": "a0ca306e590b6197f2cc9a425a3855417de1a09089109ae246edb5412c749e3c",
       "group": "racer/bowser"
     },
     {
       "path": "models/racers/daisy.glb",
-      "bytes": 7276,
-      "sha256": "bf6c355d0b73e6e58b239cde902ab49de027fa83b9ac120c5eb4371ab0d72f78",
+      "bytes": 23272,
+      "sha256": "0e229d254f771af063f7eb12479238e65d0114b27b14061b4b24f97d4de158e7",
       "group": "racer/daisy"
     },
     {
       "path": "models/racers/donkey-kong.glb",
-      "bytes": 7276,
-      "sha256": "e44637413403318f3beb4e5fe27387a157da458f0494af88608fe79bb0ccb8e0",
+      "bytes": 23256,
+      "sha256": "2c74c8657fc1dd4518ed9632f966bd34985fe14296f2d07b798740784d7358d9",
       "group": "racer/donkey-kong"
     },
     {
       "path": "models/racers/koopa-troopa.glb",
-      "bytes": 7276,
-      "sha256": "af2a947a980138dfafd0f45906e4d670c9ed91ad633cc6cb22842f2f3dfec23e",
+      "bytes": 23316,
+      "sha256": "94d6188d1fd00b851cfdba90a8d38c9d1db9033172d3114488de36a00723df73",
       "group": "racer/koopa-troopa"
     },
     {
       "path": "models/racers/luigi.glb",
-      "bytes": 7288,
-      "sha256": "e0a7df6c880f21ed7cffa49e7db4cb9a10c6f4a5dfe44c754f1e28ed731d7b30",
+      "bytes": 23328,
+      "sha256": "02876a6d08fa0acc4c17554f62a57f05d93760dd4f0121afc9a51172b6a6cbd1",
       "group": "racer/luigi"
     },
     {
       "path": "models/racers/mario.glb",
-      "bytes": 7276,
-      "sha256": "6862c3777eeb8c4142ef3f71c7329c3cc3f0051bb5bd123cd8aa2740657df2f1",
+      "bytes": 23256,
+      "sha256": "d1224186d4eb974dd4eb223ccd8e3b2640ecf476cb3cb8b371e4022f725ad552",
       "group": "racer/mario"
     },
     {
       "path": "models/racers/peach.glb",
-      "bytes": 7300,
-      "sha256": "320369399ac6c70438996442cddf395900c24283104093f6810e24c5e0b1fb30",
+      "bytes": 23336,
+      "sha256": "bbd15541b76a09358739a00bb11c0f080b840d2e3e85fd807c073862c0415b31",
       "group": "racer/peach"
     },
     {
       "path": "models/racers/shy-guy.glb",
-      "bytes": 7276,
-      "sha256": "21437e22d87b476356046b0ef49998597411d25bb6208514595f0706b536646d",
+      "bytes": 23272,
+      "sha256": "0a1f88e614eb30741d4a16dcd76c43ab180d44dab026c1790c26364e4ee1c3a9",
       "group": "racer/shy-guy"
     },
     {
       "path": "models/racers/toad.glb",
-      "bytes": 7288,
-      "sha256": "97fd6ce2cb505192c42fc16b34d374aaf36ee2e08e7c3bd95ea7bcd9561d58f9",
+      "bytes": 23332,
+      "sha256": "830f54b1e2460e29044d87bf26111433bc0c6d7ba7a56f0eb667e8ba05886a24",
       "group": "racer/toad"
     },
     {
       "path": "models/racers/waluigi.glb",
-      "bytes": 7276,
-      "sha256": "790a94af1a539582c0ff11e2b9ffa5b73be639efc9e2b8610d09a7625229bb7b",
+      "bytes": 23272,
+      "sha256": "ed8f2a5ca3b96bb1a3416d73d680563d2d42d97af83ee955a584121430d0adb8",
       "group": "racer/waluigi"
     },
     {
       "path": "models/racers/wario.glb",
-      "bytes": 7276,
-      "sha256": "44d50725f76dabf19decbad77335782fe51663236b352c5e3ea47ee4c7568812",
+      "bytes": 23316,
+      "sha256": "3c1b16c1d16ba48c16895ca4db5c8ab0f062107257b99621d8db570889169020",
       "group": "racer/wario"
     },
     {
       "path": "models/racers/yoshi.glb",
-      "bytes": 7276,
-      "sha256": "4323e60e6f9819ba9482f0923c614842a7662f7b7901f7f74478005657a36962",
+      "bytes": 23256,
+      "sha256": "b4e3899376197d9aa017b9f88924b79746bbd96541728a9898b7c0fdc217bf04",
       "group": "racer/yoshi"
     },
     {
