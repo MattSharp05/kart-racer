@@ -71,3 +71,10 @@
   transform: rotate(8deg);
   pointer-events: none;
 }
+
+/* Phone controllers (MK-146) pair with a desktop; a phone or tablet doesn't offer them. */
+@media (pointer: coarse) {
+  .menu-title .controllers-button {
+    display: none;
+  }
+}

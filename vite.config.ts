@@ -79,6 +79,8 @@ export default defineConfig({
       input: {
         main: resolve(import.meta.dirname, 'index.html'),
         dev: resolve(import.meta.dirname, 'dev.html'),
+        // The phone controller page (MK-146): its own small bundle, no three.js.
+        remote: resolve(import.meta.dirname, 'remote.html'),
         mk8Sprites: resolve(import.meta.dirname, 'dev/mk8-sprites.html'),
         trackEditor: resolve(import.meta.dirname, 'dev/track-editor.html'),
       },

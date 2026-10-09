@@ -7,6 +7,7 @@ import { menuScenarios } from './menus';
 import { mk8Scenarios } from './mk8';
 import { onlineScenarios } from './online';
 import { raceScenarios } from './race';
+import { remoteScenarios } from './remote';
 import { racerSelectScenarios } from './racerSelect';
 import { trackScenarios } from './tracks';
 import { trackSelectScenarios } from './trackSelect';
@@ -29,6 +30,7 @@ scenarios.register(
   ...onlineScenarios,
   ...localScenarios,
   ...mk8Scenarios,
+  ...remoteScenarios,
   ...Object.values(trackFolderScenarios).flat(),
   ...Object.values(itemFolderScenarios).flat(),
 );

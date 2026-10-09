@@ -222,9 +222,7 @@ export class Flow {
 
     this.pauseButton = createPauseButton(() => this.pauseRace());
     window.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && this.screens.current === 'none' && !this.pauseButton.hidden) {
-        this.pauseRace();
-      }
+      if (e.key === 'Escape') this.pauseIfRacing();
     });
 
     game.onEvents((events, state) => this.onEvents(events, state));
@@ -257,6 +255,11 @@ export class Flow {
       if (pausedBy >= 0 && menu === 'none' && !this.pauseButton.hidden) this.pauseRace(pausedBy);
       this.watchOnlineRace();
     };
+  }
+
+  /** Opens the pause menu if a race is running (Esc; a phone controller dropping, MK-146). */
+  pauseIfRacing(): void {
+    if (this.screens.current === 'none' && !this.pauseButton.hidden) this.pauseRace();
   }
 
   /** Opens the launch screen (menus or a direct race). */
