@@ -1,6 +1,6 @@
 // Thwomp Ruins (MK-124): the Mushroom Cup's fourth course. Its geometry and collision come from the
 // pack (`models/courses/thwomp-ruins/`, ADR 0009); the route (centreline, AI line, gates, grid,
-// item boxes, coins, the anti-gravity wall and the sunken passage's water), the material map
+// item boxes, coins, the anti-gravity tunnel and spiral and the flooded channel's water), the material map
 // (`route.ts`, `materials.ts`, the track editor's format: /dev/track-editor.html?course=thwomp-ruins)
 // and the Thwomps (`thwomps.ts`) are ours.
 //

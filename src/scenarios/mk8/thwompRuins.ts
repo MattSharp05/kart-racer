@@ -32,7 +32,7 @@ const TEST_RAMP_ID = 'mk8-test-ramp';
 const THWOMP_LEAD = 35;
 const THWOMP_SPEED = 15;
 
-/** Free drive into the Thwomp hall: `THWOMP_LEAD` m before the first Thwomp on the lap. */
+/** Free drive towards the Thwomps: `THWOMP_LEAD` m before the first Thwomp on the lap. */
 function intoTheHall(track: MeshTrackDef, seed: number): SimState {
   const geometry = routeGeometry(track.route);
   const first = Math.min(
@@ -50,7 +50,7 @@ const scenarios: Scenario[] = [
     name: 'mk8-ruins-race',
     group: 'MK8 Mode',
     description:
-      'Thwomp Ruins (MK-124): a 3-lap 150cc race from the countdown, you + 7 AI with MK8 items, Thwomps slamming in the hall. Needs the MK8 pack (local `pnpm dev` or the site’s password); &quality=low draws the low-texture model.',
+      'Thwomp Ruins (MK-124, traced on the pack in MK-128): a 3-lap 150cc race from the countdown on the start grid, you + 7 AI with MK8 items, Thwomps slamming on the straight. Needs the MK8 pack (local `pnpm dev` or the site’s password); &quality=low draws the low-texture model.',
     defaultSeed: 1,
     mk8Course: RUINS_PACK,
     setup: onCourse(MK8_RUINS_ID, courseRace),
@@ -59,7 +59,7 @@ const scenarios: Scenario[] = [
     name: 'mk8-ruins-free',
     group: 'MK8 Mode',
     description:
-      'Thwomp Ruins free drive from pole position: one kart, no race, item boxes out. The lap: up the start straight, right into the Thwomp hall, up the curved anti-gravity wall, down through the sunken passage (underwater) and back onto the straight. &editorRoute=1 drives the track editor’s unsaved route.',
+      'Thwomp Ruins free drive from pole position: one kart, no race, item boxes out. The lap: up the start straight past the Thwomps, across the courtyard into the temple hall, down through the flooded channel (underwater), the anti-gravity tunnel and spiral, off the glide board and back onto the straight. &editorRoute=1 drives the track editor’s unsaved route.',
     defaultSeed: 1,
     mk8Course: RUINS_PACK,
     setup: onCourse(MK8_RUINS_ID, courseFromGrid),
@@ -68,7 +68,7 @@ const scenarios: Scenario[] = [
     name: 'mk8-ruins-thwomp',
     group: 'MK8 Mode',
     description:
-      'Thwomp Ruins’ hall: rolling at 15 m/s, 35 m before the first of four Thwomps. They hover, slam down and rise out of step: time your way through, or get flattened (stopped and squashed for 1.5 s).',
+      'Thwomp Ruins’ Thwomps: rolling at 15 m/s up the start straight, 35 m before the first of four. They hover, slam down beside the line and rise out of step: keep to the line or time your way past, or get flattened (stopped and squashed for 1.5 s).',
     defaultSeed: 1,
     mk8Course: RUINS_PACK,
     setup: onCourse(MK8_RUINS_ID, intoTheHall),
@@ -77,7 +77,7 @@ const scenarios: Scenario[] = [
     name: 'mk8-ruins-wall',
     group: 'MK8 Mode',
     description:
-      'Thwomp Ruins’ anti-gravity wall: rolling 25 m before it, then up the curved wall and down into the sunken passage (underwater).',
+      'Thwomp Ruins’ anti-gravity section: rolling 25 m before the tunnel out of the flooded channel, then the spiral up round the rock to the glide board.',
     defaultSeed: 1,
     mk8Course: RUINS_PACK,
     setup: onCourse(MK8_RUINS_ID, (track, seed) => courseAntigrav(track, seed, 25)),

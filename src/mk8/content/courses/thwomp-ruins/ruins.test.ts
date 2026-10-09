@@ -76,7 +76,7 @@ describe('Thwomp Ruins: route and data (MK-124, MK-128)', () => {
     ).toBe(true);
   });
 
-  it('runs through the sunken passage under water for 50–100 m, never on the start straight', () => {
+  it('runs through the flooded channel under water for 50–100 m, never on the start straight', () => {
     const spacing = geometry.length / geometry.samples.length;
     const under = geometry.samples.filter((s) => insideWater(ruins.route, s.position)).length;
     expect(under * spacing).toBeGreaterThan(50);
