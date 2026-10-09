@@ -97,6 +97,17 @@ export function playerLabel(slot: number): string {
   return `P${slot + 1}`;
 }
 
+/**
+ * Each player's colour, P1 to P4 (MK-145): their split-screen view's label and frame. Distinct for
+ * colour-blind players too (red/blue/green/yellow differ in lightness).
+ */
+export const PLAYER_COLOURS: readonly string[] = ['#e63946', '#2f7fe0', '#2a9d4b', '#e0a800'];
+
+/** Player `slot`'s colour. */
+export function playerSlotColour(slot: number): string {
+  return PLAYER_COLOURS[slot % PLAYER_COLOURS.length] ?? '#ffffff';
+}
+
 function checkSlot(slot: number): void {
   if (!Number.isInteger(slot) || slot < 0 || slot >= MAX_PLAYERS) {
     throw new Error(`No player slot ${slot} (0–${MAX_PLAYERS - 1})`);

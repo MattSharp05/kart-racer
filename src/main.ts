@@ -61,6 +61,9 @@ const world = new World(canvas, game, {
   ...(params.lowQuality ? { lowQuality: true } : {}),
   poseFilter: () => session.online?.smoother,
   playerColour: (kartId) => playerColour(session.online?.launch.colours, kartId),
+  // Split-screen (MK-145): a view per local player.
+  views: () => session.slotKarts,
+  splitLayout: () => session.splitLayout,
 });
 const flow = new Flow(
   session,

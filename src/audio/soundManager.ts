@@ -5,13 +5,19 @@ import type { KartState, SimEvent, SimState } from '../sim/types';
 import { Music } from './music';
 import { rumbleLevel } from './rumble';
 import { soundSkin } from './skin';
-import { cueFor } from './soundMap';
+import { cueFor, type SoundCue } from './soundMap';
 import { Synth } from './synth';
 
 /** Sounds from other karts fade out over this distance, m. */
 const HEARING_RANGE = 60;
 const AI_ENGINES = 3;
 const AI_ENGINE_RANGE = 40;
+/**
+ * Split-screen (MK-145): the other local players' own sounds (item, boost, hit…) play this much
+ * quieter than P1's, who is the listener; their engines take the nearby-engine voices first.
+ */
+const OTHER_PLAYER_VOLUME = 0.6;
+const OTHER_PLAYER_ENGINE_VOLUME = 0.05;
 /** Loudness of the rumble right next to a rolling snowball (MK-59). */
 const RUMBLE_VOLUME = 0.5;
 
@@ -39,6 +45,8 @@ export interface AudioView {
   menu: boolean;
   paused: boolean;
   followId: number;
+  /** The local players' karts by slot (MK-145), the listener's (`followId`) among them. */
+  players?: readonly number[];
 }
 
 /**
@@ -158,10 +166,18 @@ export class SoundManager {
     return gain;
   }
 
-  onEvents(events: SimEvent[], state: SimState, followId: number): void {
+  /**
+   * `players`: the local players' karts (MK-145). The listener is `followId`'s; the other players'
+   * own sounds still play, quieter, and sounds near any of them are heard.
+   */
+  onEvents(
+    events: SimEvent[],
+    state: SimState,
+    followId: number,
+    players: readonly number[] = [],
+  ): void {
     if (this.suspended) return;
     const synth = this.synth;
-    const me = state.karts[followId];
     // A race's own sounds (MK-129: MK8's items) come first; they start on their own gesture.
     // Muted, everything goes to the (silent) synth.
     const skin = soundSkin();
@@ -171,15 +187,8 @@ export class SoundManager {
       if (!synth) continue;
       const cue = cueFor(event, state.race.laps);
       if (!cue) continue;
-      let volume = cue.volume ?? 1;
-      if (cue.scope === 'player' && cue.kartId !== followId) continue;
-      if (cue.scope === 'near' && cue.kartId !== followId) {
-        const from = cue.kartId !== undefined ? state.karts[cue.kartId] : undefined;
-        if (!from || !me) continue;
-        const d = distance(from, me);
-        if (d > HEARING_RANGE) continue;
-        volume *= 1 - d / HEARING_RANGE;
-      }
+      const volume = cueVolume(cue, state, followId, players);
+      if (volume === null) continue;
       synth.play(cue.id, volume, cue.pitch ?? 0);
     }
   }
@@ -218,20 +227,10 @@ export class SoundManager {
     const top = tuning.topSpeed[state.engineClass];
     const voices: { kart: KartState | undefined; volume: number }[] = [];
     voices.push({ kart: racing ? me : undefined, volume: 0.09 });
-    const others = me
-      ? state.karts
-          .filter((k) => k.id !== view.followId)
-          .map((k) => ({ kart: k, d: distance(k, me) }))
-          .filter((o) => o.d < AI_ENGINE_RANGE)
-          .sort((a, b) => a.d - b.d)
-          .slice(0, AI_ENGINES)
-      : [];
+    const nearby = nearbyEngines(state, view.followId, view.players ?? []);
     for (let i = 0; i < AI_ENGINES; i += 1) {
-      const o = others[i];
-      voices.push({
-        kart: racing ? o?.kart : undefined,
-        volume: o ? 0.035 * (1 - o.d / AI_ENGINE_RANGE) : 0,
-      });
+      const o = nearby[i];
+      voices.push({ kart: racing ? o?.kart : undefined, volume: o?.volume ?? 0 });
     }
     const rumble = racing ? rumbleLevel(state, view.followId) : 0;
     this.rumble?.gain.setTargetAtTime(rumble * RUMBLE_VOLUME, now, 0.1);
@@ -246,6 +245,64 @@ export class SoundManager {
       voice.gain.gain.setTargetAtTime(on ? volume * (0.4 + ratio * 0.6) : 0, now, 0.08);
     });
   }
+}
+
+/**
+ * How loud `cue` plays for the listener (kart `followId`), or null if they don't hear it. A
+ * player's own sounds: only theirs, plus (split-screen, MK-145) the other local `players`', quieter.
+ * Sounds near a kart fade with its distance from the nearest local player.
+ */
+export function cueVolume(
+  cue: SoundCue,
+  state: SimState,
+  followId: number,
+  players: readonly number[] = [],
+): number | null {
+  let volume = cue.volume ?? 1;
+  if (cue.kartId === followId) return volume;
+  if (cue.scope === 'player') {
+    return cue.kartId !== undefined && players.includes(cue.kartId)
+      ? volume * OTHER_PLAYER_VOLUME
+      : null;
+  }
+  if (cue.scope === 'near') {
+    const from = cue.kartId !== undefined ? state.karts[cue.kartId] : undefined;
+    const me = state.karts[followId];
+    if (!from || !me) return null;
+    const others = players.flatMap((id) => {
+      const kart = state.karts[id];
+      return kart ? [distance(from, kart)] : [];
+    });
+    const d = Math.min(distance(from, me), ...others);
+    if (d > HEARING_RANGE) return null;
+    volume *= 1 - d / HEARING_RANGE;
+  }
+  return volume;
+}
+
+/**
+ * The engines heard besides the listener's (kart `followId`), loudest first, at most `AI_ENGINES`:
+ * the other local players' (split-screen, MK-145) wherever they are, then the nearest other karts,
+ * quieter with distance.
+ */
+export function nearbyEngines(
+  state: SimState,
+  followId: number,
+  players: readonly number[] = [],
+): { kart: KartState; volume: number }[] {
+  const me = state.karts[followId];
+  if (!me) return [];
+  const others = state.karts.filter((k) => k.id !== followId);
+  const local = others
+    .filter((k) => players.includes(k.id))
+    .map((kart) => ({ kart, volume: OTHER_PLAYER_ENGINE_VOLUME }));
+  const near = others
+    .filter((k) => !players.includes(k.id))
+    .map((kart) => ({ kart, d: distance(kart, me) }))
+    .filter((o) => o.d < AI_ENGINE_RANGE)
+    .sort((a, b) => a.d - b.d)
+    .map((o) => ({ kart: o.kart, volume: 0.035 * (1 - o.d / AI_ENGINE_RANGE) }));
+  return [...local, ...near].slice(0, AI_ENGINES);
 }
 
 function distance(a: KartState, b: KartState): number {

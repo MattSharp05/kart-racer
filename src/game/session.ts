@@ -18,6 +18,7 @@ import { Game } from './game';
 import type { LaunchParams } from './launchParams';
 import { OnlineRace, type OnlineLaunch } from './online';
 import type { LobbyLaunch } from './roomFlow';
+import type { SplitLayout } from '../render/viewports';
 
 export const DEFAULT_SEED = 1;
 /** Room of an online scenario opened without `&room=`. */
@@ -240,6 +241,8 @@ export class RaceSession {
   players = 1;
   /** Each local player's kart, by slot (P1 first); online, just this device's kart. */
   slotKarts: number[] = [];
+  /** How two players' split-screen views share the screen (MK-145): the race setup's choice. */
+  splitLayout: SplitLayout = 'stacked';
   /** Each slot's input from the last tick, by slot. */
   private slotInputs: InputFrame[] = [];
 

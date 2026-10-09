@@ -11,15 +11,22 @@ import type { FakePlayer, Scenario } from './registry';
 /** P2–P4's racers in the local multiplayer scenarios (MK-144). */
 const OTHER_PLAYERS: readonly KartId[] = ['boulder', 'coral', 'nova'];
 
-/** A local race on Sunny Circuit in countdown: `players` people (P1 = kart 0) and AI to 8 karts. */
-export function localRace(seed: number, players: number): SimState {
+/**
+ * A local race in countdown, on Sunny Circuit unless `trackId` says: `players` people (P1 = kart 0)
+ * and AI to 8 karts.
+ */
+export function localRace(seed: number, players: number, trackId?: string): SimState {
   return sunnyRace(seed, {
     karts: 8,
     ai: true,
     engineClass: 100,
     otherPlayers: OTHER_PLAYERS.slice(0, players - 1),
+    ...(trackId !== undefined ? { trackId } : {}),
   });
 }
+
+/** The original game's tracks other than Sunny Circuit: 4-player split-screen on each (MK-145). */
+const SPLIT_TRACKS = ['dune-canyon', 'frostpeak-pass', 'neon-harbour', 'canopy-rush', 'cog-works'];
 
 /**
  * Fake players for P2…: their karts drive themselves on the autopilot until a test sets their
@@ -69,7 +76,7 @@ export const localScenarios: Scenario[] = [
     name: 'local-2p',
     group: 'Local multiplayer',
     description:
-      '2 players on one screen (P2 a fake controller driving itself) + 6 AI, in countdown. The view follows P1.',
+      '2 players on one screen (P2 a fake controller driving itself) + 6 AI, in countdown: the screen split top and bottom.',
     defaultSeed: 1,
     setup: (seed) => ({ state: localRace(seed, 2), players: 2, fakePlayers: fakePlayers(2) }),
   },
@@ -80,6 +87,37 @@ export const localScenarios: Scenario[] = [
     defaultSeed: 1,
     setup: (seed) => ({ state: localRace(seed, 4), players: 4, fakePlayers: fakePlayers(4) }),
   },
+  {
+    name: 'local-3p',
+    group: 'Local multiplayer',
+    description:
+      '3 players on one screen (P2, P3 fake controllers driving themselves) + 5 AI: three views, the race overview in the fourth quadrant.',
+    defaultSeed: 1,
+    setup: (seed) => ({ state: localRace(seed, 3), players: 3, fakePlayers: fakePlayers(3) }),
+  },
+  {
+    name: 'local-2p-side',
+    group: 'Local multiplayer',
+    description: "2 players with the screen split side by side (the race setup's Screen option).",
+    defaultSeed: 1,
+    setup: (seed) => ({
+      state: localRace(seed, 2),
+      players: 2,
+      fakePlayers: fakePlayers(2),
+      storage: { [PREFS_KEY]: JSON.stringify({ split: 'side' }) },
+    }),
+  },
+  ...SPLIT_TRACKS.map((trackId): Scenario => ({
+    name: `local-4p-${trackId}`,
+    group: 'Local multiplayer',
+    description: `4 players on one screen on ${trackId} (split-screen perf, MK-145).`,
+    defaultSeed: 1,
+    setup: (seed) => ({
+      state: localRace(seed, 4, trackId),
+      players: 4,
+      fakePlayers: fakePlayers(4),
+    }),
+  })),
   {
     name: 'local-2p-paused',
     group: 'Local multiplayer',

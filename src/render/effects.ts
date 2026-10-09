@@ -71,7 +71,8 @@ export class Effects {
   constructor(
     scene: THREE.Scene,
     private readonly karts: KartRenderer,
-    private readonly camera: ChaseCamera,
+    /** The chase camera of the view following a kart, if one does (MK-145: one per player). */
+    private readonly cameraOf: (kartId: number) => ChaseCamera | undefined,
   ) {
     this.mesh = new THREE.InstancedMesh(
       new THREE.OctahedronGeometry(1, 0),
@@ -97,19 +98,20 @@ export class Effects {
     this.lastTick = -1;
   }
 
-  /** Sim events that aren't visible in the state: bumps shake the camera. */
-  onEvents(events: SimEvent[], followId: number): void {
+  /** Sim events that aren't visible in the state: bumps shake the cameras following either kart. */
+  onEvents(events: SimEvent[]): void {
     for (const e of events) {
-      if (e.type === 'bump' && (e.a === followId || e.b === followId)) {
-        this.camera.addShake(Math.min(1, e.strength / 12) * 0.5);
-      }
+      if (e.type !== 'bump') continue;
+      const shake = Math.min(1, e.strength / 12) * 0.5;
+      this.cameraOf(e.a)?.addShake(shake);
+      if (e.b !== e.a) this.cameraOf(e.b)?.addShake(shake);
     }
   }
 
   update(state: SimState, followId: number, speedRatio: number, view: string): void {
     const ticks = this.lastTick < 0 ? 1 : Math.min(10, state.tick - this.lastTick);
     if (ticks > 0 || this.lastTick < 0) {
-      for (const kart of state.karts) this.watchKart(kart, state, followId, Math.max(1, ticks));
+      for (const kart of state.karts) this.watchKart(kart, state, Math.max(1, ticks));
       this.lastTick = state.tick;
     }
     this.draw(state.tick);
@@ -125,7 +127,7 @@ export class Effects {
     }
   }
 
-  private watchKart(kart: KartState, state: SimState, followId: number, ticks: number): void {
+  private watchKart(kart: KartState, state: SimState, ticks: number): void {
     const seen = this.memory.get(kart.id);
     const now: KartMemory = {
       spin: kart.spinTimer,
@@ -135,24 +137,25 @@ export class Effects {
       finished: kart.race.finishTick !== undefined,
       squash: seen?.squash ?? 0,
     };
-    const isFollowed = kart.id === followId;
+    // The camera following this kart, if a view does: its shake and FOV kick (MK-145: any view's).
+    const camera = this.cameraOf(kart.id);
     const tick = state.tick;
     // Hit: a spin-out just started.
     if (kart.spinTimer > (seen?.spin ?? 0) + 1e-6 && kart.spinTimer > tuning.spinSeconds * 0.8) {
       this.burst(kart, tick, 14, STAR_COLOURS, 7, 0.15, 36);
-      if (isFollowed) this.camera.addShake(0.8);
+      camera?.addShake(0.8);
     }
     // Boost start (mini-turbo, mushroom, pad, rocket start).
-    if (seen && kart.boostTimer > seen.boost + 0.05 && isFollowed) this.camera.kickFov();
+    if (seen && kart.boostTimer > seen.boost + 0.05) camera?.kickFov();
     // Spin boost start (MK-108): the same kick.
-    if (seen && now.spinBoost > seen.spinBoost + 0.05 && isFollowed) this.camera.kickFov();
+    if (seen && now.spinBoost > seen.spinBoost + 0.05) camera?.kickFov();
     // Landing after real air time: squash + a little shake.
     if (seen && seen.airTime > 0.25 && kart.grounded && kart.airTime === 0) {
       now.squash = Math.min(0.35, seen.airTime * 0.3);
-      if (isFollowed) this.camera.addShake(Math.min(0.6, seen.airTime * 0.4));
+      camera?.addShake(Math.min(0.6, seen.airTime * 0.4));
     }
-    // Finish: confetti for the followed kart.
-    if (isFollowed && now.finished && seen && !seen.finished) {
+    // Finish: confetti for each followed kart.
+    if (camera && now.finished && seen && !seen.finished) {
       this.burst(kart, tick, 60, CONFETTI, 9, 0.18, 110, 5);
     }
     now.squash *= Math.pow(0.85, ticks);
