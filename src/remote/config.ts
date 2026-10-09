@@ -28,3 +28,22 @@ export const REMOTE = {
    */
   relinkEveryMs: 3 * 60 * 60 * 1000,
 } as const;
+
+/**
+ * The phone controller page (MK-147): tilt steering held sideways like a remote in a wheel, and
+ * each player's colour.
+ */
+export const REMOTE_PAD = {
+  /** Degrees of wheel turn around the calibrated level that still steer straight. */
+  tiltDeadZoneDeg: 4,
+  /** Degrees of wheel turn for full lock (a Wii-Wheel-like quarter turn is ~90°; this is lighter). */
+  tiltSensitivityDeg: 30,
+  /** "Level" calibration keeps the neutral within ± this many degrees. */
+  tiltNeutralMaxDeg: 45,
+  /** Seconds after tilt starts with no motion reading before the page says there's no sensor. */
+  noReadingSeconds: 2,
+  /** Player 1–4's colour (the phone's lit light and accents). */
+  slotColours: ['#e63946', '#3a86ff', '#2bb673', '#f4a100'],
+  /** Vibration patterns, ms on/off (`navigator.vibrate`; iPhones don't vibrate from the web). */
+  buzz: { hit: [90, 50, 90], turbo: [35] },
+} as const;

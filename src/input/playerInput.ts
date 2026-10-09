@@ -13,7 +13,7 @@ export class PlayerInput {
   read(): InputFrame {
     // Tilt steers only while the touch controls do (not in menus, not on a keyboard).
     const tilted = this.touch.live ? { ...NEUTRAL_INPUT, steer: tilt.steer() } : NEUTRAL_INPUT;
-    // A paired phone (MK-146) drives player 1 until split-screen binds phones to players (MK-144).
+    // Player 1's paired phone (MK-146); P2–P4's phones are their slots' sources (MK-147).
     return mergeInputs(this.keyboard.read(), this.touch.read(), tilted, remoteInput(0));
   }
 }

@@ -13,7 +13,16 @@ describe('remote protocol (MK-146)', () => {
         type: 'input',
         seq: 4_000_000_000,
         input: { steer: -1, throttle: 1, brake: 0, drift: true, item: false, respawn: true },
+        buttons: { lookBack: true, pause: false },
       },
+      {
+        type: 'input',
+        seq: 1,
+        input: { steer: 0, throttle: 0, brake: 1, drift: false, item: true, respawn: false },
+        buttons: { lookBack: false, pause: true },
+      },
+      { type: 'buzz', kind: 'hit' },
+      { type: 'buzz', kind: 'turbo' },
     ];
     for (const message of messages) expect(decodeRemote(encodeRemote(message))).toEqual(message);
   });
@@ -23,6 +32,7 @@ describe('remote protocol (MK-146)', () => {
       type: 'input',
       seq: 7,
       input: { steer: 0.5, throttle: 2, brake: -1, drift: false, item: true },
+      buttons: { lookBack: false, pause: false },
     });
     expect(bytes.length).toBe(9);
     const decoded = decodeRemote(bytes);
@@ -42,6 +52,9 @@ describe('remote protocol (MK-146)', () => {
     expect(decodeRemote(Uint8Array.of(1))).toBeNull();
     expect(decodeRemote(Uint8Array.of(3, 0, 0))).toBeNull();
     expect(decodeRemote(Uint8Array.of(6, 0))).toBeNull();
+    // Buzz: a kind that isn't one, or no kind.
+    expect(decodeRemote(Uint8Array.of(7, 9))).toBeNull();
+    expect(decodeRemote(Uint8Array.of(7))).toBeNull();
   });
 });
 

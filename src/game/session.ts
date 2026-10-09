@@ -289,6 +289,16 @@ export class RaceSession {
   }
 
   /**
+   * A controller turned up for player slot `slot` mid-race (MK-147: a phone paired into it): if
+   * the slot only has the "Auto" stand-in, a provider's controller takes its kart over now.
+   */
+  claimSlot(slot: number): void {
+    if (slot <= 0 || slot >= this.players || !this.slots.isStandIn(slot)) return;
+    this.slots.fill(this.players, inputSourceProviders);
+    if (!this.slots.isStandIn(slot)) this.game.setAutopilot(this.slotKart(slot), false);
+  }
+
+  /**
    * Maps the local players to `state`'s `local` karts and gives each slot a controller. A
    * stand-in's kart drives itself (the autopilot), so a race with no phones yet still runs.
    */

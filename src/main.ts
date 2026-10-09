@@ -5,7 +5,7 @@ if (new URLSearchParams(location.search).get('spike') === 'antigrav')
 import { Flow } from './game/flow';
 import { parseLaunchParams } from './game/launchParams';
 import { playerColour } from './game/results';
-import { RaceSession, resolveLaunch } from './game/session';
+import { NO_LOCAL_KART, RaceSession, resolveLaunch } from './game/session';
 import { browserStore, OverlayStore, readSettings } from './game/storage';
 import { installTestApi } from './game/testApi';
 import { TestSource } from './input/sources';
@@ -125,6 +125,14 @@ installRemotes({
   ...(params.links === 'webrtc' ? { links: params.links } : {}),
   ...(params.relay ? { relay: params.relay } : {}),
   pause: () => flow.pauseIfRacing(),
+  // P1's phone drives the local kart; P2–P4's, their kart when the race gave them their phone.
+  kartOf: (slot) => {
+    const kart = slot === 0 ? session.localKartId : session.slotKart(slot);
+    if (kart === NO_LOCAL_KART) return null;
+    return slot === 0 || session.slots.source(slot)?.kind === 'phone' ? kart : null;
+  },
+  onEvents: (listener) => game.onEvents(listener),
+  connected: (slot) => session.claimSlot(slot),
 });
 if (params.scenario && scenarios.get(params.scenario)?.addControllers) void openAddControllers();
 // `&paused=1` wins over menu screens that start the sim (kart select, title): tests and QA links

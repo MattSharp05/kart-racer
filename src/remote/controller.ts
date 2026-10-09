@@ -1,7 +1,14 @@
 import type { Transport } from '../net/transport';
 import { NEUTRAL_INPUT, type InputFrame } from '../sim/types';
 import { REMOTE } from './config';
-import { decodeRemote, encodeRemote, type RemoteMessage } from './protocol';
+import {
+  decodeRemote,
+  encodeRemote,
+  NO_BUTTONS,
+  type BuzzKind,
+  type RemoteButtons,
+  type RemoteMessage,
+} from './protocol';
 import { RttMeter } from './rtt';
 
 /**
@@ -24,12 +31,14 @@ export class RemoteController {
   /** Input packets sent so far (the next one's sequence number). */
   seq = 0;
   private input: InputFrame = NEUTRAL_INPUT;
+  private buttons: RemoteButtons = NO_BUTTONS;
   private readonly rtt = new RttMeter();
   private readonly startedAt: number;
   private heardAt: number;
   private lastHello = -Infinity;
   private lastInput = -Infinity;
   private readonly listeners = new Set<() => void>();
+  private readonly buzzListeners = new Set<(kind: BuzzKind) => void>();
 
   constructor(
     readonly slot: number,
@@ -51,9 +60,16 @@ export class RemoteController {
     return this.rtt.rttMs;
   }
 
-  /** The controls to send from now on. */
-  setInput(input: InputFrame): void {
+  /** The controls (and, MK-147, look back and pause) to send from now on. */
+  setInput(input: InputFrame, buttons: RemoteButtons = NO_BUTTONS): void {
     this.input = input;
+    this.buttons = buttons;
+  }
+
+  /** Calls `listener` when the desktop sends something to feel (MK-147). */
+  onBuzz(listener: (kind: BuzzKind) => void): () => void {
+    this.buzzListeners.add(listener);
+    return () => this.buzzListeners.delete(listener);
   }
 
   /** Calls `listener` when `state` or the RTT changes. */
@@ -83,7 +99,7 @@ export class RemoteController {
     // Due once per input period; a late timer sends one packet, not a burst.
     if (now - this.lastInput >= 1000 / REMOTE.inputHz - 1) {
       this.lastInput = now;
-      this.send({ type: 'input', seq: this.seq, input: this.input });
+      this.send({ type: 'input', seq: this.seq, input: this.input, buttons: this.buttons });
       this.seq += 1;
     }
     if (this.rtt.due(now)) this.send({ type: 'ping', time: now });
@@ -107,6 +123,9 @@ export class RemoteController {
     } else if (message.type === 'pong') {
       this.rtt.pong(message.time, now);
       this.changed();
+    } else if (message.type === 'buzz') {
+      if (this.state === 'connected')
+        for (const listener of [...this.buzzListeners]) listener(message.kind);
     } else if (message.type === 'bye') {
       this.end('lost');
     }

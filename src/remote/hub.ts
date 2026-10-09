@@ -2,7 +2,15 @@ import type { Transport } from '../net/transport';
 import type { RaceLinks } from '../net/raceLinks';
 import { NEUTRAL_INPUT, type InputFrame } from '../sim/types';
 import { REMOTE } from './config';
-import { decodeRemote, encodeRemote, SequenceFilter, type RemoteMessage } from './protocol';
+import {
+  decodeRemote,
+  encodeRemote,
+  NO_BUTTONS,
+  SequenceFilter,
+  type BuzzKind,
+  type RemoteButtons,
+  type RemoteMessage,
+} from './protocol';
 import { RttMeter } from './rtt';
 
 /**
@@ -22,6 +30,8 @@ export interface SlotInfo {
   rttMs: number | null;
   /** The phone's controls (neutral unless connected). */
   input: InputFrame;
+  /** Look back and pause as the phone holds them (MK-147; none unless connected). */
+  buttons: RemoteButtons;
   /** The newest input sequence number accepted (-1 before any). */
   seq: number;
   /** Input packets dropped as late or repeated. */
@@ -39,6 +49,7 @@ interface Slot {
   state: SlotState;
   link: Link | null;
   input: InputFrame;
+  buttons: RemoteButtons;
   filter: SequenceFilter;
   heardAt: number;
   stale: number;
@@ -52,6 +63,7 @@ export class RemoteHub {
   private readonly pending = new Set<Link>();
   private readonly changeListeners = new Set<() => void>();
   private readonly dropListeners = new Set<(slot: number) => void>();
+  private readonly pauseListeners = new Set<(slot: number) => void>();
   private stopAccepting: (() => void) | null = null;
   private timer: ReturnType<typeof setInterval> | null = null;
 
@@ -63,6 +75,7 @@ export class RemoteHub {
       state: 'waiting' as SlotState,
       link: null,
       input: NEUTRAL_INPUT,
+      buttons: NO_BUTTONS,
       filter: new SequenceFilter(),
       heardAt: 0,
       stale: 0,
@@ -114,6 +127,7 @@ export class RemoteHub {
       state: s.state,
       rttMs: s.state === 'connected' ? s.rtt.rttMs : null,
       input: this.input(slot),
+      buttons: s.state === 'connected' ? s.buttons : NO_BUTTONS,
       seq: s.filter.last,
       stale: s.stale,
     }));
@@ -129,6 +143,18 @@ export class RemoteHub {
   onDrop(listener: (slot: number) => void): () => void {
     this.dropListeners.add(listener);
     return () => this.dropListeners.delete(listener);
+  }
+
+  /** Calls `listener` with the slot each time its phone's pause button goes down (MK-147). */
+  onPause(listener: (slot: number) => void): () => void {
+    this.pauseListeners.add(listener);
+    return () => this.pauseListeners.delete(listener);
+  }
+
+  /** Has the phone in `slot` vibrate (MK-147); nothing when no phone is connected there. */
+  buzz(slot: number, kind: BuzzKind): void {
+    const entry = this.slots[slot];
+    if (entry?.state === 'connected' && entry.link) this.send(entry.link, { type: 'buzz', kind });
   }
 
   /** Pings the phones, and drops the silent ones and links that never said hello. */
@@ -157,8 +183,14 @@ export class RemoteHub {
     if (!seated || seated.link !== link || link.slot === null) return;
     const slot = seated;
     if (message.type === 'input') {
-      if (slot.filter.accept(message.seq)) slot.input = message.input;
-      else slot.stale += 1;
+      if (!slot.filter.accept(message.seq)) {
+        slot.stale += 1;
+        return;
+      }
+      const pressed = message.buttons.pause && !slot.buttons.pause;
+      slot.input = message.input;
+      slot.buttons = message.buttons;
+      if (pressed) for (const listener of [...this.pauseListeners]) listener(link.slot);
     } else if (message.type === 'pong') {
       slot.rtt.pong(message.time, now);
       this.changed();
@@ -183,6 +215,7 @@ export class RemoteHub {
       slot.link = link;
       slot.state = 'connected';
       slot.input = NEUTRAL_INPUT;
+      slot.buttons = NO_BUTTONS;
       slot.filter = new SequenceFilter();
       slot.rtt = new RttMeter();
       slot.stale = 0;
@@ -200,6 +233,7 @@ export class RemoteHub {
     slot.state = 'disconnected';
     slot.link = null;
     slot.input = NEUTRAL_INPUT;
+    slot.buttons = NO_BUTTONS;
     if (link) {
       link.slot = null;
       this.send(link, { type: 'bye' });
