@@ -1,3 +1,4 @@
+import { openAddControllers } from '../../remote/desktop';
 import { registerScreen } from '../router';
 import { button, heading, row } from './common';
 import './title.css';
@@ -47,6 +48,8 @@ registerScreen('title', (panel, props) => {
     ...(onLeaderboards
       ? [button('🏆 Leaderboards', onLeaderboards, 'secondary leaderboards')]
       : []),
+    // Phone controllers (MK-146); not on touch screens, which are the controllers.
+    button('📱 Controllers', () => void openAddControllers(), 'secondary controllers-button'),
   ];
   if (secondary.length) panel.append(row('actions', ...secondary));
   if (onSettings) panel.append(button('⚙ Settings', onSettings, 'secondary settings-button'));

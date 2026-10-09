@@ -146,7 +146,7 @@ function atCountdown(state: SimState, ticksToGo: number): SimState {
 }
 
 /** Puts the race mid-way: GO happened `secondsAgo` ago. */
-function racingSince(state: SimState, secondsAgo: number): SimState {
+export function racingSince(state: SimState, secondsAgo: number): SimState {
   state.phase = 'racing';
   state.race.goTick = -Math.round(secondsAgo / DT);
   state.race.countdownStartTick = state.race.goTick - COUNTDOWN_TICKS;

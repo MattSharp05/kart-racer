@@ -1,0 +1,128 @@
+/* Add Controllers (MK-146): QR codes for phones over the title or a paused race. */
+.add-controllers {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  padding: 12px;
+  background: rgb(10 30 60 / 0.6);
+  font:
+    600 16px/1.3 system-ui,
+    sans-serif;
+  color: #fff;
+  overflow: auto;
+}
+
+.add-controllers-panel {
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  max-width: min(96vw, 980px);
+  padding: 20px 24px;
+  border-radius: 18px;
+  /* Opaque: the pause menu under it mustn't show through. */
+  background: rgb(14 26 46 / 0.97);
+  text-align: center;
+}
+
+.add-controllers h2 {
+  margin: 0;
+  font-size: clamp(20px, 4vw, 30px);
+}
+
+.add-controllers-help {
+  max-width: 60ch;
+  margin: 0;
+  font-weight: 500;
+  opacity: 0.9;
+}
+
+.add-controllers-error {
+  margin: 0;
+  color: var(--color-gold);
+}
+
+.add-controllers-slots {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.add-controllers-slot {
+  display: grid;
+  justify-items: center;
+  align-content: start;
+  gap: 8px;
+  min-width: 0;
+  padding: 10px;
+  border-radius: 12px;
+  background: rgb(255 255 255 / 0.08);
+}
+
+.add-controllers-player {
+  font-size: 18px;
+}
+
+.add-controllers-qr {
+  width: min(180px, 100%);
+  aspect-ratio: 1;
+  border-radius: 6px;
+}
+
+.add-controllers-phone {
+  display: none;
+  place-items: center;
+  width: min(180px, 100%);
+  aspect-ratio: 1;
+  font-size: 72px;
+}
+
+.add-controllers-slot[data-state='connected'] {
+  background: rgb(6 214 160 / 0.25);
+}
+
+.add-controllers-slot[data-state='connected'] .add-controllers-qr {
+  display: none;
+}
+
+.add-controllers-slot[data-state='connected'] .add-controllers-phone {
+  display: grid;
+}
+
+.add-controllers-slot[data-state='disconnected'] .add-controllers-status {
+  color: var(--color-gold);
+}
+
+.add-controllers-status {
+  font-size: 14px;
+}
+
+.add-controllers-code {
+  margin: 0;
+  font-size: 14px;
+  letter-spacing: 0.08em;
+  opacity: 0.8;
+}
+
+.add-controllers-done {
+  min-width: 120px;
+  min-height: 44px;
+  padding: 10px 18px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--color-gold);
+  color: var(--color-navy);
+  font: inherit;
+  cursor: pointer;
+}
+
+@media (max-width: 700px) {
+  .add-controllers-slots {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

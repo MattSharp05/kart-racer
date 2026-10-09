@@ -179,6 +179,43 @@ function now(options: RoomOptions): number {
 }
 
 /**
+ * WebRTC signaling for `race` over a room channel (MK-47; MK-146 pairs phone controllers on it):
+ * messages are addressed by peer id, and signals of other races, from ourselves, or to other peers
+ * are ignored. `isOpen`: false once the channel is left (sends are dropped).
+ */
+export function channelSignaling(
+  channel: RoomChannel,
+  race: string,
+  peerId: string,
+  isOpen: () => boolean = () => true,
+): SignalingChannel {
+  const counts = { sent: 0, received: 0 };
+  let closed = false;
+  const handlers: ((from: string, signal: Signal) => void)[] = [];
+  const stop = channel.onBroadcast((message) => {
+    if (message.race !== race || message.from === peerId) return;
+    if (message.to !== null && message.to !== peerId) return;
+    counts.received += 1;
+    for (const handler of handlers) handler(message.from, message.signal);
+  });
+  return {
+    peerId,
+    counts,
+    send: (to, signal) => {
+      if (!isOpen() || closed) return;
+      counts.sent += 1;
+      channel.broadcast({ race, from: peerId, to, signal });
+    },
+    onSignal: (handler) => handlers.push(handler),
+    close: () => {
+      closed = true;
+      handlers.length = 0;
+      stop();
+    },
+  };
+}
+
+/**
  * This device in a room: the live member list, its own presence, and the room's end. Build one
  * with `createRoom` or `joinRoom`.
  */
@@ -240,31 +277,7 @@ export class Room {
    * member id (MK-47). Signals of other races, and from or to other members, are ignored.
    */
   signaling(race: string): SignalingChannel {
-    const peerId = this.self.id;
-    const counts = { sent: 0, received: 0 };
-    let closed = false;
-    const handlers: ((from: string, signal: Signal) => void)[] = [];
-    const stop = this.channel.onBroadcast((message) => {
-      if (message.race !== race || message.from === peerId) return;
-      if (message.to !== null && message.to !== peerId) return;
-      counts.received += 1;
-      for (const handler of handlers) handler(message.from, message.signal);
-    });
-    return {
-      peerId,
-      counts,
-      send: (to, signal) => {
-        if (this.left || closed) return;
-        counts.sent += 1;
-        this.channel.broadcast({ race, from: peerId, to, signal });
-      },
-      onSignal: (handler) => handlers.push(handler),
-      close: () => {
-        closed = true;
-        handlers.length = 0;
-        stop();
-      },
-    };
+    return channelSignaling(this.channel, race, this.self.id, () => !this.left);
   }
 
   /** Leaves the room; the host leaving ends it for everyone. */
