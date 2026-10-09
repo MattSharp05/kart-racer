@@ -45,6 +45,24 @@ export interface ScenarioSetup {
    * code if given; `&role=client&room=CODE` joins it. `mk8` (MK-132): an MK8 room.
    */
   lobby?: boolean | 'mk8';
+  /**
+   * Local multiplayer (MK-144): how many of `state`'s `local` karts people drive on this screen,
+   * P1 first (default 1).
+   */
+  players?: number;
+  /**
+   * Fake controllers the players start with, by slot (slot 0, P1, is always this device's
+   * controls), for scenarios and e2e (MK-144). Slots without one get the "Auto" stand-in.
+   */
+  fakePlayers?: FakePlayer[];
+}
+
+/** A scenario's fake controller (MK-144): a test `InputSource` the page builds from this. */
+export interface FakePlayer {
+  /** Its kart drives itself until a test sets its input. */
+  autopilot?: boolean;
+  /** Its pause button is pressed as the page opens. */
+  pause?: boolean;
 }
 
 /** The online part of a scenario: the race the host runs, and a default simulated network. */

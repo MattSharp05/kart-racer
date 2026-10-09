@@ -8,6 +8,8 @@ export interface ResultRowView {
   name: string;
   you: boolean;
   time?: number;
+  /** Local multiplayer (MK-144): the player who drove it, 1–4. */
+  player?: number;
 }
 
 /** One record line: "Race record 2:33.120", flagged when this race just set it. */
@@ -49,12 +51,13 @@ registerScreen('results', (panel, { rows, records, submitted, ...handlers }) => 
   for (const result of rows) {
     const li = document.createElement('li');
     if (result.you) li.className = 'you';
+    if (result.player !== undefined) li.dataset.player = String(result.player);
     li.innerHTML = `<span>${ordinal(result.position)}</span><span></span><span>${result.time !== undefined ? formatTime(result.time) : '—'}</span>`;
     const nameCell = li.children[1];
-    if (nameCell) nameCell.textContent = result.you ? `${result.name} (you)` : result.name;
+    if (nameCell) nameCell.textContent = nameLabel(result);
     list.append(li);
   }
-  panel.append(heading('h2', you ? `You finished ${ordinal(you.position)}!` : 'Results'), list);
+  panel.append(heading('h2', title(rows, you)), list);
   if (records?.length) panel.append(recordsBlock(records));
   const status = document.createElement('p');
   status.className = 'leaderboard-status';
@@ -84,6 +87,22 @@ registerScreen('results', (panel, { rows, records, submitted, ...handlers }) => 
     },
   };
 });
+
+/** "Maple (you)", or with several players on this screen (MK-144) "Maple (P2)". */
+function nameLabel(result: ResultRowView): string {
+  if (result.player !== undefined) return `${result.name} (P${result.player})`;
+  return result.you ? `${result.name} (you)` : result.name;
+}
+
+/** "You finished 3rd!", or each local player's place (MK-144): "P1 2nd · P2 5th". */
+function title(rows: readonly ResultRowView[], you: ResultRowView | undefined): string {
+  const players = rows
+    .filter((r) => r.player !== undefined)
+    .sort((a, b) => (a.player ?? 0) - (b.player ?? 0));
+  if (players.length > 1)
+    return players.map((r) => `P${r.player} ${ordinal(r.position)}`).join(' · ');
+  return you ? `You finished ${ordinal(you.position)}!` : 'Results';
+}
 
 /** "New record!" when this race set one, then each record with the previous best it beat. */
 function recordsBlock(records: RecordLineView[]): HTMLElement {

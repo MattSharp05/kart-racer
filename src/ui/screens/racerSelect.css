@@ -7,3 +7,27 @@
   /* Darker than the other menus: the turntable, not the lineup behind, is the preview. */
   background: rgb(0 0 0 / 0.72);
 }
+
+/* The heading with the Players option beside it (MK-144). */
+.menu-racerSelect .racer-select-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+}
+
+.menu-racerSelect .players-option {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.menu-racerSelect .players-option button {
+  padding-inline: 0.6rem;
+}
+
+.menu-racerSelect .players-option button.selected {
+  outline: 2px solid currentcolor;
+  font-weight: 700;
+}
