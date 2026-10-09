@@ -2,9 +2,9 @@
 // items (`./meshItems.ts`): small detours for coins, steering into a kart beside it in
 // anti-gravity for a spin boost (MK-108), lining up on a glide ramp's middle, and diving or
 // floating on the glider by whether there's ground to land on. Numbers in `tuning.mk8.courseAi`.
-import { clamp, type Vec3 } from '../math';
-import { raycastMesh, surfaceMask, type MeshTrackDef } from '../meshTrack';
-import type { RouteGeometry } from '../route';
+import { clamp, dot, sub, type Vec3 } from '../math';
+import { meshFallLimits, raycastMesh, surfaceMask, type MeshTrackDef } from '../meshTrack';
+import { routeGeometry, type RouteGeometry } from '../route';
 import { tuning } from '../tuning';
 import type { AiState, KartState, SimState } from '../types';
 
@@ -113,18 +113,23 @@ export function glideRampLine(geometry: RouteGeometry, track: MeshTrackDef, s: n
 
 /**
  * The glider's pitch: dive (throttle) while there's drivable ground below to come down on, float
- * (brake) over a gap or a lake, so it stretches the flight to the far side.
+ * (brake) over a gap or a lake, so it stretches the flight to the far side. Ground far below the
+ * route there (MK-128 revisit: Mario Kart Stadium's infield under its glide, at 3× scale) is a pit
+ * to float over, not a landing: coming down in it is a fall.
  */
 export function glidePitch(
   kart: KartState,
   track: MeshTrackDef,
 ): { throttle: number; brake: number } {
-  const hit = raycastMesh(
-    track.collision,
-    kart.position,
-    DOWN,
-    tuning.mk8.courseAi.glideGroundBelow,
-    LANDABLE_OR_VOID,
-  );
-  return hit && hit.surface !== 'void' ? { throttle: 1, brake: 0 } : { throttle: 0, brake: 1 };
+  const cfg = tuning.mk8.courseAi;
+  const reach = cfg.glideGroundBelow * (track.scale ?? 1);
+  const hit = raycastMesh(track.collision, kart.position, DOWN, reach, LANDABLE_OR_VOID);
+  if (!hit || hit.surface === 'void') return { throttle: 0, brake: 1 };
+  const geometry = routeGeometry(track.route);
+  const hint = kart.race.lastT >= 0 ? kart.race.lastT : undefined;
+  const frame = geometry.frameAt(geometry.project(hit.point, hint).t);
+  const depth = -dot(sub(hit.point, frame.position), frame.up);
+  return depth < meshFallLimits(track).depth * cfg.glideLandingDepth
+    ? { throttle: 1, brake: 0 }
+    : { throttle: 0, brake: 1 };
 }

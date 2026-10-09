@@ -90,7 +90,8 @@ test.describe('Thwomp Ruins on the real pack (MK-124, local only)', () => {
     const result = await page.evaluate(() => {
       const game = window.__game!;
       game.setAutopilot(0, true);
-      for (let tick = 0; tick < 240 * 60; tick += 60) {
+      // A lap takes the autopilot about 75 s (MK-128: the traced lap at 3× scale).
+      for (let tick = 0; tick < 280 * 60; tick += 60) {
         if (game.step(60).karts[0]!.race.finishTick !== undefined) break;
       }
       const kart = game.getState().karts[0]!;
@@ -99,22 +100,33 @@ test.describe('Thwomp Ruins on the real pack (MK-124, local only)', () => {
     expect(result).toEqual({ finished: true, laps: 3 });
   });
 
-  test('mk8-ruins-wall: up the anti-gravity wall, then under water in the sunken passage', async ({
+  test('mk8-ruins-wall: through the anti-gravity tunnel and up the spiral, then off on the glider', async ({
     page,
   }) => {
     await loadScenario(page, 'mk8-ruins-wall', { paused: true });
     const seen = await page.evaluate(() => {
       const game = window.__game!;
       game.setAutopilot(0, true);
-      let water = false;
       let antigrav = false;
-      for (let i = 0; i < 60 && !(water && antigrav); i += 1) {
+      let glide = false;
+      for (let i = 0; i < 200 && !(antigrav && glide); i += 1) {
         const kart = game.step(15).karts[0]!;
-        water ||= kart.inWater === true;
         antigrav ||= kart.antigrav === true;
+        glide ||= kart.glide !== undefined;
       }
-      return { water, antigrav };
+      return { antigrav, glide };
     });
-    expect(seen).toEqual({ water: true, antigrav: true });
+    expect(seen).toEqual({ antigrav: true, glide: true });
+  });
+
+  test('mk8-ruins-free: the flooded channel is under water', async ({ page }) => {
+    await loadScenario(page, 'mk8-ruins-free', { paused: true });
+    const water = await page.evaluate(() => {
+      const game = window.__game!;
+      game.setAutopilot(0, true);
+      for (let i = 0; i < 300; i += 1) if (game.step(15).karts[0]!.inWater === true) return true;
+      return false;
+    });
+    expect(water).toBe(true);
   });
 });

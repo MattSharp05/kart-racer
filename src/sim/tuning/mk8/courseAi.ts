@@ -23,7 +23,17 @@ export const mk8CourseAiTuning = {
     thwompPassSpeed: 14,
     /** Glide ramps: it lines up on the ramp's middle from this far before it, m. */
     glideLead: 35,
-    /** Gliding, it dives while there is drivable ground this far below at most, m; else floats. */
+    /**
+     * Gliding, it dives while there is drivable ground this far below at most, m (times a scaled
+     * course's scale, `MeshTrackDef.scale`: its drops are that much deeper); else floats…
+     */
     glideGroundBelow: 40,
+    /**
+     * …and only if that ground is less than this many times the fall depth (`meshFallLimits`)
+     * below the route there: deeper, it's a pit under the glide, and it floats on (MK-128 revisit:
+     * Mario Kart Stadium's infield). Over a big drop the route comes down through the air, so the
+     * road it lands on can be about a fall depth below it.
+     */
+    glideLandingDepth: 1.5,
   },
 };

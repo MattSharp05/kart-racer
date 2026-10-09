@@ -1,22 +1,24 @@
-// Thwomp Ruins' Thwomps (MK-124): `periodic` hazards (`sim/hazards/periodic.ts`, poses a pure
-// function of the tick), drawn as Thwomps (`thwomp`). Four over the hall's floor, two to a side,
-// out of step so there's always a way through: each hovers, slams down onto its footprint and stays
-// down a moment, then rises. Positions are the draft route's hall (`route.ts`); move them onto the
-// real Thwomps' spots when the route is traced on the pack.
+// Thwomp Ruins' Thwomps (MK-124, placed on the pack in MK-128): `periodic` hazards
+// (`sim/hazards/periodic.ts`, poses a pure function of the tick), drawn as Thwomps (`thwomp`).
+// Four slam down on the start straight and the courtyard after it, out of step, left and right
+// of the centreline (the line between them stays clear, the road's sides don't): each hovers,
+// slams down onto its footprint and stays down a moment, then rises. Positions in the pack's units, like the route (they move with
+// the course's scale); sizes in metres.
 import type { PeriodicHazard } from '../../../../sim/hazards/types';
 
-/** The hall's floor runs east (+X) at z = −135; the route's right there is +Z. */
-const HALL_Z = -135;
-/** Thwomps sit this far either side of the hall's centreline, m. */
-const OFFSET = 1.5;
-
-const thwomp = (x: number, side: -1 | 1, phase: number): PeriodicHazard => ({
+const thwomp = (
+  x: number,
+  y: number,
+  z: number,
+  heading: number,
+  phase: number,
+): PeriodicHazard => ({
   kind: 'periodic',
-  centre: { x, y: 0, z: HALL_Z + side * OFFSET },
+  centre: { x, y, z },
   halfWidth: 2.6,
   halfLength: 2.6,
-  // Facing back down the hall, at the karts coming.
-  heading: Math.PI / 2,
+  // Facing back down the road, at the karts coming.
+  heading: heading + Math.PI,
   period: 3.6,
   closedFraction: 0.3,
   phase,
@@ -24,8 +26,22 @@ const thwomp = (x: number, side: -1 | 1, phase: number): PeriodicHazard => ({
 });
 
 export const thwomps: PeriodicHazard[] = [
-  thwomp(65, -1, 0),
-  thwomp(79, 1, 0.5),
-  thwomp(93, -1, 0.25),
-  thwomp(107, 1, 0.75),
+  thwomp(34.55, 41.83, -40.5, -0.108, 0),
+  thwomp(38.97, 41.96, -48.93, 0.093, 0.5),
+  thwomp(32.7, 42.09, -56.45, 0.705, 0.25),
+  thwomp(15.12, 42.45, -63.18, 1.706, 0.75),
+];
+
+/**
+ * The course model's own Thwomps (`di_DeathDossun`): stone ones standing in the grass beside the
+ * straight, in the courtyard and by the grid. Ours replace them, so they're hidden from the drawing
+ * and their triangles leave the collision (`collisionHoles`, `index.ts`): karts aren't stopped by
+ * what isn't drawn. Each box is a stone Thwomp's bounds from just above the grass it stands in (so
+ * the grass stays), in the pack's units.
+ */
+export const MODEL_THWOMPS = [
+  { min: { x: 11, y: 42.9, z: -70.1 }, max: { x: 13.5, y: 44.8, z: -67.3 } },
+  { min: { x: 29.9, y: 42.3, z: -57.5 }, max: { x: 32.8, y: 44, z: -54.7 } },
+  { min: { x: 29.3, y: 42.1, z: -43.3 }, max: { x: 32.4, y: 43.7, z: -40.8 } },
+  { min: { x: 24.4, y: 48.1, z: 4 }, max: { x: 27.4, y: 50, z: 6.9 } },
 ];

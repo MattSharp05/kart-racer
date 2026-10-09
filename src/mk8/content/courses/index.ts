@@ -3,7 +3,12 @@
 // default-exports its `Mk8CourseContent`; add one line to the list below. A course registers as a
 // track once its pack files are loaded (`src/mk8/courses.ts`); `test-ramp` is the code-built fixture.
 import { tracks } from '../../../content/tracks';
-import { decodeCollision, type CollisionMesh, type MeshTrackDef } from '../../../sim/meshTrack';
+import {
+  decodeCollision,
+  withoutTriangles,
+  type CollisionMesh,
+  type MeshTrackDef,
+} from '../../../sim/meshTrack';
 import { conformRoute, scaleCollision, scaleHazard, scaleRoute } from '../../../sim/meshScale';
 import type { RouteDef } from '../../../sim/route';
 import { routeSurfaces } from '../../../sim/routeSurfaces';
@@ -44,8 +49,9 @@ export const modelPath = (packId: string, low: boolean): string =>
 
 /**
  * The course as a mesh track: the pack's collision, with surfaces the route corrects (in the
- * pack's units, where those rules were tuned), then everything scaled by `MK8_COURSE_SCALE` and
- * the route laid back onto the road where its longer spans left it (`conformRoute`).
+ * pack's units, where those rules were tuned) and its `collisionHoles` taken out, then everything
+ * scaled by `MK8_COURSE_SCALE` and the route laid back onto the road where its longer spans left
+ * it (`conformRoute`).
  */
 export function courseTrack(
   course: Mk8CourseContent,
@@ -53,7 +59,8 @@ export function courseTrack(
   route: RouteDef = course.route,
   factor: number = MK8_COURSE_SCALE,
 ): MeshTrackDef {
-  const scaled = scaleCollision(routeSurfaces(collision, route, course.surfaceRules), factor);
+  const surfaced = routeSurfaces(collision, route, course.surfaceRules);
+  const scaled = scaleCollision(withoutTriangles(surfaced, course.collisionHoles ?? []), factor);
   return {
     id: course.trackId,
     kind: 'mesh',
