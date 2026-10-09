@@ -10,6 +10,8 @@ import {
 } from './kartModels';
 import type { KartState } from '../sim/types';
 import { syncAntigravLook } from './antigravLook';
+import { DrawnSeats } from './drawnGround';
+import type { CollisionMesh } from '../sim/meshCollision';
 import { createHeadlights } from './headlights';
 import { Glider, nextOpenness } from './glider';
 import { racerViews } from '../content/racers/render';
@@ -141,6 +143,8 @@ export interface KartPoseFilter {
 /** Kart meshes driven by sim state, interpolated between ticks. */
 export class KartRenderer {
   private readonly models: KartModel[] = [];
+  /** Where karts' models sit on an MK8 course's drawn road (none on other tracks). */
+  private seats: DrawnSeats | undefined;
   /** Each kart's glider (MK-106), made the first time it glides. */
   private readonly gliders: (Glider | undefined)[] = [];
   private readonly types: KartId[] = [];
@@ -192,6 +196,10 @@ export class KartRenderer {
 
       const ticks =
         current.tick === this.wheelTick || this.wheelTick < 0 ? 0 : current.tick - this.wheelTick;
+      // MK8 courses: on the road as it's drawn, not its simplified collision (`drawnGround.ts`).
+      if (kart.up && this.seats) {
+        this.seats.seat(i, model.root, kart.grounded, kart.antigrav === true, ticks * DT);
+      }
       if (ticks > 0) {
         const distance = kart.speed * ticks * DT;
         for (const wheel of model.wheels) wheel.rotation.x -= distance / model.wheelRadius;
@@ -308,6 +316,12 @@ export class KartRenderer {
 
   kart(id: number): THREE.Object3D | undefined {
     return this.models[id]?.root;
+  }
+
+  /** Seats the karts on this drawn ground from now on (`drawnGround.ts`), or on the sim's. */
+  setDrawnGround(ground: CollisionMesh | undefined): void {
+    if (ground === this.seats?.ground) return;
+    this.seats = ground ? new DrawnSeats(ground) : undefined;
   }
 
   /** Kart `id`'s drawn facing and up (world), written into `out`; false if it has no model. */
