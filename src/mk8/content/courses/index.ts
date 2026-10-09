@@ -49,8 +49,9 @@ export const modelPath = (packId: string, low: boolean): string =>
 
 /**
  * The course as a mesh track: the pack's collision, with surfaces the route corrects (in the
- * pack's units, where those rules were tuned) and its `collisionHoles` taken out, then everything scaled by `MK8_COURSE_SCALE` and
- * the route laid back onto the road where its longer spans left it (`conformRoute`).
+ * pack's units, where those rules were tuned) and its `collisionHoles` taken out, then everything
+ * scaled by `MK8_COURSE_SCALE` and the route laid back onto the road where its longer spans left
+ * it (`conformRoute`).
  */
 export function courseTrack(
   course: Mk8CourseContent,
