@@ -414,7 +414,7 @@ export class Flow {
     game.pause();
     // Without the item set the race can't hand out items, so it stays paused if this fails.
     const prepare = import('../mk8')
-      .then((mk8) => mk8.prepareRace())
+      .then((mk8) => mk8.prepareRace(game.state.karts))
       .then(() => {
         // Not if the player paused (a menu, the rotate prompt) while it loaded.
         if (!wasPaused && this.screens.current === 'none' && !this.rotatePrompt.shown) {

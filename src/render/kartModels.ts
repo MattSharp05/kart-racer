@@ -2,6 +2,8 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { racerViews } from '../content/racers/render';
 import type { KartId } from '../sim/data/karts';
+import type { EngineClass } from '../sim/tuning';
+import type { KartState } from '../sim/types';
 
 /**
  * A kart's 3D model. Everything the renderer animates hangs off these handles, so any model source
@@ -26,6 +28,13 @@ export interface KartModel {
   wheelRadius: number;
   /** Pickup drone shown above the kart while it's being respawned (MK-13). */
   drone: THREE.Group;
+  /**
+   * Called once per frame with the ticks stepped since the last (0 while paused): models with
+   * their own motion (MK-136: MK8 racers leaning, bobbing, tricking) pose themselves here.
+   */
+  animate?(kart: KartState, steer: number, ticks: number, engineClass: EngineClass): void;
+  /** The model's own glider (MK-136: the MK8 loadout's); without one the renderer adds ours. */
+  glider?: { readonly openness: number; setOpenness(openness: number): void };
 }
 
 export interface KartColours {
@@ -95,11 +104,7 @@ export class PrimitiveKartFactory implements KartModelFactory {
     view.details({ body, shape, palette, lambert });
     mergeStaticParts(body);
     const { wheels, frontWheels } = this.addWheels(body, shape);
-    const sparks = this.addSparks(body, shape);
-    const flame = this.addFlame(body, shape);
-    const drone = createDrone();
-    root.add(drone);
-    return { root, body, wheels, frontWheels, sparks, flame, wheelRadius: shape.rearRadius, drone };
+    return { root, body, wheels, frontWheels, ...kartEffects(root, body, shape) };
   }
 
   private addWheels(body: THREE.Group, shape: KartShape) {
@@ -122,34 +127,50 @@ export class PrimitiveKartFactory implements KartModelFactory {
     }
     return { wheels, frontWheels };
   }
+}
 
-  private addSparks(body: THREE.Group, shape: KartShape): KartModel['sparks'] {
-    return [-shape.wheelX, shape.wheelX].map((x) => {
-      const cluster = new THREE.InstancedMesh(
-        new THREE.BoxGeometry(0.06, 0.06, 0.5),
-        new THREE.MeshBasicMaterial({ color: 0xffffff }),
-        SPARKS_PER_WHEEL,
-      );
-      cluster.position.set(x, 0.12, shape.rearZ + shape.rearRadius + 0.1);
-      // The sparks move every frame, so the cluster's bounds would be stale: always draw it.
-      cluster.frustumCulled = false;
-      cluster.visible = false;
-      body.add(cluster);
-      return cluster;
-    });
-  }
+/**
+ * The effects every kart model carries, placed by its `shape`: drift sparks and boost flame on
+ * `body`, the respawn drone on `root`, and the rear wheel radius the wheels roll at.
+ */
+export function kartEffects(
+  root: THREE.Group,
+  body: THREE.Group,
+  shape: KartShape,
+): Pick<KartModel, 'sparks' | 'flame' | 'drone' | 'wheelRadius'> {
+  const sparks = addSparks(body, shape);
+  const flame = addFlame(body, shape);
+  const drone = createDrone();
+  root.add(drone);
+  return { sparks, flame, drone, wheelRadius: shape.rearRadius };
+}
 
-  private addFlame(body: THREE.Group, shape: KartShape): THREE.Mesh {
-    const flame = new THREE.Mesh(
-      new THREE.ConeGeometry(0.28, 1.2, 12),
-      new THREE.MeshBasicMaterial({ color: 0xffb703, transparent: true, opacity: 0.85 }),
+function addSparks(body: THREE.Group, shape: KartShape): KartModel['sparks'] {
+  return [-shape.wheelX, shape.wheelX].map((x) => {
+    const cluster = new THREE.InstancedMesh(
+      new THREE.BoxGeometry(0.06, 0.06, 0.5),
+      new THREE.MeshBasicMaterial({ color: 0xffffff }),
+      SPARKS_PER_WHEEL,
     );
-    flame.rotation.x = Math.PI / 2;
-    flame.position.set(0, shape.chassisY, shape.chassis[2] / 2 + 0.6);
-    flame.visible = false;
-    body.add(flame);
-    return flame;
-  }
+    cluster.position.set(x, 0.12, shape.rearZ + shape.rearRadius + 0.1);
+    // The sparks move every frame, so the cluster's bounds would be stale: always draw it.
+    cluster.frustumCulled = false;
+    cluster.visible = false;
+    body.add(cluster);
+    return cluster;
+  });
+}
+
+function addFlame(body: THREE.Group, shape: KartShape): THREE.Mesh {
+  const flame = new THREE.Mesh(
+    new THREE.ConeGeometry(0.28, 1.2, 12),
+    new THREE.MeshBasicMaterial({ color: 0xffb703, transparent: true, opacity: 0.85 }),
+  );
+  flame.rotation.x = Math.PI / 2;
+  flame.position.set(0, shape.chassisY, shape.chassis[2] / 2 + 0.6);
+  flame.visible = false;
+  body.add(flame);
+  return flame;
 }
 
 /**

@@ -15,13 +15,16 @@ import { tracks, type TrackContent } from '../content/tracks';
 import type { Registry } from '../content/registry';
 import { mk8ItemSet, mk8ItemSims } from './content/items';
 import { MK8_RACERS } from './content/racers';
-import { MK8_RACER_STAND_INS } from './content/racers/standIn';
+import { MK8_RACE_VIEWS } from './render/raceKarts';
 
 export interface Mk8Content {
   tracks: readonly TrackContent[];
   racers: readonly RacerContent[];
   items: readonly ItemContent[];
-  /** How the racers' karts look in a race (MK-138: stand-ins until races draw the pack's models). */
+  /**
+   * How the racers' karts look in a race: the pack's racer in its loadout's kart (MK-136), the
+   * primitive stand-in (MK-138) while it loads or without a pack.
+   */
   racerViews?: readonly RacerView[];
   /** Item rules (MK-103): the `mk8` set (MK8's odds, two slots). */
   itemSets?: readonly ItemSetContent[];
@@ -31,7 +34,7 @@ export interface Mk8Content {
 export const MK8_CONTENT: Mk8Content = {
   tracks: [],
   racers: MK8_RACERS,
-  racerViews: MK8_RACER_STAND_INS,
+  racerViews: MK8_RACE_VIEWS,
   items: mk8ItemSims(),
   itemSets: [mk8ItemSet],
 };

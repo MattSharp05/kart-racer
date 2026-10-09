@@ -19,6 +19,7 @@ import { PackLockedError, PackNotInstalledError, type Mk8Loader } from './loader
 import { savedLoadout, savedRacer } from './loadoutPrefs';
 import { registerMk8Content } from './register';
 import { prepareMk8Items } from './render/items';
+import { prepareRaceKarts } from './render/raceKarts';
 
 /** The test ramp's hash: built from code, the same on every device of one build. */
 export const TEST_RAMP_HASH = 'builtin';
@@ -44,7 +45,7 @@ export function mk8RoomContent(
     racers: MK8_RACERS.map((racer) => ({ id: racer.id, name: racer.name })),
     aiLoadouts: MK8_RACERS.map((racer) => defaultLoadout(racer.id)),
     loadout: () => playerLoadout(store),
-    prepare: (trackId, onProgress) => prepareCourse(files, trackId, onProgress),
+    prepare: (trackId, onProgress) => prepareCourse(files, trackId, onProgress, store),
   };
 }
 
@@ -54,15 +55,31 @@ function playerLoadout(store: KeyValueStore): Loadout {
   return racer ? savedLoadout(store, racer) : { ...DEFAULT_LOADOUT };
 }
 
+/**
+ * The race's item models and (MK-136) every racer in their default kart plus this player's own;
+ * other members' loadouts load when the race draws them.
+ */
+async function prepareRaceAssets(files: Mk8Loader, store: KeyValueStore): Promise<void> {
+  const mine = playerLoadout(store);
+  await Promise.all([
+    prepareMk8Items(files),
+    prepareRaceKarts(files, [
+      ...MK8_RACERS.map((racer) => ({ kartType: racer.id })),
+      { kartType: mine.racer, loadout: mine },
+    ]),
+  ]);
+}
+
 /** Loads a room's course and the race's item models: ready with its hash, or why not. */
 export async function prepareCourse(
   files: Mk8Loader,
   trackId: string,
   onProgress: (fraction: number) => void = () => {},
+  store: KeyValueStore = browserStore(),
 ): Promise<Pick<MemberPack, 'state' | 'hash'>> {
   if (trackId === TEST_RAMP_ID) {
     registerTestRamp();
-    await prepareMk8Items(files);
+    await prepareRaceAssets(files, store);
     onProgress(1);
     return { state: 'ready', hash: TEST_RAMP_HASH };
   }
@@ -75,7 +92,7 @@ export async function prepareCourse(
     if (!tracks.has(trackId) && !(await loadMk8Course(files, course, onProgress))) {
       return { state: 'missing' };
     }
-    await prepareMk8Items(files);
+    await prepareRaceAssets(files, store);
     onProgress(1);
     return { state: 'ready', hash: collision.sha256.slice(0, HASH_LENGTH) };
   } catch (e) {

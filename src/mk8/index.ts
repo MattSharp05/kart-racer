@@ -11,7 +11,7 @@ import { KART_SAMPLES } from './audio/kartSounds';
 import { Mk8AudioPlayer } from './audio/player';
 import { installMk8Voices } from './audio/voiceSkin';
 import { courseInfo } from './content/cups';
-import type { Mk8RaceSetup } from './flow';
+import { raceSetup, type Mk8RaceSetup } from './flow';
 import { soundPath, type SoundId } from './audio/soundIds';
 import { parseVoiceIndex, voiceClips, VOICES_PATH, type VoiceSoundId } from './audio/voices';
 import { MK8_RACER_VIEWS } from './content/racers/render';
@@ -37,6 +37,9 @@ import {
 import { previewFiles } from './render/preview';
 import { Mk8Stage } from './render/stage';
 import { prepareMk8Items } from './render/items';
+import { prepareRaceKarts, raceKartHooks, useRaceKartFiles } from './render/raceKarts';
+import { MK8_RACERS } from './content/racers';
+import type { KartState } from '../sim/types';
 import { styleGuide, type SpriteSource } from './ui/kit/styleGuide';
 import { Progress } from './ui/loading';
 import './ui/password';
@@ -77,6 +80,8 @@ declare global {
       preview?: PreviewHooks;
       /** The race HUD (MK-127). */
       hud?: HudHooks;
+      /** Racers whose pack models were built for races (MK-136). */
+      raceKarts?: ReturnType<typeof raceKartHooks>;
     };
   }
 }
@@ -127,6 +132,9 @@ installMk8Voices(
   () => audioPlayer(),
   (ids) => packLoader().loadVoices(ids),
 );
+// MK8 racers drawn from the pack in races (MK-136), their files from the page's loader.
+useRaceKartFiles(() => packLoader());
+window.__mk8 = { sounds: [], ...window.__mk8, raceKarts: raceKartHooks() };
 // MK8 races' engines, drift and terrain (MK-111): loaded with the race (`loadKartSounds`). Last:
 // its skin wraps the others and passes their frame updates on.
 installMk8KartSounds(() => audioPlayer());
@@ -262,12 +270,36 @@ export function start(host: Mk8Host, mode: Mk8Start = 'load'): Promise<void> {
 
 /**
  * Gets a race with MK8 items ready (MK-103): registers MK8 content (the `mk8` item set) and loads
- * the pack's item models; without a pack the race draws our items.
+ * the pack's item models; without a pack the race draws our items. MK-136: also the racers'
+ * models in their karts, for `karts` (by default every racer in their default kart, the race's
+ * field not being drawn yet); without a pack the race draws the stand-ins.
  */
-export async function prepareRace(): Promise<void> {
+export async function prepareRace(
+  karts: readonly Pick<KartState, 'kartType' | 'loadout'>[] = defaultField(),
+): Promise<void> {
   registerMk8Content();
-  await prepareMk8Items(packLoader());
+  await Promise.all([prepareMk8Items(packLoader()), prepareRaceKarts(packLoader(), karts)]);
   await loadKartSounds();
+}
+
+/**
+ * The karts `setup` races (MK-136: a VS Race's, Grand Prix's or Time Trial's field); without one,
+ * every racer in their default kart and the player's.
+ */
+export function raceKartsOf(setup: Mk8RaceSetup): Pick<KartState, 'kartType' | 'loadout'>[] {
+  if (!setup.field) return defaultField(setup.loadout);
+  return setup.field.map((slot) => ({
+    kartType: slot.kartId,
+    ...(slot.loadout ? { loadout: slot.loadout } : {}),
+  }));
+}
+
+/** Every MK8 racer in their default kart, plus the player's `loadout` when given. */
+function defaultField(loadout?: Mk8Loadout): Pick<KartState, 'kartType' | 'loadout'>[] {
+  return [
+    ...MK8_RACERS.map((racer) => ({ kartType: racer.id })),
+    ...(loadout ? [{ kartType: loadout.racer, loadout }] : []),
+  ];
 }
 
 let kartSounds: Promise<void> | undefined;
@@ -301,7 +333,8 @@ async function openMenus(
     sprites: packSprites(files),
     flow,
     files: { load: (paths) => files.loadFiles(paths), file: (path) => files.file(path) },
-    loadCourse: (course, onProgress) => loadCourse(files, courseInfo(course).pack, onProgress),
+    loadCourse: (course, onProgress) =>
+      loadCourse(files, courseInfo(course).pack, onProgress, () => menuRaceKarts(flow)),
     startRace: (setup) => host.startRace?.(setup),
     packFile: (path) => files.file(path),
     frozen: openedPaused(),
@@ -330,6 +363,7 @@ async function loadCourse(
   files: Mk8Loader,
   pack: string,
   onProgress: (fraction: number) => void,
+  karts: () => Pick<KartState, 'kartType' | 'loadout'>[] = () => defaultField(),
 ): Promise<void> {
   const content = mk8Course(pack);
   try {
@@ -340,8 +374,18 @@ async function loadCourse(
     if (!(e instanceof PackNotInstalledError || e instanceof PackLockedError)) throw e;
   }
   onProgress(COURSE_SHARE);
-  await prepareRace();
+  // After the course: its own track registered, the setup's field is the race's (MK-136).
+  await prepareRace(karts());
   onProgress(1);
+}
+
+/** The karts the race the menus' choices make will race; every racer when it can't be made. */
+function menuRaceKarts(flow: Mk8Flow): Pick<KartState, 'kartType' | 'loadout'>[] {
+  try {
+    return raceKartsOf(raceSetup(flow));
+  } catch {
+    return defaultField(flow.loadout);
+  }
 }
 
 /**

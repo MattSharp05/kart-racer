@@ -45,3 +45,19 @@ compare). `look.test.ts` checks every glow and water material a look names is in
   `tests/e2e/perfAllTracks.spec.ts` → "MK8 courses" runs `mk8-test-race` with the fixture pack in
   CI at full and low quality; the 4 real courses run only with `MK8_OUT=<pack>`. The throttled
   Pixel 7 check (`tests/soak/phoneAllTracks.spec.ts`, `pnpm test:soak`) has the same MK8 entries.
+
+## Racers in races (MK-136)
+
+`raceKarts.ts` gives every MK8 racer's race view (`RacerView.model`) a model of its own: the
+racer's GLB seated in its loadout's kart (`racerModel.ts` + `kartAssembly.ts`; the AI's default
+kart), leaning, looking back and tricking with `motion.ts` (the race's renderer already bobs,
+squashes and spins the body). Each GLB is parsed once into a template that every kart clones
+(`SkeletonUtils.clone`: own bones, shared geometry and textures).
+
+- Loading: `prepareRace` loads the race's karts with its course (every racer's default kart plus
+  the player's from the menus, the scenario's own karts otherwise); a kart whose files aren't in
+  yet drives as its primitive stand-in and `KartRenderer` swaps the model in when they arrive.
+  Without a pack (CI, previews, the site before the password) the stand-ins stay.
+- `&quality=low` loads the pack's `-low` models (smaller textures) where it has them.
+- Budget: `KART_DRAW_CALL_BUDGET` (8 per kart; the real racer + Standard Kart take 7). The tires
+  are one merged mesh, so they don't roll or steer.

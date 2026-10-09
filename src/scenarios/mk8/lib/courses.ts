@@ -4,11 +4,13 @@
 // the scenario shows "MK8 pack not installed", or the password box on the site before logging in.
 import { tracks } from '../../../content/tracks';
 import { MK8_ITEM_SET } from '../../../mk8/content/items/id';
+import { defaultLoadout } from '../../../mk8/content/parts';
+import { vsField } from '../../../mk8/modes/vsField';
 import { KART_IDS } from '../../../sim/data/karts';
 import { headingOf, scale, type Vec3 } from '../../../sim/math';
 import type { MeshTrackDef } from '../../../sim/meshTrack';
 import { createRace, raceSetupRng, type RacerSlot } from '../../../sim/race/createRace';
-import { rngInt, rngPick } from '../../../sim/rng';
+import { rngInt, rngPick, type RngHolder } from '../../../sim/rng';
 import { routeGeometry } from '../../../sim/route';
 import { createSimState } from '../../../sim/state';
 import { DT, tuning } from '../../../sim/tuning';
@@ -19,6 +21,8 @@ import type { ScenarioSetup } from '../../registry';
 /** The races' engine class and laps (MK8's usual 150cc, 3 laps). */
 const ENGINE_CLASS = 150;
 const LAPS = 3;
+/** Who you drive in the course races. */
+const PLAYER_RACER = 'mk8-mario';
 const COUNTDOWN_TICKS = Math.round(tuning.countdownSeconds / DT);
 /** Speed a kart rolling into a scenario starts at, m/s. */
 const FREE_SPEED = 20;
@@ -52,13 +56,10 @@ export function onCourse(
 /** A 150cc race with MK8's items from the countdown: you + 7 AI, you starting 5th–8th (seeded). */
 export function courseRace(track: MeshTrackDef, seed: number, items = true): SimState {
   const rng = raceSetupRng(seed);
-  const playerSlot = rngInt(rng, 4, 7);
-  const others = Array.from({ length: 8 }, (_, i) => i).filter((i) => i !== playerSlot);
-  const racers = Array.from({ length: 8 }, (_, i): RacerSlot =>
-    i === 0
-      ? { kartId: 'maple', controller: 'local', gridSlot: playerSlot }
-      : { kartId: rngPick(rng, KART_IDS), controller: 'ai', gridSlot: others[i - 1] ?? i },
-  );
+  // MK-136: MK8 racers in their karts (a VS Race's field, Mario for you) once MK8 Mode registered
+  // them, as it has for every course scenario (`scenarioCourses.ts`).
+  const mk8 = vsField(PLAYER_RACER, defaultLoadout(PLAYER_RACER), seed);
+  const racers = mk8 ?? ourField(rng);
   return createRace({
     trackId: track.id,
     racers,
@@ -69,6 +70,17 @@ export function courseRace(track: MeshTrackDef, seed: number, items = true): Sim
     rng,
     ...(items ? { itemSet: MK8_ITEM_SET } : {}),
   });
+}
+
+/** You (Maple) and 7 of our racers, you starting 5th–8th: the field before MK8's racers register. */
+function ourField(rng: RngHolder): RacerSlot[] {
+  const playerSlot = rngInt(rng, 4, 7);
+  const others = Array.from({ length: 8 }, (_, i) => i).filter((i) => i !== playerSlot);
+  return Array.from({ length: 8 }, (_, i): RacerSlot =>
+    i === 0
+      ? { kartId: 'maple', controller: 'local', gridSlot: playerSlot }
+      : { kartId: rngPick(rng, KART_IDS), controller: 'ai', gridSlot: others[i - 1] ?? i },
+  );
 }
 
 /** One kart (150cc, free drive, item boxes out) on the route at lap fraction `t`, at `speed`. */

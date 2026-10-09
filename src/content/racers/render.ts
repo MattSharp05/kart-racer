@@ -1,5 +1,6 @@
 import type * as THREE from 'three';
-import type { KartColours, KartShape } from '../../render/kartModels';
+import type { KartColours, KartModel, KartShape } from '../../render/kartModels';
+import type { KartState } from '../../sim/types';
 import { Registry } from '../registry';
 import blaze from './blaze/render';
 import boulder from './boulder/render';
@@ -33,6 +34,12 @@ export interface RacerView {
   alternateBodies: number[];
   shape: KartShape;
   details(ctx: KartDetailsContext): void;
+  /**
+   * A model of its own for `kart` instead of the primitive one built from `shape` (MK-136: MK8
+   * racers in their loadout's kart, from the pack). `'loading'`: not yet, the primitive kart stands
+   * in and the renderer asks again each frame; `undefined`: never (no pack), the primitive kart.
+   */
+  model?(kart: KartState): KartModel | 'loading' | undefined;
 }
 
 export const racerViews = new Registry<RacerView>('racer view');
