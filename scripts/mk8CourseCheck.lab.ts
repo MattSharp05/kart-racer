@@ -1,7 +1,8 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { expect, it } from 'vitest';
-import { collisionPath, mk8Course, registerCourse } from '../src/mk8/content/courses';
+import { collisionSourcePath, mk8Course, registerCourse } from '../src/mk8/content/courses';
+import { modelCollisionReady } from '../src/mk8/content/courses/modelCollision';
 import { centrelineGaps, courseRace } from '../src/mk8/content/courses/courseCheck';
 import { getTrack } from '../src/sim/track';
 import { MESH_SURFACES } from '../src/sim/meshTrack';
@@ -9,8 +10,8 @@ import { tuning, type EngineClass } from '../src/sim/tuning';
 
 /**
  * An MK8 course's drive check (MK-105): `pnpm mk8:course-check`. Needs the real pack (`$MK8_OUT`,
- * default `.mk8-out/`; ADR 0009, never CI). Registers the course from its `collision.bin` (the
- * route's surface rules applied), sweeps the route's centreline for missing ground, then runs
+ * default `.mk8-out/`; ADR 0009, never CI). Registers the course from its `collision.bin`, or its
+ * model for a course that builds collision from it (MK-123), the route's surface rules applied, sweeps the route's centreline for missing ground, then runs
  * seeded 3-lap races (the player on the route autopilot + 7 AI, items on) and checks everyone
  * finishes with nobody stuck for more than 5 s. `COURSE=` another pack id, `SEEDS=` how many,
  * `CC=` another engine class.
@@ -22,10 +23,11 @@ if (!(CC in tuning.topSpeed)) throw new Error(`CC=${process.env.CC}: not an engi
 /** The ticket's limit on any kart standing still, s. */
 const STUCK_LIMIT = 5;
 
-it(`MK8 course check: ${COURSE}, ${SEEDS} seeds at ${CC}cc`, { timeout: 30 * 60_000 }, () => {
+it(`MK8 course check: ${COURSE}, ${SEEDS} seeds at ${CC}cc`, { timeout: 30 * 60_000 }, async () => {
   const course = mk8Course(COURSE);
   if (!course) throw new Error(`No MK8 course content for ${COURSE}`);
-  const file = resolve(process.env.MK8_OUT ?? '.mk8-out', collisionPath(course.packId));
+  const file = resolve(process.env.MK8_OUT ?? '.mk8-out', collisionSourcePath(course));
+  await modelCollisionReady;
   const bytes = readFileSync(file);
   registerCourse(
     course,

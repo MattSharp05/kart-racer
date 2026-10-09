@@ -87,7 +87,13 @@ function signature(geometry: THREE.BufferGeometry): string {
   return `${attributes.join(',')}|${geometry.index ? 'i' : 'n'}`;
 }
 
-/** A copy of the mesh's geometry in the root's space (`toRoot`: world → root), de-interleaved. */
+/**
+ * A copy of the mesh's geometry in the root's space (`toRoot`: world → root), de-interleaved, its
+ * positions as floats. The pack's models are quantized (KHR_mesh_quantization: positions are
+ * normalized int16 in the mesh's box, the node's transform scales them back), and moving int16
+ * positions out to metres wrapped them round (MK-123 round 2: Sweet Sweet Canyon's road, merged
+ * from many meshes, vanished while karts still drove on it).
+ */
 function rootGeometry(mesh: THREE.Mesh, toRoot: THREE.Matrix4): THREE.BufferGeometry {
   const source = mesh.geometry as THREE.BufferGeometry;
   const geometry = new THREE.BufferGeometry();
@@ -95,12 +101,25 @@ function rootGeometry(mesh: THREE.Mesh, toRoot: THREE.Matrix4): THREE.BufferGeom
     const attribute = source.getAttribute(name);
     geometry.setAttribute(
       name,
-      attribute instanceof THREE.InterleavedBufferAttribute
-        ? attribute.clone()
-        : (attribute as THREE.BufferAttribute).clone(),
+      name === 'position'
+        ? floatAttribute(attribute)
+        : attribute instanceof THREE.InterleavedBufferAttribute
+          ? attribute.clone()
+          : (attribute as THREE.BufferAttribute).clone(),
     );
   }
   if (source.index) geometry.setIndex(source.index.clone());
   geometry.applyMatrix4(new THREE.Matrix4().multiplyMatrices(toRoot, mesh.matrixWorld));
   return geometry;
+}
+
+/** The attribute's values (dequantized) in a new float32 attribute. */
+function floatAttribute(
+  attribute: THREE.BufferAttribute | THREE.InterleavedBufferAttribute,
+): THREE.BufferAttribute {
+  const { count, itemSize } = attribute;
+  const values = new Float32Array(count * itemSize);
+  for (let i = 0; i < count; i += 1)
+    for (let c = 0; c < itemSize; c += 1) values[i * itemSize + c] = attribute.getComponent(i, c);
+  return new THREE.BufferAttribute(values, itemSize);
 }

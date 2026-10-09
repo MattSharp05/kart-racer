@@ -5,15 +5,17 @@ import * as THREE from 'three';
 import { tracks } from '../content/tracks';
 import { trackViews } from '../content/tracks/render';
 import type { TrackLook, TrackLookContext } from '../render/trackLook';
+import { GROUND_SURFACES, surfaceMask } from '../sim/meshTrack';
 import type { RouteDef } from '../sim/route';
 import { ambiencePlayer, CourseAmbience, gameMuted } from './audio/ambience';
 import {
-  collisionPath,
+  collisionSourcePath,
   MK8_COURSE_SCALE,
   modelPath,
   registerCourse,
   type Mk8CourseContent,
 } from './content/courses';
+import { modelCollisionReady } from './content/courses/modelCollision';
 import testRampLook from './content/courses/test-ramp/look';
 import { testRampTrack } from './content/courses/test-ramp';
 import type { CourseLook } from './content/courses/types';
@@ -92,19 +94,25 @@ async function loadCourseFiles(
   low: boolean,
   route?: RouteDef,
 ): Promise<boolean> {
-  const collision = collisionPath(course.packId);
+  const collision = collisionSourcePath(course, low);
   const model = modelPath(course.packId, low);
   const manifest = await files.loadManifest();
   const has = (path: string) => manifest.files.some((e) => e.path === path);
   if (!has(collision) || !has(model)) return false;
-  await files.loadFiles([collision, model], onProgress);
+  await files.loadFiles([...new Set([collision, model])], onProgress);
+  if (course.collisionFromModel) await modelCollisionReady;
   const collisionBytes = files.file(collision);
   const modelBytes = files.file(model);
   if (!collisionBytes || !modelBytes) throw new Error(`${course.name}: pack files missing`);
   registerCourse(course, collisionBytes, route);
   if (!trackViews.has(course.trackId)) {
     const scene = await parseGlb(modelBytes);
-    prepareCourseModel(scene, new Set(course.hiddenMaterials));
+    prepareCourseModel(
+      scene,
+      new Set(course.hiddenMaterials),
+      MK8_COURSE_SCALE,
+      groundMaterials(course),
+    );
     if (typeof window !== 'undefined') {
       window.__mk8Courses ??= {};
       window.__mk8Courses[`${course.packId}${low ? '-low' : ''}`] = {
@@ -122,10 +130,26 @@ async function loadCourseFiles(
   return true;
 }
 
+/** The materials a course's map (`collisionFromModel`) makes ground, to be drawn solid. */
+export function groundMaterials(course: Mk8CourseContent): Set<string> {
+  return new Set(
+    Object.entries(course.collisionFromModel ?? {})
+      // What karts drive on is never see-through (`fixCourseMaterials`).
+      .filter(
+        ([, surface]) =>
+          surface !== 'ignore' &&
+          surface !== 'void' &&
+          (surfaceMask(surface) & GROUND_SURFACES) !== 0,
+      )
+      .map(([name]) => name),
+  );
+}
+
 /**
  * The course never moves: matrices once, and nothing casts or takes the karts' shadows. Meshes of
  * `hidden` materials are taken out, materials that only claim to be see-through are drawn solid
- * (`courseMaterials.ts`: the road and walls hid nothing behind them), the model is scaled like the
+ * (`courseMaterials.ts`: the road and walls hid nothing behind them), and so is every `ground`
+ * material whatever its alpha (MK-123 round 2), the model is scaled like the
  * track (`MK8_COURSE_SCALE`), and the rest merged by material and cell (MK-133: a few dozen draws
  * instead of hundreds, the cells as big on the course as before; `userData.batch` keeps the mesh
  * counts, `userData.materials` how the materials were sorted).
@@ -134,6 +158,7 @@ export function prepareCourseModel(
   scene: THREE.Group,
   hidden: ReadonlySet<string>,
   factor: number = MK8_COURSE_SCALE,
+  ground: ReadonlySet<string> = new Set(),
 ): void {
   const drop: THREE.Object3D[] = [];
   scene.traverse((object) => {
@@ -146,7 +171,7 @@ export function prepareCourseModel(
     object.receiveShadow = false;
   });
   for (const object of drop) object.removeFromParent();
-  scene.userData.materials = fixCourseMaterials(scene);
+  scene.userData.materials = fixCourseMaterials(scene, undefined, ground);
   scene.scale.multiplyScalar(factor);
   scene.userData.batch = batchCourseMeshes(scene, COURSE_CELL_METRES * factor);
   scene.updateMatrixWorld(true);

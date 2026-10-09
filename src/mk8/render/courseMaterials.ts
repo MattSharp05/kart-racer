@@ -76,11 +76,15 @@ export type MaterialStats = Record<AlphaUse, number>;
 /**
  * Makes `root`'s transparent materials solid unless their texture really is see-through (see the
  * file comment). A texture that can't be read is cut out: solid and depth-correct, its clear
- * texels still dropped. Each material is looked at once, however many meshes share it.
+ * texels still dropped. Materials named in `ground` (what karts drive on, from the course's
+ * material map: MK-123 round 2) are drawn solid whatever their alpha says, cut-out ones included:
+ * MK8's layered road textures keep a blend weight in alpha, and nobody sees through a road. Each
+ * material is looked at once, however many meshes share it.
  */
 export function fixCourseMaterials(
   root: THREE.Object3D,
   readAlpha: AlphaReader = readTextureAlpha,
+  ground: ReadonlySet<string> = new Set(),
 ): MaterialStats {
   const stats: MaterialStats = { opaque: 0, cutout: 0, blend: 0 };
   const seen = new Set<THREE.Material>();
@@ -90,18 +94,29 @@ export function fixCourseMaterials(
       ? object.material
       : [object.material];
     for (const material of materials) {
-      if (seen.has(material) || !material.transparent) continue;
+      if (seen.has(material)) continue;
+      if (ground.has(material.name)) {
+        seen.add(material);
+        if (material.transparent) stats.opaque += 1;
+        drawSolid(material, 0);
+        continue;
+      }
+      if (!material.transparent) continue;
       seen.add(material);
       const use = alphaUse(material, readAlpha);
       stats[use] += 1;
       if (use === 'blend') continue;
-      material.transparent = false;
-      material.depthWrite = true;
-      if (use === 'cutout') material.alphaTest = CUTOUT_ALPHA;
-      material.needsUpdate = true;
+      drawSolid(material, use === 'cutout' ? CUTOUT_ALPHA : material.alphaTest);
     }
   });
   return stats;
+}
+
+function drawSolid(material: THREE.Material, alphaTest: number): void {
+  material.transparent = false;
+  material.depthWrite = true;
+  material.alphaTest = alphaTest;
+  material.needsUpdate = true;
 }
 
 function alphaUse(material: THREE.Material, readAlpha: AlphaReader): AlphaUse {

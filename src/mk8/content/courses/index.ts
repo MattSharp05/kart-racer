@@ -12,6 +12,7 @@ import {
 import { conformRoute, scaleCollision, scaleHazard, scaleRoute } from '../../../sim/meshScale';
 import type { RouteDef } from '../../../sim/route';
 import { routeSurfaces } from '../../../sim/routeSurfaces';
+import { modelCollision } from './modelCollision';
 import marioKartStadium from './mario-kart-stadium';
 import sweetSweetCanyon from './sweet-sweet-canyon';
 import thwompRuins from './thwomp-ruins';
@@ -48,6 +49,24 @@ export const modelPath = (packId: string, low: boolean): string =>
   `models/courses/${packId}/course${low ? '-low' : ''}.glb`;
 
 /**
+ * The pack file a course's collision comes from: its `collision.bin`, or its model when the course
+ * builds its collision from the model (`collisionFromModel`): the one the page draws (`low`), since
+ * the full and `-low` models give the same collision (`modelCollision.ts`), so nothing more loads.
+ */
+export const collisionSourcePath = (course: Mk8CourseContent, low = false): string =>
+  course.collisionFromModel ? modelPath(course.packId, low) : collisionPath(course.packId);
+
+/**
+ * A course's collision from the bytes of its `collisionSourcePath`. A course built from its model
+ * needs `modelCollisionReady` (`modelCollision.ts`) to have resolved.
+ */
+export function courseCollision(course: Mk8CourseContent, bytes: ArrayBuffer): CollisionMesh {
+  return course.collisionFromModel
+    ? modelCollision(bytes, course.collisionFromModel).mesh
+    : decodeCollision(bytes);
+}
+
+/**
  * The course as a mesh track: the pack's collision, with surfaces the route corrects (in the
  * pack's units, where those rules were tuned) and its `collisionHoles` taken out, then everything
  * scaled by `MK8_COURSE_SCALE` and the route laid back onto the road where its longer spans left
@@ -72,8 +91,9 @@ export function courseTrack(
 }
 
 /**
- * Registers `course` as a track from its `collision.bin` bytes (once; later calls are no-ops).
- * `route` replaces the committed one (the track editor's Test drive).
+ * Registers `course` as a track from the bytes of its `collisionSourcePath` (`collision.bin`, or the
+ * model: see `courseCollision`), once; later calls are no-ops. `route` replaces the committed one
+ * (the track editor's Test drive).
  */
 export function registerCourse(
   course: Mk8CourseContent,
@@ -86,7 +106,7 @@ export function registerCourse(
     id: course.trackId,
     name: course.name,
     order: ORDER + Math.max(0, index),
-    def: courseTrack(course, decodeCollision(collisionBytes), route),
+    def: courseTrack(course, courseCollision(course, collisionBytes), route),
     // Not in the original game's track select: MK8 Mode's cup and course select offers it.
     testOnly: true,
   });

@@ -8,7 +8,7 @@ import { browserStore, type KeyValueStore } from '../game/storage/store';
 import type { Mk8RoomContent } from '../game/roomFlow';
 import type { MemberPack } from '../net/lobbyState';
 import type { Loadout } from '../sim/types';
-import { collisionPath, MK8_COURSES } from './content/courses';
+import { collisionSourcePath, MK8_COURSES, type Mk8CourseContent } from './content/courses';
 import { registerTestRamp } from './content/courses/test-ramp/register';
 import { TEST_RAMP_ID } from './content/courses/test-ramp';
 import { defaultLoadout } from './content/parts';
@@ -87,17 +87,31 @@ export async function prepareCourse(
   if (!course) return { state: 'failed' };
   try {
     const manifest = await files.loadManifest();
-    const collision = manifest.files.find((e) => e.path === collisionPath(course.packId));
+    const collision = manifest.files.find((e) => e.path === collisionSourcePath(course));
     if (!collision) return { state: 'missing' };
     if (!tracks.has(trackId) && !(await loadMk8Course(files, course, onProgress))) {
       return { state: 'missing' };
     }
     await prepareRaceAssets(files, store);
     onProgress(1);
-    return { state: 'ready', hash: collision.sha256.slice(0, HASH_LENGTH) };
+    return { state: 'ready', hash: courseHash(collision.sha256, course) };
   } catch (e) {
     if (e instanceof PackNotInstalledError) return { state: 'missing' };
     if (e instanceof PackLockedError) return { state: 'locked' };
     throw e;
   }
+}
+
+/**
+ * The course's collision hash for the room: its collision file's, and for a course that builds its
+ * collision from its model (MK-123), mixed with its material map, which the build ships in code: two
+ * players with the same model but different maps would drive on different ground.
+ */
+export function courseHash(sha256: string, course: Mk8CourseContent): string {
+  if (!course.collisionFromModel) return sha256.slice(0, HASH_LENGTH);
+  const map = JSON.stringify(Object.entries(course.collisionFromModel).sort());
+  // FNV-1a (32-bit) of the map, in place of the hash's last 8 hex digits.
+  let h = 0x811c9dc5;
+  for (let i = 0; i < map.length; i += 1) h = Math.imul(h ^ map.charCodeAt(i), 0x01000193) >>> 0;
+  return sha256.slice(0, HASH_LENGTH - 8) + h.toString(16).padStart(8, '0');
 }
