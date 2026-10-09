@@ -10,6 +10,12 @@ const ALL_SCENARIOS = devOrder(scenarios.list().map(({ name, group }) => ({ name
  * one test took 31 s on desktop-chrome in CI (MK-80).
  */
 const SCENARIOS_PER_TEST = 3;
+/**
+ * Split-screen races with 3–4 views (MK-145) draw the scene once per view: on Canopy Rush or Cog
+ * Works one software-GL load takes ~8 s in CI's image (1 view: ~4 s), so their chunks get
+ * `test.slow()`'s triple timeout (two in one chunk overran 30 s on main).
+ */
+const MANY_VIEWS = /^local-[34]p/;
 
 /** The names grouped as /dev shows them: groups in first-seen order. */
 function devOrder(list: { name: string; group: string }[]): string[] {
@@ -85,6 +91,7 @@ test.describe('every scenario loads', { tag: '@full' }, () => {
   for (let first = 0; first < ALL_SCENARIOS.length; first += SCENARIOS_PER_TEST) {
     const names = ALL_SCENARIOS.slice(first, first + SCENARIOS_PER_TEST);
     test(`${first + 1}–${first + names.length}: ${names.join(', ')}`, async ({ page }) => {
+      test.slow(names.some((name) => MANY_VIEWS.test(name)));
       const errors: string[] = [];
       page.on('pageerror', (error) => errors.push(error.message));
       for (const name of names) {
