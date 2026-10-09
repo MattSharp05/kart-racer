@@ -3,7 +3,9 @@ import { createLoopbackPair, type LoopbackTransport } from '../net/netsim';
 import { REMOTE } from './config';
 import { RemoteController } from './controller';
 import { RemoteHub } from './hub';
-import { decodeRemote, encodeRemote } from './protocol';
+import { decodeRemote, encodeRemote, NO_BUTTONS } from './protocol';
+
+const NEUTRAL = { throttle: 0, brake: 0, steer: 0, drift: false, item: false };
 
 /** Synchronous links on a fake clock: a phone controller and the desktop hub. */
 function setup() {
@@ -62,6 +64,7 @@ describe('RemoteHub + RemoteController (MK-146)', () => {
           type: 'input',
           seq,
           input: { throttle, brake: 0, steer: 0, drift: false, item: false },
+          buttons: NO_BUTTONS,
         }),
       );
     input(5, 1);
@@ -133,5 +136,42 @@ describe('RemoteHub + RemoteController (MK-146)', () => {
     for (; time <= REMOTE.connectTimeoutMs + 100; time += 50) controller.tick();
     expect(hellos.length).toBeGreaterThan(10);
     expect(controller.state).toBe('failed');
+  });
+
+  it('passes look back on and reports each pause press once (MK-147)', () => {
+    const { hub, phone, run } = setup();
+    const { controller } = phone(1);
+    const pauses: number[] = [];
+    hub.onPause((slot) => pauses.push(slot));
+    controller.setInput({ ...NEUTRAL, throttle: 1 }, { lookBack: true, pause: false });
+    run(100, [controller]);
+    expect(hub.info()[1]?.buttons).toEqual({ lookBack: true, pause: false });
+    // Pause is held for several packets: one press.
+    controller.setInput(NEUTRAL, { lookBack: false, pause: true });
+    run(200, [controller]);
+    expect(pauses).toEqual([1]);
+    controller.setInput(NEUTRAL, NO_BUTTONS);
+    run(50, [controller]);
+    controller.setInput(NEUTRAL, { lookBack: false, pause: true });
+    run(50, [controller]);
+    expect(pauses).toEqual([1, 1]);
+  });
+
+  it('buzzes only the phone in the slot, and only while connected (MK-147)', () => {
+    const { hub, phone } = setup();
+    const a = phone(0, 'a');
+    const b = phone(1, 'b');
+    a.controller.tick();
+    b.controller.tick();
+    const felt: string[] = [];
+    a.controller.onBuzz((kind) => felt.push(`a:${kind}`));
+    b.controller.onBuzz((kind) => felt.push(`b:${kind}`));
+    hub.buzz(1, 'hit');
+    hub.buzz(0, 'turbo');
+    hub.buzz(3, 'hit');
+    expect(felt).toEqual(['b:hit', 'a:turbo']);
+    b.controller.close();
+    hub.buzz(1, 'hit');
+    expect(felt).toEqual(['b:hit', 'a:turbo']);
   });
 });

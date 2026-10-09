@@ -115,6 +115,8 @@ installRemotes({
   ...(params.links === 'webrtc' ? { links: params.links } : {}),
   ...(params.relay ? { relay: params.relay } : {}),
   pause: () => flow.pauseIfRacing(),
+  kartOf: (slot) => (slot === 0 ? session.localKartId : null),
+  onEvents: (listener) => game.onEvents(listener),
 });
 if (params.scenario && scenarios.get(params.scenario)?.addControllers) void openAddControllers();
 // `&paused=1` wins over menu screens that start the sim (kart select, title): tests and QA links

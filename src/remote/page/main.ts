@@ -2,12 +2,13 @@ import { REMOTE } from '../config';
 import { RemoteController } from '../controller';
 import { remoteLinks } from '../links';
 import { parseRemoteParams } from '../url';
-import { createRemoteView } from './view';
+import { createRemoteView, type PadState } from './view';
 
 /**
  * `/remote?room=<code>&slot=<n>` (MK-146): the page a phone opens from the desktop's QR code. It
  * links to the desktop (`remoteLinks`), says which slot it is, and sends the held controls
- * `REMOTE.inputHz` times a second. Reconnecting is reloading the page (or rescanning the code).
+ * `REMOTE.inputHz` times a second; the desktop's buzzes vibrate it (MK-147). Reconnecting is
+ * reloading the page (or rescanning the code).
  */
 
 /** How often the page runs the controller, ms: once per input packet. */
@@ -31,8 +32,14 @@ if (!params) {
       const join = links.join(() => controller?.failed());
       controller = new RemoteController(params.slot, join.transport);
       const current = controller;
+      const felt: string[] = [];
+      current.onBuzz((kind) => {
+        felt.push(kind);
+        view.buzz(kind);
+      });
       const timer = setInterval(() => {
-        current.setInput(view.read());
+        const pad = view.read();
+        current.setInput(pad.input, pad.buttons);
         current.tick();
         if (params.netdebug) {
           const rtt = current.rttMs === null ? '–' : `${Math.round(current.rttMs)} ms`;
@@ -52,6 +59,9 @@ if (!params) {
         state: () => current.state,
         seq: () => current.seq,
         rttMs: () => current.rttMs,
+        pad: () => view.read(),
+        steering: () => view.steering,
+        buzzes: () => [...felt],
       };
     },
     () => view.setStatus('failed', player),
@@ -64,6 +74,8 @@ function keepAwake(): void {
   const request = () =>
     navigator.wakeLock?.request('screen').catch(() => undefined) ?? Promise.resolve();
   void request();
+  // Some browsers grant the lock only after a tap.
+  document.addEventListener('pointerdown', () => void request(), { once: true });
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') void request();
   });
@@ -76,6 +88,11 @@ declare global {
       state(): string;
       seq(): number;
       rttMs(): number | null;
+      /** What the controls send right now (MK-147). */
+      pad(): PadState;
+      steering(): 'tilt' | 'touch';
+      /** The buzzes the desktop sent so far (MK-147). */
+      buzzes(): string[];
     };
   }
 }
