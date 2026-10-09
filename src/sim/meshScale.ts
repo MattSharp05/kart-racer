@@ -193,7 +193,7 @@ const upOf = (p: RoutePoint): Vec3 => p.up ?? { x: 0, y: 1, z: 0 };
 const xyz = (v: Vec3): [number, number, number] => [v.x, v.y, v.z];
 
 /** Whether the route flies at `t` on purpose: a jump (respawn range) or a glide. */
-function flies(route: RouteDef, t: number): boolean {
+export function flies(route: RouteDef, t: number): boolean {
   if (route.respawnPoints.some((r) => inRange(t, r))) return true;
   return route.zones.some(
     (z) => z.kind === 'glide' && inRange(t, { from: z.from, to: z.landing ?? z.to }),
