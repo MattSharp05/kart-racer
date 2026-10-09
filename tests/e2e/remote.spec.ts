@@ -137,9 +137,20 @@ test.describe('phone controllers', () => {
     release = await hold(phone, 'lookBack');
     await expect.poll(async () => (await slots(page))[0]?.buttons.lookBack).toBe(true);
     await release();
+    // The flash lasts only 250 ms, less than a busy runner's polling gap: record it as it happens.
+    await phone.evaluate(() => {
+      const body = document.querySelector<HTMLElement>('.remote-body')!;
+      const flashes: string[] = [];
+      Object.assign(window, { __flashes: flashes });
+      new MutationObserver(() => {
+        if (body.dataset.buzz) flashes.push(body.dataset.buzz);
+      }).observe(body, { attributeFilter: ['data-buzz'] });
+    });
     await page.evaluate(() => window.__remotes!.buzz(0, 'hit'));
     await expect.poll(() => phone.evaluate(() => window.__remote!.buzzes())).toEqual(['hit']);
-    await expect(phone.locator('.remote-body')).toHaveAttribute('data-buzz', 'hit');
+    await expect
+      .poll(() => phone.evaluate(() => (window as unknown as { __flashes: string[] }).__flashes))
+      .toEqual(['hit']);
 
     // The phone's Pause pauses the race.
     await page.evaluate(() => window.__game!.resume());
