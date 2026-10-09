@@ -21,7 +21,8 @@
   max-width: min(96vw, 980px);
   padding: 20px 24px;
   border-radius: 18px;
-  background: rgb(0 0 0 / 0.7);
+  /* Opaque: the pause menu under it mustn't show through. */
+  background: rgb(14 26 46 / 0.97);
   text-align: center;
 }
 
