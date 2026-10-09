@@ -13,6 +13,16 @@ test('mk8-racers-lineup (fixture pack, paused)', async ({ page }) => {
   await expect(page).toHaveScreenshot('mk8-racers-lineup.png');
 });
 
+// QA round 2: one racer up close, seated (legs and arms bent out of the T-pose at load).
+test('mk8-racer-motion at rest: the racer sits in its kart (fixture pack, paused)', async ({
+  page,
+}) => {
+  await servePack(page);
+  await loadScenario(page, 'mk8-racer-motion', { paused: true });
+  await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(resolve)));
+  await expect(page).toHaveScreenshot('mk8-racer-seated.png');
+});
+
 test('mk8-lakitu-countdown at two red lamps (fixture pack, paused)', async ({ page }) => {
   await servePack(page);
   await loadScenario(page, 'mk8-lakitu-countdown', { paused: true });
