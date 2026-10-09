@@ -26,6 +26,7 @@ import {
   racerModelPath,
 } from './racerModel';
 import type { Mk8Stage, StageDemo } from './stage';
+import type { SeatReport } from './seatPose';
 
 export type StageDemoId =
   | 'racers-lineup'
@@ -115,6 +116,10 @@ export interface StageHooks {
   lakitu(): LakituPose | null;
   /** The motion demo's racer pose; null elsewhere. */
   motion(): MotionState | null;
+  /** The limbs bent into the seated pose, per racer (MK-101 round 2). */
+  seats(): SeatReport[];
+  /** Lakitu's arms bent forward; null on demos without him. */
+  lakituArms(): SeatReport | null;
   /** The karts lineup's karts (MK-102); empty elsewhere. */
   karts(): KartInfo[];
   /** Draw calls of each empty kart, rendered alone. */
@@ -198,6 +203,8 @@ export async function buildDemo(
     drawCalls: () => models.map((m) => stage.drawCallsOf(m.object)),
     lakitu: () => lakitu?.current ?? null,
     motion: () => motion,
+    seats: () => models.map((m) => m.seat),
+    lakituArms: () => lakitu?.arms ?? null,
     karts: () =>
       karts.map((kart, i) => ({
         ...(kartSpecs[i] ?? { body: '', tires: '', glider: '' }),

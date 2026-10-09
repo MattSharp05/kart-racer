@@ -15,9 +15,10 @@ written from all of them. Never edit the manifest by hand: change or add a spec,
 `tools/mk8/fixturePack.test.ts` (in `pnpm test`) fails when the committed files or manifest differ
 from what the specs make.
 
-- `specs/racers.ts` (MK-101): a block figure per MK8 racer id (two materials, a two-joint skeleton
-  with a `Head` bone, like the real rigged racers); Peach fully transparent like the real
-  conversion (MK-136).
+- `specs/racers.ts` (MK-101): a block figure per MK8 racer id (two materials, a skeleton named
+  like a real rig's: `Hip`, `Spine1`/`2`, `Head`, `ClavicleL`, `Arm1L`, `Arm2L`, `HandL`, `Leg1L`,
+  `Leg2L`, `FootL`, …, in the T-pose the real racers come in; the game seats it, round 2); Peach
+  fully transparent like the real conversion (MK-136).
 - `specs/karts.ts` (MK-101, MK-102): the Standard Kart's body and tires, copying the real pack's
   quirks `src/mk8/render/racerModel.ts` handles (MK-136: skinned, quantized meshes; the tire model
   as the set of four, each with an overlay layer on the same geometry; physical materials; a white

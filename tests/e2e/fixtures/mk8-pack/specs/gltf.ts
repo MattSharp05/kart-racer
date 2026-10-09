@@ -153,14 +153,25 @@ export function rootSkin(
   return { joint, skin };
 }
 
-/** A primitive from shapes (merged), optionally bound to one joint each. */
-export function primitive(doc: Document, shapes: Shape[], mat: Material, joint?: number) {
+/**
+ * A primitive from shapes (merged), optionally skinned: to one joint, or (an array) each shape to
+ * its own joint.
+ */
+export function primitive(
+  doc: Document,
+  shapes: Shape[],
+  mat: Material,
+  joint?: number | readonly number[],
+) {
   const buffer = doc.getRoot().listBuffers()[0]!;
   const positions: number[] = [];
   const normals: number[] = [];
   const indices: number[] = [];
-  for (const s of shapes) {
+  const vertexJoints: number[] = [];
+  for (const [k, s] of shapes.entries()) {
     const base = positions.length / 3;
+    const j = typeof joint === 'number' ? joint : (joint?.[k] ?? 0);
+    for (let i = 0; i < s.positions.length / 3; i++) vertexJoints.push(j);
     positions.push(...s.positions);
     normals.push(...s.normals);
     indices.push(...s.indices.map((i) => i + base));
@@ -184,7 +195,7 @@ export function primitive(doc: Document, shapes: Shape[], mat: Material, joint?:
     const joints = new Uint16Array(count * 4);
     const weights = new Float32Array(count * 4);
     for (let i = 0; i < count; i++) {
-      joints[i * 4] = joint;
+      joints[i * 4] = vertexJoints[i]!;
       weights[i * 4] = 1;
     }
     prim

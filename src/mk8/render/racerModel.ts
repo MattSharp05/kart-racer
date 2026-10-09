@@ -1,7 +1,9 @@
 // An MK8 racer in its kart (MK-101): the racer's GLB from the pack, scaled to its view's height and
 // seated in a kart assembled from its parts (`kartAssembly.ts`, MK-102; the Standard Kart unless
-// told otherwise), posed each frame from `motion.ts`. The models have skeletons but no animations: the head bone (when
-// there is one) turns to look back; everything else is transforms on the groups below.
+// told otherwise), posed each frame from `motion.ts`. The models have skeletons but no animations: at
+// load the legs and arms are bent into a seated driving pose (`seatPose.ts`, QA round 2: they came
+// in standing in a T-pose); the head bone (when there is one) turns to look back; everything else
+// is transforms on the groups below.
 //
 // The real pack (MK-136) differs from the fixture's block figures, handled here: every mesh is
 // skinned (the DAE skeletons), the tire model is the kart's set of four tires (each with an
@@ -14,6 +16,7 @@ import { STANDARD_PARTS, mk8Body, mk8Glider, mk8Tires } from '../content/parts';
 import type { Mk8RacerView } from '../content/racers/view';
 import { Mk8Kart, bodyModelPath, tireModelPath } from './kartAssembly';
 import { trickRoll, type MotionState } from './motion';
+import { seatRacer, type SeatReport } from './seatPose';
 
 /** The pack's files this needs (`tools/mk8/sources.ts` → `modelOutputs`). */
 export const KART_BODY_PATH = bodyModelPath(STANDARD_PARTS.body);
@@ -327,6 +330,8 @@ export class Mk8RacerModel {
   private readonly look = new THREE.Quaternion();
   /** The kart the racer sits in. */
   readonly kart: Mk8Kart;
+  /** The limbs bent into the seated pose at load (`seatPose.ts`). */
+  readonly seat: SeatReport;
 
   constructor(
     readonly view: Mk8RacerView,
@@ -353,7 +358,15 @@ export class Mk8RacerModel {
 
     const [x, y, z] = view.seat;
     this.driver.position.set(x, y + this.kart.rideHeight, z);
-    this.driver.add(fitModel(parts.racer, 'y', view.height, view.yaw));
+    // Scaled by its standing (bind-pose) height, then seated: lowered so its seat, now its lowest
+    // point, rests where its feet stood.
+    const fitted = fitModel(parts.racer, 'y', view.height, view.yaw);
+    this.seat = seatRacer(parts.racer, fitted);
+    if (this.seat.limbs.length > 0) {
+      fitted.updateMatrixWorld(true);
+      parts.racer.position.y -= new THREE.Box3().setFromObject(fitted).min.y;
+    }
+    this.driver.add(fitted);
     this.motion.add(this.driver);
 
     let head: THREE.Bone | undefined;
