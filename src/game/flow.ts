@@ -44,6 +44,7 @@ import { onlineResultLines, recordFinish, recordLines, resultLines } from './res
 import { RoomFlow, type RoomService } from './roomFlow';
 import { DEFAULT_SEED, localKartOf, type Launch, type RaceSession } from './session';
 import { readPrefs, writePrefs } from './storage/prefs';
+import { MAX_PLAYERS, playerLabel } from '../input/slots';
 import { getRecord, type RecordUpdate } from './storage/records';
 import { hasSeenHowToPlay, markHowToPlaySeen } from './storage/settings';
 import type { KeyValueStore } from './storage/store';
@@ -103,6 +104,10 @@ export class Flow {
   private readonly pauseButton: HTMLButtonElement;
   private readonly rotatePrompt: RotatePrompt;
   private chosenKart: KartId;
+  /** People racing on this screen (MK-144), 1–4: the race setup's Players option. */
+  private chosenPlayers: number;
+  /** P2–P4's racers (MK-144), by slot − 1. */
+  private otherKarts: KartId[];
   private chosenCc: EngineClass;
   /** The single-player track (MK-50): a registered, non-test track. */
   private chosenTrack: string;
@@ -145,6 +150,15 @@ export class Flow {
     const prefs = readPrefs(store);
     this.chosenKart = prefs.kart && isKartId(prefs.kart) ? prefs.kart : 'maple';
     this.chosenCc = ENGINE_CLASSES.find((cc) => cc === prefs.engineClass) ?? 100;
+    const players = Math.round(prefs.players ?? 1);
+    this.chosenPlayers = players >= 1 && players <= MAX_PLAYERS ? players : 1;
+    // A different racer each by default: the ones after P1's in the roster.
+    this.otherKarts = Array.from({ length: MAX_PLAYERS - 1 }, (_, i) => {
+      const saved = prefs.otherKarts?.[i];
+      if (saved && isKartId(saved)) return saved;
+      const at = KART_IDS.indexOf(this.chosenKart) + i + 1;
+      return KART_IDS[at % KART_IDS.length] ?? this.chosenKart;
+    });
     const offered = menuTracks();
     this.chosenTrack =
       offered.find((t) => t.id === prefs.track)?.id ?? offered[0]?.id ?? DEFAULT_TRACK;
@@ -236,6 +250,9 @@ export class Flow {
       session.controls.touch.setActive(menu === 'none' && !this.rotatePrompt.shown);
       // A menu over a running online race: the kart coasts rather than steering with menu keys.
       session.inputEnabled = menu === 'none';
+      // Any player's controller can pause the race (MK-144); presses in menus are dropped.
+      const pausedBy = session.takePause();
+      if (pausedBy >= 0 && menu === 'none' && !this.pauseButton.hidden) this.pauseRace(pausedBy);
       this.watchOnlineRace();
     };
   }
@@ -324,6 +341,8 @@ export class Flow {
         // A race from a scenario link counts against a test leaderboard only (`?lb=mock`).
         this.ranked = this.leaderboard.test;
         this.mk8RaceStart = launch.mk8Start;
+        // A local multiplayer scenario (MK-144): Restart and Again keep its players.
+        if (this.session.players > 1) this.chosenPlayers = this.session.players;
         if (launch.state.itemSet !== undefined) this.prepareMk8Race();
         if (launch.state.phase === 'finished') {
           this.resultsTimer = window.setTimeout(this.showResults, LAUNCH_RESULTS_DELAY_MS);
@@ -470,27 +489,56 @@ export class Flow {
     });
   };
 
-  private readonly showRacerSelect = (): void => {
+  private readonly showRacerSelect = (): void => this.pickRacer(0);
+
+  /**
+   * Racer select for player `slot` (MK-144): P1's has the Players option; with several players
+   * each picks in turn (P1 on this device's controls for now), then the engine class.
+   */
+  private pickRacer(slot: number): void {
     this.mk8Race = undefined;
     this.rooms.leave();
     this.onlineSince = 0;
-    if (this.screens.current !== 'ccSelect') this.load(sunnyLineup(DEFAULT_SEED), 'lineup');
+    const current = this.screens.current;
+    if (current !== 'ccSelect' && current !== 'racerSelect') {
+      this.load(sunnyLineup(DEFAULT_SEED), 'lineup');
+    }
     this.pauseButton.hidden = true;
     this.session.game.resume();
-    this.focusLineupKart(this.chosenKart, true);
+    const kartOf = (s: number) => (s === 0 ? this.chosenKart : this.otherKarts[s - 1]);
+    const initial = kartOf(slot) ?? this.chosenKart;
+    this.focusLineupKart(initial, true);
+    const multi = this.chosenPlayers > 1;
     this.screens.show('racerSelect', {
-      initial: this.chosenKart,
+      initial,
       onChange: (kart) => this.focusLineupKart(kart),
       onChoose: (kart) => {
-        this.chosenKart = kart;
+        if (slot === 0) this.chosenKart = kart;
+        else this.otherKarts[slot - 1] = kart;
         // Remembered straight away (MK-51), even if the player backs out of the cc select.
         this.savePrefs();
-        this.showCcSelect();
+        if (slot + 1 < this.chosenPlayers) this.pickRacer(slot + 1);
+        else this.showCcSelect();
       },
-      onBack: this.showTitle,
+      onBack: slot === 0 ? this.showTitle : () => this.pickRacer(slot - 1),
       isPaused: () => this.session.game.paused,
+      ...(multi ? { player: playerLabel(slot) } : {}),
+      ...(slot === 0
+        ? {
+            players: {
+              count: this.chosenPlayers,
+              max: MAX_PLAYERS,
+              onChange: (count: number) => {
+                if (count === this.chosenPlayers) return;
+                this.chosenPlayers = count;
+                this.savePrefs();
+                this.pickRacer(0);
+              },
+            },
+          }
+        : {}),
     });
-  };
+  }
 
   private readonly showCcSelect = (): void => {
     this.screens.show('ccSelect', {
@@ -500,7 +548,8 @@ export class Flow {
         this.savePrefs();
         this.showTrackSelect();
       },
-      onBack: this.showRacerSelect,
+      // Back to the last player's racer (MK-144).
+      onBack: () => this.pickRacer(this.chosenPlayers - 1),
     });
   };
 
@@ -528,6 +577,8 @@ export class Flow {
       kart: this.chosenKart,
       engineClass: this.chosenCc,
       track: this.chosenTrack,
+      players: this.chosenPlayers,
+      otherKarts: this.otherKarts,
     });
   }
 
@@ -540,12 +591,15 @@ export class Flow {
     this.raceCount += 1;
     this.screens.hide();
     this.beforeLoad();
-    this.ranked = !this.scenarioPage || this.leaderboard.test;
+    const solo = this.chosenPlayers === 1;
+    // Local multiplayer races (MK-144) don't count for the leaderboard or the track records.
+    this.ranked = (!this.scenarioPage || this.leaderboard.test) && solo;
     this.session.startRace({
       seed: DEFAULT_SEED + this.raceCount,
       engineClass: this.chosenCc,
       playerKart: this.chosenKart,
       trackId: this.chosenTrack,
+      ...(solo ? {} : { otherPlayers: this.otherKarts.slice(0, this.chosenPlayers - 1) }),
     });
     this.world.reset('chase', this.session.localKartId);
     this.session.game.resume();
@@ -701,16 +755,21 @@ export class Flow {
     this.session.game.resume();
   }
 
-  /** The pause menu. Online (MK-55) it doesn't stop the race, and there's no restart. */
-  private readonly pauseRace = (): void => {
+  /**
+   * The pause menu, opened by player slot `by` (MK-144: any player can pause; the menu says who).
+   * Online (MK-55) it doesn't stop the race, and there's no restart.
+   */
+  private readonly pauseRace = (by = 0): void => {
     const game = this.session.game;
     if (this.screens.current !== 'none' || game.state.phase === 'finished') return;
     const online = this.session.online !== null;
     if (!online) game.pause();
     if (!online && this.isMk8Race()) return this.showMk8Pause();
+    const pausedBy = this.session.players > 1 ? `Paused by ${playerLabel(by)}` : undefined;
     this.screens.show('paused', {
       onResume: this.resumeRace,
       ...(online ? { note: ONLINE_PAUSE_NOTE } : { onRestart: this.startRace }),
+      ...(pausedBy ? { note: pausedBy } : {}),
       onQuit: this.showTitle,
       onHowToPlay: this.openHowToPlay,
       onSettings: this.showSettings,
@@ -809,7 +868,8 @@ export class Flow {
   private readonly showResults = (): void => {
     if (this.session.online) return this.showOnlineResults();
     if (this.isMk8Race()) return this.showMk8Results();
-    const rows = resultLines(this.session.game.state, this.session.localKartId);
+    const { players, slotKarts, localKartId } = this.session;
+    const rows = resultLines(this.session.game.state, players > 1 ? slotKarts : localKartId);
     this.pauseButton.hidden = true;
     this.screens.show('results', {
       rows,
@@ -908,6 +968,13 @@ export class Flow {
     this.world.effects.onEvents(events, followId);
     const me = this.session.localKartId;
     this.hud.onEvents(events, state, me, performance.now());
+    if (this.session.players > 1) {
+      // Local multiplayer (MK-144): the results once every player has finished (the race's end).
+      if (events.some((e) => e.type === 'phaseChanged' && e.phase === 'finished')) {
+        this.resultsTimer = window.setTimeout(this.showResults, RESULTS_DELAY_MS);
+      }
+      return;
+    }
     const finished = events.find((e) => e.type === 'finish' && e.kartId === me);
     if (finished) {
       if (!this.mk8Race) this.recordUpdate = recordFinish(this.store, state, me);

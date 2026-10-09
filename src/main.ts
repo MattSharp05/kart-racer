@@ -8,6 +8,7 @@ import { playerColour } from './game/results';
 import { RaceSession, resolveLaunch } from './game/session';
 import { browserStore, OverlayStore, readSettings } from './game/storage';
 import { installTestApi } from './game/testApi';
+import { TestSource } from './input/sources';
 import { setTouchHand, setTouchLayout } from './input/touch';
 import { localRoomBackend } from './net/roomBackendLocal';
 import { supabaseRoomBackend } from './net/roomBackendSupabase';
@@ -45,7 +46,7 @@ setTouchHand(readSettings(store).hand);
 setTouchLayout(readSettings(store).buttons);
 // The saved steering (MK-54): drag or tilt, before the controls are built.
 restoreSteering(store);
-const session = new RaceSession(launch.state);
+const session = new RaceSession(launch.state, launch.players, launch.slotSources);
 const game = session.game;
 if (params.paused) game.pause();
 
@@ -98,6 +99,15 @@ installTestApi(
     session.load(state);
     world.reset(world.view, session.localKartId);
     return true;
+  },
+  {
+    slotKarts: () => session.slotKarts.slice(),
+    pressPause: (slot) => {
+      const source = session.slots.source(slot);
+      if (!(source instanceof TestSource)) return false;
+      source.pressPause();
+      return true;
+    },
   },
 );
 

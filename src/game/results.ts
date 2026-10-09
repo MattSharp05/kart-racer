@@ -15,16 +15,29 @@ export interface ResultLine {
   you: boolean;
   /** Race time, s; absent while still racing. */
   time?: number;
+  /** Local multiplayer (MK-144): which player drove it, 1–4; absent with one player. */
+  player?: number;
 }
 
-/** The results screen's rows, leader first, with `localKartId`'s row marked as yours (MK-38). */
-export function resultLines(state: SimState, localKartId: number): ResultLine[] {
+/**
+ * The results screen's rows, leader first, with `localKartId`'s row marked as yours (MK-38). With
+ * several people on this screen (MK-144) `localKartId` lists their karts by player slot, and every
+ * one of their rows is marked with its player number.
+ */
+export function resultLines(
+  state: SimState,
+  localKartId: number | readonly number[],
+): ResultLine[] {
+  const players = typeof localKartId === 'number' ? [localKartId] : localKartId;
+  const multi = players.length > 1;
   return raceResults(state).map((row) => {
     const kart = state.karts[row.kartId];
+    const slot = players.indexOf(row.kartId);
     return {
       position: row.position,
       name: kart ? (kart.name ?? kartDef(kart.kartType).name) : '?',
-      you: row.kartId === localKartId,
+      you: slot >= 0,
+      ...(multi && slot >= 0 ? { player: slot + 1 } : {}),
       ...(row.time !== undefined ? { time: row.time } : {}),
     };
   });
