@@ -145,9 +145,13 @@ function updateMeshRespawns(
       below = dot(sub(kart.position, frame.position), frame.up) < -limits.depth;
       if (!below) kart.lastSafeT = t;
     }
+    // Under water a kart sinks slowly (`water.maxSink`), so a long time off the ground isn't a fall
+    // there (MK-128: off the end of Water Park's ring into the pool at 200cc); landing well below
+    // the road and the kill floor still are.
+    const airLimit = kart.glide ? limits.glideSeconds : limits.airSeconds;
     const fell =
       below ||
-      kart.airTime > (kart.glide ? limits.glideSeconds : limits.airSeconds) ||
+      (!kart.inWater && kart.airTime > airLimit) ||
       kart.position.y < track.collision.gridMin[1] - limits.depth ||
       (!kart.grounded && overKillFloor(track, kart, limits.depth));
     const asked = inputs[kart.id]?.respawn === true && kart.respawnCooldown <= 0;

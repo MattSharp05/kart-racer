@@ -84,19 +84,18 @@ describe('Thwomp Ruins: route and data (MK-124, MK-128)', () => {
     expect(insideWater(ruins.route, geometry.frameAt(0).position)).toBe(false);
   });
 
-  it('has four Thwomps on the road after the start, out of step, with room to slip by', () => {
+  it('has four Thwomps on the road after the start, out of step, beside the centreline', () => {
     expect(thwomps).toHaveLength(4);
     expect(ruins.hazards).toBe(thwomps);
     for (const { def, at } of spots) {
       expect(def.kind).toBe('periodic');
       expect(def.thwomp?.lift).toBeGreaterThan(0);
-      // Over the road on the scaled course (its footprint is in metres, the route in the pack's
-      // units): it covers the centreline, with room to slip by at the side, before the temple.
+      // On the road of the scaled course (its footprint is in metres, the route in the pack's
+      // units), before the temple: clear of the centreline, inside the road's edge.
       const half = (geometry.frameAt(at.t).width / 2) * MK8_COURSE_SCALE;
       const lateral = Math.abs(at.lateral) * MK8_COURSE_SCALE;
-      expect(lateral).toBeLessThan(def.halfWidth);
+      expect(lateral - def.halfWidth).toBeGreaterThan(tuning.hazards.kartRadius);
       expect(lateral + def.halfWidth).toBeLessThan(half);
-      expect(at.distance * MK8_COURSE_SCALE).toBeLessThan(def.halfWidth);
       expect(at.t).toBeLessThan(0.2);
     }
     expect(new Set(thwomps.map((t) => t.phase)).size).toBe(thwomps.length);

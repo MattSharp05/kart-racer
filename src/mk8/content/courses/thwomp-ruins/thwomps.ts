@@ -1,8 +1,8 @@
 // Thwomp Ruins' Thwomps (MK-124, placed on the pack in MK-128): `periodic` hazards
 // (`sim/hazards/periodic.ts`, poses a pure function of the tick), drawn as Thwomps (`thwomp`).
-// Four slam down on the start straight and the courtyard after it, a little off the centreline
-// and out of step, so there's always a way past: each hovers, slams down onto its footprint and
-// stays down a moment, then rises. Positions in the pack's units, like the route (they move with
+// Four slam down on the start straight and the courtyard after it, out of step, left and right
+// of the centreline (the line between them stays clear, the road's sides don't): each hovers,
+// slams down onto its footprint and stays down a moment, then rises. Positions in the pack's units, like the route (they move with
 // the course's scale); sizes in metres.
 import type { PeriodicHazard } from '../../../../sim/hazards/types';
 
@@ -26,10 +26,10 @@ const thwomp = (
 });
 
 export const thwomps: PeriodicHazard[] = [
-  thwomp(35.95, 41.83, -40.34, -0.108, 0),
-  thwomp(37.58, 41.96, -48.8, 0.093, 0.5),
-  thwomp(33.76, 42.09, -57.35, 0.705, 0.25),
-  thwomp(15.31, 42.45, -61.79, 1.706, 0.75),
+  thwomp(34.55, 41.83, -40.5, -0.108, 0),
+  thwomp(38.97, 41.96, -48.93, 0.093, 0.5),
+  thwomp(32.7, 42.09, -56.45, 0.705, 0.25),
+  thwomp(15.12, 42.45, -63.18, 1.706, 0.75),
 ];
 
 /**

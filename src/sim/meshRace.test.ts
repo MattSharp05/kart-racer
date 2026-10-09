@@ -146,3 +146,43 @@ describe('glide zones and falls on mesh tracks (MK-105)', () => {
     expect(at).toBeLessThan(tuning.mk8.fallSeconds * 60);
   });
 });
+
+describe('sinking under water on mesh tracks (MK-128)', () => {
+  const deep = 'mk128-deep-water';
+  beforeAll(() => {
+    if (tracks.has(deep)) return;
+    const def = jumpCourse(deep, false);
+    // A deep pool over the far straight (its floor is the road at y −4).
+    const pool = {
+      kind: 'water' as const,
+      min: { x: 100, y: -10, z: -50 },
+      max: { x: 300, y: 300, z: 50 },
+    };
+    const withPool = { ...def, route: { ...def.route, zones: [pool] } };
+    tracks.register({ id: deep, name: deep, order: 2000, def: withPool, testOnly: true });
+  });
+
+  /** A kart let go `height` m over the far straight: respawns in the first `seconds` s. */
+  const respawns = (id: string, height: number, seconds: number) => {
+    let state = createSimState({
+      seed: 1,
+      trackId: id,
+      engineClass: 150,
+      itemsOn: false,
+      karts: [{ position: { x: 200, y: height, z: 0 }, heading: -Math.PI / 2 }],
+    });
+    state.karts[0]!.grounded = false;
+    for (let i = 0; i < seconds * 60; i += 1) {
+      const r = step(state, [NEUTRAL_INPUT]);
+      state = r.state;
+      if (r.events.some((e) => e.type === 'respawn')) return true;
+    }
+    return false;
+  };
+
+  it('isn’t a fall however long it takes to sink to the floor; in the air it is', () => {
+    const seconds = tuning.mk8.fallSeconds + 1;
+    expect(respawns(deep, 150, seconds)).toBe(false);
+    expect(respawns('mk105-jump-plain', 150, seconds)).toBe(true);
+  });
+});
