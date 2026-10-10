@@ -350,7 +350,9 @@ export class RaceSession {
     const { seed, engineClass, trackId, itemSet, racers } = config;
     if (racers) {
       const opts = { trackId, racers, engineClass, itemsOn: true, seed };
-      this.load(createRace(itemSet !== undefined ? { ...opts, itemSet } : opts));
+      // MK-148: an MK8 VS Race's field seats every local player (its `local` karts).
+      const players = racers.filter((r) => r.controller === 'local').length;
+      this.load(createRace(itemSet !== undefined ? { ...opts, itemSet } : opts), players);
       return;
     }
     const others = config.otherPlayers?.slice(0, MAX_PLAYERS - 1) ?? [];

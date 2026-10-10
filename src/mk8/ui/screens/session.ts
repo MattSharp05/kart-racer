@@ -54,6 +54,12 @@ export interface Mk8Flow {
   course?: Mk8CourseKey;
   /** VS Race settings (MK-131): items and CPU difficulty. */
   vs?: VsRules;
+  /** People racing on this screen (MK-148: the Players screen, VS Race only), 1–4. */
+  players?: number;
+  /** P2–P4's racer and kart (MK-148), by slot − 1; P1's is `loadout`. */
+  others?: Mk8Loadout[];
+  /** The player picking a racer and kart now (MK-148): 0 = P1. */
+  picking?: number;
 }
 
 /** What every MK8 menu screen is built with. */
@@ -83,6 +89,10 @@ export interface Mk8Context {
    * pushes. Screens never import each other.
    */
   next(from: string): Mk8ScreenFactory;
+  /**
+   * Screen `id` (MK-148: the kart builder sends the next player back to the character select).
+   */
+  open(id: string): Mk8ScreenFactory;
   /** Online (MK-132): the game's rooms as MK8 rooms, racing `loadout`; absent outside the game. */
   openRoom?: (loadout: Mk8Loadout) => void;
 }

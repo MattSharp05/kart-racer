@@ -53,6 +53,8 @@ export interface Mk8PauseHandlers {
   onQuit: () => void;
   /** A scenario race's `mk8Start` (MK-130: a scripted Grand Prix's hint). */
   mode?: string | undefined;
+  /** Local multiplayer (MK-148): who paused ("P2"), shown in the header band. */
+  pausedBy?: string | undefined;
 }
 
 /** MK8's pause menu over a race (MK-121): Continue, Restart, Quit. Esc / B continue. */
@@ -63,10 +65,12 @@ export function showPause(
   handlers: Mk8PauseHandlers,
 ): void {
   const race = setup ?? scriptedSetup(state, handlers.mode);
+  const title = raceTitle(state, race);
   screens.show('mk8Stack', {
     first: pauseMenu({
-      ...raceTitle(state, race),
       ...handlers,
+      title: title.title,
+      sub: handlers.pausedBy ? `${title.sub} · Paused by ${handlers.pausedBy}` : title.sub,
       // Mid-Grand Prix (MK-130), quitting loses the cup: asked first.
       ...(race?.gp ? { quitConfirm: confirmQuitGp(handlers.onQuit) } : {}),
     }),
@@ -85,7 +89,7 @@ export interface Mk8ResultsHandlers {
 }
 
 /**
- * The results of a finished MK8 race (MK-121): its rows, and in a Grand Prix (MK-130) the
+ * The results of a finished MK8 race (MK-121), for the local kart or (MK-148) each local player's: its rows, and in a Grand Prix (MK-130) the
  * standings with the cup's earlier points. The race from the menus (`setup`) says the mode; a
  * scenario's race says it with its `mk8Start` (`mode`: a game mode's id, or a scripted Grand Prix's
  * hint; VS otherwise). After a cup's last race the next choice is the podium.
@@ -93,18 +97,20 @@ export interface Mk8ResultsHandlers {
 export function showResults(
   screens: Router,
   state: SimState,
-  localKartId: number,
+  local: number | readonly number[],
   setup: Mk8RaceSetup | undefined,
   mode: string | undefined,
   handlers: Mk8ResultsHandlers,
 ): void {
+  // Local multiplayer (MK-148): every player's kart, P1 first; P1's is the Time Trial's.
+  const localKartId = typeof local === 'number' ? local : (local[0] ?? -1);
   const race = setup ?? scriptedSetup(state, mode) ?? scenarioSetup(state, gameMode(mode));
   if (race.gp && mode === 'gp-podium' && !setup) {
     showPodium(screens, recordRace(race.gp, state.positions), handlers);
     return;
   }
   const gameModeId = race.mode ?? 'vs';
-  const rows = mk8ResultRows(state, localKartId);
+  const rows = mk8ResultRows(state, local);
   const gp = race.gp;
   const after = gp && recordRace(gp, state.positions);
   const next = after ? !gpOver(after) || 'podium' : nextCourse(race) !== undefined;
@@ -322,6 +328,8 @@ async function goNext(
       engineClass: race.engineClass,
       loadout: race.loadout,
       ...(race.vs ? { vs: race.vs } : {}),
+      // Local multiplayer (MK-148): the same players on the next course.
+      ...(race.players ? { players: race.players, others: race.others ?? [] } : {}),
     },
     gp,
   );

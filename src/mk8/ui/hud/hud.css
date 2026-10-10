@@ -457,3 +457,23 @@ body.touch:has(.touch-controls[data-hand='left']) .mk8-hud-timer {
   left: auto;
   justify-items: end;
 }
+
+/* Split-screen (MK-148): each player's HUD in its view (left/top/width/height and `--u`, one
+   mockup pixel of the view, set inline), framed, with the player's label under the item box. */
+.mk8-hud.mk8-hud-view {
+  inset: auto;
+  overflow: hidden;
+  box-shadow: inset 0 0 0 2px rgb(0 0 0 / 0.55);
+}
+
+.mk8-hud-player {
+  position: absolute;
+  left: var(--edge-left);
+  top: calc(var(--edge-top) + 172 * var(--u));
+  padding: 0.18em 0.55em;
+  border-radius: 0.5em;
+  background: var(--player-colour, #fff);
+  font-size: max(12px, calc(34 * var(--u)));
+  font-style: italic;
+  -webkit-text-stroke: 1px rgb(0 0 0 / 0.35);
+}

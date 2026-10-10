@@ -444,8 +444,9 @@ export class World {
 
   /**
    * Draws each player's view into its part of the canvas (MK-145), and the 3-player split's
-   * overview quadrant. Renderer stats add up over the views. MK8 courses' own looks (post-
-   * processing) are left out: MK8 split-screen is its own ticket (MK-148).
+   * overview quadrant. Renderer stats add up over the views. MK8 courses' post-processing (bloom,
+   * boost blur) is off in split-screen (MK-148): a full-screen pass per view would cost more than
+   * the views themselves; with 2 views the course's tone mapping stays, 3–4 step down to low.
    */
   private drawSplit(state: SimState): void {
     const renderer = this.renderer;

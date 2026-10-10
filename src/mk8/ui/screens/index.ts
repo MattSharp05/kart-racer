@@ -51,6 +51,13 @@ export class Mk8ScreenFlow {
     return next;
   }
 
+  /** Screen `id`. Throws for an id no screen has. */
+  byId(id: string): Mk8Screen {
+    const screen = this.screens.find((s) => s.id === id);
+    if (!screen) throw new Error(`MK8: unknown screen ${id}`);
+    return screen;
+  }
+
   /**
    * Scenario start `start`: the choices made on the way and the screens over the title that lead
    * to its screen (that screen last); undefined when no screen declares it.

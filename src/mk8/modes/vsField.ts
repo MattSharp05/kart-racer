@@ -15,6 +15,12 @@ const FIELD = 8;
 /** The player starts somewhere in the back half of the grid (0-based slots), as in our races. */
 const PLAYER_SLOTS = [4, 7] as const;
 
+/** Another person racing on this screen (MK-148): their racer, and their kart when known. */
+export interface VsHuman {
+  kartId: KartId;
+  loadout?: Loadout;
+}
+
 /** The seed of a VS Race's field: the course, engine class and player's racer. */
 export function vsSeed(course: string, engineClass: EngineClass, racer: string): number {
   // FNV-1a, as a Grand Prix's seed (`gpSeed`; not imported: this file is in the main bundle via the
@@ -31,36 +37,63 @@ export function vsSeed(course: string, engineClass: EngineClass, racer: string):
  * The player (`playerKart`, racing `loadout` when known) plus 7 MK8 CPU racers other than the
  * player's, shuffled by `seed`, on the grid with the player in slots 5–8. Undefined while MK8's
  * racers aren't registered (MK8 Mode not opened): the race then picks its own CPUs.
+ *
+ * Local multiplayer (MK-148): `others` (P2–P4) race too, karts 1… after the player's, the
+ * players spread over the back half of the grid and CPUs (none of the players' racers) filling
+ * the rest. With no `others` the field is the same as a solo race's.
  */
 export function vsField(
   playerKart: KartId,
   loadout: Loadout | undefined,
   seed: number,
+  others: readonly VsHuman[] = [],
 ): RacerSlot[] | undefined {
   const rng: RngHolder = { rngState: seedRng(seed) };
-  const player = loadout?.racer ?? playerKart;
+  const humans: VsHuman[] = [
+    { kartId: playerKart, ...(loadout ? { loadout } : {}) },
+    ...others.slice(0, PLAYER_SLOTS[1] - PLAYER_SLOTS[0]),
+  ];
+  const taken = new Set(humans.map((h) => h.loadout?.racer ?? h.kartId));
   const pool = MK8_RACERS.map((r) => r.id)
-    .filter((id) => id !== player && racers.has(id))
+    .filter((id) => !taken.has(id) && racers.has(id))
     .sort();
-  if (pool.length < FIELD - 1) return undefined;
+  const cpus = FIELD - humans.length;
+  if (pool.length < cpus) return undefined;
   for (let i = pool.length - 1; i > 0; i--) {
     const j = rngInt(rng, 0, i);
     [pool[i], pool[j]] = [pool[j] as string, pool[i] as string];
   }
-  const playerSlot = rngInt(rng, ...PLAYER_SLOTS);
-  const others = Array.from({ length: FIELD }, (_, i) => i).filter((i) => i !== playerSlot);
+  const humanSlots = gridSlotsFor(rng, humans.length);
+  const free = Array.from({ length: FIELD }, (_, i) => i).filter((i) => !humanSlots.includes(i));
   return [
-    {
-      kartId: playerKart,
+    ...humans.map((human, i): RacerSlot => ({
+      kartId: human.kartId,
       controller: 'local',
-      gridSlot: playerSlot,
-      ...(loadout ? { loadout: { ...loadout } } : {}),
-    },
-    ...pool.slice(0, FIELD - 1).map((racer, i): RacerSlot => ({
+      gridSlot: humanSlots[i] ?? i,
+      ...(human.loadout ? { loadout: { ...human.loadout } } : {}),
+    })),
+    ...pool.slice(0, cpus).map((racer, i): RacerSlot => ({
       kartId: racer,
       controller: 'ai',
-      gridSlot: others[i] ?? i + 1,
+      gridSlot: free[i] ?? humans.length + i,
       loadout: defaultLoadout(racer),
     })),
   ];
+}
+
+/**
+ * The players' grid slots: one of slots 5–8 alone (as before MK-148), else `count` of them
+ * shuffled.
+ */
+function gridSlotsFor(rng: RngHolder, count: number): number[] {
+  if (count <= 1) return [rngInt(rng, ...PLAYER_SLOTS)];
+  const back = Array.from(
+    { length: PLAYER_SLOTS[1] - PLAYER_SLOTS[0] + 1 },
+    (_, i) => PLAYER_SLOTS[0] + i,
+  );
+  for (let i = back.length - 1; i > 0; i--) {
+    const j = rngInt(rng, 0, i);
+    [back[i], back[j]] = [back[j] as number, back[i] as number];
+  }
+  return back.slice(0, count);
 }

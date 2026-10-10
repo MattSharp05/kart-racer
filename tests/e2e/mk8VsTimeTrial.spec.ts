@@ -16,7 +16,8 @@ const results = (page: Page) => page.locator('.mk8-scr-results');
 test.describe('MK8 VS Race and Time Trial (MK-131)', () => {
   test('VS settings: class, bananas only and hard CPU carry into the race', async ({ page }) => {
     await loadScenario(page, 'mk8-vs-settings');
-    await settled(page, 5);
+    // Title, mode, players (MK-148), character, kart, then the settings.
+    await settled(page, 6);
     await expect(page.locator('.mk8-scr-vs .mk8-hdr')).toContainText('VS Race');
     await expect(page.locator('.mk8-scr-vs .mk8-vs-value')).toHaveText([
       '150cc',
@@ -43,7 +44,7 @@ test.describe('MK8 VS Race and Time Trial (MK-131)', () => {
     await expect(row(page, 'items').locator('.mk8-vs-value')).toHaveText('Bananas only');
 
     await page.keyboard.press('Enter');
-    await settled(page, 6);
+    await settled(page, 7);
     await expect(page.locator('.mk8-scr-cup .mk8-hdr .mk8-sub')).toHaveText('200cc');
     expect(await page.evaluate(() => window.__mk8?.flow)).toMatchObject({
       mode: 'vs',

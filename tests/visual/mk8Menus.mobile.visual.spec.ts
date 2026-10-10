@@ -11,7 +11,8 @@ for (const [name, depth] of [
   ['mk8-ui-kart', '4'],
   ['mk8-ui-cc', '5'],
   ['mk8-ui-cup', '6'],
-  ['mk8-ui-course', '6'],
+  // A VS Race: the Players screen (MK-148) is under it too.
+  ['mk8-ui-course', '7'],
 ] as const) {
   test(`${name} on phones (paused)`, async ({ page }, info) => {
     await loadScenario(page, name, { paused: true });

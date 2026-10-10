@@ -147,3 +147,37 @@ describe('resultLines', () => {
     expect(rows.some((r) => r.player !== undefined)).toBe(false);
   });
 });
+
+describe('local multiplayer in MK8 races (MK-148)', () => {
+  it('a race from a field seats every local racer as a player, P1 first', () => {
+    const session = new RaceSession(sunnyRace(1, { karts: 1, ai: false, engineClass: 150 }));
+    const racers = [
+      { kartId: 'maple' as const, controller: 'local' as const, gridSlot: 5 },
+      { kartId: 'boulder' as const, controller: 'local' as const, gridSlot: 6 },
+      ...[0, 1, 2, 3, 4, 7].map((gridSlot) => ({
+        kartId: 'coral' as const,
+        controller: 'ai' as const,
+        gridSlot,
+      })),
+    ];
+    session.startRace({
+      seed: 1,
+      engineClass: 150,
+      playerKart: 'maple',
+      trackId: 'sunny-circuit',
+      racers,
+    });
+    expect(session.players).toBe(2);
+    expect(session.slotKarts).toEqual([0, 1]);
+    // A field with one local racer (a Grand Prix, Time Trial) stays one player.
+    session.startRace({
+      seed: 1,
+      engineClass: 150,
+      playerKart: 'maple',
+      trackId: 'sunny-circuit',
+      racers: racers.map((r, i) => (i === 1 ? { ...r, controller: 'ai' as const } : r)),
+    });
+    expect(session.players).toBe(1);
+    expect(session.slotKarts).toEqual([0]);
+  });
+});

@@ -55,6 +55,18 @@ describe('MK8 results (MK-121)', () => {
     expect(rows[0]?.name).toBeTruthy();
   });
 
+  it('marks every local player’s row with their label in local multiplayer (MK-148)', () => {
+    const rows = mk8ResultRows(finishedRace(), [0, 3]);
+    expect(rows.map((r) => [r.kartId, r.you, r.player])).toEqual([
+      [2, false, undefined],
+      [0, true, 'P1'],
+      [3, true, 'P2'],
+      [1, false, undefined],
+    ]);
+    // One player: no labels, as before.
+    expect(mk8ResultRows(finishedRace(), [0]).some((r) => r.player)).toBe(false);
+  });
+
   it('gives MK8’s Grand Prix points: 15-12-10-9-8-7-6-5…, 0 past 12th', () => {
     expect(GP_POINTS.slice(0, 8)).toEqual([15, 12, 10, 9, 8, 7, 6, 5]);
     expect(pointsFor(1)).toBe(15);

@@ -8,7 +8,10 @@
 import { MK8_RACERS } from '../../content/racers';
 import { mk8RacerView } from '../../content/racers/render';
 import type { WeightClass } from '../../content/racers/weightClass';
+import { playerLabel, playerSlotColour } from '../../../input/slots';
+import { resolveLoadout } from '../../content/parts';
 import { DEFAULT_LOADOUT } from '../../flow';
+import { flowPlayers, pickingSlot, setSlotLoadout, slotLoadout } from '../../localPlayers';
 import { savedLoadout, savedRacer, saveLoadout } from '../../loadoutPrefs';
 import { RacerPreview } from '../../render/preview';
 import { art, Menu, menuScreen, nameplate, panel, squareTile } from '../kit';
@@ -63,9 +66,12 @@ export interface PreviewHooks {
 
 export function characterSelect(ctx: Mk8Context): Mk8ScreenFactory {
   return (stack) => {
+    // Several players (MK-148): this screen is player `slot`'s pick.
+    const slot = pickingSlot(ctx.flow);
+    const multi = flowPlayers(ctx.flow) > 1;
     const { el, body } = menuScreen({
       name: 'char',
-      title: 'Choose your character',
+      title: multi ? `${playerLabel(slot)}: Choose your character` : 'Choose your character',
       hints: [
         { button: 'a', label: 'OK', onPress: () => menu.confirm() },
         { button: 'b', label: 'Back', onPress: () => stack.back() },
@@ -87,7 +93,8 @@ export function characterSelect(ctx: Mk8Context): Mk8ScreenFactory {
       tile.dataset.racer = racer.id;
       const badge = document.createElement('span');
       badge.className = 'mk8-p1';
-      badge.textContent = 'P1';
+      badge.textContent = playerLabel(slot);
+      if (multi) badge.style.background = playerSlotColour(slot);
       tile.append(badge);
       return tile;
     });
@@ -118,10 +125,16 @@ export function characterSelect(ctx: Mk8Context): Mk8ScreenFactory {
       portrait.dataset.racer = entry.racer.id;
     };
 
-    const remembered = ctx.flow.loadout?.racer ?? savedRacer(ctx.store);
-    const initial = CHARACTER_GRID.findIndex(
-      (c) => c.racer.id === (remembered ?? DEFAULT_LOADOUT.racer),
+    const remembered =
+      slotLoadout(ctx.flow, slot)?.racer ?? (slot === 0 ? savedRacer(ctx.store) : undefined);
+    const p1 = CHARACTER_GRID.findIndex(
+      (c) => c.racer.id === (ctx.flow.loadout?.racer ?? DEFAULT_LOADOUT.racer),
     );
+    // P2–P4 start on the racers after P1's, so a quick OK doesn't race two Marios.
+    const initial =
+      remembered !== undefined
+        ? CHARACTER_GRID.findIndex((c) => c.racer.id === remembered)
+        : (Math.max(0, p1) + slot) % CHARACTER_GRID.length;
     let opened = false;
     const menu = new Menu({
       items: tiles,
@@ -142,9 +155,13 @@ export function characterSelect(ctx: Mk8Context): Mk8ScreenFactory {
       onConfirm: (index) => {
         const racer = CHARACTER_GRID[index]?.racer.id ?? DEFAULT_LOADOUT.racer;
         // MK8 keeps your kart parts when you change racer (the saved ones, else its defaults).
-        const loadout = savedLoadout(ctx.store, racer);
-        ctx.flow.loadout = loadout;
-        saveLoadout(ctx.store, loadout);
+        // P2–P4 (MK-148) keep the parts they picked before; only P1's are saved on the device.
+        const loadout =
+          slot === 0
+            ? savedLoadout(ctx.store, racer)
+            : resolveLoadout(racer, slotLoadout(ctx.flow, slot));
+        setSlotLoadout(ctx.flow, slot, loadout);
+        if (slot === 0) saveLoadout(ctx.store, loadout);
         stack.push(ctx.next('char'));
       },
     });
@@ -191,7 +208,11 @@ export function characterSelect(ctx: Mk8Context): Mk8ScreenFactory {
     return {
       el,
       onKey: (e) => menu.handleKey(e),
-      onShow: () => preview?.resume(),
+      onShow: () => {
+        // Back from a later player's screens: this player picks again.
+        ctx.flow.picking = slot;
+        preview?.resume();
+      },
       dispose: () => {
         closed = true;
         if (hooks && window.__mk8?.preview === hooks) delete window.__mk8.preview;
@@ -201,9 +222,15 @@ export function characterSelect(ctx: Mk8Context): Mk8ScreenFactory {
   };
 }
 
-/** The character select (MK-117); the `char` scenario start opens on it for a Grand Prix. */
+/**
+ * The character select (MK-117); the `char` scenario start opens on it for a Grand Prix, `char-p2`
+ * on P2's pick in a 2-player VS Race (MK-148).
+ */
 export const screen: Mk8Screen = {
   id: 'char',
   build: characterSelect,
-  starts: { char: { mode: 'grand-prix' } },
+  starts: {
+    char: { mode: 'grand-prix' },
+    'char-p2': { mode: 'vs', players: 2, picking: 1, loadout: { ...DEFAULT_LOADOUT } },
+  },
 };
